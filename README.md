@@ -70,6 +70,20 @@ Facturación vs RIPS · Tri-eje · Contratos · Radicación · Notas técnicas �
 Endpoints nuevos: `GET /api/comparativos`, `GET /api/comparativo/mensual?nivel=`, `GET /api/estados/{radicacion|notas|contratos|tri-eje}`.
 Las gráficas usan Chart.js desde cdnjs (se necesita internet al abrir el dashboard).
 
+## Instalador de Windows (recomendado)
+Ejecute **`Instalador_Auditoria_ESE_MyC_v5.0.exe`** (doble clic → Siguiente → Instalar). No requiere internet, Python ni permisos de
+administrador: incluye Python 3.12 oficial y todas las librerías. Crea accesos en el **Escritorio** y en el **menú Inicio**
+(«Auditoría ESE MyC», «Carpeta de datos», «Guía rápida», «Desinstalar») y queda en *Agregar o quitar programas*.
+
+- Programa: `%LOCALAPPDATA%\Programs\AuditoriaESE_MyC` · Datos: `%LOCALAPPDATA%\AuditoriaESE_MyC\data` (se conservan al actualizar;
+  al desinstalar se pregunta si se borran).
+- Al abrir aparece una ventana minimizada (el servidor) y el navegador en `http://localhost:8000`; cerrar esa ventana cierra el aplicativo.
+- Las gráficas (Chart.js) van incluidas: el tablero funciona sin internet.
+- Trae archivos de demostración (ficticios) en la carpeta `datos_demo` de la instalación.
+- Construir el instalador (desde Linux/macOS, sin Windows): `bash instalador/construir_instalador.sh` → `dist/`.
+  Versiones empaquetadas en `instalador/requirements-windows.txt`.
+- Windows SmartScreen puede advertir que el instalador no está firmado: «Más información» → «Ejecutar de todas formas».
+
 ## Novedades v5.0
 
 | Pestaña / hoja | Qué hace |
