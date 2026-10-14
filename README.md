@@ -71,7 +71,7 @@ Endpoints nuevos: `GET /api/comparativos`, `GET /api/comparativo/mensual?nivel=`
 Las gráficas usan Chart.js desde cdnjs (se necesita internet al abrir el dashboard).
 
 ## Instalador de Windows (recomendado)
-Ejecute **`Instalador_Auditoria_ESE_MyC_v5.0.exe`** (doble clic → Siguiente → Instalar). No requiere internet, Python ni permisos de
+Requisito: Windows 10 u 11 de 64 bits. Ejecute **`Instalador_Auditoria_ESE_MyC_v5.0.exe`** (doble clic → Siguiente → Instalar). No requiere internet, Python ni permisos de
 administrador: incluye Python 3.12 oficial y todas las librerías. Crea accesos en el **Escritorio** y en el **menú Inicio**
 («Auditoría ESE MyC», «Carpeta de datos», «Guía rápida», «Desinstalar») y queda en *Agregar o quitar programas*.
 

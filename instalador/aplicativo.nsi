@@ -1,8 +1,9 @@
-; Instalador de Windows · Auditoría de Facturación, RIPS, Costos y Medicamentos · ESE Moreno y Clavijo
+﻿; Instalador de Windows · Auditoría de Facturación, RIPS, Costos y Medicamentos · ESE Moreno y Clavijo
 ; Se compila con instalador/construir_instalador.sh (makensis con /DSTAGE=<carpeta preparada> /DVERSION=<x.y> /DOUTFILE=<ruta.exe>)
 ; Instalación por usuario (no requiere administrador). Incluye Python 3.12 y todas las librerías: no necesita internet.
 
 Unicode true
+; El archivo se guarda en UTF-8 CON BOM: sin él makensis lo lee como ANSI y los nombres con tilde (Auditoría, Guía) fallan.
 SetCompressor /SOLID lzma
 !include "MUI2.nsh"
 
@@ -86,7 +87,7 @@ Section "Uninstall"
   RMDir /r "$INSTDIR"
   DeleteRegKey HKCU "${UNINSTKEY}"
   DeleteRegKey HKCU "Software\${APPID}"
-  MessageBox MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2 "¿Desea borrar también la base de datos y los archivos cargados?$\r$\n($LOCALAPPDATA\${APPID})$\r$\n$\r$\nElija No para conservarlos (recomendado si va a reinstalar)." IDNO fin
+  MessageBox MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2 "¿Desea borrar también la base de datos y los archivos cargados?$\r$\n($LOCALAPPDATA\${APPID})$\r$\n$\r$\nElija No para conservarlos (recomendado si va a reinstalar)." /SD IDNO IDNO fin
     RMDir /r "$LOCALAPPDATA\${APPID}"
   fin:
 SectionEnd
