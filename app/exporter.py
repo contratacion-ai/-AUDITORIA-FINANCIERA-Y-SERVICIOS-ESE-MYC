@@ -8,7 +8,7 @@ import pandas as pd
 from openpyxl.chart import BarChart, Reference
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
-from . import analysis as A, costos as C
+from . import analysis as A, costos as C, facturas as F, gerencial as G, medicamentos as MD
 from .db import AUTOR, AZUL, AZUL_CLARO, AZUL_MED, CARGO, FUENTE, GRIS, GRIS_CLARO, IDENTIDAD, INSTITUCION, NIT, VERSION, df
 
 TOP = 5            # filas ocupadas por el bloque de título antes de la tabla (títulos en 1-3, fila 4 en blanco, encabezado en la 5)
@@ -20,10 +20,36 @@ DESCRIPCION = {
     "Contratos": "Comportamiento de contratos.", "Radicacion": "Radicación factura a factura (360 ↔ RIPS).", "Notas_Tecnicas": "Nota técnica vs facturación, RIPS y costo unitario.",
     "Hallazgos": "Reglas de auditoría de línea R01–R09.", "Recomendaciones": "Acciones sugeridas por la herramienta.", "Costos_Cruce": "Cruce Costos × RIPS × Facturación × Notas técnicas por CUPS.",
     "Costos_Validaciones": "Errores y advertencias detectados al cargar costos.", "Regla_Actividad": "Mapa ACTIVIDAD → CUPS usado para identificar el CUPS de cada registro.",
+    "Informe_Gerencial": "Resumen ejecutivo, indicadores con semáforo, riesgos por valor y plan de acción priorizado.",
+    "FG_Sede": "Facturas generadas por sede: radicado, glosado, pendiente y días de radicación.", "FG_EPS": "Facturas generadas por pagador (EPS/tercero).",
+    "FG_Contrato": "Facturas generadas por contrato.", "FG_Reglas": "Reglas F01–F12 sobre el encabezado de factura.",
+    "FG_Alertas": "Facturas con al menos una alerta F01–F12.", "FG_Facturadores": "Productividad y calidad por usuario que registra la factura.",
+    "FG_Cruce": "Encabezado de factura ↔ detalle por ámbito ↔ RIPS.", "MED_Sede_Clase": "Medicamentos, insumos y suplementos por sede.",
+    "MED_Items_ABC": "Ítems con clasificación ABC, valor unitario y alertas.", "MED_Medicamentos_x_Sede": "Medicamentos: ítem × sede (valor).",
+    "MED_Insumos_x_Sede": "Insumos: ítem × sede (valor).", "MED_Suplementos_x_Sede": "Suplementos: ítem × sede (valor).",
+    "MED_Precios_Sede": "Valor unitario por sede y homogeneidad de precios.", "MED_EPS": "Medicamentos e insumos por EPS y modalidad.",
+    "MED_Farmacia": "Dispensación de farmacia vs facturación (fuga de ingresos, margen).",
 }
 
+def _hojas_v5(mes=None):
+    """Hojas nuevas de la v5: informe gerencial, facturas generadas y medicamentos/insumos por sede."""
+    h = {}
+    fg = F.resumen(mes)
+    if not fg.get("vacio"):
+        h["FG_Sede"] = pd.DataFrame(fg["por_sede"]); h["FG_EPS"] = pd.DataFrame(fg["por_eps"]); h["FG_Contrato"] = pd.DataFrame(fg["por_contrato"])
+        h["FG_Reglas"] = pd.DataFrame(fg["reglas"]); h["FG_Alertas"] = F.detalle(mes, solo_alertas=True)
+        h["FG_Facturadores"] = F.facturadores(mes); h["FG_Cruce"] = F.cruce(mes)
+    md = MD.resumen(mes)
+    if not md.get("vacio"):
+        h["MED_Sede_Clase"] = pd.DataFrame(md["por_sede_clase"]); h["MED_Items_ABC"] = MD.items(mes)
+        for c, n in (("MEDICAMENTO", "Medicamentos"), ("INSUMO", "Insumos"), ("SUPLEMENTO", "Suplementos")):
+            t = MD.por_sede(mes, c)
+            if not t.empty: h[f"MED_{n}_x_Sede"] = t
+        h["MED_Precios_Sede"] = MD.precios_sede(mes); h["MED_EPS"] = MD.por_eps(mes); h["MED_Farmacia"] = MD.cruce_farmacia(mes)
+    return h
+
 def hojas(mes=None):
-    m = A.mensual(); h = {"Resumen_Mensual": m if not mes else m[m.mes == mes]}
+    m = A.mensual(); h = {"Informe_Gerencial": G.tabla_excel(mes), "Resumen_Mensual": m if not mes else m[m.mes == mes]}
     h["Resumen_Empresa"] = A.resumen_empresa(mes); h["Resumen_Empresa_Mes"] = A.resumen_empresa_mensual(mes)
     for n, t in (("Sede", "sede"), ("Servicio", "servicio"), ("EPS", "eps"), ("Contrato", "contrato")): h[f"Comparativo_{n}_Mes"] = A.comparativo_mensual(t)
     for k in A.INFORMES:
@@ -33,6 +59,7 @@ def hojas(mes=None):
     for n in ("servicio", "sede", "cups"): h["TriEje_" + n] = A.tri_eje(mes, n)
     h["Contratos"] = A.contratos(mes); h["Radicacion"] = A.radicacion(mes); h["Notas_Tecnicas"] = A.notas_vs_fact(mes); h["Hallazgos"] = A.hallazgos(mes)
     h["Costos_Cruce"] = C.cruce(mes); h["Costos_Validaciones"] = C.validaciones()
+    h.update(_hojas_v5(mes))
     h["Recomendaciones"] = pd.DataFrame(A.recomendaciones(mes))
     h["Regla_Actividad"] = df("SELECT mes, actividad, cups, lineas FROM regla_actividad" + (" WHERE mes=?" if mes else "") + " ORDER BY lineas DESC", (mes,) if mes else ())
     h["Param_Contrato"] = df("SELECT * FROM param_contrato"); h["Param_Servicio"] = df("SELECT * FROM param_servicio")
@@ -76,10 +103,11 @@ def _estilo(ws, titulo, mes):
         for c in col[1:]:
             c.font = Font(name=FUENTE, size=10); c.border = _borde
             if (c.row - TOP) % 2 == 0: c.fill = PatternFill("solid", fgColor=GRIS_CLARO)
-            if isinstance(c.value, float): c.number_format = "0.0%" if head.startswith(("pct", "dif_", "cobertura")) else "#,##0.00"
+            if isinstance(c.value, float): c.number_format = "0.0%" if (head.startswith(("pct", "cobertura", "var_precio")) or head == "dif_prod_costo_vs_fact") else "#,##0.00"
             elif isinstance(c.value, int) and not head.endswith(("id", "mes", "fila")): c.number_format = "#,##0"
     # colorea el estado (semáforo)
     cols = {str(c.value): c.column for c in ws[TOP]}
+    if "alertas" in cols and "estado" not in cols: cols["estado"] = cols["alertas"]
     if "estado" in cols and not grande:
         for r in range(TOP + 1, ws.max_row + 1):
             c = ws.cell(r, cols["estado"]); v = str(c.value or "").upper()
@@ -104,7 +132,7 @@ def _portada(wb, mes, hojas_):
     ws["B5"] = f"NIT {NIT} · Tame, Arauca"; ws["B5"].font = Font(name=FUENTE, size=11, color=AZUL_CLARO)
     datos = [("Elaborado por", AUTOR), ("Cargo", CARGO), ("Periodo", mes or "Todos los periodos cargados"),
              ("Fecha de generación", f"{datetime.now():%d/%m/%Y %H:%M}"), ("Versión de la herramienta", VERSION),
-             ("Fuentes", "Software 360 (facturación por ámbito) · Consolidado RIPS · Costos mensuales · Notas técnicas EPS")]
+             ("Fuentes", "Software 360 (facturación por ámbito y facturas generadas) · Consolidado RIPS · Costos · Notas técnicas EPS · Farmacia")]
     for i, (k, v) in enumerate(datos, start=9):
         ws.cell(i, 2, k).font = Font(name=FUENTE, bold=True, size=11, color=AZUL); ws.cell(i, 3, v).font = Font(name=FUENTE, size=11)
         ws.cell(i, 2).border = ws.cell(i, 3).border = _borde

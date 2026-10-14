@@ -7,31 +7,48 @@ from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadF
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from openpyxl import Workbook
-from . import analysis as A, costos as C, exporter, plantillas as PL, processing as P
+from . import analysis as A, costos as C, exporter, facturas as F, gerencial as G, medicamentos as MD, plantillas as PL, processing as P
 from .db import UPLOADS, df, init
 from .loaders import ALIAS, _shared, hojas_mensuales, parse_mes
 
-app = FastAPI(title="Auditoría de facturación · ESE Moreno y Clavijo", version="4.0",
+app = FastAPI(title="Auditoría de facturación · ESE Moreno y Clavijo", version="5.0",
               description="Carga mensual de facturación por ámbito (Software 360), RIPS, costos y notas técnicas; conciliación y reportes.")
 init()
-TIPOS = ("facturacion", "rips", "costos", "notas", "parametros", "codigos")
+TIPOS = ("facturacion", "facturas", "rips", "costos", "notas", "parametros", "codigos", "farmacia")
+PLANTILLAS = ("rips", "costos", "notas", "parametros", "codigos", "farmacia")
 
 def _json(d, limit=None):
     total = len(d)
     d = d.head(limit) if limit else d
     return dict(total=total, columnas=list(d.columns), filas=d.astype(object).where(d.notna(), None).to_dict("records"))
 
+def _limpio(o):
+    """Convierte tipos numpy y NaN/inf a tipos JSON (None) de forma recursiva."""
+    if isinstance(o, dict): return {k: _limpio(v) for k, v in o.items()}
+    if isinstance(o, (list, tuple)): return [_limpio(v) for v in o]
+    if isinstance(o, (np.integer,)): return int(o)
+    if isinstance(o, (float, np.floating)): return None if not np.isfinite(o) else float(o)
+    return o
+
 @app.get("/api/health", tags=["sistema"])
 def health(): return {"ok": True, "hora": datetime.now().isoformat(timespec="seconds")}
 
 @app.get("/api/meses", tags=["datos"], summary="Meses con datos por fuente")
 def meses():
-    return {t: df(f"SELECT DISTINCT mes FROM {t} ORDER BY mes").mes.tolist() for t in ("fact", "rips", "costo")}
+    return {t: df(f"SELECT DISTINCT mes FROM {t} ORDER BY mes").mes.tolist() for t in ("fact", "rips", "costo", "fac_gen", "farmacia")}
+
+@app.get("/api/filtros", tags=["datos"], summary="Valores disponibles para los filtros del dashboard (sedes, EPS, clases)")
+def filtros():
+    q = lambda sql: [x for x in df(sql).iloc[:, 0].tolist() if x]
+    return dict(sedes=sorted(set(q("SELECT DISTINCT sede FROM fact") + q("SELECT DISTINCT sede FROM fac_gen") + q("SELECT DISTINCT sede FROM medins"))),
+                eps=sorted(set(q("SELECT DISTINCT tercero FROM fac_gen") + q("SELECT DISTINCT eps_nombre FROM medins"))),
+                clases=list(MD.CLASES))
 
 # ── 1. Carga ──
 @app.post("/api/cargas/{tipo}", tags=["cargas"], summary="Subir archivo (facturacion | rips | costos | notas)")
 def cargar(tipo: str, bg: BackgroundTasks, file: UploadFile = File(...), mes: str | None = Form(None, description="AAAA-MM (opcional si el archivo ya trae el mes)")):
     """facturacion: xlsx de Software 360 con hojas 'ENERO 2026', 'FEBRERO 2026'… (una carga por mes detectado).
+    facturas: «Informe de facturas generadas» de Software 360 (una fila por factura). farmacia: dispensación/consumo por sede y código.
     rips/costos: Excel/CSV con columna de mes, hojas nombradas por mes, o parámetro `mes`. notas: tarifas/topes por EPS."""
     if tipo not in TIPOS: raise HTTPException(404, f"Tipo inválido. Use: {TIPOS}")
     ext = Path(file.filename).suffix.lower()
@@ -65,7 +82,7 @@ def carga(cid: int):
 
 @app.get("/api/plantillas/{tipo}", tags=["cargas"], summary="Plantilla homologada (rips|costos|notas|parametros) con hoja de instrucciones y llaves comunes")
 def plantilla(tipo: str):
-    if tipo not in ("rips", "costos", "notas", "parametros", "codigos"): raise HTTPException(404, "Plantillas: rips, costos, notas, parametros, codigos")
+    if tipo not in PLANTILLAS: raise HTTPException(404, f"Plantillas: {', '.join(PLANTILLAS)}")
     b = io.BytesIO(); PL.plantilla(tipo).save(b); b.seek(0)
     return StreamingResponse(b, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                              headers={"Content-Disposition": f"attachment; filename=plantilla_{tipo}.xlsx"})
@@ -138,7 +155,7 @@ def c_cruce(mes: str | None = None, eps: str | None = None, estado: str | None =
     d = C.cruce(mes, eps); d = d[d.estado.str.contains(estado, regex=False)] if estado else d; return _json(d, limit)
 
 @app.get("/api/costos/resumen", tags=["costos"], summary="KPIs, estados y servicios del cruce de costos")
-def c_res(mes: str | None = None): return C.resumen(mes)
+def c_res(mes: str | None = None): return _limpio(C.resumen(mes))
 
 @app.get("/api/costos/validaciones", tags=["costos"], summary="Errores y advertencias de la carga de costos")
 def c_val(carga_id: int | None = None, limit: int = 2000): return _json(C.validaciones(carga_id), limit)
@@ -154,6 +171,44 @@ def c_cv(mes: str | None = None): return _json(A.cobertura(mes))
 
 @app.get("/api/conciliacion/hallazgos", tags=["conciliación"], summary="Inconsistencias de línea (reglas R01–R07)")
 def c_h(mes: str | None = None, limit: int = 1000): return _json(A.hallazgos(mes), limit)
+
+# ── v5: facturas generadas, medicamentos e insumos, informe gerencial ──
+@app.get("/api/facturas/resumen", tags=["facturas generadas"], summary="KPIs, estados, sedes, EPS, oportunidad de radicación, antigüedad y reglas F01–F12")
+def fg_resumen(mes: str | None = None, sede: str | None = None, eps: str | None = None): return _limpio(F.resumen(mes, sede, eps))
+
+@app.get("/api/facturas/detalle", tags=["facturas generadas"], summary="Facturas con alertas (filtro opcional por regla, p. ej. F01)")
+def fg_detalle(mes: str | None = None, sede: str | None = None, eps: str | None = None, alerta: str | None = None, solo_alertas: bool = False, limit: int = 3000):
+    return _json(F.detalle(mes, sede, eps, alerta, solo_alertas), limit)
+
+@app.get("/api/facturas/facturadores", tags=["facturas generadas"], summary="Productividad y calidad por usuario que registra la factura")
+def fg_fact(mes: str | None = None, sede: str | None = None, eps: str | None = None, limit: int = 500): return _json(F.facturadores(mes, sede, eps), limit)
+
+@app.get("/api/facturas/cruce", tags=["facturas generadas"], summary="Encabezado de factura ↔ detalle por ámbito ↔ RIPS")
+def fg_cruce(mes: str | None = None, limit: int = 3000): return _json(F.cruce(mes), limit)
+
+@app.get("/api/medicamentos/resumen", tags=["medicamentos e insumos"], summary="KPIs por sede y clase, top ítems, ABC")
+def md_resumen(mes: str | None = None, sede: str | None = None, clase: str | None = None, eps: str | None = None): return _limpio(MD.resumen(mes, sede, clase, eps))
+
+@app.get("/api/medicamentos/items", tags=["medicamentos e insumos"], summary="Ítems con ABC, valor unitario y alertas")
+def md_items(mes: str | None = None, sede: str | None = None, clase: str | None = None, eps: str | None = None, limit: int = 3000):
+    return _json(MD.items(mes, sede, clase, eps), limit)
+
+@app.get("/api/medicamentos/sede", tags=["medicamentos e insumos"], summary="Ítem × sede (valor o cantidad)")
+def md_sede(mes: str | None = None, clase: str | None = None, eps: str | None = None, metrica: str = "valor", limit: int = 3000):
+    if metrica not in ("valor", "cantidad"): raise HTTPException(422, "metrica: valor|cantidad")
+    return _json(MD.por_sede(mes, clase, eps, metrica), limit)
+
+@app.get("/api/medicamentos/precios", tags=["medicamentos e insumos"], summary="Valor unitario por sede y homogeneidad de precios")
+def md_precios(mes: str | None = None, clase: str | None = None, limit: int = 3000): return _json(MD.precios_sede(mes, clase), limit)
+
+@app.get("/api/medicamentos/eps", tags=["medicamentos e insumos"], summary="Medicamentos e insumos por EPS y modalidad")
+def md_eps(mes: str | None = None, sede: str | None = None): return _json(MD.por_eps(mes, sede))
+
+@app.get("/api/medicamentos/farmacia", tags=["medicamentos e insumos"], summary="Dispensación de farmacia vs facturación")
+def md_farm(mes: str | None = None, sede: str | None = None, limit: int = 3000): return _json(MD.cruce_farmacia(mes, sede), limit)
+
+@app.get("/api/gerencial", tags=["informe gerencial"], summary="Informe gerencial: indicadores, riesgos, narrativa y plan de acción")
+def gerencial(mes: str | None = None): return _limpio(G.informe(mes))
 
 # ── 5. Descargas ──
 @app.get("/api/comparativos", tags=["dashboard"], summary="Datos para gráficos comparativos (sede, servicio, contratos, modalidad, serie mensual)")

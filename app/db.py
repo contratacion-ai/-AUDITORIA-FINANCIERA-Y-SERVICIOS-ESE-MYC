@@ -1,6 +1,6 @@
 """Persistencia (SQLite), parámetros de auditoría, identidad del documento y consulta a DataFrame.
 
-Versión 4.0 — Preparado por Winston Gerlein Gutiérrez Pastrana, Profesional de Costos.
+Versión 5.0 — Preparado por Winston Gerlein Gutiérrez Pastrana, Profesional de Costos.
 Las bases creadas con versiones anteriores se migran automáticamente (``_migrar``) sin perder datos.
 """
 import os, sqlite3
@@ -18,7 +18,7 @@ CARGO = "Profesional de Costos"
 IDENTIDAD = f"{AUTOR} – {CARGO}"
 INSTITUCION = "ESE Departamental de Primer Nivel Moreno y Clavijo"
 NIT = "900034131"
-VERSION = "4.0"
+VERSION = "5.0"
 # Paleta sobria y coherente (hex sin #) para Excel y dashboard
 AZUL, AZUL_MED, AZUL_CLARO, GRIS, GRIS_CLARO = "1F4E79", "2E75B6", "DDEBF7", "595959", "F2F2F2"
 FUENTE = "Calibri"
@@ -34,6 +34,29 @@ HOM_EPS = [("NUEVA", "NUEVA EMPRESA PROMOTORA DE SALUD"), ("SANITAS", "ENTIDAD P
 
 TOL_PRODUCCION = 0.10                      # costos: diferencia aceptable entre producción (costos) y cantidades facturadas/RIPS
 TOL_COSTO_UNIT = 0.02                      # costos: consistencia costo_unitario x cantidad = costo total
+
+# ── v5: facturas generadas (encabezado de factura de Software 360) y medicamentos/insumos ──
+PLAZO_RADICACION = 22                      # días hábiles entre expedición y radicación (plazo interno parametrizable: ajústelo a la norma/contrato vigente)
+DIAS_FACTURACION_TARDIA = 30               # días calendario entre egreso (o ingreso) y expedición de la factura
+TOL_PRECIO = 0.10                          # medicamentos/insumos: variación máxima aceptable del valor unitario de un mismo código
+TOL_DISPENSACION = 0.05                    # farmacia: diferencia aceptable entre cantidad dispensada y facturada
+ABC_A, ABC_B = 0.80, 0.95
+META_GLOSA, META_RADICACION = 0.03, 0.95    # metas internas sugeridas para el informe gerencial (ajustables)                  # cortes de la clasificación ABC (Pareto) por valor acumulado
+
+REGLAS_FG = {  # reglas de auditoría de facturas generadas (encabezado)
+    "F01": "Factura glosada por la EPS",
+    "F02": f"Pendiente por radicar con más de {PLAZO_RADICACION} días hábiles desde su expedición",
+    "F03": f"Radicada después de {PLAZO_RADICACION} días hábiles",
+    "F04": "Fecha de radicado anterior a la fecha de la factura",
+    "F05": "DIAN: enviada y no recibida o sin CUFE",
+    "F06": "Total distinto de subtotal − cuota − copago − bono − descuento + IVA",
+    "F07": f"Facturación tardía: más de {DIAS_FACTURACION_TARDIA} días entre egreso/ingreso y factura",
+    "F08": "Fecha de egreso anterior a la fecha de ingreso",
+    "F09": "Factura anulada",
+    "F10": "Factura con total en cero o negativo",
+    "F11": "Cuota moderadora o copago sin recibo de caja",
+    "F12": "Factura con valor excedente",
+}
 
 REGLAS = {  # reglas de auditoría de líneas de facturación
     "R01": "Línea sin número de factura (posible no radicada)",
@@ -68,6 +91,15 @@ CREATE TABLE IF NOT EXISTS carga_validacion(carga_id INT, fila INT, campo TEXT, 
 CREATE TABLE IF NOT EXISTS regla_actividad(mes TEXT, actividad_norm TEXT, actividad TEXT, cups TEXT, lineas INT, PRIMARY KEY(mes, actividad_norm, cups));
 CREATE TABLE IF NOT EXISTS nota(carga_id INT, eps TEXT, modalidad TEXT, contrato TEXT, cups TEXT, descripcion TEXT, categoria TEXT,
   tarifa REAL, eventos_mes REAL, tope_valor REAL, vigencia TEXT);
+CREATE TABLE IF NOT EXISTS medins(carga_id INT, mes TEXT, clase TEXT, sede TEXT, eps_nombre TEXT, contrato TEXT, modalidad TEXT, servicio TEXT,
+  ambito TEXT, codigo TEXT, descripcion TEXT, cantidad REAL, valor REAL, lineas INT, vu_min REAL, vu_max REAL, cant_max REAL, lineas_cero INT);
+CREATE TABLE IF NOT EXISTS farmacia(carga_id INT, mes TEXT, sede TEXT, codigo TEXT, descripcion TEXT, clase TEXT, concepto TEXT,
+  cantidad REAL, costo_unitario REAL, valor_costo REAL);
+CREATE TABLE IF NOT EXISTS fac_gen(carga_id INT, mes TEXT, factura TEXT, ingreso TEXT, ambito TEXT, estado_factura TEXT, estado_auditoria TEXT,
+  fecha_factura TEXT, subtotal REAL, cuota REAL, copago REAL, bono REAL, iva REAL, total REAL, descuento REAL, particular TEXT, registrada_por TEXT,
+  fecha_anulacion TEXT, motivo_anulacion TEXT, tipo_ide TEXT, paciente_id TEXT, fecha_ingreso TEXT, fecha_egreso TEXT, recibo_caja TEXT, valor_recibo REAL,
+  tipo_contrato TEXT, tercero TEXT, nit TEXT, contrato TEXT, regimen TEXT, fecha_radicado TEXT, radicado_eps TEXT, radicado_actual TEXT,
+  valor_excedente REAL, sede TEXT, estado_dian TEXT, cufe TEXT, clase_contrato TEXT, clase_atencion TEXT);
 CREATE TABLE IF NOT EXISTS param_contrato(contrato TEXT PRIMARY KEY, modalidad TEXT, sede TEXT, servicio TEXT);
 CREATE TABLE IF NOT EXISTS param_servicio(servicio TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS hom_eps(alias TEXT PRIMARY KEY, eps TEXT);
@@ -75,7 +107,8 @@ CREATE TABLE IF NOT EXISTS hom_codigo(codigo_rips TEXT PRIMARY KEY, codigo_360 T
 CREATE INDEX IF NOT EXISTS i_fact ON fact(mes); CREATE INDEX IF NOT EXISTS i_fac ON factura(mes, factura);
 CREATE INDEX IF NOT EXISTS i_rips ON rips(mes); CREATE INDEX IF NOT EXISTS i_ripsf ON rips_factura(mes, factura);
 CREATE INDEX IF NOT EXISTS i_val ON carga_validacion(carga_id); CREATE INDEX IF NOT EXISTS i_cu ON costo_unitario(cups);
-CREATE INDEX IF NOT EXISTS i_dim ON dim(mes, dim); CREATE INDEX IF NOT EXISTS i_lin ON linea(mes);
+CREATE INDEX IF NOT EXISTS i_dim ON dim(mes, dim); CREATE INDEX IF NOT EXISTS i_med ON medins(mes, sede);
+CREATE INDEX IF NOT EXISTS i_far ON farmacia(mes, sede); CREATE INDEX IF NOT EXISTS i_fg ON fac_gen(mes, factura); CREATE INDEX IF NOT EXISTS i_lin ON linea(mes);
 """
 
 def conn():

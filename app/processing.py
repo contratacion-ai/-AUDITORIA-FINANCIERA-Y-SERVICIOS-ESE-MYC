@@ -3,9 +3,10 @@ import zipfile
 from datetime import datetime
 from .db import conn, TOL_COSTO_UNIT
 import pandas as pd
-from .loaders import (_shared, hojas_mensuales, param_hojas, procesar_hoja, leer_tabla, leer_rips, norm)
+from .loaders import (_shared, hojas_mensuales, param_hojas, procesar_hoja, leer_tabla, leer_rips, leer_facturas_generadas, norm, ALIAS)
 
-TABLAS = {"facturacion": ["fact", "linea", "dim", "factura", "hallazgo"], "rips": ["rips", "rips_factura"], "costos": ["costo"]}
+TABLAS = {"facturacion": ["fact", "linea", "dim", "factura", "hallazgo", "medins"], "rips": ["rips", "rips_factura"], "costos": ["costo"],
+          "farmacia": ["farmacia"], "facturas": ["fac_gen"]}
 
 def registrar(tipo, mes, archivo, estado="en cola"):
     with conn() as c:
@@ -92,6 +93,7 @@ def procesar_facturacion(path, jobs, limit=None):
                 c.executemany("INSERT INTO factura VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                               ((cid, mes, fn, x[0], x[1], x[2], x[3], x[4], len(x[7]), x[5], x[6]) for fn, x in R["fac"].items()))
                 c.executemany("INSERT INTO hallazgo VALUES(?,?,?,?,?,?)", ((cid, mes, k[0], k[1], *v) for k, v in R["hal"].items()))
+                c.executemany("INSERT INTO medins VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ((cid, mes, *r) for r in R["medins"]))
             estado(cid, "ok", f"{len(R['fac'])} facturas, {len(R['fact'])} combinaciones agregadas", R["filas"])
         except Exception as e:
             estado(cid, "error", f"{type(e).__name__}: {e}")
@@ -119,9 +121,24 @@ def procesar_tabla(cid, tipo, path, mes_param=None):
                 fac.assign(carga_id=cid)[["carga_id", "mes", "factura", "factura_rips", "eps", "contrato", "cucon", "modalidad", "sede", "valor_fev", "servicios", "validacion"]] \
                     .to_sql("rips_factura", c, if_exists="append", index=False)
                 msg = f"{len(fac)} facturas y {n} combinaciones de servicio en {', '.join(meses)}"
+            elif tipo == "facturas":
+                t = leer_facturas_generadas(path, mes_param); meses = sorted(t["mes"].unique())
+                _reemplazar(c, "facturas", cid, meses)
+                cols = ["mes"] + list(ALIAS["facturas"])
+                t.assign(carga_id=cid)[["carga_id"] + cols].to_sql("fac_gen", c, if_exists="append", index=False)
+                msg = f"{len(t):,} facturas por ${t.total.sum():,.0f} en {', '.join(meses)}"
             else:
                 t = leer_tabla(path, tipo, mes_param, eps_alias())
-                if tipo == "codigos":
+                if tipo == "farmacia":
+                    meses = sorted(t["mes"].unique())
+                    g = t.groupby(["mes", "sede", "codigo", "clase", "concepto"], as_index=False).agg(
+                        descripcion=("descripcion", "first"), cantidad=("cantidad", "sum"), valor_costo=("valor_costo", "sum"))
+                    g["costo_unitario"] = (g.valor_costo / g.cantidad.where(g.cantidad > 0)).fillna(0.0)
+                    _reemplazar(c, "farmacia", cid, meses)
+                    g.assign(carga_id=cid)[["carga_id", "mes", "sede", "codigo", "descripcion", "clase", "concepto", "cantidad", "costo_unitario", "valor_costo"]] \
+                        .to_sql("farmacia", c, if_exists="append", index=False)
+                    msg = f"{len(g):,} registros de dispensación/consumo ({g.codigo.nunique():,} códigos) en {', '.join(meses)}"
+                elif tipo == "codigos":
                     c.executemany("INSERT OR REPLACE INTO hom_codigo VALUES(?,?,?)", t[["codigo_rips", "codigo_360", "descripcion"]].values.tolist()); meses = []
                     msg = f"{len(t)} códigos homologados (RIPS → Software 360)"
                 elif tipo == "notas":

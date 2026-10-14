@@ -36,6 +36,16 @@ SPEC = {
   ("CANTIDAD", "No", "CANTIDAD", "Producción del periodo", 1200),
   ("COSTO_UNITARIO", "No", "—", "Costo unitario (si no informa el total se calcula = unitario × cantidad)", 4500),
   ("VALOR_COSTO_TOTAL", "Sí*", "VALOR TOTAL (comparable)", "Costo total del periodo (*obligatorio si no hay costo unitario)", 5400000)],
+ "farmacia": [
+  ("MES", "Sí", "MES", "Periodo AAAA-MM (o una fecha del movimiento)", "2026-01"),
+  ("SEDE", "Sí", "SEDE", "Sede / farmacia que dispensa, tal como sale en Software 360", "HOSPITAL SAN ANTONIO"),
+  ("CODIGO", "Sí", "COD. MEDICAMENTO", "Código interno de Software 360 (G-0052) o CUM; los CUM se homologan con la tabla de códigos", "G-0052"),
+  ("DESCRIPCION", "No", "ACTIVIDAD", "Nombre del medicamento o insumo", "ACETAMINOFEN 500 MG TABLETA"),
+  ("TIPO", "No", "SERVICIO (MEDICAMENTOS / MATERIALES E INSUMOS)", "MEDICAMENTO / INSUMO / SUPLEMENTO", "MEDICAMENTO"),
+  ("CONCEPTO", "No", "—", "Tipo de movimiento: DISPENSACION, CONSUMO SERVICIO, SALIDA BODEGA…", "DISPENSACION"),
+  ("CANTIDAD", "Sí", "CANTIDAD", "Unidades dispensadas o consumidas en el mes", 120),
+  ("COSTO_UNITARIO", "No", "—", "Costo promedio de adquisición (kardex)", 85),
+  ("VALOR_COSTO", "Sí*", "—", "Costo total (*obligatorio si no hay costo unitario)", 10200)],
  "codigos": [
   ("CODIGO_RIPS", "Sí", "CUMS/CUPS del RIPS", "Código tal como viene en el RIPS (p. ej. CUMS 19942561-6)", "19942561-6"),
   ("CODIGO_SOFTWARE360", "Sí", "COD. MEDICAMENTO / COD. PROCEDIMIENTO", "Código interno que usa Software 360 para el mismo ítem (p. ej. G-0052)", "G-0052"),
@@ -55,9 +65,9 @@ SPEC = {
 }
 NOMBRE_COL = {"rips": {"fecha_egreso": None}}
 
-TITULOS = {"rips": "Consolidado RIPS", "costos": "Costos mensuales", "codigos": "Homologación de códigos", "notas": "Notas técnicas EPS"}
-LISTAS = {"MODALIDAD": '"CAPITA,EVENTO,PGP"', "TIPO_COSTO": '"DIRECTO,INDIRECTO,FIJO,VARIABLE"'}
-NUMERICAS_ = {"CANTIDAD", "VALOR_SERVICIO", "VALOR_FACTURA_FEV", "COSTO_UNITARIO", "VALOR_COSTO_TOTAL", "TARIFA", "EVENTOS_MES", "TOPE_VALOR"}
+TITULOS = {"farmacia": "Dispensación / consumo de farmacia", "rips": "Consolidado RIPS", "costos": "Costos mensuales", "codigos": "Homologación de códigos", "notas": "Notas técnicas EPS"}
+LISTAS = {"TIPO": '"MEDICAMENTO,INSUMO,SUPLEMENTO"', "MODALIDAD": '"CAPITA,EVENTO,PGP"', "TIPO_COSTO": '"DIRECTO,INDIRECTO,FIJO,VARIABLE"'}
+NUMERICAS_ = {"CANTIDAD", "VALOR_SERVICIO", "VALOR_FACTURA_FEV", "COSTO_UNITARIO", "VALOR_COSTO_TOTAL", "TARIFA", "EVENTOS_MES", "TOPE_VALOR", "VALOR_COSTO"}
 _lado = Side(style="thin", color="BFBFBF")
 
 def _banda(ws, texto, ncols, fila, size, fill, color="FFFFFF", bold=True, alto=22):

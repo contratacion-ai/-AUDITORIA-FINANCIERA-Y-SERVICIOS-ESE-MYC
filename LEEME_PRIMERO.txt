@@ -1,6 +1,6 @@
 AUDITORIA DE FACTURACION - ESE MORENO Y CLAVIJO
 ==============================================
-Preparado por: Winston Gerlein Gutierrez Pastrana - Profesional de Costos   (version 4.0)
+Preparado por: Winston Gerlein Gutierrez Pastrana - Profesional de Costos   (version 5.0)
 
 PASO 0 (importante): descomprima TODO el .zip en una carpeta (clic derecho > Extraer todo).
                      No ejecute los archivos desde dentro del zip.
@@ -15,6 +15,9 @@ Si Windows muestra "Windows protegio su equipo": clic en "Mas informacion" > "Ej
 Si dice que no hay Python: instale Python 3.11+ desde python.org marcando "Add python.exe to PATH".
 
 USO RAPIDO
+0. NUEVO v5: suba el "Informe de facturas generadas" de Software 360 (tipo 1b) y, si tiene, la dispensacion de farmacia (tipo 6).
+   Pestanas nuevas: "Informe gerencial" (imprimible a PDF), "Facturas generadas" y "Medicamentos e insumos" (por sede).
+   Use los filtros de Sede y EPS de arriba o haga clic en las barras para filtrar. Las tablas se buscan, ordenan y descargan en CSV.
 1. Pestana "Cargas": suba el libro de facturacion por ambito (hojas ENERO 2026, FEBRERO 2026...).
    Espere a que el estado pase a "ok" (un mes tarda ~15 segundos).
 2. Suba RIPS, costos y notas tecnicas (hay plantillas descargables con las columnas esperadas).

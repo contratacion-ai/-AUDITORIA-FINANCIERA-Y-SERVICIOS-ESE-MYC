@@ -1,4 +1,4 @@
-# Auditoría de Facturación · ESE Moreno y Clavijo — v4.0
+# Auditoría de Facturación, RIPS, Costos, Medicamentos e Insumos · ESE Moreno y Clavijo — v5.0
 
 **Winston Gerlein Gutiérrez Pastrana – Profesional de Costos**
 
@@ -69,6 +69,28 @@ comparativo mes a mes con variación y «lectura rápida» automática) · Infor
 Facturación vs RIPS · Tri-eje · Contratos · Radicación · Notas técnicas · Hallazgos · Cargas.
 Endpoints nuevos: `GET /api/comparativos`, `GET /api/comparativo/mensual?nivel=`, `GET /api/estados/{radicacion|notas|contratos|tri-eje}`.
 Las gráficas usan Chart.js desde cdnjs (se necesita internet al abrir el dashboard).
+
+## Novedades v5.0
+
+| Pestaña / hoja | Qué hace |
+|---|---|
+| **🎯 Informe gerencial** (`/api/gerencial`, hoja `Informe_Gerencial`) | Resumen ejecutivo redactado con los datos, indicadores con semáforo y meta, riesgos ordenados por valor comprometido y plan de acción con prioridad, responsable y plazo sugeridos. Botón «Imprimir / guardar PDF» con estilo de impresión. |
+| **🧾 Facturas generadas** (carga tipo `facturas`, hojas `FG_*`) | Lee el «INFORME DE FACTURAS GENERADAS» de Software 360 tal como sale (títulos arriba, una fila por factura). Estado (radicada / glosada / pendiente), oportunidad de radicación en **días hábiles con festivos de Colombia**, antigüedad de pendientes, concentración de facturación al cierre, glosas por pagador, productividad por facturador, DIAN/CUFE, cuotas y copagos, reglas **F01–F12** y cruce encabezado ↔ detalle por ámbito ↔ RIPS. |
+| **💊 Medicamentos e insumos** (hojas `MED_*`) | Hoja aparte, separada automáticamente de la facturación por ámbito (SERVICIO = MEDICAMENTOS, MATERIALES E INSUMOS MEDICOS, SUPLEMENTOS DIETARIOS). Por sede y clase, ítem × sede, clasificación **ABC**, homogeneidad del valor unitario entre sedes, consumo en contratos cápita, por EPS/modalidad y **cruce con farmacia** (dispensado no facturado, precio de venta < costo). |
+| **Farmacia** (carga tipo `farmacia`, plantilla) | MES, SEDE, CODIGO (360 o CUM, homologado con la tabla de códigos), DESCRIPCION, TIPO, CONCEPTO, CANTIDAD, COSTO_UNITARIO / VALOR_COSTO. |
+| **Interactividad** | Filtros globales de **sede** y **EPS**, clic en las barras para filtrar (sedes, pagadores, reglas, clases), chips de filtros activos, tablas con búsqueda, orden por columna y descarga CSV de lo filtrado. |
+| **Pruebas** | `python -m pytest -q` (25 pruebas de extremo a extremo con datos ficticios). `python tests/generar_datos_demo.py datos_demo` crea archivos de demostración. |
+
+### Reglas F01–F12 (facturas generadas)
+F01 glosada · F02 pendiente > plazo · F03 radicada después del plazo · F04 radicado antes de la factura · F05 DIAN no recibida o sin CUFE ·
+F06 total ≠ subtotal − cuota − copago − bono − descuento + IVA · F07 facturación tardía (> 30 días desde egreso/ingreso) · F08 egreso antes del ingreso ·
+F09 anulada · F10 total ≤ 0 · F11 cuota/copago sin recibo de caja · F12 valor excedente. Parámetros en `app/db.py` (`PLAZO_RADICACION` = 22 días hábiles,
+plazo interno: ajústelo a la norma o al contrato vigente; `DIAS_FACTURACION_TARDIA`, `TOL_PRECIO`, `TOL_DISPENSACION`, `ABC_A/ABC_B`, `META_GLOSA`, `META_RADICACION`).
+
+### Supuestos v5 a validar
+1. El informe de facturas generadas marca la factura como «Glosada» pero **no trae el valor objetado**: los indicadores dicen «valor en facturas glosadas», no «valor glosado».
+2. Privacidad: del informe de facturas generadas **no se guarda el nombre del paciente** y el documento se reemplaza por un hash (permite contar pacientes únicos). No suba los archivos de origen al repositorio (`data/` está en `.gitignore`).
+3. Medicamento vs insumo se decide por el SERVICIO de 360; si no lo indica, una línea con COD. MEDICAMENTO y sin COD. PROCEDIMIENTO se toma como medicamento.
 
 ## Novedades v4.0 (por hoja / pestaña)
 | Hoja / pestaña | Cambio |

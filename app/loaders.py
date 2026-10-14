@@ -136,6 +136,18 @@ CAMPOS = dict(contrato="CONTRATO", sede="SEDE", servicio="SERVICIO", ambito="AMB
               diag="NOMBRE DIAGNOSTICO", act="ACTIVIDAD", tipo_pac="TIPO DE PACIENTE")
 OPCIONALES = {"med", "eps_n", "ide", "esp", "agenda", "prof", "regimen", "reg", "diag", "act", "tipo_pac"}
 
+def clase_item(servicio, cod_proc="", cod_med=""):
+    """Clasifica una línea de facturación como MEDICAMENTO, INSUMO o SUPLEMENTO (None si es un procedimiento).
+
+    Se usa el SERVICIO de PARAM SERVICIO (MEDICAMENTOS, MATERIALES E INSUMOS MEDICOS, SUPLEMENTOS DIETARIOS); si el servicio
+    no lo indica pero la línea trae COD. MEDICAMENTO y no trae COD. PROCEDIMIENTO, se clasifica como MEDICAMENTO."""
+    s = norm(servicio)
+    if "MEDICAMENTO" in s: return "MEDICAMENTO"
+    if "INSUMO" in s or "MATERIAL" in s: return "INSUMO"
+    if "SUPLEMENTO" in s: return "SUPLEMENTO"
+    if (cod_med or "").strip() and not (cod_proc or "").strip(): return "MEDICAMENTO"
+    return None
+
 def param_hojas(z, ss):
     """Lee PARAM CONTRATO (contrato, modalidad, sede, servicio) y PARAM SERVICIO desde el libro."""
     hs = {norm(n): p for n, p in todas_hojas(z).items()}
@@ -167,6 +179,8 @@ def procesar_hoja(z, path, ss, mes, param, limit=None):
     mask = os.environ.get("AUDIT_ENMASCARAR_IDE") == "1"
     fact = defaultdict(lambda: [0.0, 0.0, 0]); dim = defaultdict(lambda: [0.0, 0.0]); lin = defaultdict(lambda: [0.0, 0.0])
     fac, hal = {}, defaultdict(lambda: [0, 0.0])
+    # Medicamentos / insumos / suplementos: [cantidad, valor, líneas, vu_min, vu_max, cant_max, líneas en cero]
+    med, mdesc = defaultdict(lambda: [0.0, 0.0, 0, float("inf"), 0.0, 0.0, 0]), {}
     # Regla de actividad: ACTIVIDAD normalizada → {código: nº de líneas}. Se usa para identificar el CUPS de las líneas que
     # llegan sin código (ver docstring de `identificar_cups`). `huerf` acumula esas líneas hasta conocer el mapa completo.
     amap, atxt, huerf = defaultdict(lambda: defaultdict(int)), {}, defaultdict(lambda: [0.0, 0.0, 0])
@@ -198,6 +212,13 @@ def procesar_hoja(z, path, ss, mes, param, limit=None):
         else:
             a = huerf[kf + (act,)]
         a[0] += cant; a[1] += vt; a[2] += 1
+        clase = clase_item(serv, g(c["cups"]), g(c["med"]))
+        if clase:
+            cm = code or "SIN CODIGO"; mdesc.setdefault(cm, (g(c["act"]) or "").strip())
+            a = med[(clase, sede, epsn, cont, modal, serv, amb, cm)]
+            a[0] += cant; a[1] += vt; a[2] += 1; a[5] = max(a[5], cant)
+            if va > 0: a[3] = min(a[3], va); a[4] = max(a[4], va)
+            if vt <= 0: a[6] += 1
         a = lin[(_ymd(f) if f else "", serv, g(c["agenda"], ""), g(c["reg"], ""), g(c["cups"], ""), g(c["med"], ""), g(c["act"], ""),
                  g(c["diag"], ""), fn, va, g(c["tipo_pac"], ""), g(c["regimen"], ""), modal)]; a[0] += cant; a[1] += vt
         ide = g(c["ide"])
@@ -218,7 +239,8 @@ def procesar_hoja(z, path, ss, mes, param, limit=None):
         a = fact[k[:-1] + ((code, "ACTIVIDAD") if code else ("", "SIN IDENTIFICAR"))]
         a[0] += v[0]; a[1] += v[1]; a[2] += v[2]
     reglas = [(a, atxt.get(a, ""), code, nl) for a, d in amap.items() for code, nl in d.items()]
-    return dict(fact=fact, dim=dim, lin=lin, fac=fac, hal=hal, filas=n, reglas=reglas)
+    medins = [(*k[:8], mdesc.get(k[7], ""), v[0], v[1], v[2], (v[3] if v[3] != float("inf") else 0.0), v[4], v[5], v[6]) for k, v in med.items()]
+    return dict(fact=fact, dim=dim, lin=lin, fac=fac, hal=hal, filas=n, reglas=reglas, medins=medins)
 
 # ───────────── RIPS / costos / notas técnicas: formato homologado + lectura del consolidado nativo ─────────────
 ALIAS = {
@@ -245,9 +267,14 @@ ALIAS = {
                   eventos_mes=["EVENTOS MES", "EVENTOS", "EVENTOS MENSUALES", "CANTIDAD PACTADA", "FRECUENCIA", "TOTAL SERVICIOS NOTA TECNICA", "TOTAL ACTIVIDADES MES"],
                   tope_valor=["TOPE VALOR", "VALOR MENSUAL", "TECHO"], vigencia=["VIGENCIA"]),
 }
+ALIAS["farmacia"] = dict(mes=["MES", "PERIODO", "FECHA"], sede=["SEDE", "BODEGA", "FARMACIA", "PUNTO DE DISPENSACION"],
+                        codigo=["CODIGO SOFTWARE360", "CODIGO 360", "COD MEDICAMENTO", "CODIGO", "CUM", "CUMS", "CODIGO PRODUCTO"],
+                        descripcion=["DESCRIPCION", "PRODUCTO", "NOMBRE", "MEDICAMENTO"], clase=["TIPO", "CLASE", "TIPO PRODUCTO", "GRUPO"],
+                        concepto=["CONCEPTO", "MOVIMIENTO", "TIPO MOVIMIENTO"], cantidad=["CANTIDAD DISPENSADA", "CANTIDAD", "UNIDADES", "SALIDAS"],
+                        costo_unitario=["COSTO UNITARIO", "COSTO PROMEDIO", "VALOR UNITARIO"], valor_costo=["VALOR COSTO", "COSTO TOTAL", "VALOR TOTAL", "VALOR"])
 ALIAS["codigos"] = dict(codigo_rips=["CODIGO RIPS", "CODIGO CUMS", "CODIGO CUPS CUMS", "CUMS"], codigo_360=["CODIGO SOFTWARE360", "CODIGO 360", "CODIGO SOFTWARE 360"],
                        descripcion=["DESCRIPCION"])
-NUMERICAS = {"cantidad", "valor", "tarifa", "eventos_mes", "tope_valor", "costo_unitario", "valor_fev"}
+NUMERICAS = {"cantidad", "valor", "tarifa", "eventos_mes", "tope_valor", "costo_unitario", "valor_fev", "valor_costo"}
 ALIAS_COSTOS_CUPS_NUM = {"costo_unitario"}
 
 def canon_eps(txt, alias):
@@ -322,7 +349,8 @@ def leer_tabla(path, tipo, mes_param=None, eps_alias=()):
         if t is None: continue
         vistas.append(sorted(t.columns))
         ok = {"rips": "eps" in t and ("factura" in t or "cups" in t), "costos": "valor" in t or "costo_unitario" in t,
-              "notas": "cups" in t, "codigos": "codigo_rips" in t and "codigo_360" in t}[tipo]
+              "notas": "cups" in t, "codigos": "codigo_rips" in t and "codigo_360" in t,
+              "farmacia": "codigo" in t and ("cantidad" in t or "valor_costo" in t)}[tipo]
         if not ok: continue
         for k in al:
             if k not in t: t[k] = (1.0 if k == "cantidad" and tipo == "rips" else 0.0) if k in NUMERICAS else ""
@@ -342,6 +370,9 @@ def leer_tabla(path, tipo, mes_param=None, eps_alias=()):
                 t["eps"] = t.eps.map(lambda x: canon_eps(x, eps_alias) or x)
                 t["modalidad"] = t.modalidad.map(norm)
                 t.loc[t.contrato == "", "contrato"] = t.cucon
+            elif tipo == "farmacia":
+                t["valor_costo"] = t.valor_costo.where(t.valor_costo != 0, t.costo_unitario * t.cantidad)
+                t["clase"] = [clase_item(x) or ("MEDICAMENTO" if not x else str(x).upper()) for x in t.clase]
             else:
                 t["valor"] = t.valor.where(t.valor != 0, t.costo_unitario * t.cantidad)
             t["sede"] = t.sede.map(canon_sede)
@@ -352,7 +383,8 @@ def leer_tabla(path, tipo, mes_param=None, eps_alias=()):
             t["mes"] = t.mes.map(lambda x: parse_mes_flex(x, anio))
             dflt = parse_mes(nombre) or mes_param
             if dflt: t["mes"] = t.mes.fillna(dflt)
-            if tipo != "costos": t = t[t.mes.notna()]      # costos: las filas sin mes se reportan como ERROR en la validación
+            if tipo != "costos": t = t[t.mes.notna()]
+            if tipo == "farmacia": t = t[t.codigo != ""]      # costos: las filas sin mes se reportan como ERROR en la validación
         partes.append(t)
     if not partes or sum(len(p) for p in partes) == 0:
         raise ValueError(f"No se reconocieron columnas de {tipo.upper()} (o no se pudo determinar mes/EPS). Use la plantilla homologada. "
@@ -376,3 +408,45 @@ def leer_rips(path, mes_param=None, eps_alias=(), mapa_actividad=None):
         servicios=("cantidad", "sum"), validacion=("validacion", "first"))
     fac["valor_fev"] = fac.valor_fev.where(fac.valor_fev > 0, fac.valor_srv)
     return srv, fac.drop(columns="valor_srv")
+
+
+# ───────────── v5 · Informe de FACTURAS GENERADAS de Software 360 (una fila por factura) ─────────────
+ALIAS["facturas"] = dict(
+    factura=["NUMERO FACTURA"], ingreso=["NRO INGRESO"], ambito=["GENERADA EN"], estado_factura=["ESTADO FACTURA"], estado_auditoria=["ESTADO AUDITORIA"],
+    fecha_factura=["FECHA DE FACTURA", "FECHA FACTURA"], subtotal=["SUBTOTAL"], cuota=["VALOR CUOTA"], copago=["VALOR COPAGO"], bono=["VALOR BONO"],
+    iva=["IVA"], total=["TOTAL", "VALOR TOTAL"], descuento=["VALOR DESCUENTO"], particular=["PARTICULAR"], registrada_por=["REGISTRADA POR"],
+    fecha_anulacion=["FECHA DE ANULACION"], motivo_anulacion=["MOTIVO DE ANULACION"], tipo_ide=["TIPO IDE"], paciente_id=["NUMERO IDE"],
+    fecha_ingreso=["FECHA INGRESO"], fecha_egreso=["FECHA EGRESO"], recibo_caja=["RECIBO CAJA NRO"], valor_recibo=["VALOR"],
+    tipo_contrato=["TIPO CONTRATO"], tercero=["TERCERO", "EPS", "ENTIDAD"], nit=["NIT"], contrato=["CONTRATO"], regimen=["REGIMEN DEL CONTRATO"],
+    fecha_radicado=["FECHA RADICADO"], radicado_eps=["NRO RADICADO EPS"], radicado_actual=["RADICADO ACTUAL"], valor_excedente=["VALOR EXCENDENTE", "VALOR EXCEDENTE"],
+    sede=["SEDE"], estado_dian=["ESTADO ENVIO DIAN"], cufe=["CUFE"], clase_contrato=["CLASE CONTRATO"], clase_atencion=["CLASE DE ATENCION"])
+FG_NUM = {"subtotal", "cuota", "copago", "bono", "iva", "total", "descuento", "valor_recibo", "valor_excedente"}
+FG_FECHAS = {"fecha_factura", "fecha_anulacion", "fecha_ingreso", "fecha_egreso", "fecha_radicado"}
+
+def _fechas(s):
+    """Serie de fechas 'AAAA-MM-DD' desde serial de Excel, 'aaaa-mm-dd[ hh:mm:ss]' o 'dd/mm/aaaa'. Vacío si no se puede leer."""
+    return s.fillna("").astype(str).str.strip().map(lambda v: _ymd(v.split(" ")[0]) if v else "")
+
+def leer_facturas_generadas(path, mes_param=None):
+    """Lee el «INFORME DE FACTURAS GENERADAS» de Software 360 (títulos arriba, encabezado en la fila ~7, una fila por factura).
+
+    Privacidad: no se guarda el nombre del paciente; el número de identificación se reemplaza por un hash corto
+    (permite contar pacientes únicos y reingresos sin exponer el documento)."""
+    al = ALIAS["facturas"]; partes = []
+    for nombre, raw in hojas_df(path).items():
+        t = _extraer(raw, al)
+        if t is None or "factura" not in t or "estado_factura" not in t: continue
+        for k in al:
+            if k not in t: t[k] = 0.0 if k in FG_NUM else ""
+        for k in FG_NUM: t[k] = _num(t[k])
+        for k in set(al) - FG_NUM - FG_FECHAS: t[k] = t[k].fillna("").astype(str).str.strip().str.replace(r"\.0$", "", regex=True)
+        for k in FG_FECHAS: t[k] = _fechas(t[k])
+        t = t[t.factura != ""]
+        t["paciente_id"] = t.paciente_id.map(lambda x: hashlib.sha1(x.encode()).hexdigest()[:12] if x else "")
+        t["cufe"] = t.cufe.map(lambda x: "SI" if x else "NO")          # solo se conserva si la factura tiene CUFE
+        t["sede"] = t.sede.map(canon_sede)
+        t["mes"] = t.fecha_factura.str[:7].where(t.fecha_factura != "", mes_param or "")
+        partes.append(t[t.mes != ""])
+    if not partes or not sum(len(p) for p in partes):
+        raise ValueError("No se reconoció el informe de FACTURAS GENERADAS (se esperan columnas NUMERO FACTURA, ESTADO FACTURA, FECHA DE FACTURA, TOTAL, SEDE…).")
+    return pd.concat(partes, ignore_index=True).drop_duplicates("factura", keep="last")
