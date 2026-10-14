@@ -1,0 +1,36 @@
+# Configuración de rips_auditoria. Todo lo que no se indique aquí toma el valor
+# por defecto definido en rips_auditoria/config.py.
+
+lectura:
+  codificaciones: [utf-8-sig, cp1252, latin-1]
+  reparar_mojibake: true
+  preferir_corregidos: true
+  extensiones_ignoradas: [.json, .xml, .pdf]
+
+organizacion:
+  # Cómo se fija el mes (AAAA-MM) de cada remisión, en orden de prioridad.
+  prioridad_periodo: [carpeta, factura, remision]
+  # Nombre del hospital por código de prestador (REPS), usado cuando la ruta no
+  # trae carpeta de hospital, p. ej. al cargar TXT sueltos. Ejemplo:
+  # hospitales_por_prestador:
+  #   "817940020603": "Hospital San Antonio"
+  hospitales_por_prestador: {}
+  hospital_por_defecto: null
+
+validacion:
+  tolerancia_valores: 1.0
+  # Ajuste de severidad por regla: ERROR | ADVERTENCIA | INFO | OMITIR.
+  # La lista completa de reglas está en la hoja "Reglas_Validacion" del Excel.
+  severidades: {}
+  #  LONGITUD_EXCEDIDA: ADVERTENCIA
+  #  REGISTRO_DUPLICADO: INFO
+  max_incidencias_por_regla_archivo: 0
+
+homologacion:
+  habilitada: true
+  archivo_mapeo: homologacion_auditoria.yaml   # relativo a esta carpeta
+
+exportacion:
+  excel: true
+  json: true
+  consolidado: true

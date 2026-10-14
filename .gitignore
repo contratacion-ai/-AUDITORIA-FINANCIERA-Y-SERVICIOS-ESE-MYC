@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+# Salidas y datos reales: contienen información de pacientes, no se versionan
+salida/
+datos/
+*.zip
+RIPS_consolidado.*
