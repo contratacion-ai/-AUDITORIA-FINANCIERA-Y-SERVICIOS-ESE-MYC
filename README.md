@@ -10,7 +10,26 @@ de 2000**, los **organiza por hospital y luego por mes**, y los **exporta a Exce
 estructura del Anexo, además de una versión **homologada** para la herramienta de auditoría
 financiera.
 
-### Instalación
+### Instalación y cargue (personal de facturación y auditoría)
+
+**Windows**
+
+1. Instale Python 3.10 o superior desde <https://www.python.org/downloads/> y marque
+   **"Add python.exe to PATH"**.
+2. Descargue esta aplicación (botón *Code → Download ZIP* en GitHub) y descomprímala, por
+   ejemplo en `C:\AuditoriaRIPS`.
+3. Doble clic en **`instalar.bat`**. Crea un entorno propio (`.venv`), instala las librerías
+   (requiere internet) y deja el acceso directo **"Cargue RIPS"** en el escritorio.
+4. Para cargar: doble clic en **"Cargue RIPS"** (o `iniciar_cargue.bat`) y elija el ZIP, los TXT
+   o la carpeta; también puede **arrastrar** el ZIP o la carpeta sobre `iniciar_cargue.bat`.
+   Al terminar se abre la carpeta `salida\cargue_<fecha>` con los Excel y JSON.
+
+**Linux / macOS**: `./instalar.sh` y luego `./iniciar_cargue.sh lote.zip` (sin argumentos
+pregunta qué cargar).
+
+Volver a ejecutar el instalador actualiza las librerías sin perder la configuración.
+
+### Instalación manual (desarrolladores)
 
 ```bash
 pip install -r requirements.txt          # pandas, openpyxl, XlsxWriter, PyYAML
@@ -167,11 +186,14 @@ rips_auditoria/
   homologacion.py     capa de mapeo configurable a la herramienta de auditoría
   exportacion.py      escritura de archivos por hospital/mes y consolidado
   cli.py              línea de comandos
+  cargue.py           inicio guiado del cargue (selección de archivos, abre la salida)
 config/
   configuracion.yaml           parámetros (severidades, período, hospitales, exportación)
   homologacion_auditoria.yaml  mapeo a la herramienta de auditoría y supuestos
 plantillas/
   Plantilla_RIPS_Res3374_AnexoTecnico1.xlsx
+instalar.bat / instalar.sh               instalador
+iniciar_cargue.bat / iniciar_cargue.sh   inicio del cargue
 tests/
 ```
 

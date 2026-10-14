@@ -336,3 +336,28 @@ def test_cli_procesar_listar_y_sin_archivos(zip_lote, tmp_path, capsys):
     assert main(["listar", str(vacio)]) == 2
     assert main(["procesar", str(zip_lote), "-s", str(salida), "--filtro-mes", "1999-01"]) == 1
     assert main(["procesar", str(zip_lote), "-s", str(salida), "-m", str(tmp_path / "no.yaml")]) == 1
+
+
+# ---------------------------------------------------------------------------
+# Lanzador del cargue (iniciar_cargue.bat / .sh)
+# ---------------------------------------------------------------------------
+
+def test_cargue_guiado_con_rutas(zip_lote, tmp_path, monkeypatch):
+    from rips_auditoria import cargue
+
+    abiertas = []
+    monkeypatch.setattr(cargue, "abrir_carpeta", abiertas.append)
+    salida = tmp_path / "out"
+    assert cargue.main([str(zip_lote), "-s", str(salida), "--sin-consolidado"]) == 0
+    assert (salida / "Hospital San Jose" / "2026-05" / "RIPS_Hospital San Jose_2026-05.xlsx").exists()
+    assert abiertas == [salida]
+
+
+def test_cargue_guiado_pregunta_y_valida_rutas(tmp_path, monkeypatch):
+    from rips_auditoria import cargue
+
+    monkeypatch.setattr(cargue, "elegir_con_ventana", lambda: None)  # sin interfaz gráfica
+    monkeypatch.setattr("builtins.input", lambda _: str(tmp_path / "no_existe.zip"))
+    assert cargue.main(["--no-abrir"]) == 1
+    monkeypatch.setattr(cargue, "elegir_con_ventana", lambda: [])  # el usuario canceló
+    assert cargue.main(["--no-abrir"]) == 1

@@ -15,6 +15,7 @@ dev = ["pytest>=7.0"]
 
 [project.scripts]
 rips-auditoria = "rips_auditoria.cli:main"
+rips-cargue = "rips_auditoria.cargue:main"
 
 [tool.setuptools]
 packages = ["rips_auditoria"]

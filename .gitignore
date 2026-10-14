@@ -9,3 +9,4 @@ salida/
 datos/
 *.zip
 RIPS_consolidado.*
+.venv/
