@@ -1,0 +1,30 @@
+AUDITORIA DE FACTURACION - ESE MORENO Y CLAVIJO
+==============================================
+Preparado por: Winston Gerlein Gutierrez Pastrana - Profesional de Costos   (version 4.0)
+
+PASO 0 (importante): descomprima TODO el .zip en una carpeta (clic derecho > Extraer todo).
+                     No ejecute los archivos desde dentro del zip.
+
+WINDOWS:   doble clic en  INICIAR_WINDOWS.bat
+MAC/LINUX: doble clic en  INICIAR_MAC_LINUX.command  (o en terminal: bash INICIAR_MAC_LINUX.command)
+
+La primera vez descarga componentes (necesita internet, unos minutos). Luego abre solo
+el navegador en http://localhost:8000. Las siguientes veces inicia en segundos.
+
+Si Windows muestra "Windows protegio su equipo": clic en "Mas informacion" > "Ejecutar de todas formas".
+Si dice que no hay Python: instale Python 3.11+ desde python.org marcando "Add python.exe to PATH".
+
+USO RAPIDO
+1. Pestana "Cargas": suba el libro de facturacion por ambito (hojas ENERO 2026, FEBRERO 2026...).
+   Espere a que el estado pase a "ok" (un mes tarda ~15 segundos).
+2. Suba RIPS, costos y notas tecnicas (hay plantillas descargables con las columnas esperadas).
+3. Revise Resumen, Facturacion vs RIPS, Tri-eje, Contratos, Radicacion, Notas tecnicas y Hallazgos.
+4. Pestana "Validacion del cruce": muestra que % de EPS, contratos, sedes, facturas y codigos cruza entre las 4 fuentes.
+   Corrija lo que no cruce (o use "Convertir a formato homologado" en Cargas para llevar su archivo nativo al formato comun).
+5. Pestana "Comparativos": graficas por sede, servicio, contrato y mes a mes, con una lectura rapida automatica.
+6. Pestana "Resumen por empresa": facturacion desagregada por EPS (capita / evento / brecha con RIPS).
+7. Pestana "Costos": cruce por CUPS entre notas tecnicas, RIPS, costos y facturacion; cada carga de costos
+   registra errores y advertencias por fila (descargue la plantilla de costos en "Cargas").
+8. Boton "Excel consolidado" (arriba a la derecha) descarga todos los informes.
+
+Los datos quedan en la carpeta "data" (base auditoria_v2.db; las bases anteriores se actualizan solas al iniciar). Documentacion tecnica: README.md
