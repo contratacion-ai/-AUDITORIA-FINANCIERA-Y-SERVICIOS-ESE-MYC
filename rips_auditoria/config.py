@@ -9,6 +9,7 @@ ruta del archivo de homologación.
 from __future__ import annotations
 
 import copy
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -25,6 +26,14 @@ else:
     _RECURSOS = RAIZ_PROYECTO
 _DIR_CONFIG = RAIZ_PROYECTO / "config" if (RAIZ_PROYECTO / "config").exists() else _RECURSOS / "config"
 CONFIG_POR_DEFECTO = _DIR_CONFIG / "configuracion.yaml"
+
+
+def carpeta_datos() -> Path:
+    """Carpeta base de resultados y del acumulado para el aplicativo de auditoría.
+
+    El instalador de Windows la fija en Documentos con ``RIPS_DATOS_DIR``
+    (la carpeta del programa puede no admitir escritura)."""
+    return Path(os.environ.get("RIPS_DATOS_DIR") or (RAIZ_PROYECTO / "salida"))
 MAPEO_POR_DEFECTO = _DIR_CONFIG / "homologacion_auditoria.yaml"
 
 DEFAULTS: dict[str, Any] = {
@@ -66,6 +75,13 @@ DEFAULTS: dict[str, Any] = {
     "homologacion": {
         "habilitada": True,
         "archivo_mapeo": str(MAPEO_POR_DEFECTO),
+    },
+    "aplicativo_auditoria": {
+        # Archivo mensual en la plantilla RIPS del aplicativo de Auditoría ESE MyC v5
+        # (ver rips_auditoria/aplicativo.py). Todas las claves son opcionales.
+        "habilitado": True,
+        "enviar_automaticamente": False,
+        "carpeta_acumulado": None,
     },
     "exportacion": {
         "excel": True,

@@ -7,8 +7,9 @@ Pensado para el personal de facturación y auditoría que no usa la consola:
 * Si se abre sin argumentos, se muestra un cuadro para elegir los archivos
   (o la carpeta). Si el equipo no tiene interfaz gráfica (tkinter), se piden
   las rutas por consola.
-* La salida queda en ``salida/cargue_AAAAMMDD_HHMMSS`` dentro de la carpeta
-  de la aplicación (o en ``--salida``) y al terminar se abre esa carpeta.
+* La salida queda en ``<carpeta de datos>/cargue_AAAAMMDD_HHMMSS`` (por
+  defecto ``salida/`` de la aplicación; ``RIPS_DATOS_DIR`` la cambia) o en
+  ``--salida``, y al terminar se abre esa carpeta.
 
 Todo el procesamiento lo hace ``python -m rips_auditoria procesar``; este
 módulo sólo recoge las rutas y lanza ese comando.
@@ -24,7 +25,7 @@ import sys
 from pathlib import Path
 
 from .cli import main as cli_main
-from .config import RAIZ_PROYECTO
+from .config import carpeta_datos
 
 TIPOS_ARCHIVO = [("RIPS (ZIP o TXT)", "*.zip *.ZIP *.txt *.TXT"), ("Todos los archivos", "*.*")]
 
@@ -98,7 +99,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     salida = Path(args.salida) if args.salida else (
-        RAIZ_PROYECTO / "salida" / f"cargue_{dt.datetime.now():%Y%m%d_%H%M%S}")
+        carpeta_datos() / f"cargue_{dt.datetime.now():%Y%m%d_%H%M%S}")
     print("=" * 70)
     print("CARGUE DE RIPS - Resolución 3374 de 2000")
     print("Entradas:\n  " + "\n  ".join(str(e) for e in entradas))

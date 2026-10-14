@@ -14,6 +14,11 @@ if not exist ".venv\Scripts\python.exe" (
     pause
     exit /b 1
 )
+REM Sin argumentos: ventana de cargue (navegador). Con archivos arrastrados: cargue en consola.
+if "%~1"=="" (
+    start "Cargue RIPS ESE MyC" /min ".venv\Scripts\python.exe" -m rips_auditoria.web
+    exit /b 0
+)
 ".venv\Scripts\python.exe" -m rips_auditoria.cargue %*
 echo.
 pause

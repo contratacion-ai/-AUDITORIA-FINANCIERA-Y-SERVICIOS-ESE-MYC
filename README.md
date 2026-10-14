@@ -10,9 +10,45 @@ de 2000**, los **organiza por hospital y luego por mes**, y los **exporta a Exce
 estructura del Anexo, además de una versión **homologada** para la herramienta de auditoría
 financiera.
 
-### Instalación y cargue (personal de facturación y auditoría)
+### Instalador de Windows (recomendado)
 
-**Windows**
+`Instalador_Cargue_RIPS_ESE_MyC_v<versión>.exe`: asistente en español con el logo y los colores de
+la ESE (verde y vino tinto). **No requiere internet, Python ni permisos de administrador**: trae su
+propio Python 3.12 y todas las librerías (las mismas versiones de pandas/numpy que el aplicativo de
+Auditoría v5).
+
+- Programa: `%LOCALAPPDATA%\Programs\CargueRIPS_ESE_MyC` · Resultados y acumulado:
+  `Documentos\Cargue RIPS ESE MyC` (se conservan al actualizar; al desinstalar se pregunta).
+- Accesos: **Escritorio** «Cargue RIPS ESE MyC» y **menú Inicio › ESE Moreno y Clavijo** (cargue,
+  resultados, guía, desinstalar y, si está instalado, «Auditoria de Facturacion ESE MyC»).
+- Al abrir aparece una ventana minimizada (el servidor local) y el navegador con la **ventana de
+  cargue** (`http://localhost:8100`): arrastrar ZIP/carpeta/TXT o escribir la ruta, avance por fases,
+  resumen por hospital y mes, incidencias, descarga de archivos y envío al aplicativo de auditoría.
+- Construirlo (desde Linux/macOS, sin Windows):
+  `bash instalador/construir_instalador.sh <Instalador_Auditoria_ESE_MyC_v5.0.zip | carpeta con python.exe>`
+  → `dist/`. Toma el Python 3.12 de Windows del instalador v5 y descarga de PyPI las librerías para
+  Windows x64. Requiere `makensis` (NSIS 3), `7z`, `zip` y Pillow.
+- Windows SmartScreen puede advertir que no está firmado: «Más información» › «Ejecutar de todas formas».
+
+### Enlace con el aplicativo de Auditoría de Facturación ESE MyC (v5)
+
+Las dos aplicaciones trabajan juntas por la API local del aplicativo (`http://localhost:8000`):
+
+| Sentido | Qué hace |
+|---|---|
+| Cargue → Auditoría | Genera `APLICATIVO_AUDITORIA/RIPS_AUDITORIA_<AAAA-MM>.xlsx` en la **plantilla RIPS homologada del aplicativo** (MES, EPS, CONTRATO, MODALIDAD, SEDE, FACTURA_FEV, CODIGO_CUPS_CUMS, VALOR…, hoja `CONSOLIDADO RIPS`) y, si se marca, lo **envía** a `POST /api/cargas/rips` y espera el estado «ok». Si el aplicativo está cerrado y está instalado, lo abre. |
+| Auditoría → Cargue | Lee **PARAM CONTRATO** (`/api/parametros`) para usar el nombre exacto del contrato de Software 360 y su modalidad, y trae la **validación del cruce** (`/api/conciliacion/validacion-cruce`) para mostrarla al terminar. |
+
+- **Acumulado por mes:** el aplicativo reemplaza el mes completo en cada carga de RIPS; por eso el
+  archivo de cada mes lleva **todas las sedes procesadas** (se guardan en `acumulado_aplicativo`).
+  Reprocesar una sede reemplaza sólo esa sede.
+- Línea de comandos: `python -m rips_auditoria procesar lote.zip -s salida/ --enviar-aplicativo`
+  (`--sin-aplicativo` para no generar el archivo mensual). Configuración en
+  `config/configuracion.yaml › aplicativo_auditoria` (contratos, EPS/NIT por código, modalidad).
+- Verificado contra el código real del aplicativo v5: los 8 meses del ZIP de Hospital San Antonio
+  quedaron cargados en estado «ok», con sedes y EPS homologadas a los nombres de Software 360.
+
+### Instalación desde el código (Windows con Python)
 
 1. Instale Python 3.10 o superior desde <https://www.python.org/downloads/> y marque
    **"Add python.exe to PATH"**.
@@ -20,9 +56,9 @@ financiera.
    ejemplo en `C:\AuditoriaRIPS`.
 3. Doble clic en **`instalar.bat`**. Crea un entorno propio (`.venv`), instala las librerías
    (requiere internet) y deja el acceso directo **"Cargue RIPS"** en el escritorio.
-4. Para cargar: doble clic en **"Cargue RIPS"** (o `iniciar_cargue.bat`) y elija el ZIP, los TXT
-   o la carpeta; también puede **arrastrar** el ZIP o la carpeta sobre `iniciar_cargue.bat`.
-   Al terminar se abre la carpeta `salida\cargue_<fecha>` con los Excel y JSON.
+4. Doble clic en **"Cargue RIPS"** (o `iniciar_cargue.bat`) abre la ventana de cargue en el
+   navegador; si **arrastra** un ZIP o carpeta sobre `iniciar_cargue.bat`, el cargue se hace en
+   consola y al terminar se abre la carpeta de resultados.
 
 **Linux / macOS**: `./instalar.sh` y luego `./iniciar_cargue.sh lote.zip` (sin argumentos
 pregunta qué cargar).
@@ -42,8 +78,8 @@ equivalente es `./construir_exe.sh`.
 ### Instalación manual (desarrolladores)
 
 ```bash
-pip install -r requirements.txt          # pandas, openpyxl, XlsxWriter, PyYAML
-pip install -r requirements-dev.txt      # + pytest, para ejecutar las pruebas
+pip install -r requirements.txt          # pandas, openpyxl, XlsxWriter, PyYAML, FastAPI, uvicorn
+pip install -r requirements-dev.txt      # + pytest y httpx, para ejecutar las pruebas
 ```
 
 Requiere Python 3.10 o superior.
@@ -196,14 +232,17 @@ rips_auditoria/
   homologacion.py     capa de mapeo configurable a la herramienta de auditoría
   exportacion.py      escritura de archivos por hospital/mes y consolidado
   cli.py              línea de comandos
-  cargue.py           inicio guiado del cargue (selección de archivos, abre la salida)
+  cargue.py           inicio guiado del cargue en consola (selección de archivos, abre la salida)
+  aplicativo.py       enlace con el aplicativo de Auditoría ESE MyC (plantilla RIPS, acumulado, API)
+  web/                ventana de cargue local (FastAPI + página con la imagen de la ESE)
 config/
   configuracion.yaml           parámetros (severidades, período, hospitales, exportación)
   homologacion_auditoria.yaml  mapeo a la herramienta de auditoría y supuestos
 plantillas/
   Plantilla_RIPS_Res3374_AnexoTecnico1.xlsx
 instalar.bat / instalar.sh               instalador
-construir_exe.bat / construir_exe.sh     genera el ejecutable CargueRIPS
+construir_exe.bat / construir_exe.sh     genera el ejecutable CargueRIPS (PyInstaller, opcional)
+instalador/                              instalador de Windows (NSIS): script, imágenes y construcción
 empaquetado/                             especificación PyInstaller y punto de entrada
 iniciar_cargue.bat / iniciar_cargue.sh   inicio del cargue
 tests/

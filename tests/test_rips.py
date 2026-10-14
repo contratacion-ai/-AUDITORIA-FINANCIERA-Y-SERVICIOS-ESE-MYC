@@ -207,7 +207,7 @@ def test_exportacion_excel_json_por_hospital_mes(zip_lote, tmp_path):
 def test_exportar_una_sola_unidad(zip_lote, tmp_path):
     res = procesar([zip_lote])
     archivos = exportar_unidad(res, "Hospital San Jose", "2026-06", tmp_path)
-    assert len(archivos) == 4 and all(p.exists() for p in archivos)
+    assert len(archivos) == 4  # la unidad no incluye el archivo mensual del aplicativo and all(p.exists() for p in archivos)
     with pytest.raises(KeyError):
         res.unidad("Hospital San Jose", "2020-01")
 
@@ -330,7 +330,7 @@ def test_cli_procesar_listar_y_sin_archivos(zip_lote, tmp_path, capsys):
     generados = sorted(p.name for p in salida.rglob("*.*"))
     assert generados == sorted([
         "AUDITORIA_Hospital San Jose_2026-05.json", "AUDITORIA_Hospital San Jose_2026-05.xlsx",
-        "RIPS_Hospital San Jose_2026-05.json", "RIPS_Hospital San Jose_2026-05.xlsx"])
+        "RIPS_AUDITORIA_2026-05.xlsx", "RIPS_Hospital San Jose_2026-05.json", "RIPS_Hospital San Jose_2026-05.xlsx"])
     vacio = tmp_path / "vacio"
     vacio.mkdir()
     assert main(["listar", str(vacio)]) == 2

@@ -9,6 +9,9 @@ Estructura de salida::
         RIPS_<Hospital>_<AAAA-MM>.json
         AUDITORIA_<Hospital>_<AAAA-MM>.xlsx (homologado para auditoría financiera)
         AUDITORIA_<Hospital>_<AAAA-MM>.json
+      APLICATIVO_AUDITORIA/
+        RIPS_AUDITORIA_<AAAA-MM>.xlsx       (para Cargas > RIPS del aplicativo v5,
+                                            con todas las sedes acumuladas del mes)
 """
 
 from __future__ import annotations
@@ -17,6 +20,8 @@ import logging
 import re
 from pathlib import Path
 
+from . import aplicativo
+from .config import carpeta_datos
 from .excel import exportar_consolidado_excel, exportar_unidad_excel
 from .homologacion import cargar_mapeo, exportar_homologacion_excel, exportar_homologacion_json, homologar
 from .json_export import exportar_consolidado_json, exportar_unidad_json
@@ -68,6 +73,11 @@ def exportar_todo(resultado, salida: str | Path, cfg: dict | None = None, hospit
             continue
         log.info("Exportando %s / %s", h, p)
         archivos += exportar_unidad(resultado, h, p, salida, cfg, mapeo)
+    app = cfg.get("aplicativo_auditoria") or {}
+    if app.get("habilitado", True):
+        log.info("Generando archivos mensuales para el aplicativo de auditoría")
+        acumulado = app.get("carpeta_acumulado") or carpeta_datos() / "acumulado_aplicativo"
+        archivos += aplicativo.exportar_para_aplicativo(resultado, salida, app, acumulado, hospital, periodo)
     if cfg["exportacion"].get("consolidado", True) and not (hospital or periodo):
         if cfg["exportacion"].get("excel", True):
             log.info("Exportando consolidado Excel")

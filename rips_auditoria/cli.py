@@ -19,7 +19,8 @@ Ejemplos::
     python -m rips_auditoria plantilla -s plantillas/Plantilla_RIPS_Res3374.xlsx
 
 Códigos de salida: 0 = procesado (aunque haya incidencias), 1 = error de
-uso o configuración, 2 = no se encontró ningún archivo RIPS.
+uso o configuración, 2 = no se encontró ningún archivo RIPS, 3 = procesado
+pero el envío al aplicativo de auditoría falló.
 """
 
 from __future__ import annotations
@@ -55,6 +56,10 @@ def _parser() -> argparse.ArgumentParser:
     pr.add_argument("--sin-json", action="store_true")
     pr.add_argument("--sin-consolidado", action="store_true")
     pr.add_argument("--sin-homologacion", action="store_true")
+    pr.add_argument("--sin-aplicativo", action="store_true",
+                    help="No generar los archivos mensuales para el aplicativo de auditoría")
+    pr.add_argument("--enviar-aplicativo", action="store_true",
+                    help="Enviar cada mes al aplicativo de auditoría abierto (localhost:8000)")
 
     ls = sub.add_parser("listar", help="Listar hospitales y meses encontrados, con conteo de incidencias")
     comunes(ls)
@@ -85,6 +90,9 @@ def main(argv: list[str] | None = None) -> int:
             exp["json"] &= not args.sin_json
             exp["consolidado"] &= not args.sin_consolidado
             cfg["homologacion"]["habilitada"] &= not args.sin_homologacion
+            app = cfg.setdefault("aplicativo_auditoria", {})
+            app["habilitado"] = app.get("habilitado", True) and not args.sin_aplicativo
+            app["enviar_automaticamente"] = app.get("enviar_automaticamente", False) or args.enviar_aplicativo
             if cfg["homologacion"]["habilitada"]:
                 cargar_mapeo(cfg["homologacion"]["archivo_mapeo"])  # falla temprano si el mapeo es inválido
     except (FileNotFoundError, ValueError, ErrorMapeo) as exc:
@@ -115,6 +123,23 @@ def main(argv: list[str] | None = None) -> int:
                 return 1
         archivos = exportar_todo(res, args.salida, cfg, args.filtro_hospital, args.filtro_mes)
         print(f"\n{len(archivos)} archivo(s) generados en {Path(args.salida).resolve()}")
+        app = cfg.get("aplicativo_auditoria") or {}
+        mensuales = [a for a in archivos if a.parent.name == "APLICATIVO_AUDITORIA"]
+        if mensuales and app.get("enviar_automaticamente"):
+            from .aplicativo import ErrorAplicativo, enviar_meses
+            try:
+                resultados = enviar_meses(mensuales, app, aviso=print)
+            except (ErrorAplicativo, OSError) as exc:
+                print(f"\n[!] No se envió al aplicativo de auditoría: {exc}", file=sys.stderr)
+                return 3
+            from .aplicativo import resumen_cruce
+            cruce = resumen_cruce(app)
+            if cruce:
+                print("\nValidación del cruce en el aplicativo (RIPS vs. Software 360):")
+                for f in cruce:
+                    print(f"  {f['llave']:<10} {f['origen']}→{f['destino']}: {f['pct_cruce']}% · {f['estado']}")
+            if any(r["estado"] != "ok" for r in resultados):
+                return 3
     return 0
 
 

@@ -4,21 +4,25 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rips-auditoria"
-version = "1.0.0"
+version = "1.1.0"
 description = "Procesamiento de RIPS (Res. 3374 de 2000, Anexo Técnico No. 1) para auditoría financiera de la ESE Moreno y Clavijo"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["pandas>=2.0", "openpyxl>=3.1", "XlsxWriter>=3.1", "PyYAML>=6.0"]
+dependencies = ["pandas>=2.0", "openpyxl>=3.1", "XlsxWriter>=3.1", "PyYAML>=6.0", "fastapi>=0.110", "uvicorn>=0.29", "python-multipart>=0.0.9"]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0"]
+dev = ["pytest>=7.0", "httpx>=0.27"]
 
 [project.scripts]
 rips-auditoria = "rips_auditoria.cli:main"
 rips-cargue = "rips_auditoria.cargue:main"
+rips-cargue-web = "rips_auditoria.web.__main__:main"
 
 [tool.setuptools]
-packages = ["rips_auditoria"]
+packages = ["rips_auditoria", "rips_auditoria.web"]
+
+[tool.setuptools.package-data]
+"rips_auditoria.web" = ["static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

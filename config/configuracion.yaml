@@ -30,6 +30,21 @@ homologacion:
   habilitada: true
   archivo_mapeo: homologacion_auditoria.yaml   # relativo a esta carpeta
 
+aplicativo_auditoria:
+  # Archivo mensual RIPS_AUDITORIA_<AAAA-MM>.xlsx para «Cargas > RIPS» del
+  # aplicativo de Auditoría ESE MyC v5. Acumula todas las sedes del mes.
+  habilitado: true
+  enviar_automaticamente: false     # true = enviarlo al aplicativo abierto en localhost:8000
+  # carpeta_acumulado: D:/RIPS/acumulado_aplicativo   (por defecto: <datos>/acumulado_aplicativo)
+  # Nombre exacto del contrato en Software 360, por texto de la carpeta de la remisión:
+  # contratos:
+  #   "SANITAS SUBSIDIADO PYM": "SANITAS SUBSIDIADO PYM GLOBAL"
+  # Palabras del contrato -> modalidad (la primera que coincida):
+  modalidad_por_contrato: [[EVENTO, EVENTO], ["CAPITA|GLOBAL", CAPITA], [PGP, PGP]]
+  inferir_modalidad: true           # si el contrato no lo dice: CAPITA cuando las facturas no concilian
+  # eps_por_codigo: {EPS005: "ENTIDAD PROMOTORA DE SALUD SANITAS S A S"}
+  # nit_por_codigo: {EPS005: "800251440"}
+
 exportacion:
   excel: true
   json: true
