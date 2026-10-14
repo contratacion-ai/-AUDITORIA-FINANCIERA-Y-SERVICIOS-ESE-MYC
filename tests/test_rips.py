@@ -361,3 +361,15 @@ def test_cargue_guiado_pregunta_y_valida_rutas(tmp_path, monkeypatch):
     assert cargue.main(["--no-abrir"]) == 1
     monkeypatch.setattr(cargue, "elegir_con_ventana", lambda: [])  # el usuario canceló
     assert cargue.main(["--no-abrir"]) == 1
+
+
+def test_lote_solo_con_incidencias_de_campo(tmp_path):
+    # Regresión: con sólo incidencias vectorizadas (sin hospital/período), la
+    # ubicación fallaba con "Invalid value ... for dtype 'float64'".
+    archivos = fabrica.envio_valido()
+    archivos["AF000123.txt"] = archivos["AF000123.txt"].replace("SANITAS EPS", "SANITAS EPS NOMBRE MUY LARGO QUE EXCEDE TREINTA")
+    fabrica.escribir(tmp_path / "Hospital San Lorenzo" / "05. Mayo" / "r", archivos)
+    res = procesar([tmp_path / "Hospital San Lorenzo"])
+    assert set(res.incidencias["regla"]) == {"LONGITUD_EXCEDIDA"}
+    assert set(res.incidencias["hospital"]) == {"Hospital San Lorenzo"}
+    assert set(res.incidencias["periodo"]) == {"2026-05"}

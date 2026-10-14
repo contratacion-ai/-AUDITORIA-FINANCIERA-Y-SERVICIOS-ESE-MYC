@@ -133,6 +133,12 @@ class RegistroIncidencias:
         if not partes:
             return pd.DataFrame(columns=COLUMNAS)
         df = pd.concat(partes, ignore_index=True)
+        # Columnas de texto siempre como object: si todas las incidencias vienen
+        # de bloques sin hospital/período, pandas las crea float64 (todo NaN) y
+        # luego no admite asignarles texto (TypeError en pandas >= 2.1).
+        for c in COLUMNAS:
+            if c != "linea":
+                df[c] = df[c].astype(object)
         df["linea"] = pd.to_numeric(df["linea"], errors="coerce").astype("Int64")
         return df[COLUMNAS]
 
