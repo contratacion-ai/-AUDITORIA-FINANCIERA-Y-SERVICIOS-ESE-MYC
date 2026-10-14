@@ -29,6 +29,16 @@ pregunta qué cargar).
 
 Volver a ejecutar el instalador actualiza las librerías sin perder la configuración.
 
+**Ejecutable para equipos sin Python (`CargueRIPS.exe`)**
+
+En **un** equipo Windows con la aplicación instalada, doble clic en **`construir_exe.bat`**.
+Genera `dist\CargueRIPS\` y `dist\CargueRIPS_v<versión>.zip`. Ese ZIP se copia a los demás
+equipos, se descomprime en una carpeta del usuario (p. ej. *Documentos*, no en *Archivos de
+programa*) y se usa con doble clic en `CargueRIPS.exe` o arrastrando el ZIP de RIPS sobre él.
+Junto al `.exe` quedan `config\` (editable), `plantillas\` y `salida\`. El ejecutable se
+construye con PyInstaller a partir de `empaquetado/CargueRIPS.spec`; en Linux/macOS el
+equivalente es `./construir_exe.sh`.
+
 ### Instalación manual (desarrolladores)
 
 ```bash
@@ -193,6 +203,8 @@ config/
 plantillas/
   Plantilla_RIPS_Res3374_AnexoTecnico1.xlsx
 instalar.bat / instalar.sh               instalador
+construir_exe.bat / construir_exe.sh     genera el ejecutable CargueRIPS
+empaquetado/                             especificación PyInstaller y punto de entrada
 iniciar_cargue.bat / iniciar_cargue.sh   inicio del cargue
 tests/
 ```

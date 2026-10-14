@@ -9,14 +9,23 @@ ruta del archivo de homologación.
 from __future__ import annotations
 
 import copy
+import sys
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-RAIZ_PROYECTO = Path(__file__).resolve().parent.parent
-CONFIG_POR_DEFECTO = RAIZ_PROYECTO / "config" / "configuracion.yaml"
-MAPEO_POR_DEFECTO = RAIZ_PROYECTO / "config" / "homologacion_auditoria.yaml"
+if getattr(sys, "frozen", False):
+    # Ejecutable generado con PyInstaller: la salida y la configuración
+    # editable viven junto al .exe; los recursos empaquetados, en _MEIPASS.
+    RAIZ_PROYECTO = Path(sys.executable).resolve().parent
+    _RECURSOS = Path(getattr(sys, "_MEIPASS", RAIZ_PROYECTO))
+else:
+    RAIZ_PROYECTO = Path(__file__).resolve().parent.parent
+    _RECURSOS = RAIZ_PROYECTO
+_DIR_CONFIG = RAIZ_PROYECTO / "config" if (RAIZ_PROYECTO / "config").exists() else _RECURSOS / "config"
+CONFIG_POR_DEFECTO = _DIR_CONFIG / "configuracion.yaml"
+MAPEO_POR_DEFECTO = _DIR_CONFIG / "homologacion_auditoria.yaml"
 
 DEFAULTS: dict[str, Any] = {
     "lectura": {
@@ -97,5 +106,7 @@ def cargar_configuracion(ruta: str | Path | None = None) -> dict[str, Any]:
     mapeo = Path(cfg["homologacion"]["archivo_mapeo"])
     if not mapeo.is_absolute():
         candidato = (ruta.parent / mapeo).resolve()
-        cfg["homologacion"]["archivo_mapeo"] = str(candidato if candidato.exists() else (RAIZ_PROYECTO / mapeo))
+        otros = [RAIZ_PROYECTO / mapeo, _DIR_CONFIG / mapeo.name]
+        cfg["homologacion"]["archivo_mapeo"] = str(
+            candidato if candidato.exists() else next((o for o in otros if o.exists()), RAIZ_PROYECTO / mapeo))
     return cfg
