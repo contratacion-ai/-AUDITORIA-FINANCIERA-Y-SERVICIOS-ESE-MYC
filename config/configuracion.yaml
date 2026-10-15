@@ -1,0 +1,68 @@
+# Configuración de rips_auditoria. Todo lo que no se indique aquí toma el valor
+# por defecto definido en rips_auditoria/config.py.
+
+lectura:
+  codificaciones: [utf-8-sig, cp1252, latin-1]
+  reparar_mojibake: true
+  preferir_corregidos: true
+  extensiones_ignoradas: [.json, .xml, .pdf]
+
+organizacion:
+  # Cómo se fija el mes (AAAA-MM) de cada remisión, en orden de prioridad.
+  prioridad_periodo: [carpeta, factura, remision]
+  # Nombre del hospital por código de prestador (REPS), usado cuando la ruta no
+  # trae carpeta de hospital, p. ej. al cargar TXT sueltos. Ejemplo:
+  # hospitales_por_prestador:
+  #   "817940020603": "Hospital San Antonio"
+  hospitales_por_prestador: {}
+  hospital_por_defecto: null
+
+validacion:
+  tolerancia_valores: 1.0
+  # Ajuste de severidad por regla: ERROR | ADVERTENCIA | INFO | OMITIR.
+  # La lista completa de reglas está en la hoja "Reglas_Validacion" del Excel.
+  severidades: {}
+  #  LONGITUD_EXCEDIDA: ADVERTENCIA
+  #  REGISTRO_DUPLICADO: INFO
+  max_incidencias_por_regla_archivo: 0
+
+homologacion:
+  habilitada: true
+  archivo_mapeo: homologacion_auditoria.yaml   # relativo a esta carpeta
+
+aplicativo_auditoria:
+  # Archivo mensual RIPS_AUDITORIA_<AAAA-MM>.xlsx para «Cargas > RIPS» del
+  # aplicativo de Auditoría ESE MyC v5. Acumula todas las sedes del mes.
+  habilitado: true
+  enviar_automaticamente: false     # true = enviarlo al aplicativo abierto en localhost:8000
+  # carpeta_acumulado: D:/RIPS/acumulado_aplicativo   (por defecto: <datos>/acumulado_aplicativo)
+  # Nombre exacto del contrato en Software 360, por texto de la carpeta de la remisión:
+  # contratos:
+  #   "SANITAS SUBSIDIADO PYM": "SANITAS SUBSIDIADO PYM GLOBAL"
+  # Palabras del contrato -> modalidad (la primera que coincida):
+  modalidad_por_contrato: [[EVENTO, EVENTO], ["CAPITA|GLOBAL", CAPITA], [PGP, PGP]]
+  inferir_modalidad: true           # si el contrato no lo dice: CAPITA cuando las facturas no concilian
+  # eps_por_codigo: {EPS005: "ENTIDAD PROMOTORA DE SALUD SANITAS S A S"}
+  # nit_por_codigo: {EPS005: "800251440"}
+
+red:
+  # Abrir el cargue, el tablero y el aplicativo de auditoría desde otros computadores de la red.
+  # También se activa con el acceso «Cargue RIPS ESE MyC (en red)» del menú Inicio.
+  habilitada: false
+  # clave: "MICLAVE2026"          # sin clave fija se genera una y se muestra en la ventana del servidor
+  puente_auditoria: true          # los demás equipos abren el aplicativo de auditoría en http://<IP>:8000
+  puerto_auditoria: 8000
+
+tablero:
+  # Umbrales de las alertas del tablero de análisis (ventana de cargue > Tablero)
+  variacion_mes_pct: 30          # variación mes a mes (valor o cantidad) por sede que genera alerta
+  variacion_alta_pct: 60         # ... a partir de este % la alerta es ALTA
+  concentracion_pct: 60          # una EPS con más de este % del valor de una sede
+  factor_valor_unitario: 3       # valor unitario de un CUPS > factor × mediana de las sedes
+  minimo_cantidad_cups: 5        # usos mínimos de un CUPS para comparar su valor unitario
+  frecuencia_variacion_pct: 30   # variación de atenciones por usuario entre meses
+
+exportacion:
+  excel: true
+  json: true
+  consolidado: true
