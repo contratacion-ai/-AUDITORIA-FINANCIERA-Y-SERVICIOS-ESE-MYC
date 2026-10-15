@@ -45,6 +45,23 @@ aplicativo_auditoria:
   # eps_por_codigo: {EPS005: "ENTIDAD PROMOTORA DE SALUD SANITAS S A S"}
   # nit_por_codigo: {EPS005: "800251440"}
 
+red:
+  # Abrir el cargue, el tablero y el aplicativo de auditoría desde otros computadores de la red.
+  # También se activa con el acceso «Cargue RIPS ESE MyC (en red)» del menú Inicio.
+  habilitada: false
+  # clave: "MICLAVE2026"          # sin clave fija se genera una y se muestra en la ventana del servidor
+  puente_auditoria: true          # los demás equipos abren el aplicativo de auditoría en http://<IP>:8000
+  puerto_auditoria: 8000
+
+tablero:
+  # Umbrales de las alertas del tablero de análisis (ventana de cargue > Tablero)
+  variacion_mes_pct: 30          # variación mes a mes (valor o cantidad) por sede que genera alerta
+  variacion_alta_pct: 60         # ... a partir de este % la alerta es ALTA
+  concentracion_pct: 60          # una EPS con más de este % del valor de una sede
+  factor_valor_unitario: 3       # valor unitario de un CUPS > factor × mediana de las sedes
+  minimo_cantidad_cups: 5        # usos mínimos de un CUPS para comparar su valor unitario
+  frecuencia_variacion_pct: 30   # variación de atenciones por usuario entre meses
+
 exportacion:
   excel: true
   json: true

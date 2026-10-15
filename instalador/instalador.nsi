@@ -44,7 +44,8 @@ VIAddVersionKey /LANG=1034 "LegalCopyright" "${EDITOR}"
 !define MUI_WELCOMEPAGE_TEXT "Este asistente instala el Cargue de RIPS (Resolución 3374 de 2000, Anexo Técnico No. 1).$\r$\n$\r$\n\
 • Carga los RIPS descargados (ZIP, carpetas o TXT), los valida y los organiza por hospital y mes.$\r$\n\
 • Genera los archivos Excel y JSON y la homologación para auditoría financiera.$\r$\n\
-• Se enlaza con el aplicativo de Auditoría de Facturación ESE MyC: envía cada mes a su pestaña «Cargas › RIPS» con todas las sedes, usa sus contratos y muestra su validación del cruce.$\r$\n$\r$\n\
+• Tablero de análisis: por sede, mes, empresa, servicio y CUPS, comparativos, frecuencias de uso, alertas e informe Excel.$\r$\n\
+• Se enlaza con el aplicativo de Auditoría de Facturación ESE MyC (envía cada mes con todas las sedes) y puede abrirse desde otros equipos de la red con clave.$\r$\n$\r$\n\
 No necesita internet, Python ni permisos de administrador."
 !define MUI_FINISHPAGE_TITLE "Instalación terminada"
 !define MUI_FINISHPAGE_TEXT "Ábralo con el acceso «Cargue RIPS ESE MyC» del Escritorio o del menú Inicio.$\r$\n$\r$\nResultados: Documentos\Cargue RIPS ESE MyC"
@@ -95,6 +96,9 @@ Section "Cargue RIPS" SEC_APP
   CreateDirectory "$SMPROGRAMS\ESE Moreno y Clavijo"
   CreateShortCut "$SMPROGRAMS\ESE Moreno y Clavijo\${NOMBRE}.lnk" "$INSTDIR\python\python.exe" '"$INSTDIR\iniciar.py"' \
       "$INSTDIR\icono.ico" 0 SW_SHOWMINIMIZED
+  CreateShortCut "$SMPROGRAMS\ESE Moreno y Clavijo\${NOMBRE} (en red).lnk" "$INSTDIR\python\python.exe" '"$INSTDIR\iniciar.py" --red' \
+      "$INSTDIR\icono.ico" 0 SW_SHOWNORMAL "" "Abrir el cargue, el tablero y la auditoria desde otros equipos (con clave)"
+  CreateShortCut "$SMPROGRAMS\ESE Moreno y Clavijo\Permitir acceso en red.lnk" "$INSTDIR\permitir_red.bat" "" "$INSTDIR\icono.ico" 0
   CreateShortCut "$SMPROGRAMS\ESE Moreno y Clavijo\Resultados del cargue RIPS.lnk" "$DATOS"
   CreateShortCut "$SMPROGRAMS\ESE Moreno y Clavijo\Guia rapida del cargue RIPS.lnk" "$INSTDIR\LEAME.txt"
   CreateShortCut "$SMPROGRAMS\ESE Moreno y Clavijo\Desinstalar Cargue RIPS.lnk" "$INSTDIR\Desinstalar.exe"
@@ -122,6 +126,8 @@ SectionEnd
 Section "Uninstall"
   Delete "$DESKTOP\${NOMBRE}.lnk"
   Delete "$SMPROGRAMS\ESE Moreno y Clavijo\${NOMBRE}.lnk"
+  Delete "$SMPROGRAMS\ESE Moreno y Clavijo\${NOMBRE} (en red).lnk"
+  Delete "$SMPROGRAMS\ESE Moreno y Clavijo\Permitir acceso en red.lnk"
   Delete "$SMPROGRAMS\ESE Moreno y Clavijo\Resultados del cargue RIPS.lnk"
   Delete "$SMPROGRAMS\ESE Moreno y Clavijo\Guia rapida del cargue RIPS.lnk"
   Delete "$SMPROGRAMS\ESE Moreno y Clavijo\Desinstalar Cargue RIPS.lnk"

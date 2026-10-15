@@ -83,6 +83,22 @@ DEFAULTS: dict[str, Any] = {
         "enviar_automaticamente": False,
         "carpeta_acumulado": None,
     },
+    "red": {
+        # Acceso desde otros computadores (ver rips_auditoria/web/red.py).
+        "habilitada": False,  # True = siempre en red (igual que el acceso «en red» o --red)
+        "clave": None,  # None = se genera y se guarda en <datos>/acceso_red.json
+        "puente_auditoria": True,  # publicar el aplicativo de auditoría v5 en http://<IP>:8000
+        "puerto_auditoria": 8000,
+    },
+    "tablero": {
+        # Umbrales de las alertas del tablero de análisis (ver tablero.DEFAULTS).
+        "variacion_mes_pct": 30,
+        "variacion_alta_pct": 60,
+        "concentracion_pct": 60,
+        "factor_valor_unitario": 3,
+        "minimo_cantidad_cups": 5,
+        "frecuencia_variacion_pct": 30,
+    },
     "exportacion": {
         "excel": True,
         "json": True,

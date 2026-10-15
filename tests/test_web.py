@@ -18,7 +18,7 @@ from . import fabrica  # noqa: E402
 @pytest.fixture
 def cliente(monkeypatch):
     monkeypatch.setenv("AUDITORIA_ESE_DIR", "/no/existe")
-    return TestClient(servidor.app)
+    return TestClient(servidor.app, client=("127.0.0.1", 50000))
 
 
 def _esperar(cliente, tid, maximo=120):

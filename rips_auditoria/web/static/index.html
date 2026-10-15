@@ -81,6 +81,10 @@
   .aviso{background:var(--vino-claro);color:var(--vino-osc);border-radius:10px;padding:12px 14px;font-size:14px;margin:10px 0}
   .archivos a{display:block;color:var(--verde-osc);font-size:13px;padding:3px 0}
   footer{text-align:center;color:var(--gris);font-size:12.5px;padding:18px}
+  nav.app{display:flex;gap:6px} nav.app a{padding:9px 14px;border-radius:10px;text-decoration:none;font-weight:600;color:var(--verde-osc);border:1.5px solid var(--verde)}
+  nav.app a.activa{background:var(--verde);color:#fff}
+  .red{display:none;background:var(--verde-claro);border:1px solid var(--verde);border-radius:var(--radio);padding:10px 16px;margin-bottom:18px;font-size:14px}
+  .red code{background:#fff;border:1px solid var(--borde);border-radius:6px;padding:2px 6px;font-size:14px}
 </style>
 </head>
 <body>
@@ -92,10 +96,12 @@
       <h1>Cargue de RIPS · Resolución 3374 de 2000</h1>
       <p>Validación, organización por hospital y mes, y homologación para el aplicativo de Auditoría de Facturación</p>
     </div>
+    <nav class="app"><a href="/" class="activa">Cargue de RIPS</a><a href="/tablero">Tablero de análisis</a></nav>
   </div>
 </header>
 
 <main>
+  <div class="red" id="red"></div>
   <div class="estado-app">
     <span id="pastilla" class="pastilla cerrado">Aplicativo de auditoría: verificando…</span>
     <span class="texto" id="texto-app">Los RIPS de cada mes se pueden enviar directamente a la pestaña «Cargas» del aplicativo.</span>
@@ -117,7 +123,7 @@
       <input type="file" id="f-archivos" multiple accept=".zip,.txt,.ZIP,.TXT" hidden>
       <input type="file" id="f-carpeta" webkitdirectory multiple hidden>
       <div class="seleccion" id="seleccion">Ningún archivo seleccionado.</div>
-      <div class="sep">o, para lotes grandes, escriba la ruta en este equipo</div>
+      <div class="sep" id="sep-ruta">o, para lotes grandes, escriba la ruta en este equipo</div>
       <input type="text" id="ruta" placeholder="Ej.: E:\RIPS 2026\RIPS DESCARGADOS 2026\Hospital San Lorenzo">
       <div class="ayuda">Con la ruta no se copia nada: se lee directamente la carpeta o el ZIP.</div>
     </section>
@@ -155,6 +161,7 @@
     <div class="botones" style="margin:0 0 10px">
       <button class="ver" id="btn-carpeta-res">Abrir carpeta de resultados</button>
       <button class="sec" id="btn-ir-app">Ver en el aplicativo de auditoría</button>
+      <a class="boton sec" href="/tablero">Ver tablero de análisis</a>
     </div>
     <div id="aviso-envio"></div>
     <div id="bloque-envio"></div>
@@ -191,6 +198,16 @@ async function verificarApp(){
       $("#texto-app").textContent = r.aplicativo_instalado ? "Está instalado en este equipo; se abrirá al enviar." :
         "No se detectó instalado. Los archivos mensuales quedan listos para cargarlos manualmente en «Cargas › RIPS».";
       $("#btn-abrir-app").textContent = "Abrir aplicativo de auditoría";
+    }
+    const red = r.red || {};
+    if (red.habilitada && r.equipo_local){
+      $("#red").style.display = "block";
+      $("#red").innerHTML = `<b>Acceso en red activo.</b> Otros computadores: ${red.urls.map(u => `<code>${esc(u)}</code>`).join(" ") || "(sin dirección de red)"}
+        · clave de acceso <code>${esc(red.clave)}</code> · el aplicativo de auditoría queda en el puerto 8000 de la misma dirección.`;
+    }
+    if (!r.equipo_local){
+      $("#sep-ruta").textContent = "o escriba la ruta de una carpeta en el equipo servidor";
+      $("#btn-carpeta-res").style.display = "none";
     }
     if (!verificarApp.marcado){ $("#enviar").checked = !!(r.aplicativo || r.aplicativo_instalado); verificarApp.marcado = true; }
   }catch(e){}

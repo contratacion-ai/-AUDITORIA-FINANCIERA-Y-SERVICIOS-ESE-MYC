@@ -48,6 +48,43 @@ Las dos aplicaciones trabajan juntas por la API local del aplicativo (`http://lo
 - Verificado contra el código real del aplicativo v5: los 8 meses del ZIP de Hospital San Antonio
   quedaron cargados en estado «ok», con sedes y EPS homologadas a los nombres de Software 360.
 
+### Tablero de análisis (`/tablero`)
+
+Botón **«Tablero de análisis»** de la ventana de cargue (`http://localhost:8100/tablero`). Lee el
+**mismo acumulado homologado que se envía al aplicativo de auditoría** (`acumulado_aplicativo/<AAAA-MM>.csv`)
+más `indicadores.csv` (usuarios únicos, registros por archivo, errores y diferencias por sede-mes, que
+cada cargue guarda). Filtros por período, sede, empresa (EPS), servicio, modalidad, contrato y CUPS.
+
+| Pestaña | Contenido |
+|---|---|
+| Resumen | Valor de servicios y FEV, facturas, cantidad, usuarios, atenciones por usuario, alertas; tendencias mensuales; valor por sede, EPS y servicio; análisis automático y acciones recomendadas |
+| Comparativos | Tabla cruzada de **cualquier par de parámetros** (sede, mes, EPS, servicio, CUPS, contrato, modalidad, validación) × medida (valor, cantidad, facturas, registros, valor FEV), de mayor a menor, con mapa de calor, total, participación y variación del último mes |
+| Frecuencias de uso | Atenciones por usuario y cantidad de servicios mes a mes y por sede; cantidad por servicio y mes |
+| RIPS por empresa / sede / servicio / CUPS | Gráfico de mayor a menor y tablas completas (EPS × sede, contrato, modalidad, sede × mes, indicadores de cargue, CUPS × sede, CUPS × mes) |
+| Consolidado RIPS | Todas las filas homologadas, con búsqueda, orden y **CSV completo** |
+| Alertas y análisis | Alertas priorizadas (CRÍTICA, ALTA, MEDIA, INFORMATIVA) con acción recomendada: meses sin RIPS, variaciones mensuales, facturas con diferencia AF, servicios sin factura, facturas sin servicios, valores en cero, concentración por EPS, valor unitario atípico de un CUPS entre sedes, errores de estructura y cambios en la frecuencia de uso. Umbrales en `configuracion.yaml › tablero` |
+| Aplicativo de auditoría | Reenvía meses del acumulado al aplicativo (todas las sedes) y muestra su validación del cruce |
+
+**Informe Excel** para la gerencia (resumen, análisis, recomendaciones, gráficos, alertas, comparativos y
+consolidado completo; el consolidado se divide en hojas de 1.000.000 de filas si hace falta).
+
+**Sin límite de archivos ni de líneas:** el formulario de carga admite carpetas con miles de TXT (Starlette
+limita por defecto un formulario a 1000 archivos; aquí se amplió) y cada TXT se procesa completo.
+
+### Uso desde otros computadores de la red
+
+Acceso **«Cargue RIPS ESE MyC (en red)»** (o `python -m rips_auditoria.web --red`, o
+`red.habilitada: true`). En el equipo servidor:
+
+- La ventana de cargue y el tablero quedan en `http://<IP del servidor>:8100`.
+- El aplicativo de auditoría v5 (que sólo escucha en 127.0.0.1) se publica con un **puente** en
+  `http://<IP del servidor>:8000`, sin modificarlo.
+- Los equipos remotos deben escribir la **clave de acceso** que muestra la ventana del servidor
+  (`red.clave` para fijarla; si no, se genera una y se guarda en `acceso_red.json`). 5 intentos
+  fallidos bloquean esa IP 2 minutos. El propio servidor no pide clave.
+- Una vez, «Permitir acceso en red» crea la regla del Firewall de Windows (puertos 8000-8010 y
+  8100-8110, sólo redes privadas o de dominio).
+
 ### Instalación desde el código (Windows con Python)
 
 1. Instale Python 3.10 o superior desde <https://www.python.org/downloads/> y marque
@@ -216,7 +253,9 @@ python -m pytest -q
 Cubren: estructura del Anexo, remisión válida, remisión con errores de estructura y contenido,
 ZIP con varios hospitales (con ZIP anidado y ZIP corrupto), TXT sueltos, carpeta de mes,
 versión corregida, homologación (por defecto y personalizada, validación del mapeo), plantilla,
-exportación Excel/JSON y CLI. Los datos de prueba son sintéticos (`tests/fabrica.py`).
+exportación Excel/JSON, CLI, ventana web (incluido un cargue de más de 1000 archivos), tablero
+(agregados, filtros, comparativos, tablas, CSV, Excel, alertas) y acceso en red (clave, bloqueo, puente).
+Los datos de prueba son sintéticos (`tests/fabrica.py`).
 
 ### Estructura
 
@@ -234,7 +273,9 @@ rips_auditoria/
   cli.py              línea de comandos
   cargue.py           inicio guiado del cargue en consola (selección de archivos, abre la salida)
   aplicativo.py       enlace con el aplicativo de Auditoría ESE MyC (plantilla RIPS, acumulado, API)
-  web/                ventana de cargue local (FastAPI + página con la imagen de la ESE)
+  tablero.py          tablero de análisis: agregados, comparativos, frecuencias, alertas, informe Excel
+  web/                ventana de cargue y tablero (FastAPI + páginas con la imagen de la ESE)
+  web/red.py          acceso en red con clave y puente hacia el aplicativo de auditoría
 config/
   configuracion.yaml           parámetros (severidades, período, hospitales, exportación)
   homologacion_auditoria.yaml  mapeo a la herramienta de auditoría y supuestos

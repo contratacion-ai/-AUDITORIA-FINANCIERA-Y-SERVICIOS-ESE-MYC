@@ -20,7 +20,7 @@ import logging
 import re
 from pathlib import Path
 
-from . import aplicativo
+from . import aplicativo, tablero
 from .config import carpeta_datos
 from .excel import exportar_consolidado_excel, exportar_unidad_excel
 from .homologacion import cargar_mapeo, exportar_homologacion_excel, exportar_homologacion_json, homologar
@@ -78,6 +78,8 @@ def exportar_todo(resultado, salida: str | Path, cfg: dict | None = None, hospit
         log.info("Generando archivos mensuales para el aplicativo de auditoría")
         acumulado = app.get("carpeta_acumulado") or carpeta_datos() / "acumulado_aplicativo"
         archivos += aplicativo.exportar_para_aplicativo(resultado, salida, app, acumulado, hospital, periodo)
+        # Indicadores por sede-mes (usuarios, atenciones, errores…) para el tablero de análisis
+        tablero.actualizar_indicadores(resultado, acumulado, hospital, periodo)
     if cfg["exportacion"].get("consolidado", True) and not (hospital or periodo):
         if cfg["exportacion"].get("excel", True):
             log.info("Exportando consolidado Excel")

@@ -65,6 +65,7 @@ rm -rf "$APP/python/Lib/site-packages/bin"
 echo "[3/6] Aplicación"
 ( cd "$RAIZ" && tar cf - --exclude='__pycache__' --exclude='*.pyc' rips_auditoria config plantillas LICENSE README.md ) | ( cd "$APP" && tar xf - )
 cp "$RAIZ/empaquetado/iniciar_instalado.py" "$APP/iniciar.py"
+cp "$RAIZ/empaquetado/permitir_red.bat" "$APP/permitir_red.bat"
 cp "$RAIZ/rips_auditoria/web/static/icono_ese.ico" "$APP/icono.ico"
 cat > "$APP/LEAME.txt" <<EOF
 CARGUE DE RIPS (Res. 3374 de 2000) - ESE MORENO Y CLAVIJO        versión $VERSION
@@ -88,6 +89,25 @@ ENLACE CON EL APLICATIVO DE AUDITORÍA (v5):
    completo en cada carga), así que puede cargar un hospital a la vez sin perder los demás.
  - Si en el aplicativo ya cargó PARAM CONTRATO (Software 360), se usan sus nombres de
    contrato y su modalidad.
+
+TABLERO DE ANÁLISIS: botón "Tablero de análisis" (http://localhost:8100/tablero).
+ Por sede, mes, empresa (EPS), servicio y CUPS; comparativos entre parámetros de mayor a
+ menor; frecuencias de uso mes a mes y por sede; alertas con acciones recomendadas; análisis
+ automático; consolidado RIPS completo (CSV) e informe Excel para la gerencia. Usa los mismos
+ datos homologados que se envían al aplicativo de auditoría y permite reenviar meses.
+
+CARGUE SIN LÍMITE: se pueden subir carpetas con miles de TXT y archivos con todas sus líneas.
+
+USO EN RED (otros computadores):
+ 1. Una sola vez, en el equipo servidor: menú Inicio > ESE Moreno y Clavijo >
+    "Permitir acceso en red" (pide administrador; solo redes privadas/de dominio).
+ 2. Abra "Cargue RIPS ESE MyC (en red)". La ventana muestra las direcciones, p. ej.
+      Cargue y tablero:  http://192.168.1.10:8100
+      Auditoria (v5):    http://192.168.1.10:8000
+    y la CLAVE DE ACCESO que deben escribir los demás equipos.
+ 3. Deje abiertos en el servidor esa ventana y el aplicativo de Auditoría.
+ Clave fija: config\configuracion.yaml > red > clave. Sin clave fija se genera una y se
+ guarda en Documentos\Cargue RIPS ESE MyC\acceso_red.json.
 
 RESULTADOS: Documentos\\Cargue RIPS ESE MyC\\cargue_<fecha>\\
   <Hospital>\\<AAAA-MM>\\RIPS_*.xlsx       datos validados (estructura del Anexo Técnico No. 1)
