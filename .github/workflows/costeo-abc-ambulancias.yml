@@ -102,8 +102,9 @@ jobs:
           body: |
             Instalador para Windows (servidor de red local) de Costeo ABC Ambulancias - ESE Moreno y Clavijo.
 
-            1. Descargue `Instalador_CosteoABC_Ambulancias_*.exe` y ejecútelo como administrador en el equipo servidor.
-            2. Indique el puerto (8000) y la clave del usuario `admin`.
-            3. Desde cualquier equipo de la red abra `http://NOMBRE-DEL-SERVIDOR:8000/`.
+            1. Descargue `Instalador_CosteoABC_Ambulancias_*.exe` y ejecútelo en el equipo servidor. No pide usuario ni contraseña.
+            2. Elija "Para todos los usuarios" (servidor para toda la red) o "Solo para mí" (sin permisos de administrador).
+            3. Al terminar se muestra el usuario `admin` y su clave inicial (archivo CREDENCIALES_ADMIN.txt). Cámbiela al ingresar.
+            4. Desde cualquier equipo de la red abra `http://NOMBRE-DEL-SERVIDOR:8000/`.
 
             Documentación: carpeta `docs` del programa instalado o `docs/ambulancias_abc/` del repositorio.
