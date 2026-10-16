@@ -12,11 +12,14 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Orden de lectura (lo último prevalece): carpeta de datos de Windows (la crea el
-# instalador y sobrevive a desinstalaciones), carpeta de la app, variable ABC_CONFIG.
+# instalador y sobrevive a desinstalaciones; ProgramData si se instaló para todos,
+# APPDATA si se instaló solo para el usuario), carpeta de la app, variable ABC_CONFIG.
 _ini = configparser.ConfigParser()
 _ini.read(
     [
         Path(os.environ.get("ProgramData", "C:/ProgramData")) / "CosteoABCAmbulancias" / "ambulancias.ini",
+        # instalación "solo para mí" (sin permisos de administrador)
+        Path(os.environ.get("APPDATA", str(Path.home()))) / "CosteoABCAmbulancias" / "ambulancias.ini",
         BASE_DIR / "ambulancias.ini",
         os.environ.get("ABC_CONFIG", ""),
     ],

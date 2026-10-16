@@ -53,6 +53,27 @@ jobs:
           $v = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}".TrimStart("v") } else { "1.0.${{ github.run_number }}" }
           "VERSION=$v" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           ./installer/windows/build_installer.ps1 -Version $v
+      - name: Probar instalador (para todos, silencioso, sin credenciales)
+        shell: pwsh
+        run: |
+          $exe = (Get-ChildItem installer/windows/salida/*.exe | Select-Object -First 1).FullName
+          $p = Start-Process $exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/ALLUSERS','/LOG=instalacion_todos.log' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content instalacion_todos.log -Tail 50; throw "El instalador terminó con código $($p.ExitCode)" }
+          $datos = "$env:ProgramData\CosteoABCAmbulancias"
+          ./installer/windows/probar_instalacion.ps1 -Url "http://localhost:8000" -DirDatos $datos
+          Start-Process "${env:ProgramFiles}\CosteoABCAmbulancias\unins000.exe" -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES' -Wait
+          if (Get-ScheduledTask -TaskName "CosteoABC-Servidor" -ErrorAction SilentlyContinue) { throw "La desinstalación no quitó la tarea del servidor" }
+          Write-Host "Instalación para todos los usuarios: OK"
+      - name: Probar instalador (solo para mí, sin administrador)
+        # La tarea de este modo corre con la sesión interactiva del usuario, que
+        # el ejecutor de GitHub no tiene; se informa sin bloquear la compilación.
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $exe = (Get-ChildItem installer/windows/salida/*.exe | Select-Object -First 1).FullName
+          $p = Start-Process $exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER','/PUERTO=8010','/LOG=instalacion_usuario.log' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content instalacion_usuario.log -Tail 50; throw "El instalador terminó con código $($p.ExitCode)" }
+          ./installer/windows/probar_instalacion.ps1 -Url "http://localhost:8010" -DirDatos "$env:APPDATA\CosteoABCAmbulancias"
       - uses: actions/upload-artifact@v4
         with:
           name: Instalador_CosteoABC_Ambulancias

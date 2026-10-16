@@ -27,7 +27,7 @@
     {% if user.is_staff %}<a href="{% url 'admin:index' %}">Administración</a>{% endif %}
   </nav>
   {% endwith %}
-  <span class="usuario">{{ user.get_username }} ·
+  <span class="usuario">{{ user.get_username }} · <a href="{% url 'cambiar_clave' %}">Cambiar mi clave</a> ·
     <form method="post" action="{% url 'logout' %}" style="display:inline">{% csrf_token %}<button>Salir</button></form>
   </span>
   {% endif %}

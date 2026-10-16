@@ -270,6 +270,27 @@ class VistasTests(BaseCargada):
         r = self.client.get(reverse("flota:dashboard"), {"metodo": "CAPACIDAD", "ambito": "Urgencias", "placa": "OEU846"})
         self.assertEqual(r.status_code, 200)
 
+    def test_cambiar_clave(self):
+        r = self.client.post(reverse("cambiar_clave"), {
+            "old_password": "Clave-Prueba-1", "new_password1": "Nueva-Clave-2026", "new_password2": "Nueva-Clave-2026",
+        })
+        self.assertRedirects(r, reverse("flota:dashboard"))
+        self.admin.refresh_from_db()
+        self.assertTrue(self.admin.check_password("Nueva-Clave-2026"))
+
+    def test_crear_admin_si_no_existe_no_cambia_clave(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        salida = StringIO()
+        call_command("crear_admin", usuario="admin", clave="Otra-Clave-99", si_no_existe=True, stdout=salida)
+        self.assertIn("EXISTE", salida.getvalue())
+        self.admin.refresh_from_db()
+        self.assertTrue(self.admin.check_password("Clave-Prueba-1"))
+        call_command("crear_admin", usuario="otro", clave="Otra-Clave-99", si_no_existe=True, stdout=salida)
+        self.assertIn("CREADO", salida.getvalue())
+
     def test_requiere_login(self):
         self.client.logout()
         self.assertEqual(self.client.get(reverse("flota:dashboard")).status_code, 302)

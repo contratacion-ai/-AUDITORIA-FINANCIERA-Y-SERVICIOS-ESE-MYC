@@ -23,16 +23,19 @@ Requisitos: Windows 10/11 o Server 2016+ de 64 bits, 2 GB de RAM libres, IP fija
    - O en la pestaña **Actions** › flujo *Costeo ABC Ambulancias* › última ejecución › artefacto *Instalador_CosteoABC_Ambulancias* (se conserva 30 días; viene dentro de un .zip).
    - Para publicar una versión nueva como Release: empuje una etiqueta `v1.2.3` o un commit cuyo mensaje contenga `[publicar]`.
    - O compílelo (ver sección D).
-2. Ejecútelo **como administrador** en el equipo que hará de servidor.
-3. En la página *Configuración del servidor* indique el puerto (8000 por defecto) y la clave del usuario `admin` (mínimo 8 caracteres).
-4. El instalador:
-   - copia Python embebido y la aplicación a `C:\Program Files\CosteoABCAmbulancias`;
-   - crea `C:\ProgramData\CosteoABCAmbulancias\ambulancias.ini` con clave secreta y sal aleatorias;
-   - crea la base, carga la flota, los perfiles del estudio, las 90 rutas del Anexo 3, las partidas del centro de costos y los hallazgos de calidad;
-   - abre el puerto en el firewall de Windows (solo perfiles Dominio y Privado);
-   - registra las tareas `CosteoABC-Servidor` (al iniciar Windows, se reinicia si falla) y `CosteoABC-Respaldo` (diaria 23:00);
+2. Ejecútelo. **No pide usuario ni contraseña de la aplicación.** Al iniciar pregunta cómo instalar:
+   - **Para todos los usuarios** (recomendado para el servidor): Windows pide confirmar el permiso de administrador. Deja el servidor funcionando para toda la red, aunque nadie haya iniciado sesión.
+   - **Solo para mí**: no pide credenciales de Windows. La aplicación funciona en ese equipo mientras el usuario tenga la sesión abierta. Para que entren los demás equipos, un administrador debe ejecutar luego *Inicio › Costeo ABC Ambulancias › Habilitar acceso desde la red*.
+3. El instalador:
+   - copia Python embebido y la aplicación (en `C:\Program Files\CosteoABCAmbulancias`, o en la carpeta del usuario si es "solo para mí");
+   - crea la carpeta de datos (`C:\ProgramData\CosteoABCAmbulancias`, o `%APPDATA%\CosteoABCAmbulancias`) con la base, `ambulancias.ini` (clave secreta y sal aleatorias), logs y respaldos;
+   - carga la flota, los perfiles del estudio, las 90 rutas del Anexo 3, las partidas del centro de costos y los hallazgos de calidad;
+   - **crea el usuario `admin` con una clave aleatoria** y la guarda en `CREDENCIALES_ADMIN.txt` en la carpeta de datos (solo lo pueden leer quien instaló, los administradores y el sistema). Al terminar se abre ese archivo; también está en *Inicio › Costeo ABC Ambulancias › Usuario y clave inicial*;
+   - para todos los usuarios: abre el puerto en el firewall (perfiles Dominio y Privado) y registra las tareas `CosteoABC-Servidor` (al iniciar Windows) y `CosteoABC-Respaldo` (diaria 23:00); solo para mí: las mismas tareas, ligadas a la sesión del usuario;
    - deja un acceso directo en el escritorio.
-5. Desde cualquier equipo de la red: `http://NOMBRE-DEL-SERVIDOR:8000/` (o la IP). Ingrese con `admin`.
+4. Abra `http://localhost:8000/` (en el servidor) o `http://NOMBRE-DEL-SERVIDOR:8000/` (desde la red), ingrese con `admin` y la clave del archivo, y cámbiela en **Cambiar mi clave**.
+
+Instalación desatendida (sin ninguna ventana): `Instalador_...exe /VERYSILENT /ALLUSERS` (o `/CURRENTUSER`); `/PUERTO=8080` cambia el puerto.
 
 **Actualizar**: ejecute el instalador de la nueva versión sobre la anterior. Deje la clave en blanco para conservarla. La base, el `.ini` y los respaldos no se tocan; las migraciones se aplican solas.
 

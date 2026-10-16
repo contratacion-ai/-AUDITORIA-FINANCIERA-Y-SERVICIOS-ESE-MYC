@@ -1,0 +1,11 @@
+{% extends "flota/base.html" %}
+{% block titulo %}Cambiar mi clave{% endblock %}
+{% block contenido %}
+<h1>Cambiar mi clave</h1>
+<div class="panel" style="max-width:700px">
+  <form method="post" class="formulario">{% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Guardar</button> <a class="boton sec" href="{% url 'flota:dashboard' %}">Cancelar</a>
+  </form>
+</div>
+{% endblock %}
