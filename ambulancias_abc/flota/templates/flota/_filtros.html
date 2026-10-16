@@ -1,0 +1,12 @@
+<form method="get" class="filtros panel no-imprimir">
+  <label>Desde <input type="month" name="desde" value="{{ desde|date:'Y-m' }}"></label>
+  <label>Hasta <input type="month" name="hasta" value="{{ hasta|date:'Y-m' }}"></label>
+  <label>Ambulancia <select name="placa"><option value="">Todas</option>{% for p in ambulancias %}<option {% if filtros.placa == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select></label>
+  <label>Sede <select name="sede"><option value="">Todas</option>{% for s in sedes %}<option value="{{ s.codigo }}" {% if filtros.sede == s.codigo %}selected{% endif %}>{{ s.nombre }}</option>{% endfor %}</select></label>
+  <label>Ámbito <select name="ambito"><option value="">Todos</option>{% for a in ambitos %}<option {% if filtros.ambito == a %}selected{% endif %}>{{ a }}</option>{% endfor %}</select></label>
+  <label>Unidad funcional <select name="unidad_funcional"><option value="">Todas</option>{% for u in unidades %}<option {% if filtros.unidad_funcional == u %}selected{% endif %}>{{ u }}</option>{% endfor %}</select></label>
+  <label>Recorrido <select name="ruta_id"><option value="">Todos</option>{% for r in rutas %}<option value="{{ r.pk }}" {% if filtros.ruta_id == r.pk|stringformat:'s' %}selected{% endif %}>{{ r }}</option>{% endfor %}</select></label>
+  <label>Método <select name="metodo">{% for k, v in metodos.items %}<option value="{{ k }}" {% if metodo == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+  <button type="submit">Aplicar</button>
+  <a class="boton sec" href="?">Limpiar</a>
+</form>

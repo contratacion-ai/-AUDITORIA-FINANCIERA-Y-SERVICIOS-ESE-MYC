@@ -1,0 +1,37 @@
+{% load static %}<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block titulo %}Costeo ABC Ambulancias{% endblock %} · ESE Moreno y Clavijo</title>
+<link rel="stylesheet" href="{% static 'flota/estilo.css' %}">
+</head>
+<body>
+<header class="barra">
+  <span class="logo">Costeo ABC · Ambulancias</span>
+  {% if user.is_authenticated %}
+  {% with n=request.resolver_match.url_name %}
+  <nav>
+    <a href="{% url 'flota:dashboard' %}" class="{% if n == 'dashboard' %}activo{% endif %}">Dashboard</a>
+    <a href="{% url 'flota:consolidado' %}" class="{% if n == 'consolidado' %}activo{% endif %}">Consolidado mensual</a>
+    <a href="{% url 'flota:ambulancias' %}" class="{% if n == 'ambulancias' or n == 'ambulancia' %}activo{% endif %}">Ambulancias</a>
+    <a href="{% url 'flota:rentabilidad_rutas' %}" class="{% if n == 'rentabilidad_rutas' %}activo{% endif %}">Rentabilidad por ruta</a>
+    <a href="{% url 'flota:traslados' %}" class="{% if 'traslado' in n %}activo{% endif %}">Traslados</a>
+    <a href="{% url 'flota:consumos' %}" class="{% if 'consumo' in n %}activo{% endif %}">Consumos</a>
+    <a href="{% url 'flota:importar' %}" class="{% if n == 'importar' %}activo{% endif %}">Importar</a>
+    <a href="{% url 'flota:calidad' %}" class="{% if n == 'calidad' %}activo{% endif %}">Calidad de datos</a>
+    <a href="{% url 'flota:parametros' %}" class="{% if n == 'parametros' %}activo{% endif %}">Parámetros</a>
+    {% if user.is_staff %}<a href="{% url 'admin:index' %}">Administración</a>{% endif %}
+  </nav>
+  {% endwith %}
+  <span class="usuario">{{ user.get_username }} ·
+    <form method="post" action="{% url 'logout' %}" style="display:inline">{% csrf_token %}<button>Salir</button></form>
+  </span>
+  {% endif %}
+</header>
+<main>
+  {% if messages %}<ul class="mensajes">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
+  {% block contenido %}{% endblock %}
+</main>
+</body>
+</html>

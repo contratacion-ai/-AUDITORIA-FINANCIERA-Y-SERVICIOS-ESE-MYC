@@ -1,0 +1,16 @@
+{% extends "flota/base.html" %}
+{% block titulo %}{{ titulo }}{% endblock %}
+{% block contenido %}
+<h1>{{ titulo }}</h1>
+<div class="panel" style="max-width:900px">
+  <form method="post" class="formulario">{% csrf_token %}
+    {{ form.non_field_errors }}
+    {{ form.as_p }}
+    <button type="submit">Guardar</button> <a class="boton sec" href="{% url volver %}">Cancelar</a>
+  </form>
+  {% if obj %}<p class="suave">Versión {{ obj.version }} · creado {{ obj.creado|date:"Y-m-d H:i" }} por {{ obj.creado_por|default:"importación" }} · actualizado {{ obj.actualizado|date:"Y-m-d H:i" }} por {{ obj.actualizado_por|default:"—" }}
+  {% if obj.llave_externa %}<br>Llave externa: <code>{{ obj.llave_externa }}</code>{% endif %}
+  {% if obj.observaciones_calidad %}<br>Observaciones: {{ obj.observaciones_calidad }}{% endif %}</p>{% endif %}
+  {% if bitacora %}<h2>Historial</h2><ul>{% for b in bitacora %}<li class="suave">{{ b.fecha|date:"Y-m-d H:i" }} · {{ b.usuario|default:"sistema" }} · {{ b.accion }} · {{ b.cambios }}</li>{% endfor %}</ul>{% endif %}
+</div>
+{% endblock %}

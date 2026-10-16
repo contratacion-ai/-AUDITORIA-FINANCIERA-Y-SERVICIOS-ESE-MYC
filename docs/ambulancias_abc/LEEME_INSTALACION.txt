@@ -1,0 +1,29 @@
+COSTEO ABC AMBULANCIAS - ESE MORENO Y CLAVIJO
+==============================================
+
+Este instalador convierte ESTE equipo en el servidor de la aplicación.
+Los demás equipos de la red solo necesitan un navegador.
+
+Antes de continuar:
+  1. Ejecute el instalador como administrador.
+  2. Use un equipo que permanezca encendido y con IP o nombre fijo en la red.
+  3. Tenga a mano la clave que tendrá el usuario "admin" (mínimo 8 caracteres).
+
+Qué hace el instalador:
+  - Instala Python embebido y la aplicación en C:\Program Files\CosteoABCAmbulancias
+  - Crea la base de datos centralizada en C:\ProgramData\CosteoABCAmbulancias
+  - Carga la flota, los perfiles del informe técnico y las tarifas 2026 (Anexo 3)
+  - Abre el puerto elegido en el firewall (redes de dominio y privadas)
+  - Programa el servidor al iniciar Windows y un respaldo diario a las 23:00
+
+Después de instalar, desde cualquier equipo de la red abra:
+  http://NOMBRE-DE-ESTE-EQUIPO:8000/
+
+Documentación completa: carpeta "docs" del programa
+  INSTALACION.md        instalación, usuarios, respaldo y restauración
+  MODELO_DATOS.md       fórmulas ABC, drivers y modelo de datos
+  INTEGRACION.md        intercambio con las aplicaciones de RIPS y auditoría
+  CALIDAD_DATOS.md      inconsistencias detectadas en las fuentes
+  DECISIONES_TECNICAS.md
+
+Desinstalar no borra la base de datos ni los respaldos.

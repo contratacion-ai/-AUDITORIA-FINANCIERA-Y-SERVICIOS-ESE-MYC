@@ -1,0 +1,89 @@
+{% extends "flota/base.html" %}{% load formato %}
+{% block titulo %}Dashboard{% endblock %}
+{% block contenido %}
+<h1>Costo, rentabilidad, traslados y facturación · {{ desde|date:"M Y" }}{% if hasta != desde %} – {{ hasta|date:"M Y" }}{% endif %}</h1>
+{% include "flota/_filtros.html" %}
+{% if parciales %}<div class="aviso">{% for p in parciales %}<div>• {{ p.mes|date:"M Y" }} tiene solo {{ p.n }} líneas de traslado: parece un mes con facturación parcial; su costo del mes completo se reparte entre pocos traslados.</div>{% endfor %}</div>{% endif %}
+{% with t=datos.total %}
+{% if hallazgos_altos or sin_ambulancia or not consumos_mes %}
+<div class="aviso">
+  {% if not consumos_mes %}<div>• No hay consumos registrados en el periodo: el costo de combustible y mantenimiento es el <b>estándar del informe técnico</b> (costo/día × días del mes).</div>{% endif %}
+  {% if sin_ambulancia %}<div>• {{ sin_ambulancia|num }} líneas de traslado sin placa: su costo se reparte entre las ambulancias de la sede según km/día del estudio. <a href="{% url 'flota:traslados' %}?sin_ambulancia=1">Asignar placas</a>.</div>{% endif %}
+  {% if hallazgos_altos %}<div>• {{ hallazgos_altos }} hallazgos de calidad de severidad alta sin resolver. <a href="{% url 'flota:calidad' %}?severidad=ALTA">Revisar</a>.</div>{% endif %}
+  {% for p in supuestos %}<div>• Supuesto configurable: <b>{{ p.clave }}</b> = {{ p.valor|num:2 }} {{ p.unidad }} — {{ p.fuente }}</div>{% endfor %}
+</div>
+{% endif %}
+<div class="kpis">
+  <div class="kpi"><div class="t">Facturación</div><div class="v">{{ t.ingreso|millones }}</div><div class="s">{{ t.linea|num }} líneas facturadas</div></div>
+  <div class="kpi"><div class="t">Traslados con recorrido</div><div class="v">{{ t.traslado|num }}</div><div class="s">{{ t.km|num }} km conducidos</div></div>
+  <div class="kpi"><div class="t">Costo ABC asignado</div><div class="v">{{ t.costo|millones }}</div><div class="s">{{ t.costo_km|pesos }} por km · {{ t.costo_traslado|pesos }} por traslado</div></div>
+  <div class="kpi" style="border-left-color:var(--{% if t.margen < 0 %}neg{% else %}pos{% endif %})"><div class="t">Margen sobre traslados</div><div class="v {{ t.margen|signo }}">{{ t.margen|millones }}</div><div class="s">Rentabilidad {{ t.rentabilidad|pct }}</div></div>
+  {% if not datos.filtra_actividad %}
+  <div class="kpi"><div class="t">Costo total de la flota</div><div class="v">{{ t.pool|millones }}</div><div class="s">Capacidad no utilizada {{ t.no_utilizado|millones }}</div></div>
+  <div class="kpi" style="border-left-color:var(--{% if t.margen_con_capacidad < 0 %}neg{% else %}pos{% endif %})"><div class="t">Resultado incluyendo capacidad ociosa</div><div class="v {{ t.margen_con_capacidad|signo }}">{{ t.margen_con_capacidad|millones }}</div><div class="s">Facturación − costo total</div></div>
+  {% endif %}
+</div>
+{% endwith %}
+
+<div class="grid">
+  <div class="panel">
+    <h2>Mes a mes</h2>
+    <table><tr><th>Mes</th><th class="n">Traslados</th><th class="n">Facturado</th><th class="n">Costo ABC</th><th class="n">Margen</th><th class="n">Rent.</th><th>Facturación</th></tr>
+    {% for m in datos.por_mes %}<tr><td>{{ m.mes|date:"M Y" }}</td><td class="n">{{ m.traslado|num }}</td><td class="n">{{ m.ingreso|pesos }}</td><td class="n">{{ m.costo|pesos }}</td><td class="n {{ m.margen|signo }}">{{ m.margen|pesos }}</td><td class="n">{{ m.rentabilidad|pct }}</td><td style="width:25%"><div class="bar" style="width:{{ m.barra|floatformat:1 }}%"></div></td></tr>
+    {% empty %}<tr><td colspan="7" class="suave">Sin datos en el periodo. Importe la facturación de traslados.</td></tr>{% endfor %}
+    </table>
+  </div>
+  <div class="panel">
+    <h2>Por ámbito</h2>
+    <table><tr><th>Ámbito</th><th class="n">Traslados</th><th class="n">Facturado</th><th class="n">Costo</th><th class="n">Rent.</th><th></th></tr>
+    {% for a in datos.por_ambito %}<tr><td>{{ a.ambito }}</td><td class="n">{{ a.traslado|num }}</td><td class="n">{{ a.ingreso|pesos }}</td><td class="n">{{ a.costo|pesos }}</td><td class="n {{ a.margen|signo }}">{{ a.rentabilidad|pct }}</td><td style="width:20%"><div class="bar az" style="width:{{ a.barra|floatformat:1 }}%"></div></td></tr>{% endfor %}
+    </table>
+    <h2 style="margin-top:14px">Por unidad funcional</h2>
+    <table><tr><th>Unidad</th><th class="n">Traslados</th><th class="n">Facturado</th><th class="n">Costo</th><th class="n">Rent.</th><th></th></tr>
+    {% for a in datos.por_unidad %}<tr><td>{{ a.unidad_funcional }}</td><td class="n">{{ a.traslado|num }}</td><td class="n">{{ a.ingreso|pesos }}</td><td class="n">{{ a.costo|pesos }}</td><td class="n {{ a.margen|signo }}">{{ a.rentabilidad|pct }}</td><td style="width:20%"><div class="bar az" style="width:{{ a.barra|floatformat:1 }}%"></div></td></tr>{% endfor %}
+    </table>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Costo y rentabilidad por ambulancia</h2>
+  <p class="suave">Costo total = costo de recursos del periodo (real si hay consumos registrados, si no estándar del estudio). Asignado = parte absorbida por los traslados; capacidad no utilizada = resto.</p>
+  <table>
+    <tr><th>Placa</th><th class="n">Costo total</th><th class="n">Asignado a traslados</th><th class="n">No utilizado</th><th class="n">Traslados</th><th class="n">Km</th><th class="n">Facturado</th><th class="n">Margen traslados</th><th class="n">Rent.</th><th class="n">Resultado con capacidad</th><th>Costo asignado</th></tr>
+    {% for a in datos.por_ambulancia %}
+    <tr><td>{% if a.placa != "SIN ASIGNAR" %}<a href="{% url 'flota:ambulancia' a.placa %}">{{ a.placa }}</a>{% else %}{{ a.placa }}{% endif %}</td>
+      <td class="n">{{ a.pool|pesos }}</td><td class="n">{{ a.costo|pesos }}</td><td class="n">{{ a.no_utilizado|pesos }}</td>
+      <td class="n">{{ a.traslado|num:1 }}</td><td class="n">{{ a.km|num }}</td><td class="n">{{ a.ingreso|pesos }}</td>
+      <td class="n {{ a.margen|signo }}">{{ a.margen|pesos }}</td><td class="n">{{ a.rentabilidad|pct }}</td>
+      <td class="n {{ a.margen_con_capacidad|signo }}">{{ a.margen_con_capacidad|pesos }}</td>
+      <td style="width:14%"><div class="bar alt" style="width:{{ a.barra|floatformat:1 }}%"></div></td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="panel">
+  <h2>Por recorrido (ruta del manual tarifario)</h2>
+  <table>
+    <tr><th>Recorrido</th><th class="n">Traslados</th><th class="n">Km conducidos</th><th class="n">Facturado</th><th class="n">Costo ABC</th><th class="n">Costo/traslado</th><th class="n">Margen</th><th class="n">Rent.</th><th>Facturación</th></tr>
+    {% for r in datos.por_ruta %}
+    <tr><td>{{ r.ruta }}</td><td class="n">{{ r.traslado|num }}</td><td class="n">{{ r.km|num }}</td><td class="n">{{ r.ingreso|pesos }}</td><td class="n">{{ r.costo|pesos }}</td><td class="n">{{ r.costo_traslado|pesos }}</td><td class="n {{ r.margen|signo }}">{{ r.margen|pesos }}</td><td class="n">{{ r.rentabilidad|pct }}</td><td style="width:16%"><div class="bar" style="width:{{ r.barra|floatformat:1 }}%"></div></td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+{% if ind %}
+<div class="panel">
+  <h2>Indicadores del estudio (perfil diario, {{ ind.n_ambulancias }} ambulancias sin excluidas)</h2>
+  <table>
+    <tr><th>Indicador</th><th class="n">Menor</th><th class="n">Mayor</th><th class="n">Promedio</th></tr>
+    <tr><td>Recorrido (km/día)</td><td class="n">{{ ind.km_dia.min|num:1 }} ({{ ind.km_dia.min_placa }})</td><td class="n">{{ ind.km_dia.max|num:1 }} ({{ ind.km_dia.max_placa }})</td><td class="n">{{ ind.km_dia.promedio|num:1 }}</td></tr>
+    <tr><td>Costo total ($/día)</td><td class="n">{{ ind.total_dia.min|pesos }} ({{ ind.total_dia.min_placa }})</td><td class="n">{{ ind.total_dia.max|pesos }} ({{ ind.total_dia.max_placa }})</td><td class="n">{{ ind.total_dia.promedio|pesos }}</td></tr>
+    <tr><td>Costo por km</td><td class="n">{{ ind.costo_km.min|pesos }} ({{ ind.costo_km.min_placa }})</td><td class="n">{{ ind.costo_km.max|pesos }} ({{ ind.costo_km.max_placa }})</td><td class="n">{{ ind.costo_km.promedio|pesos }}</td></tr>
+    <tr><td>Costo por hora de operación</td><td class="n">{{ ind.costo_hora_operacion.min|pesos }} ({{ ind.costo_hora_operacion.min_placa }})</td><td class="n">{{ ind.costo_hora_operacion.max|pesos }} ({{ ind.costo_hora_operacion.max_placa }})</td><td class="n">{{ ind.costo_hora_operacion.promedio|pesos }} · ponderado {{ ind.costo_hora_ponderado|pesos }}</td></tr>
+    <tr><td>Costo por hora de disponibilidad (24 h)</td><td class="n">{{ ind.costo_hora_disponibilidad.min|pesos }} ({{ ind.costo_hora_disponibilidad.min_placa }})</td><td class="n">{{ ind.costo_hora_disponibilidad.max|pesos }} ({{ ind.costo_hora_disponibilidad.max_placa }})</td><td class="n">{{ ind.costo_hora_disponibilidad.promedio|pesos }}</td></tr>
+    <tr><td>Costo diario de la flota (todas)</td><td></td><td></td><td class="n">{{ ind.costo_flota_dia|pesos }}</td></tr>
+  </table>
+</div>
+{% endif %}
+{% if datos.n_avisos %}<div class="panel"><h2>Avisos del cálculo ({{ datos.n_avisos }})</h2><ul>{% for a in datos.avisos %}<li class="suave">{{ a }}</li>{% endfor %}</ul></div>{% endif %}
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends "flota/base.html" %}{% load formato %}
+{% block titulo %}Traslados{% endblock %}
+{% block contenido %}
+<h1>Registro de traslados {% if perms.flota.add_traslado %}<a class="boton" style="float:right" href="{% url 'flota:traslado_nuevo' %}">Registrar traslado</a>{% endif %}</h1>
+<form method="get" class="filtros panel no-imprimir">
+  <label>Mes <select name="mes"><option value="">Todos</option>{% for m in meses %}<option value="{{ m|date:'Y-m' }}" {% if g.mes == m|date:'Y-m' %}selected{% endif %}>{{ m|date:"M Y" }}</option>{% endfor %}</select></label>
+  <label>Sede <select name="sede"><option value="">Todas</option>{% for s in sedes %}<option value="{{ s.codigo }}" {% if g.sede == s.codigo %}selected{% endif %}>{{ s.nombre }}</option>{% endfor %}</select></label>
+  <label>Ambulancia <select name="placa"><option value="">Todas</option>{% for p in ambulancias %}<option {% if g.placa == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select></label>
+  <label>Ámbito <select name="ambito"><option value="">Todos</option>{% for a in ambitos %}<option {% if g.ambito == a %}selected{% endif %}>{{ a }}</option>{% endfor %}</select></label>
+  <label>Factura / ingreso <input name="q" value="{{ g.q|default:'' }}"></label>
+  <label><span><input type="checkbox" name="sin_ambulancia" value="1" {% if g.sin_ambulancia %}checked{% endif %}> Sin placa</span></label>
+  <label><span><input type="checkbox" name="observaciones" value="1" {% if g.observaciones %}checked{% endif %}> Con observaciones</span></label>
+  <button>Filtrar</button>
+</form>
+<p class="suave">{{ totales.n|num }} líneas · facturado {{ totales.facturado|pesos }} · {{ totales.km|num }} km conducidos.</p>
+<form method="post" action="{% url 'flota:traslados_asignar' %}">{% csrf_token %}
+<input type="hidden" name="volver" value="{{ request.get_full_path }}">
+<div class="panel">
+{% if perms.flota.change_traslado %}
+<div class="filtros no-imprimir" style="margin-bottom:8px">Asignar placa a los seleccionados:
+  <select name="ambulancia"><option value="">(quitar placa)</option>{% for a in ambulancias_sede %}<option value="{{ a.placa }}">{{ a.placa }} · {{ a.sede.municipio }}</option>{% endfor %}</select>
+  <button>Asignar</button> <span class="suave">Solo se aplica a traslados de la misma sede de la ambulancia.</span></div>
+{% endif %}
+<table>
+  <tr><th></th><th>Fecha</th><th>Sede</th><th>Placa</th><th>CUPS</th><th class="n">Cant.</th><th>Recorrido</th><th class="n">Km</th><th class="n">Facturado</th><th>Ámbito / unidad</th><th>Factura · ingreso</th><th>RIPS</th><th>Observaciones</th></tr>
+  {% for t in pagina %}
+  <tr>
+    <td><input type="checkbox" name="seleccion" value="{{ t.pk }}"></td>
+    <td><a href="{% url 'flota:traslado_editar' t.pk %}?volver={{ request.get_full_path|urlencode }}">{{ t.fecha_servicio|date:"Y-m-d" }}</a></td>
+    <td>{{ t.sede.municipio }}</td><td>{{ t.ambulancia|default:"—" }}</td><td>{{ t.codigo_cups }}</td><td class="n">{{ t.cantidad|num }}</td>
+    <td>{% if t.ruta %}{{ t.ruta.destino }}{% if t.ruta_inferida %} <span class="etq" title="Inferida por sede y km">inferida</span>{% endif %}{% else %}—{% endif %}</td>
+    <td class="n">{{ t.km_recorridos|num }}</td><td class="n">{{ t.valor_facturado|pesos }}</td>
+    <td>{{ t.ambito }}<br><span class="suave">{{ t.unidad_funcional }}</span></td>
+    <td>{{ t.numero_factura|default:"(sin factura)" }}<br><span class="suave">{{ t.nro_ingreso }}</span></td>
+    <td>{% if t.conciliado_rips %}<span class="etq BAJA">conciliado</span>{% else %}—{% endif %}</td>
+    <td class="suave" style="max-width:320px">{{ t.observaciones_calidad|truncatechars:160 }}</td>
+  </tr>
+  {% empty %}<tr><td colspan="13" class="suave">No hay traslados. Importe la facturación o registre uno.</td></tr>{% endfor %}
+</table>
+<div class="paginacion">{% if pagina.has_previous %}<a href="?{{ consulta }}&pagina={{ pagina.previous_page_number }}">« Anterior</a>{% endif %} Página {{ pagina.number }} de {{ pagina.paginator.num_pages }} {% if pagina.has_next %}<a href="?{{ consulta }}&pagina={{ pagina.next_page_number }}">Siguiente »</a>{% endif %}</div>
+</div>
+</form>
+{% endblock %}

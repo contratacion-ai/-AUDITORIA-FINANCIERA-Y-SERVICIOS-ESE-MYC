@@ -1,0 +1,31 @@
+{% extends "flota/base.html" %}{% load formato %}
+{% block titulo %}Parámetros{% endblock %}
+{% block contenido %}
+<h1>Parámetros y supuestos del costeo</h1>
+<div class="panel">
+  <p class="suave">Los parámetros se editan en <a href="{% url 'admin:flota_parametro_changelist' %}">Administración › Parámetros</a> (solo administradores). Los marcados como <b>supuesto</b> no están definidos por el estudio y deben validarse.</p>
+  <table><tr><th>Clave</th><th class="n">Valor</th><th>Unidad</th><th>Descripción</th><th>Fuente</th><th></th></tr>
+  {% for p in parametros %}<tr><td><code>{{ p.clave }}</code></td><td class="n">{{ p.valor|num:2 }}</td><td>{{ p.unidad }}</td><td>{{ p.descripcion }}</td><td class="suave">{{ p.fuente }}</td><td>{% if p.es_supuesto %}<span class="etq MEDIA">supuesto</span>{% endif %}</td></tr>{% endfor %}
+  </table>
+</div>
+{% if ejemplo %}
+<div class="panel"><h2>Ejemplo de cálculo: OKZ365, Tame → Arauca (194 km)</h2>
+<table>
+<tr><td>Km conducidos (194 × factor ida y vuelta)</td><td class="n">{{ ejemplo.km|num }}</td></tr>
+<tr><td>Galones = km ÷ rendimiento</td><td class="n">{{ ejemplo.galones|num:1 }}</td></tr>
+<tr><td>Horas en misión = km ÷ velocidad efectiva</td><td class="n">{{ ejemplo.horas|num:1 }}</td></tr>
+<tr><td>Combustible = galones × precio ACPM</td><td class="n">{{ ejemplo.combustible|pesos }}</td></tr>
+<tr><td>Mantenimiento = km × (mantenimiento/día ÷ km/día)</td><td class="n">{{ ejemplo.mantenimiento|pesos }}</td></tr>
+<tr><td>Tripulación = horas × (tripulación/día ÷ horas/día)</td><td class="n">{{ ejemplo.tripulacion|pesos }}</td></tr>
+<tr><th>Costo ABC del recorrido</th><th class="n">{{ ejemplo.total|pesos }}</th></tr>
+</table></div>
+{% endif %}
+<div class="panel">
+  <h2>Partidas del centro de costos (COSTOS AMBULANCIAS.xlsx)</h2>
+  <p class="suave">Referencia de costos indirectos: total {{ total_partidas|pesos }}/mes; incluido en el ABC: {{ incluidas|pesos }}/mes. Marque qué partidas incluir en <a href="{% url 'admin:flota_partidacostoindirecto_changelist' %}">Administración</a>; se reparten entre los traslados por número de traslados. Las de personal no deben incluirse porque duplicarían la tripulación del informe.</p>
+  <table><tr><th>Categoría</th><th>Concepto</th><th class="n">Valor mensual</th><th>Incluida</th><th>Fuente</th></tr>
+  {% for p in partidas %}<tr><td>{{ p.categoria }}</td><td>{{ p.concepto }}</td><td class="n">{{ p.valor_mensual|pesos }}</td><td>{% if p.incluir_en_abc %}Sí{% else %}No{% endif %}</td><td class="suave">{{ p.fuente }}</td></tr>{% endfor %}
+  </table>
+</div>
+<div class="panel"><a href="{% url 'flota:bitacora' %}">Ver bitácora de cambios</a></div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "flota/base.html" %}{% load formato %}
+{% block titulo %}Ambulancias{% endblock %}
+{% block contenido %}
+<h1>Flota y perfil de costo diario (informe técnico)</h1>
+<div class="panel">
+  <p class="suave">Precios: gasolina {{ precios.gasolina|pesos }}/gal · ACPM {{ precios.acpm|pesos }}/gal. Costo diario = combustible + mantenimiento + tripulación.
+  <span class="leyenda"><span style="background:var(--barra3)"></span>Tripulación<span style="background:var(--barra2)"></span>Mantenimiento<span style="background:var(--barra)"></span>Combustible</span></p>
+  <table>
+    <tr><th>Placa</th><th>Sede</th><th>Comb.</th><th>Estado</th><th class="n">Km/día</th><th class="n">H/día</th><th class="n">Gal/día</th><th class="n">Km/gal</th><th class="n">Combustible/día</th><th class="n">Mantenimiento/día</th><th class="n">Tripulación/día</th><th class="n">Total/día</th><th class="n">$/km</th><th class="n">$/hora oper.</th><th class="n">$/hora disp.</th><th>Composición</th></tr>
+    {% for f in filas %}{% with a=f.amb p=f.p %}
+    <tr>
+      <td><a href="{% url 'flota:ambulancia' a.placa %}">{{ a.placa }}</a>{% if a.excluida_promedios %} <span class="etq" title="{{ a.motivo_exclusion }}">excluida de promedios</span>{% endif %}</td>
+      <td>{{ a.sede.municipio }}</td><td>{{ a.get_tipo_combustible_display }}</td><td>{{ a.get_estado_display }}{% if not a.incluir_en_costeo %} <span class="etq">sin costeo</span>{% endif %}</td>
+      {% if p %}
+      <td class="n">{{ p.km_dia|num:1 }}</td><td class="n">{{ p.horas_dia|num:1 }}</td><td class="n">{{ f.galones|num:1 }}</td><td class="n">{{ f.rend|num:1 }}</td>
+      <td class="n">{{ p.combustible_dia|pesos }}</td><td class="n">{{ p.mantenimiento_dia|pesos }}</td><td class="n">{{ p.tripulacion_dia|pesos }}</td><td class="n"><b>{{ p.total_dia|pesos }}</b></td>
+      <td class="n">{{ p.costo_km|pesos }}</td><td class="n">{{ p.costo_hora_operacion|pesos }}</td><td class="n">{{ p.costo_hora_disponibilidad|pesos }}</td>
+      <td><div class="apilada"><span class="t1" style="width:{{ f.b_trip|floatformat:1 }}%"></span><span class="t2" style="width:{{ f.b_mant|floatformat:1 }}%"></span><span class="t3" style="width:{{ f.b_comb|floatformat:1 }}%"></span></div></td>
+      {% else %}<td colspan="12" class="suave">Sin perfil de costos. Registre un perfil en Administración o consumos reales.</td>{% endif %}
+    </tr>
+    {% endwith %}{% endfor %}
+  </table>
+</div>
+{% if ind %}
+<div class="grid">
+  {% for tipo, v in ind.por_tipo.items %}
+  <div class="panel"><h2>{{ tipo|title }} ({{ v.n }} ambulancias)</h2>
+    <table>
+      <tr><td>Recorrido medio</td><td class="n">{{ v.km_dia|num:1 }} km/día</td></tr>
+      <tr><td>Combustible</td><td class="n">{{ v.combustible_dia|pesos }}/día · {{ v.combustible_km|pesos }}/km</td></tr>
+      <tr><td>Mantenimiento</td><td class="n">{{ v.mantenimiento_dia|pesos }}/día</td></tr>
+      <tr><td>Costo total</td><td class="n"><b>{{ v.total_dia|pesos }}/día</b></td></tr>
+      <tr><td>Costo por hora de operación (ponderado)</td><td class="n">{{ v.costo_hora_ponderado|pesos }}</td></tr>
+    </table>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

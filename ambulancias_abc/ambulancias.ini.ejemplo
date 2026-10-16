@@ -1,0 +1,33 @@
+; Configuración de Costeo ABC Ambulancias.
+; El instalador de Windows crea "ambulancias.ini" con valores propios.
+; Para desarrollo, copie este archivo como ambulancias.ini y ajústelo.
+
+[servidor]
+; Genere una clave larga y aleatoria. No la comparta.
+secret_key = cambie-esta-clave
+; Sal para el hash del documento del paciente. NO la cambie después de importar datos:
+; los cruces con RIPS dependen de ella.
+sal_documento = cambie-esta-sal
+debug = false
+puerto = 8000
+host = 0.0.0.0
+hilos = 12
+; Nombres o IP con que los usuarios entran (separados por coma). * = cualquiera en la red local.
+allowed_hosts = *
+; Si se publica en la nube con HTTPS: https = true y csrf_trusted_origins = https://midominio
+https = false
+csrf_trusted_origins =
+; Carpeta de datos (base SQLite, logs, respaldos)
+data_dir = C:\ProgramData\CosteoABCAmbulancias
+backup_retencion = 30
+
+[base_datos]
+; sqlite (red local, un servidor) o postgresql (nube / muchos usuarios)
+motor = sqlite
+; --- solo PostgreSQL ---
+nombre = ambulancias_abc
+usuario = ambulancias
+clave =
+host = localhost
+puerto = 5432
+sslmode = prefer

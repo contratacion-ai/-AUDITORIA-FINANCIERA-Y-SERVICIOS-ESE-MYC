@@ -1,0 +1,438 @@
+"""Fórmulas ABC.
+
+Recursos (informe técnico, num. 4):
+    C_total/día = C_combustible + C_mantenimiento + C_tripulación
+
+Actividades y drivers usados para asignar los recursos a cada traslado:
+
+    Actividad                    Recurso que consume        Driver
+    ---------------------------  -------------------------  ------------------------
+    Desplazamiento (rodamiento)  Combustible                Galones (km / rendimiento)
+    Desgaste del vehículo        Mantenimiento              Kilómetros recorridos
+    Atención en misión           Tripulación                Horas en misión (km / velocidad)
+    Atención clínica             Insumos (consumos reales)  Número de traslados
+    Soporte / otros              Otros consumos e indirectos Número de traslados
+
+Dos métodos de asignación:
+
+* ``REAL`` (absorción total): la tasa de cada actividad es el costo del
+  recurso en el periodo dividido por la suma del driver de los traslados de
+  la ambulancia. Todo el costo queda en traslados; si la ambulancia no tuvo
+  traslados, su costo queda como capacidad no utilizada.
+* ``CAPACIDAD`` (tasas estándar del estudio): combustible a precio de
+  contrato por galón, mantenimiento a $/km del estudio, tripulación a costo de
+  disponibilidad por hora (C_tripulación/24 h). La diferencia entre el costo
+  del periodo y lo asignado es la capacidad no utilizada (o sobreconsumo si
+  es negativa).
+
+En ambos casos se cumple la identidad de conservación:
+
+    sum(costo asignado a traslados) + sum(no utilizado) = costo total de la flota
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from statistics import mean
+
+GASOLINA = "GASOLINA"
+ACPM = "ACPM"
+
+METODO_REAL = "REAL"
+METODO_CAPACIDAD = "CAPACIDAD"
+
+ACTIVIDADES = ("combustible", "mantenimiento", "tripulacion", "insumos", "otros")
+
+
+@dataclass(frozen=True)
+class Precios:
+    """Precios de contrato 003-0045 de 2026 ($/galón)."""
+
+    gasolina: float = 23650.0
+    acpm: float = 18500.0
+
+    def precio(self, tipo_combustible: str) -> float:
+        return self.gasolina if tipo_combustible == GASOLINA else self.acpm
+
+
+@dataclass(frozen=True)
+class PerfilAmbulancia:
+    """Perfil diario de una ambulancia según el Anexo A del informe."""
+
+    placa: str
+    sede: str
+    tipo_combustible: str
+    km_dia: float
+    horas_dia: float
+    combustible_dia: float
+    mantenimiento_dia: float
+    tripulacion_dia: float
+    excluida_promedios: bool = False
+
+    @property
+    def total_dia(self) -> float:
+        return self.combustible_dia + self.mantenimiento_dia + self.tripulacion_dia
+
+    def galones_dia(self, precios: Precios) -> float:
+        return self.combustible_dia / precios.precio(self.tipo_combustible)
+
+    def rendimiento_km_gal(self, precios: Precios) -> float | None:
+        gal = self.galones_dia(precios)
+        return self.km_dia / gal if gal > 0 else None
+
+    @property
+    def velocidad_kmh(self) -> float | None:
+        return self.km_dia / self.horas_dia if self.horas_dia > 0 else None
+
+    @property
+    def costo_km(self) -> float | None:
+        return self.total_dia / self.km_dia if self.km_dia > 0 else None
+
+    @property
+    def costo_hora_operacion(self) -> float | None:
+        return self.total_dia / self.horas_dia if self.horas_dia > 0 else None
+
+    @property
+    def costo_hora_disponibilidad(self) -> float:
+        return self.total_dia / 24.0
+
+
+@dataclass(frozen=True)
+class CostoRecorrido:
+    km: float
+    galones: float
+    horas: float
+    combustible: float
+    mantenimiento: float
+    tripulacion: float
+
+    @property
+    def total(self) -> float:
+        return self.combustible + self.mantenimiento + self.tripulacion
+
+
+def costo_recorrido(
+    perfil: PerfilAmbulancia,
+    km: float,
+    precios: Precios,
+    metodo: str = METODO_REAL,
+) -> CostoRecorrido:
+    """Costo estándar de un recorrido de ``km`` kilómetros con una ambulancia.
+
+    Con ``REAL`` la tripulación se absorbe en las horas en misión (costo por
+    hora de operación del informe); con ``CAPACIDAD`` se cobra la hora de
+    disponibilidad (C_tripulación / 24 h).
+    """
+    rend = perfil.rendimiento_km_gal(precios)
+    vel = perfil.velocidad_kmh
+    if not rend or not vel or perfil.km_dia <= 0:
+        raise ValueError(f"La ambulancia {perfil.placa} no tiene km/horas/combustible suficientes")
+    galones = km / rend
+    horas = km / vel
+    combustible = galones * precios.precio(perfil.tipo_combustible)
+    mantenimiento = km * perfil.mantenimiento_dia / perfil.km_dia
+    if metodo == METODO_CAPACIDAD:
+        tripulacion = horas * perfil.tripulacion_dia / 24.0
+    else:
+        tripulacion = horas * perfil.tripulacion_dia / perfil.horas_dia
+    return CostoRecorrido(km, galones, horas, combustible, mantenimiento, tripulacion)
+
+
+# ---------------------------------------------------------------------------
+# Indicadores de flota (reproducen las tablas 3 y 4 del informe)
+# ---------------------------------------------------------------------------
+
+
+def indicadores_flota(perfiles: list[PerfilAmbulancia], precios: Precios) -> dict:
+    """Mínimos, máximos y promedios de la flota excluyendo las unidades marcadas.
+
+    El promedio ponderado de costo por hora es costo total / horas totales,
+    como en el numeral 5.4 del informe.
+    """
+    base = [p for p in perfiles if not p.excluida_promedios]
+    if not base:
+        return {}
+
+    def resumen(fn):
+        vals = [(fn(p), p.placa) for p in base if fn(p) is not None]
+        if not vals:
+            return None
+        mn = min(vals)
+        mx = max(vals)
+        return {
+            "min": mn[0],
+            "min_placa": mn[1],
+            "max": mx[0],
+            "max_placa": mx[1],
+            "promedio": mean(v for v, _ in vals),
+        }
+
+    total_horas = sum(p.horas_dia for p in base)
+    por_tipo = {}
+    for tipo in (GASOLINA, ACPM):
+        grupo = [p for p in base if p.tipo_combustible == tipo]
+        if not grupo:
+            continue
+        horas = sum(p.horas_dia for p in grupo)
+        km = sum(p.km_dia for p in grupo)
+        por_tipo[tipo] = {
+            "n": len(grupo),
+            "km_dia": mean(p.km_dia for p in grupo),
+            "combustible_dia": mean(p.combustible_dia for p in grupo),
+            "mantenimiento_dia": mean(p.mantenimiento_dia for p in grupo),
+            "total_dia": mean(p.total_dia for p in grupo),
+            "combustible_km": sum(p.combustible_dia for p in grupo) / km if km else None,
+            "costo_hora_ponderado": sum(p.total_dia for p in grupo) / horas if horas else None,
+        }
+
+    return {
+        "n_ambulancias": len(base),
+        "n_total": len(perfiles),
+        "km_dia": resumen(lambda p: p.km_dia),
+        "galones_dia": resumen(lambda p: p.galones_dia(precios)),
+        "rendimiento_km_gal": resumen(lambda p: p.rendimiento_km_gal(precios)),
+        "combustible_dia": resumen(lambda p: p.combustible_dia),
+        "mantenimiento_dia": resumen(lambda p: p.mantenimiento_dia),
+        "tripulacion_dia": resumen(lambda p: p.tripulacion_dia),
+        "total_dia": resumen(lambda p: p.total_dia),
+        "costo_km": resumen(lambda p: p.costo_km),
+        "horas_dia": resumen(lambda p: p.horas_dia),
+        "costo_hora_operacion": resumen(lambda p: p.costo_hora_operacion),
+        "costo_hora_disponibilidad": resumen(lambda p: p.costo_hora_disponibilidad),
+        "costo_hora_ponderado": (sum(p.total_dia for p in base) / total_horas) if total_horas else None,
+        "costo_flota_dia": sum(p.total_dia for p in perfiles),
+        "por_tipo": por_tipo,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Asignación de un periodo (mes) a los traslados
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class PoolAmbulancia:
+    """Costo de los recursos de una ambulancia en el periodo."""
+
+    placa: str
+    sede: str
+    combustible: float = 0.0
+    mantenimiento: float = 0.0
+    tripulacion: float = 0.0
+    insumos: float = 0.0
+    otros: float = 0.0
+
+    @property
+    def total(self) -> float:
+        return sum(getattr(self, a) for a in ACTIVIDADES)
+
+
+@dataclass(frozen=True)
+class TrasladoDriver:
+    """Traslado a costear. ``placa`` puede ser None: se reparte en la sede."""
+
+    id: str
+    sede: str
+    km: float
+    placa: str | None = None
+    horas: float | None = None
+
+
+@dataclass
+class _Parte:
+    traslado_id: str
+    placa: str
+    peso: float  # fracción del traslado que hace esta ambulancia
+    km: float
+    galones: float
+    horas: float
+
+
+@dataclass
+class ResultadoAsignacion:
+    metodo: str
+    por_traslado: dict[str, dict[str, float]] = field(default_factory=dict)
+    placa_traslado: dict[str, dict[str, float]] = field(default_factory=dict)
+    # (traslado, placa) -> costo por actividad de la parte que hizo esa ambulancia
+    costo_parte: dict[tuple[str, str], dict[str, float]] = field(default_factory=dict)
+    por_ambulancia: dict[str, dict[str, float]] = field(default_factory=dict)
+    indirectos: float = 0.0
+    indirectos_no_utilizados: float = 0.0
+    avisos: list[str] = field(default_factory=list)
+
+    @property
+    def total_pool(self) -> float:
+        return sum(a["pool_total"] for a in self.por_ambulancia.values()) + self.indirectos
+
+    @property
+    def total_asignado(self) -> float:
+        return sum(t["total"] for t in self.por_traslado.values())
+
+    @property
+    def total_no_utilizado(self) -> float:
+        return sum(a["no_utilizado_total"] for a in self.por_ambulancia.values()) + self.indirectos_no_utilizados
+
+
+def _vacio() -> dict[str, float]:
+    return {a: 0.0 for a in ACTIVIDADES} | {"indirectos": 0.0, "total": 0.0}
+
+
+def asignar_periodo(
+    pools: list[PoolAmbulancia],
+    traslados: list[TrasladoDriver],
+    perfiles: dict[str, PerfilAmbulancia],
+    precios: Precios,
+    metodo: str = METODO_REAL,
+    indirectos: float = 0.0,
+    velocidad_flota_kmh: float = 34.6,
+    tipos_combustible: dict[str, str] | None = None,
+) -> ResultadoAsignacion:
+    """Asigna el costo de los recursos del periodo a los traslados.
+
+    ``perfiles`` aporta rendimiento (km/gal) y velocidad efectiva por placa.
+    Si una placa no tiene perfil se usan el promedio de la flota por tipo de
+    combustible y ``velocidad_flota_kmh`` (34,6 km/h, num. 4.5 del informe).
+    """
+    res = ResultadoAsignacion(metodo=metodo, indirectos=indirectos)
+    tipos_combustible = tipos_combustible or {}
+    pools_por_placa = {p.placa: p for p in pools}
+
+    validos = [p for p in perfiles.values() if not p.excluida_promedios and p.km_dia > 0]
+
+    def rend_defecto(tipo):
+        vals = [p.rendimiento_km_gal(precios) for p in validos if p.tipo_combustible == tipo]
+        vals = [v for v in vals if v]
+        return mean(vals) if vals else 1.0
+
+    def parametros(placa):
+        perfil = perfiles.get(placa)
+        tipo = perfil.tipo_combustible if perfil else tipos_combustible.get(placa, ACPM)
+        rend = perfil.rendimiento_km_gal(precios) if perfil else None
+        vel = perfil.velocidad_kmh if perfil else None
+        if not rend:
+            rend = rend_defecto(tipo)
+        if not vel:
+            vel = velocidad_flota_kmh
+        return tipo, rend, vel
+
+    # 1. Repartir cada traslado entre ambulancias (partes con peso).
+    por_sede: dict[str, list[str]] = {}
+    for p in pools:
+        por_sede.setdefault(p.sede, []).append(p.placa)
+
+    def peso_km(placa):
+        perfil = perfiles.get(placa)
+        return perfil.km_dia if perfil and perfil.km_dia > 0 else 1.0
+
+    partes: list[_Parte] = []
+    for t in traslados:
+        if t.placa and t.placa in pools_por_placa:
+            asignacion = [(t.placa, 1.0)]
+        else:
+            if t.placa:
+                res.avisos.append(f"Traslado {t.id}: placa {t.placa} sin costo en el periodo; se reparte en la sede")
+            candidatas = por_sede.get(t.sede) or [p.placa for p in pools]
+            if not candidatas:
+                res.avisos.append(f"Traslado {t.id}: no hay ambulancias con costo en el periodo")
+                continue
+            pesos = [peso_km(c) for c in candidatas]
+            s = sum(pesos)
+            asignacion = [(c, w / s) for c, w in zip(candidatas, pesos)]
+        for placa, peso in asignacion:
+            _, rend, vel = parametros(placa)
+            km = t.km * peso
+            horas = (t.horas * peso) if t.horas is not None else km / vel
+            partes.append(_Parte(t.id, placa, peso, km, km / rend, horas))
+
+    # 2. Totales de driver por ambulancia.
+    drivers: dict[str, dict[str, float]] = {}
+    for parte in partes:
+        d = drivers.setdefault(parte.placa, {"galones": 0.0, "km": 0.0, "horas": 0.0, "conteo": 0.0})
+        d["galones"] += parte.galones
+        d["km"] += parte.km
+        d["horas"] += parte.horas
+        d["conteo"] += parte.peso
+
+    # 3. Tasas por actividad.
+    tasas: dict[str, dict[str, float]] = {}
+    for pool in pools:
+        d = drivers.get(pool.placa, {"galones": 0.0, "km": 0.0, "horas": 0.0, "conteo": 0.0})
+        tipo, _, _ = parametros(pool.placa)
+        perfil = perfiles.get(pool.placa)
+
+        def real(valor, base):
+            return valor / base if base > 0 else 0.0
+
+        if metodo == METODO_CAPACIDAD:
+            tasa_mant = (
+                perfil.mantenimiento_dia / perfil.km_dia
+                if perfil and perfil.km_dia > 0
+                else real(pool.mantenimiento, d["km"])
+            )
+            tasa_trip = perfil.tripulacion_dia / 24.0 if perfil else real(pool.tripulacion, d["horas"])
+            tasas[pool.placa] = {
+                "combustible": precios.precio(tipo),
+                "mantenimiento": tasa_mant,
+                "tripulacion": tasa_trip,
+                "insumos": real(pool.insumos, d["conteo"]),
+                "otros": real(pool.otros, d["conteo"]),
+            }
+        else:
+            tasas[pool.placa] = {
+                "combustible": real(pool.combustible, d["galones"]),
+                "mantenimiento": real(pool.mantenimiento, d["km"]),
+                "tripulacion": real(pool.tripulacion, d["horas"]),
+                "insumos": real(pool.insumos, d["conteo"]),
+                "otros": real(pool.otros, d["conteo"]),
+            }
+
+    driver_de = {
+        "combustible": "galones",
+        "mantenimiento": "km",
+        "tripulacion": "horas",
+        "insumos": "conteo",
+        "otros": "conteo",
+    }
+
+    # 4. Costo por parte -> traslado y ambulancia.
+    total_conteo = sum(p.peso for p in partes)
+    tasa_ind = indirectos / total_conteo if total_conteo > 0 else 0.0
+    for parte in partes:
+        tr = res.por_traslado.setdefault(parte.traslado_id, _vacio())
+        cp = res.costo_parte.setdefault((parte.traslado_id, parte.placa), _vacio())
+        pt = res.placa_traslado.setdefault(parte.traslado_id, {})
+        pt[parte.placa] = pt.get(parte.placa, 0.0) + parte.peso
+        valores = {"galones": parte.galones, "km": parte.km, "horas": parte.horas, "conteo": parte.peso}
+        ind = tasa_ind * parte.peso
+        for destino in (tr, cp):
+            for act in ACTIVIDADES:
+                costo = tasas[parte.placa][act] * valores[driver_de[act]]
+                destino[act] += costo
+                destino["total"] += costo
+            destino["indirectos"] += ind
+            destino["total"] += ind
+
+    # 5. Resumen por ambulancia con capacidad no utilizada.
+    for pool in pools:
+        d = drivers.get(pool.placa, {"galones": 0.0, "km": 0.0, "horas": 0.0, "conteo": 0.0})
+        fila = {"pool_total": pool.total, "asignado_total": 0.0, "no_utilizado_total": 0.0}
+        fila.update({f"driver_{k}": v for k, v in d.items()})
+        for act in ACTIVIDADES:
+            valor_pool = getattr(pool, act)
+            asignado = tasas[pool.placa][act] * d[driver_de[act]]
+            fila[f"pool_{act}"] = valor_pool
+            fila[f"asignado_{act}"] = asignado
+            fila[f"no_utilizado_{act}"] = valor_pool - asignado
+            fila["asignado_total"] += asignado
+            fila["no_utilizado_total"] += valor_pool - asignado
+            fila[f"tasa_{act}"] = tasas[pool.placa][act]
+        fila["indirectos_asignados"] = tasa_ind * d["conteo"]
+        if fila["no_utilizado_total"] < -0.5:
+            res.avisos.append(
+                f"{pool.placa}: lo asignado a tasa estándar supera el costo del periodo "
+                f"en {-fila['no_utilizado_total']:,.0f} (sobreuso de capacidad)"
+            )
+        res.por_ambulancia[pool.placa] = fila
+
+    res.indirectos_no_utilizados = indirectos if total_conteo == 0 else 0.0
+    return res

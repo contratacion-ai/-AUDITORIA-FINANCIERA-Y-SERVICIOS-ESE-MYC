@@ -1,0 +1,28 @@
+{% extends "flota/base.html" %}
+{% block titulo %}Importar{% endblock %}
+{% block contenido %}
+<h1>Importar archivos</h1>
+<div class="grid">
+<div class="panel">
+  <form method="post" enctype="multipart/form-data" class="formulario">{% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Importar</button>
+  </form>
+</div>
+<div class="panel suave">
+  <h2>Qué hace cada importación</h2>
+  <ul>
+    <li><b>Facturación HIS</b>: reporte de traslados facturados (columnas SEDE, COD. PROCEDIMIENTO, CANTIDAD, VALOR TOTAL, FECHA DE SERVICIO, ...). No se guardan nombres, teléfonos ni direcciones; el documento queda como hash. Reimportar el mismo archivo actualiza, no duplica.</li>
+    <li><b>RIPS JSON</b>: concilia las líneas de traslado (otrosServicios/procedimientos) con lo ya importado por factura + CUPS + valor. Solo crea lo que no exista.</li>
+    <li><b>Consumos CSV</b>: tanqueos, mantenimientos, insumos por placa. Use la <a href="{% url 'flota:plantilla_consumos' %}">plantilla</a>.</li>
+    <li><b>Anexo 3 de tarifas</b> y <b>COSTOS AMBULANCIAS</b>: solo administradores. Las celdas con errores se reportan en <a href="{% url 'flota:calidad' %}">Calidad de datos</a>; no se reemplazan por cifras inventadas.</li>
+  </ul>
+</div>
+</div>
+<div class="panel">
+  <h2>Importaciones recientes</h2>
+  <table><tr><th>Fecha</th><th>Tipo</th><th>Archivo</th><th>Usuario</th><th class="n">Nuevos</th><th class="n">Actualizados</th><th class="n">Omitidos</th><th class="n">Hallazgos</th><th>Resumen</th></tr>
+  {% for l in lotes %}<tr><td>{{ l.fecha|date:"Y-m-d H:i" }}</td><td>{{ l.tipo }}</td><td>{{ l.archivo }}</td><td>{{ l.usuario|default:"sistema" }}</td><td class="n">{{ l.nuevos }}</td><td class="n">{{ l.actualizados }}</td><td class="n">{{ l.omitidos }}</td><td class="n">{{ l.hallazgos }}</td><td class="suave">{{ l.resumen }}</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}

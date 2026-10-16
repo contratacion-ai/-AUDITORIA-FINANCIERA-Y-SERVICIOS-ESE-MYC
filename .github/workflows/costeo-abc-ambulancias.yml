@@ -1,0 +1,51 @@
+name: Costeo ABC Ambulancias
+
+on:
+  push:
+    paths:
+      - "ambulancias_abc/**"
+      - "installer/windows/**"
+      - "docs/ambulancias_abc/**"
+      - ".github/workflows/costeo-abc-ambulancias.yml"
+  pull_request:
+    paths:
+      - "ambulancias_abc/**"
+      - "installer/windows/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ambulancias_abc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python manage.py check
+      - run: python manage.py makemigrations --check --dry-run
+      - run: python manage.py test -v 2
+
+  instalador-windows:
+    needs: pruebas
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+      - name: Construir instalador
+        shell: pwsh
+        run: ./installer/windows/build_installer.ps1 -Version "1.0.${{ github.run_number }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Instalador_CosteoABC_Ambulancias
+          path: installer/windows/salida/*.exe
+          retention-days: 30

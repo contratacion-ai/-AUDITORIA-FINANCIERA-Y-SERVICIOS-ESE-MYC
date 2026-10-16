@@ -1,0 +1,24 @@
+{% extends "flota/base.html" %}{% load formato %}
+{% block titulo %}Rentabilidad por ruta{% endblock %}
+{% block contenido %}
+<h1>Costo ABC por recorrido frente a la tarifa propia 2026</h1>
+<form method="get" class="filtros panel no-imprimir">
+  <label>Sede <select name="sede"><option value="">Todas</option>{% for s in sedes %}<option value="{{ s.codigo }}" {% if sede == s.codigo %}selected{% endif %}>{{ s.nombre }}</option>{% endfor %}</select></label>
+  <label>Ambulancia <select name="placa"><option value="">Todas</option>{% for p in ambulancias %}<option {% if placa == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select></label>
+  <label>Método <select name="metodo">{% for k, v in metodos.items %}<option value="{{ k }}" {% if metodo == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+  <label><span>Rutas</span><select name="todas"><option value="">Solo las que salen de la sede de la ambulancia</option><option value="1" {% if not solo_origen %}selected{% endif %}>Todas las rutas con cada ambulancia</option></select></label>
+  <button>Aplicar</button>
+</form>
+<div class="aviso">Costo del recorrido = km de la ruta × {{ factor|num:1 }} (ida y vuelta, parámetro configurable) con el perfil de la ambulancia: combustible por galones (km ÷ rendimiento × precio), mantenimiento por km y tripulación por horas en misión (km ÷ velocidad efectiva). {{ n_perdida }} de {{ n_filas }} combinaciones ruta-ambulancia dan pérdida.</div>
+{% for r in rutas %}
+<div class="panel">
+  <h2>{{ r.ruta.origen }} → {{ r.ruta.destino }} · {{ r.ruta.km|num }} km · tarifa {{ r.ruta.tarifa|pesos }}{% if r.perdida %} <span class="etq ALTA">{{ r.perdida }} con pérdida</span>{% endif %}</h2>
+  <table>
+    <tr><th>Placa</th><th>Comb.</th><th class="n">Km conducidos</th><th class="n">Horas</th><th class="n">Galones</th><th class="n">Combustible</th><th class="n">Mantenimiento</th><th class="n">Tripulación</th><th class="n">Costo ABC</th><th class="n">Tarifa</th><th class="n">Margen</th><th class="n">Rent.</th><th class="n">Tarifa/km de equilibrio</th></tr>
+    {% for f in r.filas %}
+    <tr><td>{{ f.placa }}{% if f.excluida %} <span class="etq">excluida</span>{% endif %}</td><td>{{ f.tipo_combustible }}</td><td class="n">{{ f.km_conducidos|num }}</td><td class="n">{{ f.horas|num:1 }}</td><td class="n">{{ f.galones|num:1 }}</td><td class="n">{{ f.combustible|pesos }}</td><td class="n">{{ f.mantenimiento|pesos }}</td><td class="n">{{ f.tripulacion|pesos }}</td><td class="n"><b>{{ f.costo|pesos }}</b></td><td class="n">{{ f.tarifa|pesos }}</td><td class="n {{ f.margen|signo }}">{{ f.margen|pesos }}</td><td class="n {{ f.margen|signo }}">{{ f.rentabilidad|pct }}</td><td class="n">{{ f.tarifa_km_equilibrio|pesos }}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% empty %}<div class="panel suave">No hay rutas para los filtros seleccionados.</div>{% endfor %}
+{% endblock %}

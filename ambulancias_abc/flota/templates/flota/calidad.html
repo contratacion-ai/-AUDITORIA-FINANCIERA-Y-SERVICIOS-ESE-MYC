@@ -1,0 +1,23 @@
+{% extends "flota/base.html" %}
+{% block titulo %}Calidad de datos{% endblock %}
+{% block contenido %}
+<h1>Calidad de datos de las fuentes</h1>
+<p class="suave">Inconsistencias detectadas en el estudio, el manual tarifario, el archivo de costos y la facturación. Se marcan para revisión; la aplicación no las corrige con cifras inventadas.</p>
+<form method="get" class="filtros panel no-imprimir">
+  <label>Fuente <select name="fuente"><option value="">Todas</option>{% for f in fuentes %}<option {% if g.fuente == f %}selected{% endif %}>{{ f }}</option>{% endfor %}</select></label>
+  <label>Severidad <select name="severidad"><option value="">Todas</option><option {% if g.severidad == "ALTA" %}selected{% endif %}>ALTA</option><option {% if g.severidad == "MEDIA" %}selected{% endif %}>MEDIA</option><option {% if g.severidad == "BAJA" %}selected{% endif %}>BAJA</option></select></label>
+  <label>Estado <select name="estado"><option value="">Pendientes</option><option value="todos" {% if g.estado == "todos" %}selected{% endif %}>Todos</option></select></label>
+  <button>Filtrar</button>
+</form>
+<div class="panel"><h2>Pendientes por fuente</h2>
+<table><tr><th>Fuente</th><th>Severidad</th><th class="n">Hallazgos</th></tr>{% for r in resumen %}<tr><td>{{ r.fuente }}</td><td><span class="etq {{ r.severidad }}">{{ r.severidad }}</span></td><td class="n">{{ r.n }}</td></tr>{% endfor %}</table></div>
+<div class="panel">
+<table>
+  <tr><th>Sev.</th><th>Fuente</th><th>Ubicación</th><th>Tipo</th><th>Descripción</th><th>Estado</th></tr>
+  {% for h in hallazgos %}
+  <tr><td><span class="etq {{ h.severidad }}">{{ h.severidad }}</span></td><td>{{ h.fuente }}</td><td><code>{{ h.ubicacion }}</code></td><td>{{ h.get_tipo_display }}</td><td>{{ h.descripcion }}{% if h.nota_resolucion %}<br><span class="suave">Nota: {{ h.nota_resolucion }}</span>{% endif %}</td>
+    <td>{% if perms.flota.change_hallazgocalidad %}<form method="post" action="{% url 'flota:hallazgo_resolver' h.pk %}">{% csrf_token %}<input type="hidden" name="volver" value="{{ request.get_full_path }}">{% if not h.resuelto %}<input name="nota" placeholder="Nota" style="width:110px">{% endif %}<button class="boton sec">{% if h.resuelto %}Reabrir{% else %}Resolver{% endif %}</button></form>{% else %}{% if h.resuelto %}Resuelto{% else %}Pendiente{% endif %}{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="6" class="suave">Sin hallazgos.</td></tr>{% endfor %}
+</table>
+</div>
+{% endblock %}

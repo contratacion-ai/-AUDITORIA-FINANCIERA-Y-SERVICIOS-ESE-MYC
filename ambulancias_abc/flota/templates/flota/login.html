@@ -1,0 +1,15 @@
+{% extends "flota/base.html" %}
+{% block titulo %}Ingresar{% endblock %}
+{% block contenido %}
+<div class="panel" style="max-width:380px;margin:40px auto">
+  <h1>Ingresar</h1>
+  <p class="suave">Costeo ABC de la flota de ambulancias · ESE Moreno y Clavijo</p>
+  <form method="post" class="formulario">{% csrf_token %}
+    {% if form.errors %}<p class="neg">Usuario o clave incorrectos.</p>{% endif %}
+    <label>Usuario<br>{{ form.username }}</label><br><br>
+    <label>Clave<br>{{ form.password }}</label><br><br>
+    <button type="submit">Ingresar</button>
+    <input type="hidden" name="next" value="{{ next }}">
+  </form>
+</div>
+{% endblock %}

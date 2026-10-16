@@ -1,0 +1,156 @@
+{
+ "partidas": [
+  {
+   "categoria": "COSTOS PERSONAL",
+   "concepto": "CONTRATO DIRECTO (AUXILIAR)",
+   "valor_mensual": 74256355.67,
+   "ubicacion": "AMBULANCIAS!E13"
+  },
+  {
+   "categoria": "COSTOS PERSONAL",
+   "concepto": "CONTRATO CON TERCEROS (ESPECIALISTA)",
+   "valor_mensual": 2574016.0,
+   "ubicacion": "AMBULANCIAS!E14"
+  },
+  {
+   "categoria": "COSTOS GENERALES",
+   "concepto": "ELEMENTOS DE CONSUMO DE OFICINA",
+   "valor_mensual": 1174036.85,
+   "ubicacion": "AMBULANCIAS!E23"
+  },
+  {
+   "categoria": "COSTOS GENERALES",
+   "concepto": "SEGUROS",
+   "valor_mensual": 125610.51,
+   "ubicacion": "AMBULANCIAS!E24"
+  },
+  {
+   "categoria": "COSTOS GENERALES",
+   "concepto": "SENTENCIAS JUDICIALES",
+   "valor_mensual": 1990567.74,
+   "ubicacion": "AMBULANCIAS!E28"
+  },
+  {
+   "categoria": "COSTOS GENERALES",
+   "concepto": "OTROS GASTOS GENERALES",
+   "valor_mensual": 10124950.41,
+   "ubicacion": "AMBULANCIAS!E35"
+  },
+  {
+   "categoria": "COSTOS GENERALES",
+   "concepto": "FINANCIEROS",
+   "valor_mensual": 10060.0,
+   "ubicacion": "AMBULANCIAS!E36"
+  },
+  {
+   "categoria": "ESTIMACIONES CONTABLES",
+   "concepto": "DEPRECIACIONES",
+   "valor_mensual": 8129347.17,
+   "ubicacion": "AMBULANCIAS!E38"
+  },
+  {
+   "categoria": "ESTIMACIONES CONTABLES",
+   "concepto": "AMORTIZACIONES",
+   "valor_mensual": 163385.59,
+   "ubicacion": "AMBULANCIAS!E39"
+  }
+ ],
+ "tripulacion": [
+  {
+   "cargo": "MEDICO PLANTA",
+   "salario_mes": 7500000,
+   "horas_mes": 191,
+   "horas_dia": 7,
+   "valor_dia": 274869.109947644
+  },
+  {
+   "cargo": "AUXILIAR DE ENFERMERIA",
+   "salario_mes": 2754000,
+   "horas_mes": 191,
+   "horas_dia": 7,
+   "valor_dia": 100931.93717277487
+  },
+  {
+   "cargo": "CONDUCTOR",
+   "salario_mes": 3500000,
+   "horas_mes": 191,
+   "horas_dia": 7,
+   "valor_dia": 128272.25130890054
+  }
+ ],
+ "hallazgos": [
+  {
+   "fuente": "COSTOS AMBULANCIAS.xlsx",
+   "ubicacion": "AMBULANCIAS!I43",
+   "tipo": "ERROR_FORMULA",
+   "descripcion": "Celda con error '#DIV/0!' (fórmula: =+J43/J44); no se usa.",
+   "severidad": "MEDIA",
+   "valor": "=+J43/J44"
+  },
+  {
+   "fuente": "COSTOS AMBULANCIAS.xlsx",
+   "ubicacion": "AMBULANCIAS!I45",
+   "tipo": "ERROR_FORMULA",
+   "descripcion": "Celda con error '#DIV/0!' (fórmula: =+J45/J43); no se usa.",
+   "severidad": "MEDIA",
+   "valor": "=+J45/J43"
+  },
+  {
+   "fuente": "COSTOS AMBULANCIAS.xlsx",
+   "ubicacion": "TABLA DE VALOR TH MYC!C4:F12",
+   "tipo": "FORMULA",
+   "descripcion": "36 celdas vinculadas a un libro externo ('[1]TALENTO HUMANO') que no se entregó; los valores mostrados son los últimos guardados y no se pueden recalcular.",
+   "severidad": "BAJA",
+   "valor": ""
+  },
+  {
+   "fuente": "COSTOS AMBULANCIAS.xlsx",
+   "ubicacion": "AMBULANCIAS!F",
+   "tipo": "FALTANTE",
+   "descripcion": "La columna 'VR. PESOS HORA' está vacía: todos los 'VALOR PROCEDIMIENTO' dan 0 y el costo calculado del procedimiento no es utilizable.",
+   "severidad": "ALTA",
+   "valor": ""
+  },
+  {
+   "fuente": "COSTOS AMBULANCIAS.xlsx",
+   "ubicacion": "AMBULANCIAS!D9",
+   "tipo": "FALTANTE",
+   "descripcion": "La duración del procedimiento no es numérica (D9 vacía; aparece como texto ['HORAS', '20 MIN']). Las fórmulas que multiplican por D9 dan 0. Además, 20 minutos no representa un traslado: el informe técnico mide 3,6 h/día en misión en promedio.",
+   "severidad": "ALTA",
+   "valor": ""
+  },
+  {
+   "fuente": "COSTOS AMBULANCIAS.xlsx",
+   "ubicacion": "AMBULANCIAS!G47",
+   "tipo": "SUPUESTO",
+   "descripcion": "'VR. ACTUAL' (valor EPS) de 87,450 sin código CUPS asociado (CUPS: vacío); no corresponde a las tarifas por km del Anexo 3. Requiere validación.",
+   "severidad": "ALTA",
+   "valor": "87450"
+  },
+  {
+   "fuente": "COSTOS AMBULANCIAS.xlsx",
+   "ubicacion": "TABLA DE VALOR TH MYC!H20",
+   "tipo": "INCONSISTENCIA",
+   "descripcion": "Tripulación por día según la tabla TH (7 h × valor hora con 191 h/mes) = 504,073; el informe técnico usa 458,467 (= 13,754,000 ÷ 30). Se usa la cifra del informe (fuente principal); la de la tabla TH queda como parámetro de contraste.",
+   "severidad": "MEDIA",
+   "valor": ""
+  },
+  {
+   "fuente": "COSTOS AMBULANCIAS.xlsx",
+   "ubicacion": "TABLA DE VALOR TH MYC!G17:G19",
+   "tipo": "SUPUESTO",
+   "descripcion": "Cada cargo trabaja 7 h/día, pero la ambulancia se valora disponible 24 h con una sola tripulación. Si se requieren turnos para cubrir 24 h, el costo de tripulación estaría subestimado.",
+   "severidad": "MEDIA",
+   "valor": ""
+  },
+  {
+   "fuente": "COSTOS AMBULANCIAS.xlsx",
+   "ubicacion": "AMBULANCIAS!E12:E14",
+   "tipo": "INCONSISTENCIA",
+   "descripcion": "El costo de personal del centro de costos es 76,830,372/mes, mientras que 21 tripulaciones completas cuestan 288,834,000/mes. El personal de planta (E12) está en 0, de modo que el centro de costos no recoge toda la tripulación. Las partidas de personal no se suman al ABC para no duplicar la tripulación del informe.",
+   "severidad": "ALTA",
+   "valor": ""
+  }
+ ],
+ "n_ambulancias": 21
+}

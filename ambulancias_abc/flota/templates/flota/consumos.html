@@ -1,0 +1,28 @@
+{% extends "flota/base.html" %}{% load formato %}
+{% block titulo %}Consumos{% endblock %}
+{% block contenido %}
+<h1>Control de consumos por ambulancia {% if perms.flota.add_consumo %}<a class="boton" style="float:right" href="{% url 'flota:consumo_nuevo' %}">Registrar consumo</a>{% endif %}</h1>
+<form method="get" class="filtros panel no-imprimir">
+  <label>Ambulancia <select name="placa"><option value="">Todas</option>{% for p in ambulancias %}<option {% if g.placa == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select></label>
+  <label>Tipo <select name="tipo"><option value="">Todos</option>{% for k, v in tipos %}<option value="{{ k }}" {% if g.tipo == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+  <label>Mes <input type="month" name="mes" value="{{ g.mes|default:'' }}"></label>
+  <button>Filtrar</button>
+  <a class="boton sec" href="{% url 'flota:plantilla_consumos' %}">Plantilla CSV para carga masiva</a>
+</form>
+<div class="grid">
+<div class="panel"><h2>Resumen por tipo</h2>
+<table><tr><th>Tipo</th><th class="n">Cantidad</th><th class="n">Valor</th></tr>
+{% for r in por_tipo %}<tr><td>{{ r.tipo }}</td><td class="n">{{ r.cantidad|num:1 }}</td><td class="n">{{ r.valor|pesos }}</td></tr>{% endfor %}
+<tr><th>Total ({{ totales.n|num }} registros)</th><th></th><th class="n">{{ totales.valor|pesos }}</th></tr></table>
+<p class="suave">Si una ambulancia tiene consumos de un tipo en un mes, el costeo usa el valor real en lugar del estándar del estudio para ese recurso.</p>
+</div></div>
+<div class="panel">
+<table>
+  <tr><th>Fecha</th><th>Placa</th><th>Tipo</th><th>Descripción</th><th class="n">Cantidad</th><th class="n">Valor</th><th class="n">Odómetro</th><th>Soporte</th><th>Proveedor</th><th>Registró</th></tr>
+  {% for c in pagina %}
+  <tr><td><a href="{% url 'flota:consumo_editar' c.pk %}">{{ c.fecha|date:"Y-m-d" }}</a></td><td><a href="{% url 'flota:ambulancia' c.ambulancia.placa %}">{{ c.ambulancia }}</a></td><td>{{ c.get_tipo_display }}</td><td>{{ c.descripcion }}</td><td class="n">{{ c.cantidad|num:2 }} {{ c.unidad }}</td><td class="n">{{ c.valor|pesos }}</td><td class="n">{{ c.odometro|num }}</td><td>{{ c.documento_soporte }}</td><td>{{ c.proveedor }}</td><td>{{ c.creado_por|default:"importación" }}</td></tr>
+  {% empty %}<tr><td colspan="10" class="suave">Sin consumos registrados.</td></tr>{% endfor %}
+</table>
+<div class="paginacion">{% if pagina.has_previous %}<a href="?{{ consulta }}&pagina={{ pagina.previous_page_number }}">« Anterior</a>{% endif %} Página {{ pagina.number }} de {{ pagina.paginator.num_pages }} {% if pagina.has_next %}<a href="?{{ consulta }}&pagina={{ pagina.next_page_number }}">Siguiente »</a>{% endif %}</div>
+</div>
+{% endblock %}

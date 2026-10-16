@@ -1,0 +1,8 @@
+{% extends "flota/base.html" %}
+{% block titulo %}Bitácora{% endblock %}
+{% block contenido %}
+<h1>Bitácora de cambios</h1>
+<div class="panel"><table><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Registro</th><th>Cambios</th></tr>
+{% for r in registros %}<tr><td>{{ r.fecha|date:"Y-m-d H:i" }}</td><td>{{ r.usuario|default:"sistema" }}</td><td>{{ r.accion }}</td><td>{{ r.modelo }} #{{ r.objeto_id }}</td><td class="suave">{{ r.cambios }}</td></tr>{% endfor %}
+</table></div>
+{% endblock %}
