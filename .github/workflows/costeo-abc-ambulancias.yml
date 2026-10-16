@@ -2,6 +2,12 @@ name: Costeo ABC Ambulancias
 
 on:
   push:
+    # Con 'tags' también hay que listar 'branches' para seguir corriendo en
+    # los push a ramas. En las etiquetas no se evalúa el filtro de rutas.
+    branches:
+      - "**"
+    tags:
+      - "v*"
     paths:
       - "ambulancias_abc/**"
       - "installer/windows/**"
@@ -43,9 +49,37 @@ jobs:
           if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
       - name: Construir instalador
         shell: pwsh
-        run: ./installer/windows/build_installer.ps1 -Version "1.0.${{ github.run_number }}"
+        run: |
+          $v = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}".TrimStart("v") } else { "1.0.${{ github.run_number }}" }
+          ./installer/windows/build_installer.ps1 -Version $v
       - uses: actions/upload-artifact@v4
         with:
           name: Instalador_CosteoABC_Ambulancias
           path: installer/windows/salida/*.exe
           retention-days: 30
+
+  publicar-release:
+    # Al crear una etiqueta v* (p. ej. v1.0.0) el instalador queda publicado
+    # como Release, con enlace de descarga permanente.
+    if: github.ref_type == 'tag'
+    needs: instalador-windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Instalador_CosteoABC_Ambulancias
+          path: salida
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: Costeo ABC Ambulancias ${{ github.ref_name }}
+          files: salida/*.exe
+          body: |
+            Instalador para Windows (servidor de red local) de Costeo ABC Ambulancias - ESE Moreno y Clavijo.
+
+            1. Descargue `Instalador_CosteoABC_Ambulancias_*.exe` y ejecútelo como administrador en el equipo servidor.
+            2. Indique el puerto (8000) y la clave del usuario `admin`.
+            3. Desde cualquier equipo de la red abra `http://NOMBRE-DEL-SERVIDOR:8000/`.
+
+            Documentación: carpeta `docs` del programa instalado o `docs/ambulancias_abc/` del repositorio.
