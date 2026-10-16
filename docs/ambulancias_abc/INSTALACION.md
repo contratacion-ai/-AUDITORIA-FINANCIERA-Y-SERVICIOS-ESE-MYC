@@ -19,7 +19,9 @@ Nadie abre la base de datos desde otro equipo: todos entran por el navegador y e
 Requisitos: Windows 10/11 o Server 2016+ de 64 bits, 2 GB de RAM libres, IP fija o nombre de equipo estable en la red. No hace falta instalar Python (el instalador lo incluye).
 
 1. Obtenga `Instalador_CosteoABC_Ambulancias_<versión>.exe`:
-   - Desde GitHub: pestaña **Actions** › flujo *Costeo ABC Ambulancias* › última ejecución › artefacto *Instalador_CosteoABC_Ambulancias*.
+   - Desde GitHub: sección **Releases** del repositorio (versión publicada, enlace permanente).
+   - O en la pestaña **Actions** › flujo *Costeo ABC Ambulancias* › última ejecución › artefacto *Instalador_CosteoABC_Ambulancias* (se conserva 30 días; viene dentro de un .zip).
+   - Para publicar una versión nueva como Release: empuje una etiqueta `v1.2.3` o un commit cuyo mensaje contenga `[publicar]`.
    - O compílelo (ver sección D).
 2. Ejecútelo **como administrador** en el equipo que hará de servidor.
 3. En la página *Configuración del servidor* indique el puerto (8000 por defecto) y la clave del usuario `admin` (mínimo 8 caracteres).

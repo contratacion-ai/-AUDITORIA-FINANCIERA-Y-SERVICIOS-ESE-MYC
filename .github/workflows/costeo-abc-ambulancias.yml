@@ -51,6 +51,7 @@ jobs:
         shell: pwsh
         run: |
           $v = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}".TrimStart("v") } else { "1.0.${{ github.run_number }}" }
+          "VERSION=$v" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           ./installer/windows/build_installer.ps1 -Version $v
       - uses: actions/upload-artifact@v4
         with:
@@ -59,9 +60,9 @@ jobs:
           retention-days: 30
 
   publicar-release:
-    # Al crear una etiqueta v* (p. ej. v1.0.0) el instalador queda publicado
-    # como Release, con enlace de descarga permanente.
-    if: github.ref_type == 'tag'
+    # Publica el instalador como Release (enlace de descarga permanente) cuando
+    # se empuja una etiqueta v* o un commit cuyo mensaje contiene [publicar].
+    if: github.event_name == 'push' && (github.ref_type == 'tag' || contains(github.event.head_commit.message, '[publicar]'))
     needs: instalador-windows
     runs-on: ubuntu-latest
     permissions:
@@ -73,7 +74,9 @@ jobs:
           path: salida
       - uses: softprops/action-gh-release@v2
         with:
-          name: Costeo ABC Ambulancias ${{ github.ref_name }}
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('v1.0.{0}', github.run_number) }}
+          target_commitish: ${{ github.sha }}
+          name: Costeo ABC Ambulancias ${{ github.ref_type == 'tag' && github.ref_name || format('v1.0.{0}', github.run_number) }}
           files: salida/*.exe
           body: |
             Instalador para Windows (servidor de red local) de Costeo ABC Ambulancias - ESE Moreno y Clavijo.
