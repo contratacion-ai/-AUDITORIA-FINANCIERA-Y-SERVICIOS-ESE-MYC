@@ -27,6 +27,7 @@ Principio: **cada dato tiene un solo dueño**. Esta aplicación es dueña de los
 |---|---|---|
 | Facturación de traslados (HIS) | Pantalla *Importar* o `manage.py importar_archivo facturacion <xlsx>` | Columnas: `SEDE, COD. PROCEDIMIENTO, CANTIDAD, VALOR ACTIVIDAD, VALOR TOTAL, FECHA DE SERVICIO, FACTURA NRO, PRE-FACTURA NRO, NRO INGRESO, AMBITO, UNIDAD FUNCIONAL, CONTRATO, NOMBRE EPS, CODIGO EPS, REGIMEN DEL PACIENTE, TIPO IDE., NUMERO IDE.` (nombres, teléfonos y direcciones se ignoran) |
 | RIPS | `POST /api/v1/rips` (JSON, clave con escritura), pantalla *Importar* o `importar_archivo rips <json>` | JSON Res. 2275/2023: factura (`numFactura`) → `usuarios[]` → `servicios.otrosServicios[]` (`codTecnologiaSalud`, `cantidadOS`, `vrUnitOS`, `vrServicio`, `fechaSuministroTecnologia`, `consecutivo`, `codPrestador`) y `servicios.procedimientos[]` (`codProcedimiento`, `vrServicio`, `fechaInicioAtencion`) |
+| RIPS por mes y hospital | Pantalla *Cargas del mes › Cargar RIPS* (varios archivos) o `POST /api/v1/rips?mes=AAAA-MM&sede=<codigo>` | Además del JSON: archivos planos Res. 3374/2000 (`AF`, `AT`, `AP`) y ZIP. Se extraen traslados y APH (ver [GUIA_CARGAS_MENSUALES.md](GUIA_CARGAS_MENSUALES.md)) |
 | Consumos | Pantalla *Importar* o `importar_archivo consumos <csv>` | `placa;fecha;tipo;descripcion;cantidad;unidad;valor;odometro;documento_soporte;proveedor` (tipo: COMBUSTIBLE, MANTENIMIENTO, LUBRICANTE, LLANTAS, INSUMO, TRIPULACION, OTRO) |
 | Manual tarifario | `importar_archivo tarifas <xlsx> --vigencia 2026` | Hoja que contenga "TRASLADO": ORIGEN, DESTINO, Km y columna del año |
 
@@ -44,11 +45,11 @@ Autenticación: encabezado `X-API-Key`. Cree la clave con `manage.py crear_clave
 | `GET /api/v1/estado` | — | Versión del contrato y conteos |
 | `GET /api/v1/ambulancias` | — | placa, sede, combustible, estado, costo/día estándar |
 | `GET /api/v1/rutas` | — | ruta_codigo, vigencia, origen, destino, km, valor_km, tarifa |
-| `GET /api/v1/traslados` | `mes=AAAA-MM`, `metodo=REAL\|CAPACIDAD` | Cada línea con llaves (factura, ingreso, RIPS, hash), placa o reparto, ruta, km, valor facturado, **costo ABC**, margen y observaciones de calidad |
+| `GET /api/v1/traslados` | `mes=AAAA-MM`, `metodo=REAL\|CAPACIDAD` | Cada línea con `categoria` (TRASLADO/APH), llaves (factura, ingreso, RIPS, hash), placa o reparto, ruta, km, valor facturado, **costo ABC**, margen y observaciones de calidad |
 | `GET /api/v1/costos-ambulancia` | `mes`, `metodo` | Costo por recurso y su fuente (REAL/ESTANDAR), asignado, capacidad no utilizada, km, horas, traslados, facturado y margen por placa; `costo_total_flota` |
 | `GET /api/v1/consumos` | `mes` (opcional) | Consumos con soporte, odómetro y proveedor |
 | `GET /api/v1/hallazgos` | `pendientes=1` | Inconsistencias de las fuentes |
-| `POST /api/v1/rips` | cuerpo JSON RIPS; `X-Nombre-Archivo` opcional | `{lote, nuevos, conciliados, omitidos, hallazgos}` |
+| `POST /api/v1/rips` | cuerpo JSON RIPS; `mes=AAAA-MM` y `sede=<codigo>` opcionales; `X-Nombre-Archivo` opcional | `{lote, nuevos, conciliados, omitidos, hallazgos, traslados, aph}` |
 
 Ejemplo (PowerShell):
 

@@ -194,6 +194,7 @@ def traslados(request):
                 "ruta_codigo": t.ruta.codigo if t.ruta_id else "",
                 "ruta_inferida": t.ruta_inferida,
                 "codigo_cups": t.codigo_cups,
+                "categoria": t.categoria,
                 "cantidad": _r(t.cantidad),
                 "km_recorridos": _r(t.km_recorridos),
                 "ambito": t.ambito,
@@ -306,11 +307,22 @@ def hallazgos(request):
 def importar_rips(request):
     from .servicios.importar import importar_rips as _importar
 
+    from .models import Sede
+
+    mes = _mes(request)
+    if mes == "error":
+        return JsonResponse({"error": "mes debe ser AAAA-MM"}, status=400)
+    sede = None
+    if request.GET.get("sede"):
+        sede = Sede.objects.filter(codigo=request.GET["sede"]).first()
+        if sede is None:
+            return JsonResponse({"error": "sede no existe (use el código, p. ej. tame)"}, status=400)
     try:
         lote = _importar(request.body, usuario=request.user if request.user.is_authenticated else None,
-                         nombre=request.headers.get("X-Nombre-Archivo", "RIPS (API)"))
+                         nombre=request.headers.get("X-Nombre-Archivo", "RIPS_API.json"), mes=mes, sede=sede)
     except ValueError as e:
         return JsonResponse({"error": f"JSON inválido: {e}"}, status=400)
     return JsonResponse(
-        {"lote": lote.pk, "nuevos": lote.nuevos, "conciliados": lote.actualizados, "omitidos": lote.omitidos, "hallazgos": lote.hallazgos}
+        {"lote": lote.pk, "nuevos": lote.nuevos, "conciliados": lote.actualizados, "omitidos": lote.omitidos,
+         "hallazgos": lote.hallazgos, "traslados": lote.detalle.get("traslados"), "aph": lote.detalle.get("aph")}
     )

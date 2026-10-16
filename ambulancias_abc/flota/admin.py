@@ -60,7 +60,8 @@ class TarifaRutaAdmin(AuditadoAdmin):
 
 @admin.register(CodigoTraslado)
 class CodigoTrasladoAdmin(AuditadoAdmin):
-    list_display = ("codigo", "descripcion", "modalidad", "activo")
+    list_display = ("codigo", "descripcion", "modalidad", "categoria", "activo")
+    list_editable = ("categoria",)
 
 
 @admin.register(PartidaCostoIndirecto)

@@ -55,6 +55,20 @@ def primer_dia(fecha: dt.date) -> dt.date:
     return fecha.replace(day=1)
 
 
+def sumar_meses(mes: dt.date, n: int) -> dt.date:
+    total = mes.year * 12 + (mes.month - 1) + n
+    return dt.date(total // 12, total % 12 + 1, 1)
+
+
+def meses_entre_fechas(desde: dt.date, hasta: dt.date) -> int:
+    """Número de meses de ``desde`` a ``hasta`` (0 si es el mismo mes)."""
+    return (hasta.year - desde.year) * 12 + hasta.month - desde.month
+
+
+TRASLADO, APH = "TRASLADO", "APH"
+CATEGORIAS_SERVICIO = [(TRASLADO, "Traslado asistencial"), (APH, "Atención prehospitalaria (APH)")]
+
+
 # ---------------------------------------------------------------------------
 # Catálogos
 # ---------------------------------------------------------------------------
@@ -190,6 +204,10 @@ class CodigoTraslado(models.Model):
     modalidad = models.CharField(
         max_length=10, choices=[(BASE, "Tarifa básica fija"), (POR_KM, "Valor por kilómetro")]
     )
+    categoria = models.CharField(
+        max_length=10, choices=CATEGORIAS_SERVICIO, default=TRASLADO,
+        help_text="Clasificación al extraer de RIPS: traslado o atención prehospitalaria",
+    )
     activo = models.BooleanField(default=True)
 
     def __str__(self):
@@ -226,6 +244,11 @@ class Traslado(VersionadoMixin):
     llave_externa = models.CharField(max_length=200, unique=True, help_text="Llave natural del origen; evita duplicados")
     origen_registro = models.CharField(max_length=10, choices=[(MANUAL, "Manual"), (HIS, "Facturación HIS"), (RIPS, "RIPS")])
     lote = models.ForeignKey("LoteImportacion", null=True, blank=True, on_delete=models.SET_NULL, related_name="traslados")
+    lote_rips = models.ForeignKey(
+        "LoteImportacion", null=True, blank=True, on_delete=models.SET_NULL, related_name="traslados_rips",
+        help_text="Carga de RIPS que contiene (o concilió) esta línea",
+    )
+    categoria = models.CharField(max_length=10, choices=CATEGORIAS_SERVICIO, default=TRASLADO, db_index=True)
 
     fecha_servicio = models.DateField(db_index=True)
     mes = models.DateField(db_index=True, editable=False)
@@ -279,15 +302,36 @@ class Consumo(VersionadoMixin):
 
     COMBUSTIBLE, MANTENIMIENTO, LUBRICANTE, LLANTAS = "COMBUSTIBLE", "MANTENIMIENTO", "LUBRICANTE", "LLANTAS"
     INSUMO, TRIPULACION, OTRO = "INSUMO", "TRIPULACION", "OTRO"
+    SEGUROS_IMPUESTOS, IMPREVISTOS = "SEGUROS_IMP", "IMPREVISTOS"
     TIPOS = [
         (COMBUSTIBLE, "Combustible"),
         (MANTENIMIENTO, "Mantenimiento (repuestos y mano de obra)"),
         (LUBRICANTE, "Lubricantes"),
         (LLANTAS, "Llantas"),
+        (TRIPULACION, "Personal (nómina de la tripulación)"),
+        (SEGUROS_IMPUESTOS, "Seguros e impuestos (SOAT, pólizas, impuesto vehicular, revisión técnico-mecánica)"),
+        (IMPREVISTOS, "Imprevistos"),
         (INSUMO, "Insumos y dispositivos médicos"),
-        (TRIPULACION, "Tripulación (ajuste de nómina)"),
         (OTRO, "Otros consumos"),
     ]
+    # Tablas de consumo que ve el usuario: clave -> (título, tipos que agrupa, unidad sugerida)
+    TABLAS = {
+        "combustible": ("Combustible", [COMBUSTIBLE], "gal"),
+        "mantenimiento": ("Mantenimiento", [MANTENIMIENTO, LUBRICANTE, LLANTAS], "und"),
+        "personal": ("Personal", [TRIPULACION], "mes"),
+        "seguros": ("Seguros e impuestos", [SEGUROS_IMPUESTOS], "und"),
+        "imprevistos": ("Imprevistos", [IMPREVISTOS], "und"),
+        "insumos": ("Insumos", [INSUMO], "und"),
+        "otros": ("Otros", [OTRO], "und"),
+    }
+    # Sinónimos aceptados en la columna 'tipo' de los archivos de carga
+    SINONIMOS = {
+        "PERSONAL": TRIPULACION, "NOMINA": TRIPULACION, "TRIPULACION": TRIPULACION,
+        "SEGUROS": SEGUROS_IMPUESTOS, "IMPUESTOS": SEGUROS_IMPUESTOS, "SEGUROS E IMPUESTOS": SEGUROS_IMPUESTOS,
+        "SOAT": SEGUROS_IMPUESTOS, "SEGUROS_IMPUESTOS": SEGUROS_IMPUESTOS, "SEGUROS_IMP": SEGUROS_IMPUESTOS,
+        "IMPREVISTO": IMPREVISTOS, "IMPREVISTOS": IMPREVISTOS, "INSUMOS": INSUMO, "LLANTA": LLANTAS,
+        "LUBRICANTES": LUBRICANTE, "ACPM": COMBUSTIBLE, "GASOLINA": COMBUSTIBLE,
+    }
     # tipo de consumo -> actividad/pool ABC
     POOL = {
         COMBUSTIBLE: "combustible",
@@ -296,6 +340,8 @@ class Consumo(VersionadoMixin):
         LLANTAS: "mantenimiento",
         INSUMO: "insumos",
         TRIPULACION: "tripulacion",
+        SEGUROS_IMPUESTOS: "otros",
+        IMPREVISTOS: "otros",
         OTRO: "otros",
     }
 
@@ -310,6 +356,9 @@ class Consumo(VersionadoMixin):
     odometro = models.PositiveIntegerField(null=True, blank=True)
     documento_soporte = models.CharField(max_length=60, blank=True, help_text="Vale, factura u orden de trabajo")
     proveedor = models.CharField(max_length=120, blank=True)
+    meses_prorrateo = models.PositiveSmallIntegerField(
+        default=1, help_text="Meses en que se reparte el valor (p. ej. 12 para el SOAT anual). 1 = solo el mes de la fecha",
+    )
     lote = models.ForeignKey("LoteImportacion", null=True, blank=True, on_delete=models.SET_NULL, related_name="consumos")
 
     class Meta:
@@ -324,6 +373,13 @@ class Consumo(VersionadoMixin):
             raise ValidationError({"valor": "El valor no puede ser negativo"})
         if self.tipo == self.COMBUSTIBLE and not self.cantidad:
             raise ValidationError({"cantidad": "Registre los galones del tanqueo"})
+        if not 1 <= (self.meses_prorrateo or 1) <= 36:
+            raise ValidationError({"meses_prorrateo": "Entre 1 y 36 meses"})
+
+    def valor_en_mes(self, mes: dt.date):
+        """Parte del valor que corresponde a ``mes`` según el prorrateo."""
+        n = self.meses_prorrateo or 1
+        return self.valor / n if 0 <= meses_entre_fechas(self.mes, mes) < n else 0
 
     def save(self, *args, **kwargs):
         self.mes = primer_dia(self.fecha)
@@ -345,6 +401,9 @@ class LoteImportacion(models.Model):
     omitidos = models.PositiveIntegerField(default=0)
     hallazgos = models.PositiveIntegerField(default=0)
     resumen = models.TextField(blank=True)
+    mes = models.DateField(null=True, blank=True, help_text="Mes que se declaró al cargar")
+    sede = models.ForeignKey("Sede", null=True, blank=True, on_delete=models.SET_NULL, help_text="Hospital que se declaró al cargar")
+    detalle = models.JSONField(default=dict, blank=True)
 
     class Meta:
         ordering = ["-fecha"]

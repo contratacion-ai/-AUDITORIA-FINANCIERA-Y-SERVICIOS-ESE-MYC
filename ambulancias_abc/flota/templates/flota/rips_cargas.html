@@ -1,0 +1,17 @@
+{% extends "flota/base.html" %}{% load formato %}
+{% block titulo %}RIPS{% endblock %}
+{% block contenido %}
+<h1>RIPS cargados por mes y hospital <a class="boton" style="float:right" href="{% url 'flota:cargar_rips' %}">Cargar RIPS</a></h1>
+<form method="get" class="filtros panel no-imprimir">
+  <label>Hospital <select name="sede"><option value="">Todos</option>{% for s in sedes %}<option value="{{ s.codigo }}" {% if g.sede == s.codigo %}selected{% endif %}>{{ s.nombre }}</option>{% endfor %}</select></label>
+  <button>Filtrar</button>
+</form>
+<div class="panel"><table>
+  <tr><th>Mes</th><th>Hospital</th><th>Archivos</th><th class="n">Facturas</th><th class="n">Líneas revisadas</th><th class="n">Traslados</th><th class="n">Valor traslados</th><th class="n">APH</th><th class="n">Valor APH</th><th class="n">Conciliados</th><th class="n">Nuevos</th><th>Cargado</th></tr>
+  {% for l in lotes %}{% with d=l.detalle %}
+  <tr><td><a href="{% url 'flota:rips_detalle' l.pk %}">{{ l.mes|date:"M Y"|default:"—" }}</a></td><td>{{ l.sede|default:"—" }}</td><td class="suave">{{ l.archivo|truncatechars:60 }}</td>
+    <td class="n">{{ d.facturas|num }}</td><td class="n">{{ d.lineas_revisadas|num }}</td><td class="n">{{ d.traslados.lineas|num }}</td><td class="n">{{ d.traslados.valor|pesos }}</td>
+    <td class="n">{{ d.aph.lineas|num }}</td><td class="n">{{ d.aph.valor|pesos }}</td><td class="n">{{ l.actualizados }}</td><td class="n">{{ l.nuevos }}</td><td>{{ l.fecha|date:"Y-m-d H:i" }} · {{ l.usuario|default:"API" }}</td></tr>
+  {% endwith %}{% empty %}<tr><td colspan="12" class="suave">Aún no hay RIPS cargados.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

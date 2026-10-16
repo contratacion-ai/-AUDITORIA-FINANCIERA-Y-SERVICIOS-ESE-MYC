@@ -1,0 +1,24 @@
+{% extends "flota/base.html" %}{% load formato %}
+{% block titulo %}Facturación por ámbito{% endblock %}
+{% block contenido %}
+<h1>Facturación por ámbito · {{ desde|date:"M Y" }}{% if hasta != desde %} – {{ hasta|date:"M Y" }}{% endif %}
+  <a class="boton" style="float:right;margin-left:6px" href="?{{ request.GET.urlencode }}&formato=xlsx">Descargar Excel</a>
+  {% if perms.flota.add_traslado %}<a class="boton sec" style="float:right" href="{% url 'flota:cargar_facturacion' %}">Cargar facturación</a>{% endif %}</h1>
+<form method="get" class="filtros panel no-imprimir">
+  <label>Desde <input type="month" name="desde" value="{{ desde|date:'Y-m' }}"></label>
+  <label>Hasta <input type="month" name="hasta" value="{{ hasta|date:'Y-m' }}"></label>
+  <label>Hospital <select name="sede"><option value="">Todos</option>{% for s in sedes %}<option value="{{ s.codigo }}" {% if sede == s.codigo %}selected{% endif %}>{{ s.nombre }}</option>{% endfor %}</select></label>
+  <button>Aplicar</button>
+</form>
+<div class="kpis">
+  <div class="kpi"><div class="t">Facturado</div><div class="v">{{ total.facturado|millones }}</div><div class="s">{{ total.lineas|num }} líneas</div></div>
+  <div class="kpi"><div class="t">Traslados con recorrido</div><div class="v">{{ total.traslados|num }}</div></div>
+  {% for a in por_ambito %}<div class="kpi" style="border-left-color:var(--barra3)"><div class="t">{{ a.ambito }}</div><div class="v">{{ a.facturado|millones }}</div><div class="s">{{ a.lineas|num }} líneas · {{ a.traslados|num }} traslados</div></div>{% endfor %}
+</div>
+<div class="panel"><table>
+  <tr><th>Mes</th><th>Hospital</th><th>Ámbito</th><th>Unidad funcional</th><th>Servicio</th><th class="n">Líneas</th><th class="n">Traslados</th><th class="n">Km</th><th class="n">Facturado</th><th class="n">Sin factura</th><th class="n">Conciliadas RIPS</th></tr>
+  {% for f in filas %}<tr><td>{{ f.mes|date:"M Y" }}</td><td>{{ f.sede__nombre }}</td><td>{{ f.ambito }}</td><td>{{ f.unidad_funcional|default:"—" }}</td><td>{{ f.categoria }}</td><td class="n">{{ f.lineas|num }}</td><td class="n">{{ f.traslados|num }}</td><td class="n">{{ f.km|num }}</td><td class="n">{{ f.facturado|pesos }}</td><td class="n">{{ f.sin_factura|default:"" }}</td><td class="n">{{ f.conciliados|default:"" }}</td></tr>
+  {% empty %}<tr><td colspan="11" class="suave">Sin facturación en el periodo. Use "Cargar facturación".</td></tr>{% endfor %}
+  <tr><th colspan="5">Total</th><th class="n">{{ total.lineas|num }}</th><th class="n">{{ total.traslados|num }}</th><th></th><th class="n">{{ total.facturado|pesos }}</th><th colspan="2"></th></tr>
+</table></div>
+{% endblock %}

@@ -78,3 +78,15 @@ button, .boton { font: inherit; background: var(--marca); color: #fff; border: 0
   header.barra, form.filtros, .no-imprimir { display: none !important; }
   .panel { break-inside: avoid; }
 }
+.botonera { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); margin-bottom: 14px; }
+.boton-grande { display: flex; flex-direction: column; gap: 4px; padding: 14px; border-radius: 8px; text-decoration: none;
+  background: var(--panel); border: 1px solid var(--borde); border-top: 4px solid var(--marca); color: var(--texto); }
+.boton-grande:hover { border-color: var(--marca); box-shadow: 0 1px 6px rgba(0,0,0,.08); }
+.boton-grande b { font-size: 15px; color: var(--marca-osc); }
+.boton-grande span { font-size: 12px; color: var(--suave); }
+.boton-grande.alt { border-top-color: var(--acento); } .boton-grande.az { border-top-color: var(--barra3); }
+.pestanas { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.pestanas a { padding: 6px 12px; border-radius: 16px; border: 1px solid var(--borde); text-decoration: none; background: var(--panel); }
+.pestanas a.activo { background: var(--marca); color: #fff; border-color: var(--marca); }
+td.ok { color: var(--pos); } td.falta { color: var(--suave); }
+h1 .boton { font-size: 14px; font-weight: 600; vertical-align: middle; }

@@ -10,18 +10,20 @@ from decimal import Decimal, InvalidOperation
 from django.conf import settings
 from django.db import transaction
 from django.utils.text import slugify
+from openpyxl import load_workbook
 
 from ..importacion import hallazgo, normalizar
 from ..importacion.anexo_tarifas import leer_anexo_traslados
 from ..importacion.costos_ceco import leer_costos_ambulancias
 from ..importacion.facturacion_his import leer_facturacion
-from ..importacion.rips_json import leer_rips
+from ..importacion.rips import APH, TRASLADO, leer_rips_archivos
 from ..models import (
     CodigoTraslado,
     Consumo,
     LoteImportacion,
     Parametro,
     PartidaCostoIndirecto,
+    Sede,
     TarifaRuta,
     Traslado,
 )
@@ -167,36 +169,52 @@ def _aplicar_reglas_ingreso(traslados: list[Traslado]):
                         t.observaciones_calidad = "; ".join(filter(None, [t.observaciones_calidad, nota]))
 
 
-def importar_facturacion(archivo, usuario=None, nombre="") -> LoteImportacion:
+def importar_facturacion(archivo, usuario=None, nombre="", mes: dt.date | None = None, sede: Sede | None = None) -> LoteImportacion:
+    """Importa el reporte de facturación de traslados del HIS.
+
+    ``mes`` (opcional): mes declarado al cargar; se informa cuántas líneas
+    tienen fecha de servicio fuera de él (se importan igual, en su mes real).
+    ``sede`` (opcional): si se indica, solo se importan las líneas de ese hospital.
+    """
     nombre = nombre or getattr(archivo, "name", str(archivo))
     codigos = {c.codigo: c for c in CodigoTraslado.objects.all()}
     base = {c for c, o in codigos.items() if o.modalidad == CodigoTraslado.BASE} or {"601T01"}
     datos = leer_facturacion(archivo, settings.SAL_DOCUMENTO, base, nombre)
-    lote = LoteImportacion.objects.create(tipo="FACTURACION_HIS", archivo=nombre, usuario=usuario)
+    lote = LoteImportacion.objects.create(
+        tipo="FACTURACION_HIS", archivo=nombre, usuario=usuario, mes=mes.replace(day=1) if mes else None, sede=sede
+    )
     res = ResolutorCatalogos()
     pars = parametros()
-    nuevos = actualizados = omitidos = 0
+    nuevos = actualizados = omitidos = otra_sede = fuera_mes = 0
     hallazgos = list(datos["hallazgos"])
     sin_ruta: dict[str, int] = {}
     sedes_desconocidas: dict[str, int] = {}
     tocados: list[Traslado] = []
+    por_ambito: dict[str, dict] = {}
 
     with transaction.atomic():
         existentes = {t.llave_externa: t for t in Traslado.objects.filter(llave_externa__in=[r["llave_externa"] for r in datos["registros"]])}
         for r in datos["registros"]:
-            sede = res.sede(r["sede"])
-            if sede is None:
+            sede_r = res.sede(r["sede"])
+            if sede_r is None:
                 sedes_desconocidas[r["sede"]] = sedes_desconocidas.get(r["sede"], 0) + 1
                 omitidos += 1
                 continue
+            if sede is not None and sede_r.pk != sede.pk:
+                otra_sede += 1
+                omitidos += 1
+                continue
+            if mes and r["fecha_servicio"].replace(day=1) != mes.replace(day=1):
+                fuera_mes += 1
             ruta, motivo = (None, "")
             por_km = es_por_km(r["cantidad"], r["valor_unitario"], codigos.get(r["codigo_cups"]), pars)
             if por_km:
-                ruta, motivo = res.ruta_por_km(sede, r["cantidad"], pars["tolerancia_km_ruta"])
+                ruta, motivo = res.ruta_por_km(sede_r, r["cantidad"], pars["tolerancia_km_ruta"])
                 if ruta is None:
-                    sin_ruta[f"{sede.origen_tarifa} {r['cantidad']} km"] = sin_ruta.get(f"{sede.origen_tarifa} {r['cantidad']} km", 0) + 1
+                    sin_ruta[f"{sede_r.origen_tarifa} {r['cantidad']} km"] = sin_ruta.get(f"{sede_r.origen_tarifa} {r['cantidad']} km", 0) + 1
                     r["observaciones"].append(motivo)
-            if r["codigo_cups"] not in codigos:
+            codigo = codigos.get(r["codigo_cups"])
+            if codigo is None:
                 r["observaciones"].append(f"código {r['codigo_cups']} no está en el catálogo de traslados")
             t = existentes.get(r["llave_externa"])
             creado = t is None
@@ -215,7 +233,9 @@ def importar_facturacion(archivo, usuario=None, nombre="") -> LoteImportacion:
                 "numero_factura", "prefactura", "nro_ingreso", "autorizacion", "tipo_documento", "documento_hash",
             ):
                 setattr(t, campo, r[campo])
-            t.sede = sede
+            if codigo is not None and codigo.categoria == APH:
+                t.categoria = APH
+            t.sede = sede_r
             t.lote = lote
             t.km_recorridos = calcular_km(r["cantidad"], por_km, pars)
             t._por_km = por_km
@@ -226,41 +246,78 @@ def importar_facturacion(archivo, usuario=None, nombre="") -> LoteImportacion:
             tocados.append(t)
             nuevos += int(creado)
             actualizados += int(not creado)
+            a = por_ambito.setdefault(f"{t.ambito} / {t.unidad_funcional}", {"lineas": 0, "valor": 0.0})
+            a["lineas"] += 1
+            a["valor"] += float(t.valor_facturado)
         _aplicar_reglas_ingreso(tocados)
         for t in tocados:
             t.save()
 
-    for s, n in sedes_desconocidas.items():
-        hallazgos.append(hallazgo(nombre, f"SEDE '{s}'", "FALTANTE", f"{n} líneas con sede no registrada; se omitieron. Agregue el alias en Sedes.", "ALTA"))
+    for s_, n in sedes_desconocidas.items():
+        hallazgos.append(hallazgo(nombre, f"SEDE '{s_}'", "FALTANTE", f"{n} líneas con sede no registrada; se omitieron. Agregue el alias en Sedes.", "ALTA"))
     for clave, n in sin_ruta.items():
         hallazgos.append(
             hallazgo(nombre, clave, "INCONSISTENCIA", f"{n} líneas facturan {clave} y no hay una ruta única con esos km en el Anexo 3", "MEDIA")
         )
     r = datos["resumen"]
-    return _cerrar_lote(
-        lote, nuevos, actualizados, omitidos, hallazgos,
-        f"{r['lineas']} líneas, ${r['valor_total']:,.0f}, mes principal {r['mes_principal']}",
-    )
+    lote.detalle = {
+        "por_ambito": por_ambito,
+        "fuera_del_mes": fuera_mes,
+        "de_otra_sede": otra_sede,
+        "valor_importado": float(sum((t.valor_facturado for t in tocados), Decimal(0))),
+    }
+    texto = f"{r['lineas']} líneas en el archivo, ${r['valor_total']:,.0f}, mes principal {r['mes_principal']}"
+    if mes and fuera_mes:
+        texto += f"; {fuera_mes} líneas con fecha de servicio fuera de {mes:%Y-%m} (quedan en su mes real)"
+    if otra_sede:
+        texto += f"; {otra_sede} líneas de otros hospitales no se cargaron"
+    return _cerrar_lote(lote, nuevos, actualizados, omitidos, hallazgos, texto)
 
 
-def importar_rips(contenido, usuario=None, nombre="RIPS.json") -> LoteImportacion:
-    """Concilia RIPS con los traslados existentes; crea solo lo que no existe.
+def importar_rips(contenido, usuario=None, nombre="RIPS.json", mes: dt.date | None = None, sede: Sede | None = None) -> LoteImportacion:
+    """Carga RIPS (JSON, TXT o ZIP), extrae traslados y APH y los concilia.
 
-    Correspondencia: número de factura + código CUPS + valor (+ hash del
-    documento cuando ambos lo tienen). Así una línea ya importada desde el HIS
-    no se duplica: se marca conciliado_rips y se guarda el consecutivo RIPS.
+    ``contenido``: bytes de un archivo, o lista [(nombre, bytes)] de varios.
+    ``mes`` y ``sede``: mes y hospital del envío. Las líneas con fecha fuera
+    del mes o con prestador distinto al del hospital se cargan pero se marcan.
+
+    Correspondencia con lo ya cargado: número de factura + código + valor
+    (+ hash del documento cuando ambos lo tienen). Una línea que ya vino en
+    la facturación del HIS no se duplica: se marca conciliado_rips.
     """
-    codigos = set(CodigoTraslado.objects.filter(activo=True).values_list("codigo", flat=True))
-    datos = leer_rips(contenido, settings.SAL_DOCUMENTO, codigos, nombre)
-    lote = LoteImportacion.objects.create(tipo="RIPS", archivo=nombre, usuario=usuario)
+    if not isinstance(contenido, list):
+        if not nombre.lower().endswith((".json", ".zip", ".txt")):
+            nombre = f"{nombre}.json"
+        contenido = [(nombre, contenido if isinstance(contenido, bytes) else contenido.encode("utf-8"))]
+    archivos = contenido
+    catalogo = dict(CodigoTraslado.objects.filter(activo=True).values_list("codigo", "categoria"))
+    datos = leer_rips_archivos(archivos, settings.SAL_DOCUMENTO, catalogo)
+    lote = LoteImportacion.objects.create(
+        tipo="RIPS", archivo=nombre, usuario=usuario, mes=mes.replace(day=1) if mes else None, sede=sede
+    )
     res = ResolutorCatalogos()
     pars = parametros()
     sedes_por_prestador = {s.codigo_prestador: s for s in res.sedes.values() if s.codigo_prestador}
-    nuevos = conciliados = omitidos = 0
+    nuevos = conciliados = omitidos = fuera_mes = prestador_distinto = 0
+    totales = {TRASLADO: {"lineas": 0, "valor": 0.0}, APH: {"lineas": 0, "valor": 0.0}}
     hallazgos = list(datos["hallazgos"])
     with transaction.atomic():
         for r in datos["registros"]:
-            if Traslado.objects.filter(llave_externa=r["llave_externa"]).exists():
+            obs = list(r["observaciones"])
+            if mes and r["fecha_servicio"].replace(day=1) != mes.replace(day=1):
+                fuera_mes += 1
+                obs.append(f"fecha {r['fecha_servicio']} fuera del mes cargado {mes:%Y-%m}")
+            if sede is not None and sede.codigo_prestador and r["cod_prestador"] and r["cod_prestador"] != sede.codigo_prestador:
+                prestador_distinto += 1
+                obs.append(f"prestador {r['cod_prestador']} distinto al de {sede.nombre} ({sede.codigo_prestador})")
+            totales[r["categoria"]]["lineas"] += 1
+            totales[r["categoria"]]["valor"] += float(r["valor_facturado"])
+
+            ya = Traslado.objects.filter(llave_externa=r["llave_externa"]).first()
+            if ya:
+                if ya.lote_rips_id is None:
+                    ya.lote_rips = lote
+                    ya.save(update_fields=["lote_rips"])
                 omitidos += 1
                 continue
             candidatos = Traslado.objects.filter(
@@ -273,80 +330,135 @@ def importar_rips(contenido, usuario=None, nombre="RIPS.json") -> LoteImportacio
             if existente:
                 existente.conciliado_rips = True
                 existente.rips_consecutivo = r["rips_consecutivo"]
+                existente.lote_rips = lote
+                campos = ["conciliado_rips", "rips_consecutivo", "lote_rips", "version", "actualizado"]
+                if r["categoria"] == APH and existente.categoria != APH:
+                    existente.categoria = APH
+                    campos.append("categoria")
                 existente.version += 1
-                existente.save(update_fields=["conciliado_rips", "rips_consecutivo", "version", "actualizado"])
+                existente.save(update_fields=campos)
                 conciliados += 1
                 continue
-            sede = sedes_por_prestador.get(r["cod_prestador"])
-            if sede is None:
+            sede_r = sede or sedes_por_prestador.get(r["cod_prestador"])
+            if sede_r is None:
                 hallazgos.append(
                     hallazgo(nombre, f"factura {r['numero_factura']}", "FALTANTE",
-                             f"Traslado RIPS sin equivalente en la facturación HIS y prestador '{r['cod_prestador']}' sin sede asociada; no se crea.",
+                             f"Línea RIPS sin equivalente en la facturación HIS y prestador '{r['cod_prestador']}' sin sede asociada; "
+                             "no se crea. Cargue el RIPS indicando el hospital o registre el código de prestador de la sede.",
                              "ALTA")
                 )
                 omitidos += 1
                 continue
-            por_km = es_por_km(r["cantidad"], r["valor_unitario"], None, pars)
-            ruta, _ = res.ruta_por_km(sede, r["cantidad"], pars["tolerancia_km_ruta"]) if por_km else (None, "")
+            por_km = es_por_km(r["cantidad"], r["valor_unitario"], None, pars) if r["categoria"] == TRASLADO else False
+            ruta, _ = res.ruta_por_km(sede_r, r["cantidad"], pars["tolerancia_km_ruta"]) if por_km else (None, "")
             t = Traslado(
                 llave_externa=r["llave_externa"],
                 origen_registro=Traslado.RIPS,
                 lote=lote,
-                sede=sede,
+                lote_rips=lote,
+                categoria=r["categoria"],
+                sede=sede_r,
                 ruta=ruta,
                 ruta_inferida=ruta is not None,
                 conciliado_rips=True,
                 creado_por=usuario,
-                ambito="SIN ÁMBITO",
+                ambito=r["ambito"] or "SIN ÁMBITO",
                 **{k: r[k] for k in ("fecha_servicio", "codigo_cups", "codigo_cups_original", "descripcion", "cantidad",
                                      "valor_unitario", "valor_facturado", "numero_factura", "autorizacion",
                                      "tipo_documento", "documento_hash", "rips_consecutivo")},
             )
             t.km_recorridos = calcular_km(t.cantidad, por_km, pars)
-            t.observaciones_calidad = "creado desde RIPS: no estaba en la facturación HIS"
+            obs.insert(0, f"creado desde RIPS ({r['regla']}): no estaba en la facturación HIS")
+            t.observaciones_calidad = "; ".join(obs)[:2000]
             t.save()
             nuevos += 1
-    return _cerrar_lote(lote, nuevos, conciliados, omitidos, hallazgos, f"{conciliados} conciliados con HIS, {nuevos} nuevos")
+    if fuera_mes:
+        hallazgos.append(hallazgo(nombre, f"RIPS {mes:%Y-%m}", "INCONSISTENCIA", f"{fuera_mes} líneas con fecha fuera del mes cargado", "MEDIA"))
+    if prestador_distinto:
+        hallazgos.append(hallazgo(nombre, f"RIPS {sede}", "INCONSISTENCIA", f"{prestador_distinto} líneas con código de prestador distinto al del hospital", "MEDIA"))
+    lote.detalle = {
+        "facturas": datos["facturas"],
+        "lineas_revisadas": datos["lineas_revisadas"],
+        "traslados": totales[TRASLADO],
+        "aph": totales[APH],
+        "fuera_del_mes": fuera_mes,
+        "prestador_distinto": prestador_distinto,
+    }
+    return _cerrar_lote(
+        lote, nuevos, conciliados, omitidos, hallazgos,
+        f"{datos['facturas']} facturas, {datos['lineas_revisadas']} líneas revisadas: {totales[TRASLADO]['lineas']} traslados "
+        f"y {totales[APH]['lineas']} APH extraídos; {conciliados} conciliados con la facturación HIS, {nuevos} nuevos",
+    )
 
 
 # ---------------------------------------------------------------------------
-# Consumos (CSV)
+# Consumos (CSV o Excel)
 # ---------------------------------------------------------------------------
 
-COLUMNAS_CONSUMO = ["placa", "fecha", "tipo", "descripcion", "cantidad", "unidad", "valor", "odometro", "documento_soporte", "proveedor"]
+COLUMNAS_CONSUMO = [
+    "placa", "fecha", "tipo", "descripcion", "cantidad", "unidad", "valor", "odometro", "documento_soporte", "proveedor",
+    "meses_prorrateo",
+]
 
 
-def importar_consumos_csv(archivo, usuario=None, nombre="consumos.csv") -> LoteImportacion:
-    """CSV separado por ';' o ',' con las columnas de COLUMNAS_CONSUMO.
-
-    Llave: placa + fecha + tipo + documento_soporte (si el documento ya existe
-    se actualiza en lugar de duplicar).
-    """
+def _filas_consumo(archivo, nombre: str):
+    """Filas como dict desde .xlsx o .csv (';' o ',')."""
+    if nombre.lower().endswith((".xlsx", ".xlsm")):
+        wb = load_workbook(archivo, data_only=True, read_only=True)
+        ws = wb.worksheets[0]
+        filas = ws.iter_rows(values_only=True)
+        enc = [normalizar(c).lower() for c in next(filas, [])]
+        for fila in filas:
+            if fila and any(v not in (None, "") for v in fila):
+                yield {enc[i]: v for i, v in enumerate(fila) if i < len(enc) and enc[i]}
+        return
     texto = archivo.read()
     if isinstance(texto, bytes):
         texto = texto.decode("utf-8-sig", errors="replace")
     dialecto = csv.Sniffer().sniff(texto.splitlines()[0], delimiters=";,")
-    lector = csv.DictReader(io.StringIO(texto), dialect=dialecto)
+    for fila in csv.DictReader(io.StringIO(texto), dialect=dialecto):
+        yield {normalizar(k).lower(): v for k, v in fila.items() if k}
+
+
+def _a_texto(v):
+    if v is None:
+        return ""
+    if isinstance(v, float) and v.is_integer():
+        v = int(v)
+    return str(v).strip()
+
+
+def importar_consumos(archivo, usuario=None, nombre="consumos.csv", tipo_forzado: str | None = None) -> LoteImportacion:
+    """Carga consumos por ambulancia desde CSV o Excel (columnas COLUMNAS_CONSUMO).
+
+    ``tipo_forzado``: si se carga desde una tabla (p. ej. Combustible), las filas
+    sin columna 'tipo' toman ese tipo. Llave: placa + fecha + tipo +
+    documento_soporte (si el documento ya existe se actualiza, no se duplica).
+    """
     lote = LoteImportacion.objects.create(tipo="CONSUMOS", archivo=nombre, usuario=usuario)
     res = ResolutorCatalogos()
     tipos = dict(Consumo.TIPOS)
     nuevos = actualizados = omitidos = 0
     hallazgos = []
     with transaction.atomic():
-        for n, fila in enumerate(lector, start=2):
-            fila = {normalizar(k).lower(): (v or "").strip() for k, v in fila.items() if k}
+        for n, fila in enumerate(_filas_consumo(archivo, nombre), start=2):
+            fila = {k: _a_texto(v) if not isinstance(v, (dt.date, dt.datetime)) else v for k, v in fila.items()}
             amb = res.ambulancia(fila.get("placa"))
-            tipo = normalizar(fila.get("tipo"))
+            tipo = normalizar(fila.get("tipo")) or (tipo_forzado or "")
+            tipo = Consumo.SINONIMOS.get(tipo, tipo)
             try:
-                fecha = dt.date.fromisoformat(fila.get("fecha", ""))
-                valor = Decimal(fila.get("valor", "").replace(",", "."))
-                cantidad = Decimal((fila.get("cantidad") or "0").replace(",", "."))
+                f = fila.get("fecha")
+                fecha = f.date() if isinstance(f, dt.datetime) else f if isinstance(f, dt.date) else dt.date.fromisoformat(str(f)[:10])
+                valor = Decimal(str(fila.get("valor", "")).replace(",", "."))
+                cantidad = Decimal((str(fila.get("cantidad") or "0")).replace(",", "."))
+                meses = int(fila.get("meses_prorrateo") or 1)
             except (ValueError, InvalidOperation):
-                hallazgos.append(hallazgo(nombre, f"fila {n}", "FALTANTE", "Fecha (AAAA-MM-DD), valor o cantidad no válidos; se omite", "MEDIA"))
+                hallazgos.append(hallazgo(nombre, f"fila {n}", "FALTANTE", "Fecha (AAAA-MM-DD), valor, cantidad o meses no válidos; se omite", "MEDIA"))
                 omitidos += 1
                 continue
-            if amb is None or tipo not in tipos:
-                hallazgos.append(hallazgo(nombre, f"fila {n}", "FALTANTE", f"Placa '{fila.get('placa')}' o tipo '{fila.get('tipo')}' no válidos; se omite", "MEDIA"))
+            if amb is None or tipo not in tipos or not 1 <= meses <= 36 or valor < 0:
+                hallazgos.append(hallazgo(nombre, f"fila {n}", "FALTANTE",
+                                          f"Placa '{fila.get('placa')}', tipo '{fila.get('tipo') or tipo_forzado}', valor o meses no válidos; se omite", "MEDIA"))
                 omitidos += 1
                 continue
             doc = fila.get("documento_soporte", "")
@@ -356,9 +468,10 @@ def importar_consumos_csv(archivo, usuario=None, nombre="consumos.csv") -> LoteI
             c = existente or Consumo(ambulancia=amb, fecha=fecha, tipo=tipo, documento_soporte=doc, creado_por=usuario)
             c.descripcion = fila.get("descripcion", "")[:200]
             c.cantidad = cantidad
-            c.unidad = fila.get("unidad", "")[:20]
+            c.unidad = fila.get("unidad", "")[:20] or ("gal" if tipo == Consumo.COMBUSTIBLE else "")
             c.valor = valor
-            c.odometro = int(fila["odometro"]) if fila.get("odometro", "").isdigit() else None
+            c.meses_prorrateo = meses
+            c.odometro = int(fila["odometro"]) if str(fila.get("odometro", "")).isdigit() else None
             c.proveedor = fila.get("proveedor", "")[:120]
             c.lote = lote
             c.actualizado_por = usuario
@@ -367,4 +480,9 @@ def importar_consumos_csv(archivo, usuario=None, nombre="consumos.csv") -> LoteI
             c.save()
             nuevos += int(existente is None)
             actualizados += int(existente is not None)
-    return _cerrar_lote(lote, nuevos, actualizados, omitidos, hallazgos)
+    return _cerrar_lote(lote, nuevos, actualizados, omitidos, hallazgos, f"tabla {tipo_forzado or 'según columna tipo'}")
+
+
+def importar_consumos_csv(archivo, usuario=None, nombre="consumos.csv") -> LoteImportacion:
+    """Compatibilidad con la versión anterior."""
+    return importar_consumos(archivo, usuario, nombre)

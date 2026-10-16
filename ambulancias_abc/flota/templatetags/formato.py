@@ -12,6 +12,8 @@ def _fmt(valor, dec=0):
         n = float(valor)
     except (TypeError, ValueError):
         return valor
+    if abs(n) < 0.5 * 10 ** (-dec):
+        n = 0.0  # evita "-0" por redondeo
     texto = f"{n:,.{dec}f}"
     return texto.replace(",", "§").replace(".", ",").replace("§", ".")
 

@@ -98,7 +98,7 @@ def _con_barras(filas, clave, ancho_max=100.0):
 def dashboard(request):
     desde, hasta = _rango(request)
     metodo = _metodo(request)
-    filtros = {k: request.GET.get(k) for k in ("placa", "sede", "ambito", "unidad_funcional", "ruta_id")}
+    filtros = {k: request.GET.get(k) for k in ("placa", "sede", "ambito", "unidad_funcional", "ruta_id", "categoria")}
     datos = consolidar(desde, hasta, metodo, filtros)
     pars = parametros()
     perfiles = list(perfiles_vigentes(pars).values())
@@ -131,7 +131,7 @@ def consolidado(request):
     if not request.GET.get("desde"):
         desde = (Traslado.objects.order_by("mes").values_list("mes", flat=True).first()) or desde
     metodo = _metodo(request)
-    filtros = {k: request.GET.get(k) for k in ("placa", "sede", "ambito", "unidad_funcional", "ruta_id")}
+    filtros = {k: request.GET.get(k) for k in ("placa", "sede", "ambito", "unidad_funcional", "ruta_id", "categoria")}
     datos = consolidar(desde, hasta, metodo, filtros)
     if request.GET.get("formato") == "csv":
         salida = io.StringIO()
@@ -391,7 +391,8 @@ def consumos(request):
 
 def _form_consumo(request, consumo=None):
     nuevo = consumo is None
-    form = ConsumoForm(request.POST or None, instance=consumo, initial={"fecha": dt.date.today()} if nuevo else None)
+    inicial = {"fecha": dt.date.today(), "tipo": request.GET.get("tipo"), "ambulancia": Ambulancia.objects.filter(placa=request.GET.get("placa")).first()} if nuevo else None
+    form = ConsumoForm(request.POST or None, instance=consumo, initial=inicial)
     if request.method == "POST" and form.is_valid():
         c = form.save(commit=False)
         try:
@@ -401,7 +402,8 @@ def _form_consumo(request, consumo=None):
             return redirect("flota:consumo_editar", pk=consumo.pk)
         registrar(request.user, c, "crear" if nuevo else "editar", {k: str(v) for k, v in model_to_dict(c, fields=form.changed_data).items()})
         messages.success(request, "Consumo guardado")
-        return redirect("flota:consumos")
+        tabla = next((k for k, (_, tipos, _) in Consumo.TABLAS.items() if c.tipo in tipos), None)
+        return redirect("flota:consumos_tabla", clave=tabla) if tabla else redirect("flota:consumos")
     return render(
         request,
         "flota/formulario.html",

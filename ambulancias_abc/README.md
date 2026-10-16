@@ -27,6 +27,7 @@ python manage.py test         # pruebas
 ```
 
 Documentación en [`docs/ambulancias_abc/`](../docs/ambulancias_abc/):
+[guía de cargas mensuales](../docs/ambulancias_abc/GUIA_CARGAS_MENSUALES.md) ·
 [modelo y fórmulas](../docs/ambulancias_abc/MODELO_DATOS.md) ·
 [instalación y operación](../docs/ambulancias_abc/INSTALACION.md) ·
 [integración RIPS/auditoría](../docs/ambulancias_abc/INTEGRACION.md) ·

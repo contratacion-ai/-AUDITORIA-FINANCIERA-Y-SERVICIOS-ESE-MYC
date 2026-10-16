@@ -1,8 +1,9 @@
+import datetime as dt
 from decimal import Decimal
 
 from django import forms
 
-from .models import Ambulancia, CodigoTraslado, Consumo, TarifaRuta, Traslado
+from .models import Ambulancia, CodigoTraslado, Consumo, Sede, TarifaRuta, Traslado
 
 
 class VersionForm(forms.ModelForm):
@@ -62,7 +63,10 @@ class AsignarAmbulanciaForm(forms.Form):
 class ConsumoForm(VersionForm):
     class Meta:
         model = Consumo
-        fields = ["ambulancia", "fecha", "tipo", "descripcion", "cantidad", "unidad", "valor", "odometro", "documento_soporte", "proveedor"]
+        fields = [
+            "ambulancia", "fecha", "tipo", "descripcion", "cantidad", "unidad", "valor", "meses_prorrateo", "odometro",
+            "documento_soporte", "proveedor",
+        ]
         widgets = {"fecha": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")}
 
     def clean(self):
@@ -85,3 +89,57 @@ class ImportarForm(forms.Form):
     tipo = forms.ChoiceField(choices=TIPOS)
     archivo = forms.FileField()
     vigencia = forms.IntegerField(initial=2026, required=False, help_text="Solo para tarifas")
+
+
+class CampoMes(forms.DateField):
+    """Mes en formato AAAA-MM (input type=month)."""
+
+    widget = forms.DateInput(attrs={"type": "month", "class": "campo"}, format="%Y-%m")
+    input_formats = ["%Y-%m", "%Y-%m-%d"]
+
+    def to_python(self, value):
+        fecha = super().to_python(value)
+        return fecha.replace(day=1) if fecha else fecha
+
+
+class ArchivosMultiples(forms.ClearableFileInput):
+    allow_multiple_selected = True
+
+
+class CampoArchivos(forms.FileField):
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("widget", ArchivosMultiples(attrs={"accept": ".json,.txt,.zip"}))
+        super().__init__(*args, **kwargs)
+
+    def clean(self, data, initial=None):
+        if isinstance(data, (list, tuple)):
+            return [super(CampoArchivos, self).clean(d, initial) for d in data]
+        return [super().clean(data, initial)]
+
+
+def _mes_anterior():
+    hoy = dt.date.today().replace(day=1)
+    return (hoy - dt.timedelta(days=1)).replace(day=1)
+
+
+class CargaFacturacionForm(forms.Form):
+    mes = CampoMes(label="Mes de la facturación", initial=_mes_anterior)
+    sede = forms.ModelChoiceField(
+        Sede.objects.filter(activa=True), required=False, label="Hospital",
+        empty_label="Todos los hospitales del archivo",
+        help_text="Si elige un hospital, solo se cargan sus líneas",
+    )
+    archivo = forms.FileField(label="Reporte de facturación de traslados (.xlsx)", widget=forms.ClearableFileInput(attrs={"accept": ".xlsx"}))
+
+
+class CargaRipsForm(forms.Form):
+    mes = CampoMes(label="Mes de los RIPS", initial=_mes_anterior)
+    sede = forms.ModelChoiceField(Sede.objects.filter(activa=True), label="Hospital")
+    archivos = CampoArchivos(
+        label="Archivos RIPS",
+        help_text="JSON (Res. 2275 de 2023), archivos planos AF/AT/AP (Res. 3374 de 2000) o un ZIP con ellos. Puede seleccionar varios.",
+    )
+
+
+class CargaConsumosForm(forms.Form):
+    archivo = forms.FileField(label="Archivo (.xlsx o .csv)", widget=forms.ClearableFileInput(attrs={"accept": ".xlsx,.csv"}))

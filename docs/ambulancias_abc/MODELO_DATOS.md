@@ -61,6 +61,14 @@ Para cada ambulancia y mes, y para cada recurso:
 - Tripulación: `tripulacion_dia × días` (o consumos tipo TRIPULACION si se registran ajustes).
 - Ambulancias con `incluir_en_costeo = False` solo aportan sus consumos reales.
 
+### Consumos por tabla y prorrateo
+
+Tipos de consumo: combustible; mantenimiento, lubricantes y llantas; personal (nómina de la tripulación); seguros e impuestos; imprevistos; insumos; otros. Combustible, mantenimiento y personal **reemplazan** el estándar del estudio en el mes en que hay registros. Seguros e impuestos, imprevistos y otros se **suman** a la actividad *Soporte / otros* (driver: número de traslados); los insumos a *Atención clínica*. `meses_prorrateo` reparte un pago en N meses (p. ej. SOAT anual = 12): cada mes recibe valor ÷ N.
+
+### Traslados y APH
+
+`Traslado.categoria` distingue traslados asistenciales y atenciones prehospitalarias (APH). Ambos son objetos de costo del ABC (las APH sin km facturados usan `km_traslado_basico`). Los filtros del dashboard y de *Recorridos por sede* permiten separarlos. `Traslado.lote_rips` enlaza cada línea con la carga de RIPS que la contiene o la concilió.
+
 ### Traslados sin placa
 
 La facturación del HIS no trae la placa. Hasta que se asigne (pantalla *Traslados*), el traslado se reparte entre las ambulancias de su sede en proporción a su km/día del estudio. El reparto queda registrado (`reparto_placas` en la API).

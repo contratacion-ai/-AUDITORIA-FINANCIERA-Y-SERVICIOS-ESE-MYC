@@ -1,0 +1,47 @@
+{% extends "flota/base.html" %}{% load formato %}
+{% block titulo %}Recorridos por sede{% endblock %}
+{% block contenido %}
+<h1>Recorridos por sede y rentabilidad · {{ desde|date:"M Y" }}{% if hasta != desde %} – {{ hasta|date:"M Y" }}{% endif %}
+  <a class="boton" style="float:right" href="?{{ request.GET.urlencode }}&formato=xlsx">Descargar Excel</a></h1>
+<form method="get" class="filtros panel no-imprimir">
+  <label>Desde <input type="month" name="desde" value="{{ desde|date:'Y-m' }}"></label>
+  <label>Hasta <input type="month" name="hasta" value="{{ hasta|date:'Y-m' }}"></label>
+  <label>Sede <select name="sede"><option value="">Todas</option>{% for s in sedes %}<option value="{{ s.codigo }}" {% if sede == s.codigo %}selected{% endif %}>{{ s.nombre }}</option>{% endfor %}</select></label>
+  <label>Servicio <select name="categoria"><option value="">Traslados y APH</option>{% for k, v in categorias %}<option value="{{ k }}" {% if categoria == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+  <label>Método <select name="metodo">{% for k, v in metodos.items %}<option value="{{ k }}" {% if metodo == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+  <button>Aplicar</button>
+</form>
+
+<div class="panel">
+  <h2>Resumen por sede</h2>
+  <table>
+    <tr><th>Sede</th><th class="n">Ambulancias</th><th class="n">Traslados</th><th class="n">Km conducidos</th><th class="n">Facturado</th><th class="n">Costo ABC</th><th class="n">Margen</th><th class="n">Rent.</th><th class="n">Costo flota de la sede</th><th class="n">Capacidad no utilizada</th><th class="n">Resultado con capacidad</th></tr>
+    {% for b in datos %}{% with t=b.total %}
+    <tr><td><a href="#sede-{{ b.sede.codigo }}">{{ b.sede.nombre }}</a></td><td class="n">{{ b.n_ambulancias }}</td><td class="n">{{ t.traslados|num }}</td><td class="n">{{ t.km_conducidos|num }}</td><td class="n">{{ t.facturado|pesos }}</td><td class="n">{{ t.costo_real|pesos }}</td><td class="n {{ t.margen_real|signo }}">{{ t.margen_real|pesos }}</td><td class="n {{ t.margen_real|signo }}">{{ t.rent_real|pct }}</td><td class="n">{{ t.pool|pesos }}</td><td class="n">{{ t.no_utilizado|pesos }}</td><td class="n {{ t.resultado_con_capacidad|signo }}">{{ t.resultado_con_capacidad|pesos }}</td></tr>
+    {% endwith %}{% endfor %}
+  </table>
+  <p class="suave">Costo estándar = costo ABC de un viaje de ida y vuelta por la ruta, promedio de las ambulancias de la sede (sin las excluidas). Costo ABC = costo realmente asignado a los traslados del periodo.</p>
+</div>
+
+{% for b in datos %}
+<div class="panel" id="sede-{{ b.sede.codigo }}">
+  <h2>{{ b.sede.nombre }} <span class="suave">· origen en el manual: {{ b.sede.origen_tarifa }}</span></h2>
+  <table>
+    <tr><th>Recorrido (destino)</th><th class="n">Km</th><th class="n">Tarifa 2026</th><th class="n">Costo estándar</th><th class="n">Rango ambulancias</th><th class="n">Margen estándar</th><th class="n">Rent. estándar</th>
+        <th class="n">Traslados</th><th class="n">Facturado</th><th class="n">Costo ABC</th><th class="n">Margen</th><th class="n">Rent.</th></tr>
+    {% for f in b.filas %}
+    <tr><td>{{ f.ruta.destino }}</td><td class="n">{{ f.km|num }}</td><td class="n">{{ f.tarifa|pesos }}</td><td class="n">{{ f.costo_estandar|pesos }}</td>
+      <td class="n suave">{{ f.costo_estandar_min|millones }} – {{ f.costo_estandar_max|millones }}</td>
+      <td class="n {{ f.margen_estandar|signo }}">{{ f.margen_estandar|pesos }}</td><td class="n {{ f.margen_estandar|signo }}">{{ f.rent_estandar|pct }}</td>
+      <td class="n">{% if f.traslados %}{{ f.traslados|num }}{% else %}<span class="suave">—</span>{% endif %}</td><td class="n">{% if f.facturado %}{{ f.facturado|pesos }}{% endif %}</td>
+      <td class="n">{% if f.costo_real %}{{ f.costo_real|pesos }}{% endif %}</td><td class="n {{ f.margen_real|signo }}">{% if f.facturado %}{{ f.margen_real|pesos }}{% endif %}</td><td class="n {{ f.margen_real|signo }}">{{ f.rent_real|pct }}</td></tr>
+    {% endfor %}
+    {% with o=b.otras %}{% if o.lineas %}
+    <tr><td><i>Sin ruta del anexo, tarifa básica y APH</i>{% if o.aph %} <span class="etq MEDIA">{{ o.aph|num }} APH</span>{% endif %}</td><td colspan="6" class="suave">Km facturados que no coinciden con el anexo, traslados locales (tarifa básica) y atenciones prehospitalarias.</td>
+      <td class="n">{{ o.traslados|num }}</td><td class="n">{{ o.facturado|pesos }}</td><td class="n">{{ o.costo_real|pesos }}</td><td class="n {{ o.margen_real|signo }}">{{ o.margen_real|pesos }}</td><td class="n {{ o.margen_real|signo }}">{{ o.rent_real|pct }}</td></tr>
+    {% endif %}{% endwith %}
+    {% with t=b.total %}<tr><th>Total sede</th><th colspan="6"></th><th class="n">{{ t.traslados|num }}</th><th class="n">{{ t.facturado|pesos }}</th><th class="n">{{ t.costo_real|pesos }}</th><th class="n {{ t.margen_real|signo }}">{{ t.margen_real|pesos }}</th><th class="n">{{ t.rent_real|pct }}</th></tr>{% endwith %}
+  </table>
+</div>
+{% endfor %}
+{% endblock %}

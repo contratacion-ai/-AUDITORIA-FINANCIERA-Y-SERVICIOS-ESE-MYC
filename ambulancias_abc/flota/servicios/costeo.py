@@ -28,7 +28,17 @@ from abc_engine.calculo import (
     costo_recorrido,
 )
 
-from ..models import Ambulancia, Consumo, PartidaCostoIndirecto, PerfilCostoEstudio, TarifaRuta, Traslado
+from ..models import (
+    Ambulancia,
+    Consumo,
+    PartidaCostoIndirecto,
+    PerfilCostoEstudio,
+    Sede,
+    TarifaRuta,
+    Traslado,
+    meses_entre_fechas,
+    sumar_meses,
+)
 from .comunes import parametros
 
 METODOS = {METODO_REAL: "Absorción real", METODO_CAPACIDAD: "Capacidad (tasas estándar)"}
@@ -70,6 +80,19 @@ def meses_entre(desde: dt.date, hasta: dt.date) -> list[dt.date]:
     return meses
 
 
+def consumos_del_mes(mes: dt.date, placa: str | None = None) -> dict[str, dict[str, float]]:
+    """placa -> actividad ABC -> valor del mes, aplicando el prorrateo de cada consumo."""
+    reales = defaultdict(lambda: defaultdict(float))
+    qs = Consumo.objects.filter(mes__lte=mes, mes__gte=sumar_meses(mes, -35))
+    if placa:
+        qs = qs.filter(ambulancia__placa=placa)
+    for c in qs.values("ambulancia__placa", "tipo", "valor", "mes", "meses_prorrateo"):
+        n = c["meses_prorrateo"] or 1
+        if meses_entre_fechas(c["mes"], mes) < n:
+            reales[c["ambulancia__placa"]][Consumo.POOL[c["tipo"]]] += float(c["valor"]) / n
+    return reales
+
+
 @dataclass
 class ResultadoMes:
     mes: dt.date
@@ -93,9 +116,7 @@ def calcular_mes(mes: dt.date, metodo: str = METODO_REAL) -> ResultadoMes:
     dias = calendar.monthrange(mes.year, mes.month)[1]
     res = ResultadoMes(mes=mes, metodo=metodo, dias=dias)
 
-    reales = defaultdict(lambda: defaultdict(float))
-    for fila in Consumo.objects.filter(mes=mes).values("ambulancia__placa", "tipo").annotate(v=Sum("valor")):
-        reales[fila["ambulancia__placa"]][Consumo.POOL[fila["tipo"]]] += float(fila["v"])
+    reales = consumos_del_mes(mes)
 
     pools, tipos = [], {}
     for amb in Ambulancia.objects.select_related("sede").exclude(estado=Ambulancia.FUERA):
@@ -169,6 +190,7 @@ def calcular_mes(mes: dt.date, metodo: str = METODO_REAL) -> ResultadoMes:
                     "ambito": t.ambito or "SIN ÁMBITO",
                     "unidad_funcional": t.unidad_funcional or "SIN UNIDAD",
                     "codigo_cups": t.codigo_cups,
+                    "categoria": t.categoria,
                     "km": float(t.km_recorridos) * peso,
                     "traslado": peso if t.km_recorridos > 0 else 0.0,
                     "linea": peso,
@@ -203,7 +225,7 @@ def consolidar(desde: dt.date, hasta: dt.date, metodo=METODO_REAL, filtros: dict
     filtros por ámbito, unidad o ruta se informa aparte y no se resta.
     """
     filtros = {k: v for k, v in (filtros or {}).items() if v not in (None, "")}
-    filtra_actividad = any(k in filtros for k in ("ambito", "unidad_funcional", "ruta_id"))
+    filtra_actividad = any(k in filtros for k in ("ambito", "unidad_funcional", "ruta_id", "categoria"))
     total = {}
     por_mes, por_amb, por_ruta, por_ambito, por_unidad = {}, {}, {}, {}, {}
     no_utilizado = 0.0
@@ -245,6 +267,8 @@ def consolidar(desde: dt.date, hasta: dt.date, metodo=METODO_REAL, filtros: dict
             if filtros.get("ambito") and fila["ambito"] != filtros["ambito"]:
                 continue
             if filtros.get("unidad_funcional") and fila["unidad_funcional"] != filtros["unidad_funcional"]:
+                continue
+            if filtros.get("categoria") and fila["categoria"] != filtros["categoria"]:
                 continue
             if filtros.get("ruta_id") and str(fila["ruta_id"]) != str(filtros["ruta_id"]):
                 continue
@@ -330,3 +354,164 @@ def matriz_rutas(metodo=METODO_REAL, sede_codigo=None, placa=None, solo_origen=T
             )
     filas.sort(key=lambda f: (f["ruta"].origen, f["ruta"].destino, f["costo"]))
     return filas
+
+
+# ---------------------------------------------------------------------------
+# Tablas: recorridos por sede, facturación por ámbito y consumos por categoría
+# ---------------------------------------------------------------------------
+
+
+def recorridos_por_sede(desde: dt.date, hasta: dt.date, metodo=METODO_REAL, sede_codigo=None, categoria=None) -> list[dict]:
+    """Por cada sede: sus recorridos del Anexo 3 con traslados, facturación, costo ABC
+    asignado (real del periodo) y costo estándar del recorrido, con márgenes.
+
+    El costo estándar es el promedio de las ambulancias de la sede (con perfil y
+    no excluidas) para un viaje de ida y vuelta por esa ruta.
+    """
+    from ..importacion import normalizar
+
+    pars = parametros()
+    precios = precios_vigentes(pars)
+    perfiles = perfiles_vigentes(pars)
+    factor = float(pars["factor_ida_vuelta"])
+    sedes = Sede.objects.filter(activa=True).order_by("nombre")
+    if sede_codigo:
+        sedes = sedes.filter(codigo=sede_codigo)
+    vigencia = TarifaRuta.objects.order_by("-vigencia").values_list("vigencia", flat=True).first()
+
+    # Real del periodo: una sola pasada por mes para todas las sedes.
+    real = defaultdict(lambda: defaultdict(float))  # (sede, ruta_id|None) -> métricas
+    flota_sede = defaultdict(lambda: {"pool": 0.0, "no_utilizado": 0.0})
+    sede_de = dict(Ambulancia.objects.values_list("placa", "sede__codigo"))
+    for mes in meses_entre(desde, hasta):
+        r = calcular_mes(mes, metodo)
+        for placa, a in r.ambulancias.items():
+            flota_sede[sede_de.get(placa)]["pool"] += a["pool_total"]
+            flota_sede[sede_de.get(placa)]["no_utilizado"] += a["no_utilizado_total"]
+        for f in r.filas:
+            if categoria and f["categoria"] != categoria:
+                continue
+            d = real[(f["sede_codigo"], f["ruta_id"])]
+            for k in ("traslado", "linea", "km", "ingreso", "costo"):
+                d[k] += f[k]
+            if f["categoria"] == "APH":
+                d["aph"] += f["linea"]
+
+    salida = []
+    for sede in sedes:
+        ambs = [
+            perfiles[a.placa]
+            for a in Ambulancia.objects.filter(sede=sede, placa__in=perfiles.keys())
+            if not perfiles[a.placa].excluida_promedios and perfiles[a.placa].km_dia > 0 and perfiles[a.placa].horas_dia > 0
+        ]
+        filas = []
+        for ruta in TarifaRuta.objects.filter(activa=True, vigencia=vigencia).order_by("destino"):
+            if normalizar(ruta.origen) != normalizar(sede.origen_tarifa):
+                continue
+            d = real.get((sede.codigo, ruta.pk), {})
+            costos = [costo_recorrido(p, float(ruta.km) * factor, precios, metodo).total for p in ambs] if ruta.km else []
+            estandar = sum(costos) / len(costos) if costos else None
+            tarifa = float(ruta.tarifa) if ruta.tarifa is not None else None
+            fila = {
+                "ruta": ruta,
+                "km": float(ruta.km) if ruta.km else None,
+                "tarifa": tarifa,
+                "costo_estandar": estandar,
+                "costo_estandar_min": min(costos) if costos else None,
+                "costo_estandar_max": max(costos) if costos else None,
+                "margen_estandar": (tarifa - estandar) if tarifa is not None and estandar is not None else None,
+                "traslados": d.get("traslado", 0.0),
+                "lineas": d.get("linea", 0.0),
+                "km_conducidos": d.get("km", 0.0),
+                "facturado": d.get("ingreso", 0.0),
+                "costo_real": d.get("costo", 0.0),
+            }
+            fila["rent_estandar"] = (fila["margen_estandar"] / tarifa * 100) if fila["margen_estandar"] is not None and tarifa else None
+            fila["margen_real"] = fila["facturado"] - fila["costo_real"]
+            fila["rent_real"] = (fila["margen_real"] / fila["facturado"] * 100) if fila["facturado"] else None
+            filas.append(fila)
+        sin = real.get((sede.codigo, None), {})
+        otras = {
+            "traslados": sin.get("traslado", 0.0), "lineas": sin.get("linea", 0.0), "aph": sin.get("aph", 0.0),
+            "km_conducidos": sin.get("km", 0.0), "facturado": sin.get("ingreso", 0.0), "costo_real": sin.get("costo", 0.0),
+        }
+        otras["margen_real"] = otras["facturado"] - otras["costo_real"]
+        otras["rent_real"] = (otras["margen_real"] / otras["facturado"] * 100) if otras["facturado"] else None
+        tot = {k: sum(f[k] for f in filas) + otras.get(k, 0.0) for k in ("traslados", "lineas", "km_conducidos", "facturado", "costo_real")}
+        tot["margen_real"] = tot["facturado"] - tot["costo_real"]
+        tot["rent_real"] = (tot["margen_real"] / tot["facturado"] * 100) if tot["facturado"] else None
+        tot.update(flota_sede.get(sede.codigo, {"pool": 0.0, "no_utilizado": 0.0}))
+        tot["resultado_con_capacidad"] = tot["facturado"] - tot["pool"] if not categoria else None
+        filas.sort(key=lambda f: (-f["facturado"], f["ruta"].destino))
+        salida.append({"sede": sede, "filas": filas, "otras": otras, "total": tot, "n_ambulancias": len(ambs)})
+    return salida
+
+
+def facturacion_por_ambito(desde: dt.date, hasta: dt.date, sede_codigo=None) -> list[dict]:
+    from django.db.models import Count, Q
+
+    qs = Traslado.objects.filter(mes__gte=desde, mes__lte=hasta)
+    if sede_codigo:
+        qs = qs.filter(sede__codigo=sede_codigo)
+    return list(
+        qs.values("mes", "sede__nombre", "ambito", "unidad_funcional", "categoria")
+        .annotate(
+            lineas=Count("id"),
+            traslados=Count("id", filter=Q(km_recorridos__gt=0)),
+            facturado=Sum("valor_facturado"),
+            km=Sum("km_recorridos"),
+            sin_factura=Count("id", filter=Q(numero_factura="")),
+            conciliados=Count("id", filter=Q(conciliado_rips=True)),
+        )
+        .order_by("mes", "sede__nombre", "ambito", "unidad_funcional", "categoria")
+    )
+
+
+def tabla_consumos(clave: str, desde: dt.date, hasta: dt.date, placa=None) -> dict:
+    """Matriz ambulancia × mes de una tabla de consumos (con prorrateo) y comparación
+    con el estándar del estudio cuando existe (combustible, mantenimiento, personal)."""
+    titulo, tipos, _ = Consumo.TABLAS[clave]
+    meses = meses_entre(desde, hasta)
+    pars = parametros()
+    perfiles = perfiles_vigentes(pars)
+    qs = Consumo.objects.filter(tipo__in=tipos, mes__lte=hasta, mes__gte=sumar_meses(desde, -35)).select_related("ambulancia")
+    if placa:
+        qs = qs.filter(ambulancia__placa=placa)
+    matriz = defaultdict(lambda: defaultdict(float))
+    cantidades = defaultdict(lambda: defaultdict(float))
+    odometros = defaultdict(list)
+    for c in qs:
+        n = c.meses_prorrateo or 1
+        for m in meses:
+            if 0 <= meses_entre_fechas(c.mes, m) < n:
+                matriz[c.ambulancia.placa][m] += float(c.valor) / n
+                cantidades[c.ambulancia.placa][m] += float(c.cantidad) / n
+        if c.odometro and desde <= c.mes <= hasta:
+            odometros[c.ambulancia.placa].append((c.fecha, c.odometro, float(c.cantidad)))
+    campo_estandar = {"combustible": "combustible_dia", "mantenimiento": "mantenimiento_dia", "personal": "tripulacion_dia"}.get(clave)
+    filas = []
+    placas = sorted(set(matriz) | (set(perfiles) if campo_estandar and not placa else set()) | ({placa} if placa else set()))
+    for p in placas:
+        valores = [matriz[p].get(m, 0.0) for m in meses]
+        total = sum(valores)
+        estandar = None
+        if campo_estandar and p in perfiles:
+            # Con registros: estándar solo de los meses que tienen registro (comparable).
+            # Sin registros: estándar de todo el periodo, como referencia.
+            dia = getattr(perfiles[p], campo_estandar)
+            con_dato = [m for m, v in zip(meses, valores) if v] or meses
+            estandar = sum(dia * calendar.monthrange(m.year, m.month)[1] for m in con_dato)
+        fila = {"placa": p, "valores": valores, "total": total, "cantidad": sum(cantidades[p].get(m, 0.0) for m in meses),
+                "estandar": estandar, "diferencia": (total - estandar) if estandar is not None and total else None}
+        lecturas = sorted(odometros.get(p, []))
+        if clave == "combustible" and len(lecturas) >= 2:
+            km = lecturas[-1][1] - lecturas[0][1]
+            galones = sum(g for _, _, g in lecturas[1:])  # galones después de la primera lectura
+            fila["km_odometro"] = km
+            fila["rendimiento"] = km / galones if galones else None
+        filas.append(fila)
+    totales_mes = [sum(f["valores"][i] for f in filas) for i in range(len(meses))]
+    return {
+        "titulo": titulo, "tipos": tipos, "meses": meses, "filas": filas, "totales_mes": totales_mes,
+        "total": sum(totales_mes), "con_estandar": bool(campo_estandar),
+    }

@@ -21,6 +21,7 @@ Después de instalar, desde cualquier equipo de la red abra:
 
 Documentación completa: carpeta "docs" del programa
   INSTALACION.md        instalación, usuarios, respaldo y restauración
+  GUIA_CARGAS_MENSUALES.md  facturación, RIPS (traslados y APH), consumos y recorridos por sede
   MODELO_DATOS.md       fórmulas ABC, drivers y modelo de datos
   INTEGRACION.md        intercambio con las aplicaciones de RIPS y auditoría
   CALIDAD_DATOS.md      inconsistencias detectadas en las fuentes

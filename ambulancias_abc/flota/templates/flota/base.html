@@ -13,13 +13,16 @@
   {% with n=request.resolver_match.url_name %}
   <nav>
     <a href="{% url 'flota:dashboard' %}" class="{% if n == 'dashboard' %}activo{% endif %}">Dashboard</a>
-    <a href="{% url 'flota:consolidado' %}" class="{% if n == 'consolidado' %}activo{% endif %}">Consolidado mensual</a>
+    <a href="{% url 'flota:cargas' %}" class="{% if n == 'cargas' or 'cargar' in n %}activo{% endif %}">Cargas del mes</a>
+    <a href="{% url 'flota:facturacion_ambito' %}" class="{% if n == 'facturacion_ambito' %}activo{% endif %}">Facturación por ámbito</a>
+    <a href="{% url 'flota:recorridos_sede' %}" class="{% if n == 'recorridos_sede' %}activo{% endif %}">Recorridos por sede</a>
+    <a href="{% url 'flota:consumos_tabla' 'combustible' %}" class="{% if 'consumo' in n %}activo{% endif %}">Consumos</a>
+    <a href="{% url 'flota:rips_cargas' %}" class="{% if 'rips' in n %}activo{% endif %}">RIPS</a>
+    <a href="{% url 'flota:consolidado' %}" class="{% if n == 'consolidado' %}activo{% endif %}">Consolidado</a>
     <a href="{% url 'flota:ambulancias' %}" class="{% if n == 'ambulancias' or n == 'ambulancia' %}activo{% endif %}">Ambulancias</a>
-    <a href="{% url 'flota:rentabilidad_rutas' %}" class="{% if n == 'rentabilidad_rutas' %}activo{% endif %}">Rentabilidad por ruta</a>
+    <a href="{% url 'flota:rentabilidad_rutas' %}" class="{% if n == 'rentabilidad_rutas' %}activo{% endif %}">Ruta × ambulancia</a>
     <a href="{% url 'flota:traslados' %}" class="{% if 'traslado' in n %}activo{% endif %}">Traslados</a>
-    <a href="{% url 'flota:consumos' %}" class="{% if 'consumo' in n %}activo{% endif %}">Consumos</a>
-    <a href="{% url 'flota:importar' %}" class="{% if n == 'importar' %}activo{% endif %}">Importar</a>
-    <a href="{% url 'flota:calidad' %}" class="{% if n == 'calidad' %}activo{% endif %}">Calidad de datos</a>
+    <a href="{% url 'flota:calidad' %}" class="{% if n == 'calidad' %}activo{% endif %}">Calidad</a>
     <a href="{% url 'flota:parametros' %}" class="{% if n == 'parametros' %}activo{% endif %}">Parámetros</a>
     {% if user.is_staff %}<a href="{% url 'admin:index' %}">Administración</a>{% endif %}
   </nav>

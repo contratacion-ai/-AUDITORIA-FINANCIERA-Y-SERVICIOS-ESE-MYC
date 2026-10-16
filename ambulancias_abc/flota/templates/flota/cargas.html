@@ -1,0 +1,37 @@
+{% extends "flota/base.html" %}{% load formato %}
+{% block titulo %}Cargas del mes{% endblock %}
+{% block contenido %}
+<h1>Cargas del mes</h1>
+<h2>Facturación y RIPS</h2>
+<div class="botonera">
+  <a class="boton-grande" href="{% url 'flota:cargar_facturacion' %}"><b>Cargar facturación del mes</b><span>Reporte del HIS por ámbito y unidad funcional (.xlsx), todos los hospitales o uno.</span></a>
+  <a class="boton-grande az" href="{% url 'flota:cargar_rips' %}"><b>Cargar RIPS por mes y hospital</b><span>JSON, TXT (AF/AT/AP) o ZIP. Extrae traslados y APH.</span></a>
+  <a class="boton-grande" href="{% url 'flota:facturacion_ambito' %}"><b>Ver facturación por ámbito</b><span>Mes, hospital, ámbito y unidad funcional.</span></a>
+  <a class="boton-grande" href="{% url 'flota:recorridos_sede' %}"><b>Recorridos por sede</b><span>Tarifa, costo y rentabilidad de cada recorrido.</span></a>
+</div>
+<h2>Tablas de consumos por ambulancia</h2>
+<div class="botonera">
+  {% for t in tablas %}<a class="boton-grande alt" href="{% url 'flota:consumos_tabla' t.clave %}"><b>{{ t.titulo }}</b><span>Registrar, cargar Excel/CSV y ver la tabla mensual.</span></a>{% endfor %}
+</div>
+
+<div class="panel">
+  <h2>Estado de las cargas por hospital <span class="suave">(F = líneas de facturación · R = cargas de RIPS · APH = atenciones prehospitalarias)</span></h2>
+  <table>
+    <tr><th>Hospital</th>{% for m in meses %}<th class="n">{{ m|date:"M Y" }}</th>{% endfor %}</tr>
+    {% for e in estado %}<tr><td>{{ e.sede.nombre }}</td>
+      {% for c in e.celdas %}<td class="n {% if c.lineas %}ok{% else %}falta{% endif %}">
+        F: {{ c.lineas|num }}{% if c.valor %} · {{ c.valor|millones }}{% endif %}<br>
+        <span class="{% if c.rips %}pos{% else %}suave{% endif %}">R: {% if c.rips %}{{ c.rips }} ✓{% else %}—{% endif %}</span>{% if c.aph %} · APH {{ c.aph }}{% endif %}
+      </td>{% endfor %}</tr>{% endfor %}
+    <tr><th colspan="{{ meses|length|add:1 }}">Consumos registrados (número de registros)</th></tr>
+    {% for t in tablas %}<tr><td><a href="{% url 'flota:consumos_tabla' t.clave %}">{{ t.titulo }}</a></td>{% for n in t.celdas %}<td class="n {% if n %}ok{% else %}falta{% endif %}">{{ n|default:"—" }}</td>{% endfor %}</tr>{% endfor %}
+  </table>
+</div>
+
+<div class="panel">
+  <h2>Últimas cargas <a class="boton sec" style="float:right" href="{% url 'flota:importar' %}">Otras cargas (tarifas, centro de costos)</a></h2>
+  <table><tr><th>Fecha</th><th>Tipo</th><th>Mes</th><th>Hospital</th><th>Archivo</th><th>Usuario</th><th class="n">Nuevos</th><th class="n">Actualizados</th><th class="n">Omitidos</th><th>Resumen</th></tr>
+  {% for l in lotes %}<tr><td>{% if l.tipo == "RIPS" %}<a href="{% url 'flota:rips_detalle' l.pk %}">{{ l.fecha|date:"Y-m-d H:i" }}</a>{% else %}{{ l.fecha|date:"Y-m-d H:i" }}{% endif %}</td><td>{{ l.tipo }}</td><td>{{ l.mes|date:"M Y"|default:"—" }}</td><td>{{ l.sede|default:"—" }}</td><td>{{ l.archivo|truncatechars:50 }}</td><td>{{ l.usuario|default:"sistema" }}</td><td class="n">{{ l.nuevos }}</td><td class="n">{{ l.actualizados }}</td><td class="n">{{ l.omitidos }}</td><td class="suave">{{ l.resumen|truncatechars:160 }}</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}

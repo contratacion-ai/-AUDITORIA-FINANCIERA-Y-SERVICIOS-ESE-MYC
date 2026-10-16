@@ -6,6 +6,7 @@
   <label>Ámbito <select name="ambito"><option value="">Todos</option>{% for a in ambitos %}<option {% if filtros.ambito == a %}selected{% endif %}>{{ a }}</option>{% endfor %}</select></label>
   <label>Unidad funcional <select name="unidad_funcional"><option value="">Todas</option>{% for u in unidades %}<option {% if filtros.unidad_funcional == u %}selected{% endif %}>{{ u }}</option>{% endfor %}</select></label>
   <label>Recorrido <select name="ruta_id"><option value="">Todos</option>{% for r in rutas %}<option value="{{ r.pk }}" {% if filtros.ruta_id == r.pk|stringformat:'s' %}selected{% endif %}>{{ r }}</option>{% endfor %}</select></label>
+  <label>Servicio <select name="categoria"><option value="">Traslados y APH</option><option value="TRASLADO" {% if filtros.categoria == "TRASLADO" %}selected{% endif %}>Traslados</option><option value="APH" {% if filtros.categoria == "APH" %}selected{% endif %}>APH</option></select></label>
   <label>Método <select name="metodo">{% for k, v in metodos.items %}<option value="{{ k }}" {% if metodo == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
   <button type="submit">Aplicar</button>
   <a class="boton sec" href="?">Limpiar</a>

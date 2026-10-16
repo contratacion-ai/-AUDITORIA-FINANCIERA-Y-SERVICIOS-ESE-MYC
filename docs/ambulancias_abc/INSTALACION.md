@@ -46,7 +46,7 @@ Registro de la instalación: `C:\ProgramData\CosteoABCAmbulancias\instalacion.lo
    - *Consulta*: solo lectura (dashboard, reportes).
 2. **Sedes**: revise el `codigo_prestador` (código REPS) de cada sede si va a importar RIPS.
 3. **Parámetros**: valide los marcados como *supuesto* (`factor_ida_vuelta`, `km_traslado_basico`).
-4. **Importar** la facturación de traslados del mes (.xlsx del HIS).
+4. **Cargas del mes**: facturación del HIS, RIPS por hospital y tablas de consumos (ver [GUIA_CARGAS_MENSUALES.md](GUIA_CARGAS_MENSUALES.md)).
 5. **Asignar placas** a los traslados (Traslados › filtrar *Sin placa* › seleccionar › Asignar).
 6. **Registrar consumos** (tanqueos, órdenes de mantenimiento, insumos) o cargarlos con la plantilla CSV. Desde ese momento el costeo usa valores reales en lugar del estándar del estudio.
 7. **Claves de API** para RIPS y auditoría: `python\python.exe app\manage.py crear_clave_api auditoria` (desde `C:\Program Files\CosteoABCAmbulancias`) o en Administración › Claves API.
@@ -101,7 +101,7 @@ pip install -r requirements.txt
 python manage.py migrate && python manage.py cargar_datos_iniciales
 python manage.py crear_admin --clave 'Clave-Desarrollo-1'
 python manage.py runserver          # o: python servidor.py
-python manage.py test               # 41 pruebas (motor ABC + aplicación)
+python manage.py test               # 54 pruebas (motor ABC + aplicación)
 python -m unittest discover -s abc_engine -t .   # solo el motor, sin Django
 ```
 

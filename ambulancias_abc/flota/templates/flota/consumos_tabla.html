@@ -1,0 +1,48 @@
+{% extends "flota/base.html" %}{% load formato %}
+{% block titulo %}Consumos · {{ datos.titulo }}{% endblock %}
+{% block contenido %}
+<h1>Consumos por ambulancia</h1>
+<div class="pestanas">{% for k, t in tablas.items %}<a href="{% url 'flota:consumos_tabla' k %}" class="{% if k == clave %}activo{% endif %}">{{ t.0 }}</a>{% endfor %}<a href="{% url 'flota:consumos' %}">Todos los registros</a></div>
+
+<div class="botonera">
+  {% if perms.flota.add_consumo %}<a class="boton-grande" href="{% url 'flota:consumo_nuevo' %}?tipo={{ tipo_inicial }}{% if placa %}&placa={{ placa }}{% endif %}"><b>Registrar {{ datos.titulo|lower }}</b><span>Un registro con soporte, valor y odómetro.</span></a>{% endif %}
+  <a class="boton-grande alt" href="{% url 'flota:plantilla_consumos_tabla' clave %}"><b>Descargar plantilla Excel</b><span>Columnas listas para diligenciar.</span></a>
+  {% if perms.flota.add_consumo %}
+  <form class="boton-grande az" method="post" enctype="multipart/form-data" action="{% url 'flota:cargar_consumos' clave %}">{% csrf_token %}
+    <b>Cargar {{ datos.titulo|lower }} (Excel o CSV)</b>
+    <input type="file" name="archivo" accept=".xlsx,.csv" required>
+    <button type="submit">Cargar</button>
+  </form>{% endif %}
+  <a class="boton-grande" href="?{{ request.GET.urlencode }}&formato=xlsx"><b>Descargar tabla (Excel)</b><span>Matriz mensual y detalle.</span></a>
+</div>
+
+<form method="get" class="filtros panel no-imprimir">
+  <label>Desde <input type="month" name="desde" value="{{ desde|date:'Y-m' }}"></label>
+  <label>Hasta <input type="month" name="hasta" value="{{ hasta|date:'Y-m' }}"></label>
+  <label>Ambulancia <select name="placa"><option value="">Todas</option>{% for p in ambulancias %}<option {% if placa == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select></label>
+  <button>Aplicar</button>
+</form>
+
+<div class="panel">
+  <h2>{{ datos.titulo }} por ambulancia y mes · total {{ datos.total|pesos }}</h2>
+  {% if clave == "seguros" %}<p class="suave">Los pagos anuales (SOAT, pólizas, impuesto) se reparten en los meses indicados en "meses de prorrateo".</p>{% endif %}
+  {% if datos.con_estandar %}<p class="suave">"Estándar" = costo del informe técnico de los meses con registros (o de todo el periodo si la ambulancia no tiene registros); la diferencia solo se calcula cuando hay registros. Cuando hay registros reales en un mes, el costeo ABC usa el valor real en lugar del estándar.</p>{% endif %}
+  <table>
+    <tr><th>Placa</th>{% for m in datos.meses %}<th class="n">{{ m|date:"M Y" }}</th>{% endfor %}<th class="n">Total</th><th class="n">Cantidad</th>{% if datos.con_estandar %}<th class="n">Estándar del estudio</th><th class="n">Diferencia</th>{% endif %}{% if clave == "combustible" %}<th class="n">Km por odómetro</th><th class="n">Km/gal</th>{% endif %}</tr>
+    {% for f in datos.filas %}
+    <tr><td><a href="{% url 'flota:ambulancia' f.placa %}">{{ f.placa }}</a></td>{% for v in f.valores %}<td class="n">{% if v %}{{ v|pesos }}{% else %}<span class="suave">—</span>{% endif %}</td>{% endfor %}
+      <td class="n"><b>{{ f.total|pesos }}</b></td><td class="n">{{ f.cantidad|num:1 }}</td>
+      {% if datos.con_estandar %}<td class="n">{{ f.estandar|pesos }}</td><td class="n {% if f.diferencia > 0 %}neg{% else %}pos{% endif %}">{{ f.diferencia|pesos }}</td>{% endif %}
+      {% if clave == "combustible" %}<td class="n">{{ f.km_odometro|num }}</td><td class="n">{{ f.rendimiento|num:1 }}</td>{% endif %}</tr>
+    {% endfor %}
+    <tr><th>Total</th>{% for v in datos.totales_mes %}<th class="n">{{ v|pesos }}</th>{% endfor %}<th class="n">{{ datos.total|pesos }}</th><th></th>{% if datos.con_estandar %}<th></th><th></th>{% endif %}{% if clave == "combustible" %}<th></th><th></th>{% endif %}</tr>
+  </table>
+</div>
+
+<div class="panel"><h2>Registros del periodo</h2>
+<table>
+  <tr><th>Fecha</th><th>Placa</th><th>Tipo</th><th>Descripción</th><th class="n">Cantidad</th><th class="n">Valor</th><th class="n">Meses</th><th class="n">Odómetro</th><th>Soporte</th><th>Proveedor</th><th>Registró</th></tr>
+  {% for c in detalle %}<tr><td><a href="{% url 'flota:consumo_editar' c.pk %}">{{ c.fecha|date:"Y-m-d" }}</a></td><td>{{ c.ambulancia }}</td><td>{{ c.get_tipo_display|truncatechars:40 }}</td><td>{{ c.descripcion }}</td><td class="n">{{ c.cantidad|num:2 }} {{ c.unidad }}</td><td class="n">{{ c.valor|pesos }}</td><td class="n">{{ c.meses_prorrateo }}</td><td class="n">{{ c.odometro|num }}</td><td>{{ c.documento_soporte }}</td><td>{{ c.proveedor }}</td><td>{{ c.creado_por|default:"carga" }}</td></tr>
+  {% empty %}<tr><td colspan="11" class="suave">Sin registros en el periodo.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}
