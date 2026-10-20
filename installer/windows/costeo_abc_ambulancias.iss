@@ -97,3 +97,21 @@ begin
   else
     Result := 'usuario';
 end;
+
+{ Al actualizar, el servidor en ejecución bloquea python\*.dll y la
+  instalación fallaría ("DeleteFile falló; código 5"). Antes de copiar se
+  deshabilita la tarea del servidor y se cierran los python.exe de esta
+  carpeta; configurar.ps1 vuelve a registrar y arrancar la tarea. }
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  Codigo: Integer;
+begin
+  Result := '';
+  Exec('powershell.exe',
+    '-NoProfile -ExecutionPolicy Bypass -Command "' +
+    'Disable-ScheduledTask -TaskName CosteoABC-Servidor -ErrorAction SilentlyContinue | Out-Null; ' +
+    'Stop-ScheduledTask -TaskName CosteoABC-Servidor -ErrorAction SilentlyContinue; ' +
+    'Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -like ''' + ExpandConstant('{app}') + '\*'' } | ' +
+    'ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; Start-Sleep 2"',
+    '', SW_HIDE, ewWaitUntilTerminated, Codigo);
+end;
