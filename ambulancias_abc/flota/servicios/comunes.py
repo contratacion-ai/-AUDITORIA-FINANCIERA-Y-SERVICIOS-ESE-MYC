@@ -27,8 +27,8 @@ PARAMETROS_DEFECTO = {
         "Modelo ABC corregido, MODELO COSTOS ABC PARAMETRO!E44", False,
     ),
     "ambulancias_reparto_indirectos": (
-        22, "ambulancias", "Ambulancias entre las que se reparten los costos indirectos del centro de costos",
-        "Modelo ABC corregido, MODELO COSTOS ABC PARAMETRO!F10 (el informe técnico costea 21)", True,
+        21, "ambulancias", "Ambulancias entre las que se reparten los costos indirectos del centro de costos",
+        "Modelo ABC corregido, MODELO COSTOS ABC PARAMETRO!F10", False,
     ),
     "velocidad_flota_kmh": (34.6, "km/h", "Velocidad efectiva media de la flota (para unidades sin perfil)", "Informe técnico num. 4.5", False),
     "valor_km_tarifa": (17000, "$/km", "Valor del kilómetro, manual tarifario propio 2026", "ANEXOS DE TARIFAS 2026.xlsx, Anexo 3!P8", False),
@@ -50,6 +50,7 @@ PARAMETROS_DEFECTO = {
 # (es decir, si nadie lo modificó a mano).
 CORRECCIONES_PARAMETROS = {
     "tripulacion_dia": (Decimal("458467"), Decimal("457592.6702")),
+    "ambulancias_reparto_indirectos": (Decimal("22"), Decimal("21")),
 }
 
 

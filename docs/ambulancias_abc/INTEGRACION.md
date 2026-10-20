@@ -55,9 +55,9 @@ Ejemplo (PowerShell):
 
 ```powershell
 $h = @{ "X-API-Key" = "abc_..." }
-Invoke-RestMethod "http://servidor-abc:8000/api/v1/traslados?mes=2026-09" -Headers $h
-Invoke-WebRequest "http://servidor-abc:8000/api/v1/costos-ambulancia?mes=2026-09&formato=csv" -Headers $h -OutFile costos.csv
-Invoke-RestMethod "http://servidor-abc:8000/api/v1/rips" -Method Post -Headers $h -ContentType "application/json" -InFile factura.json
+Invoke-RestMethod "http://servidor-abc:8090/api/v1/traslados?mes=2026-09" -Headers $h
+Invoke-WebRequest "http://servidor-abc:8090/api/v1/costos-ambulancia?mes=2026-09&formato=csv" -Headers $h -OutFile costos.csv
+Invoke-RestMethod "http://servidor-abc:8090/api/v1/rips" -Method Post -Headers $h -ContentType "application/json" -InFile factura.json
 ```
 
 El campo `contrato` de cada respuesta indica la versión (hoy `1.0`). Cambios incompatibles subirán la versión mayor y se publicarán en una ruta nueva (`/api/v2/`).

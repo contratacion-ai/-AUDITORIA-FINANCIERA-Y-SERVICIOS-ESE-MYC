@@ -144,6 +144,12 @@ BACKUP_DIR = Path(cfg("backup_dir", str(DATA_DIR / "respaldos")))
 BACKUP_RETENCION = int(cfg("backup_retencion", "30"))
 
 SESSION_COOKIE_AGE = 60 * 60 * 10
+# Nombres propios: otras aplicaciones Django del mismo equipo (p. ej. la de
+# auditoría de facturación) usan "sessionid" y "csrftoken" en el mismo
+# localhost, y las cookies no distinguen puerto: con los nombres por defecto
+# una aplicación cerraría la sesión de la otra.
+SESSION_COOKIE_NAME = "costeoabc_sesion"
+CSRF_COOKIE_NAME = "costeoabc_csrf"
 if cfg("https", "false").lower() == "true":
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True

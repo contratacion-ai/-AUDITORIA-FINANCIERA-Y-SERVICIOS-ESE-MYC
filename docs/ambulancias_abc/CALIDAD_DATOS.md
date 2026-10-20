@@ -61,19 +61,19 @@ La versión corregida del libro reemplaza la anterior (hoja "AMBULANCIAS") por l
 | Corrección | Antes | Ahora | Celda |
 |---|---|---|---|
 | Tripulación por ambulancia/día | $458.467 (13.754.000 ÷ 30) | **$457.592,67**: médico 6,4 h, auxiliar 6,3 h y conductor 6,3 h × valor hora (salario ÷ 191 h) | TABLA DE VALOR TH MYC!G9 |
-| Costos indirectos del centro de costos | Solo referencia | **Incluidos**: $21.717.958/mes ÷ 22 ambulancias ÷ 30 días = **$32.906 por ambulancia/día** | MODELO…!E43, F10, F43 |
+| Costos indirectos del centro de costos | Solo referencia | **Incluidos**: $21.717.958/mes ÷ 21 ambulancias ÷ 30 días = **$34.473 por ambulancia/día** (la primera versión del libro dividía entre 22: $32.906) | MODELO…!E43, F10, F43 |
 | Gastos administrativos | No existían | **6,2 %** sobre el costo total | MODELO…!E44, G44 |
 | Horas/día de OKZ364 | 0,2 | **0,333** | MODELO…!M27 |
 | Anexo 3 de tarifas | `#REF!` en 2016-2019 y encabezados desalineados | Depurado: una columna 2026, mismas 90 rutas y tarifas | TRASLADOS Anexo 3 |
 | Partidas de personal del centro de costos | $76,8 M/mes, no comparables con 21 tripulaciones | Retiradas: la tripulación se costea por la tabla TH | — |
 
-Resultado para OEU846: (700.215 + 294.137 + 457.593 + 32.906) × 1,062 = **$1.576.911/día** (antes $1.452.819), igual a la celda G45 del modelo. Las pruebas automáticas verifican este valor.
+Resultado para OEU846: (700.215 + 294.137 + 457.593 + 34.473) × 1,062 = **$1.578.576/día** (antes $1.452.819), igual a la celda G45 del modelo. Las pruebas automáticas verifican este valor.
 
 Observaciones sobre el modelo (pantalla *Calidad de datos*):
 
 | Ubicación | Observación | Tratamiento |
 |---|---|---|
-| MODELO…!F10 | Los indirectos se reparten entre **22** ambulancias, pero el informe técnico costea **21**: 1/22 de los indirectos ($987.180/mes) no queda en la flota costeada. | Parámetro `ambulancias_reparto_indirectos` (22), marcado como supuesto. |
+| MODELO…!F10 | La primera versión repartía los indirectos entre 22 ambulancias aunque el informe costea 21. **Corregido** en la versión del 20/10/2026 (TOTAL AMBULANCIAS = 21): todo el centro de costos queda en la flota. | Parámetro `ambulancias_reparto_indirectos` = 21. Si el libro vuelve a traer otro número, se registra un hallazgo. |
 | MODELO…!F44 | `=F43*E44+F43` suma la base al recargo, mientras G44 calcula solo el 6,2 %. | Se usa el 6,2 % sobre el total (como G44/G45). |
 | TABLA TH | Cada cargo se costea por su jornada (6,3-6,4 h/día), pero la ambulancia está disponible 24 h con una tripulación. | Si hay turnos, la tripulación está subestimada. |
 | MODELO…!G46 | La fila UTILIDAD está vacía. | No se aplica utilidad; el margen se calcula contra la tarifa. |
@@ -85,15 +85,15 @@ Los hallazgos de la versión anterior del libro (`#DIV/0!`, duración "20 MIN" e
 | Indicador | Absorción real | Capacidad (TDABC) | Antes de la corrección (absorción real) |
 |---|---|---|---|
 | Facturación (fecha de servicio en septiembre) | $842,5 M | $842,5 M | $842,5 M |
-| Costo total de la flota (21 ambulancias × 30 días) | **$589,1 M** | $589,1 M | $534,5 M |
-| — de ello, indirectos del centro de costos | $20,7 M | | — |
-| — de ello, gastos administrativos (6,2 %) | $34,4 M | | — |
-| Costo asignado a 549 traslados (95.200 km) | $589,1 M | $394,2 M | $534,5 M |
-| Capacidad no utilizada | $0 | $194,8 M | $0 |
-| Margen sobre traslados | **$253,5 M (30,1 %)** | $448,3 M (53,2 %) | $308,1 M (36,6 %) |
+| Costo total de la flota (21 ambulancias × 30 días) | **$590,1 M** | $590,1 M | $534,5 M |
+| — de ello, indirectos del centro de costos | $21,7 M | | — |
+| — de ello, gastos administrativos (6,2 %) | $34,5 M | | — |
+| Costo asignado a 549 traslados (95.200 km) | $590,1 M | $394,4 M | $534,5 M |
+| Capacidad no utilizada | $0 | $195,7 M | $0 |
+| Margen sobre traslados | **$252,4 M (30,0 %)** | $448,1 M (53,2 %) | $308,1 M (36,6 %) |
 
-- Costo promedio por ambulancia/día: **$953.792** (informe: $866.077); flota $19.635.022/día. Menor OYX016 ($616.798), mayor OEU846 ($1.576.911).
-- Rentabilidad real por sede: Tame 53,2 %, Arauquita 36,9 %, Pto Rondón 35,2 %, Fortul 35,0 %, Pto Jordán 27,8 %, Panamá 15,4 %, La Esmeralda 4,2 %, **Cravo Norte −121,2 %**.
+- Costo promedio por ambulancia/día: **$955.456** (informe: $866.077); flota $19.669.968/día. Menor OYX016 ($618.462), mayor OEU846 ($1.578.576).
+- Rentabilidad real por sede: Tame 53,1 %, Arauquita 36,8 %, Pto Rondón 35,2 %, Fortul 34,9 %, Pto Jordán 27,7 %, Panamá 15,2 %, La Esmeralda 4,0 %, **Cravo Norte −121,6 %**.
 - Matriz ruta × ambulancia: **134 de 253** combinaciones pierden (antes 116). A las 8 unidades de bajo recorrido se suma **OLM779** (Pto Rondón), que ahora pierde en sus 18 rutas. Las de menor costo por km siguen siendo OYX014, OKZ368 y OEU846.
 
 Estas cifras usan el factor ida y vuelta = 2 (supuesto) y costos estándar; cambian al registrar consumos reales y asignar placas.

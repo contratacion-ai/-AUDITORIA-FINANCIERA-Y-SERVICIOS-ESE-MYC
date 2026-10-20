@@ -1,4 +1,4 @@
-<#
+﻿<#
   Configuración posterior a la instalación. La ejecuta el instalador; no pide
   usuario ni contraseña.
 
@@ -19,8 +19,12 @@
       guarda en CREDENCIALES_ADMIN.txt dentro de la carpeta de datos.
    4. Firewall (solo con administrador) y tareas programadas.
 
+  Puerto: por defecto 8090. Si el puerto pedido lo usa otra aplicación (por
+  ejemplo la de auditoría de facturación, que suele estar en el 8000) se toma
+  el siguiente libre, y el acceso directo queda con el puerto real.
+
   Reconfigurar a mano:
-    powershell -ExecutionPolicy Bypass -File "<carpeta del programa>\scripts\configurar.ps1" -Puerto 8080
+    powershell -ExecutionPolicy Bypass -File "<carpeta del programa>\scripts\configurar.ps1" -Puerto 8091
 #>
 param(
   [int]$Puerto = 0,
@@ -48,14 +52,70 @@ New-Item -ItemType Directory -Force -Path $DirDatos, (Join-Path $DirDatos "respa
 Start-Transcript -Path $Log -Append | Out-Null
 Write-Host "Modo: $(if ($EsAdmin) { 'todos los usuarios (administrador)' } else { 'solo este usuario (sin administrador)' })"
 
+$PuertoDefecto = 8090
+$PuertoAnteriorDefecto = 8000   # versiones hasta la 1.0.7; choca con otras aplicaciones Django
+
+# Detiene el servidor de esta aplicación (para que no cuente como "otra aplicación" en el puerto).
+function Detener-Servidor {
+  Stop-ScheduledTask -TaskName "CosteoABC-Servidor" -ErrorAction SilentlyContinue
+  Get-CimInstance Win32_Process -Filter "Name = 'python.exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.CommandLine -like "*servidor.py*" -and $_.ExecutablePath -like "$Raiz*" } |
+    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+  Start-Sleep -Seconds 2
+}
+
+# Un puerto está libre si nadie responde en localhost y se puede abrir en todas las interfaces.
+function Puerto-Libre([int]$p) {
+  $c = New-Object Net.Sockets.TcpClient
+  try {
+    $intento = $c.BeginConnect("127.0.0.1", $p, $null, $null)
+    if ($intento.AsyncWaitHandle.WaitOne(700) -and $c.Connected) { return $false }
+  } catch { } finally { $c.Close() }
+  try {
+    $l = New-Object Net.Sockets.TcpListener([Net.IPAddress]::Any, $p)
+    $l.Start(); $l.Stop(); return $true
+  } catch { return $false }
+}
+
+function Quien-Usa([int]$p) {
+  try {
+    $pid_ = (Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction Stop | Select-Object -First 1).OwningProcess
+    $proc = Get-CimInstance Win32_Process -Filter "ProcessId = $pid_"
+    return "$($proc.Name) (PID $pid_) $($proc.CommandLine)"
+  } catch { return "otra aplicación" }
+}
+
 function Aleatorio([int]$n) {
   $bytes = New-Object byte[] $n
   [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
   return [Convert]::ToBase64String($bytes).Replace("+", "-").Replace("/", "_").TrimEnd("=")
 }
 
+# Puerto deseado: el indicado, el de la instalación anterior o el por defecto.
+# Solo la sección [servidor]: [base_datos] también tiene "puerto" (PostgreSQL).
+function Puerto-Ini {
+  $seccion = ""
+  foreach ($l in (Get-Content $Ini)) {
+    if ($l -match '^\s*\[(.+)\]') { $seccion = $Matches[1] }
+    elseif ($seccion -eq "servidor" -and $l -match '^\s*puerto\s*=\s*(\d+)') { return [int]$Matches[1] }
+  }
+  return 0
+}
+$PuertoIni = 0
+if (Test-Path $Ini) { $PuertoIni = Puerto-Ini }
+if ($Puerto -eq 0) {
+  $Puerto = if ($PuertoIni -and $PuertoIni -ne $PuertoAnteriorDefecto) { $PuertoIni } else { $PuertoDefecto }
+}
+Detener-Servidor
+$Pedido = $Puerto
+while (-not (Puerto-Libre $Puerto)) {
+  Write-Host "El puerto $Puerto está ocupado por: $(Quien-Usa $Puerto)"
+  $Puerto++
+  if ($Puerto -gt $Pedido + 50) { throw "No se encontró un puerto libre entre $Pedido y $Puerto" }
+}
+if ($Puerto -ne $Pedido) { Write-Host "Se usará el puerto $Puerto (el $Pedido lo usa otra aplicación)." }
+
 if (-not (Test-Path $Ini)) {
-  if ($Puerto -eq 0) { $Puerto = 8000 }
   $contenido = @"
 [servidor]
 secret_key = $(Aleatorio 48)
@@ -75,14 +135,21 @@ motor = sqlite
   Set-Content -Path $Ini -Value $contenido -Encoding UTF8
   Write-Host "Creado $Ini"
 } else {
-  if ($Puerto -gt 0) {
-    (Get-Content $Ini) -replace '^puerto = \d+$', "puerto = $Puerto" | Set-Content $Ini -Encoding UTF8
-  } else {
-    $linea = (Get-Content $Ini) | Where-Object { $_ -match '^puerto = (\d+)$' } | Select-Object -First 1
-    $Puerto = if ($linea -match '(\d+)$') { [int]$Matches[1] } else { 8000 }
+  $seccion = ""; $lineas = @()
+  foreach ($l in (Get-Content $Ini)) {
+    if ($l -match '^\s*\[(.+)\]') {
+      $seccion = $Matches[1]; $lineas += $l
+      if ($seccion -eq "servidor" -and -not $PuertoIni) { $lineas += "puerto = $Puerto" }
+    } elseif ($seccion -eq "servidor" -and $l -match '^\s*puerto\s*=') {
+      $lineas += "puerto = $Puerto"
+    } else { $lineas += $l }
   }
-  Write-Host "Se conserva la configuración existente en $Ini (puerto $Puerto)"
+  $lineas | Set-Content $Ini -Encoding UTF8
+  Write-Host "Se conserva la configuración existente en $Ini; puerto $Puerto (antes $PuertoIni)"
 }
+
+# Acceso directo con el puerto real.
+"[InternetShortcut]`r`nURL=http://localhost:$Puerto/" | Set-Content -Path (Join-Path $Raiz "Costeo ABC Ambulancias.url") -Encoding ASCII
 
 Push-Location $App
 try {
@@ -113,6 +180,11 @@ Después de cambiar la clave puede borrar este archivo.
     Write-Host "Usuario admin creado. Credenciales en $Credenciales"
   } else {
     Write-Host "El usuario admin ya existía: no se cambió su clave"
+    if (Test-Path $Credenciales) {
+      # la dirección puede haber cambiado de puerto
+      (Get-Content $Credenciales) -replace '^Dirección:.*$', "Dirección:  http://localhost:$Puerto/   (desde otros equipos: http://$($env:COMPUTERNAME):$Puerto/)" |
+        Set-Content $Credenciales -Encoding UTF8
+    }
   }
 } finally {
   Pop-Location
@@ -140,7 +212,7 @@ if ($EsAdmin) {
   Write-Host "para que entren otros equipos, un administrador debe ejecutar scripts\habilitar_red.ps1."
 }
 
-Stop-ScheduledTask -TaskName "CosteoABC-Servidor" -ErrorAction SilentlyContinue
+Detener-Servidor
 Start-ScheduledTask -TaskName "CosteoABC-Servidor"
 
 $Ip = (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -notlike "127.*" -and $_.IPAddress -notlike "169.254.*" } | Select-Object -First 1).IPAddress

@@ -174,7 +174,7 @@ class ModeloCorregidoTests(unittest.TestCase):
 
     def test_parametros_del_modelo(self):
         self.assertAlmostEqual(D.TRIPULACION_DIA_MODELO, 457592.67015706806, places=6)
-        self.assertAlmostEqual(D.INDIRECTOS_DIA_MODELO, 32905.99737114326, places=6)
+        self.assertAlmostEqual(D.INDIRECTOS_DIA_MODELO, 34472.949626911985, places=6)
         self.assertAlmostEqual(sum(D.INDIRECTOS_MES_MODELO.values()), 21717958.264954552, places=4)
 
     def test_costo_diario_oeu846_igual_al_excel(self):

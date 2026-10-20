@@ -9,7 +9,7 @@ secret_key = cambie-esta-clave
 ; los cruces con RIPS dependen de ella.
 sal_documento = cambie-esta-sal
 debug = false
-puerto = 8000
+puerto = 8090
 host = 0.0.0.0
 hilos = 12
 ; Nombres o IP con que los usuarios entran (separados por coma). * = cualquiera en la red local.

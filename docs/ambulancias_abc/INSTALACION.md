@@ -3,7 +3,7 @@
 ## Arquitectura de despliegue
 
 ```
- Equipos de la red (navegador)  ──HTTP :8000──►  Servidor Windows (un equipo de la red)
+ Equipos de la red (navegador)  ──HTTP :8090──►  Servidor Windows (un equipo de la red)
                                                  ├─ waitress + Django (tarea programada al iniciar)
                                                  ├─ C:\ProgramData\CosteoABCAmbulancias\
                                                  │    ambulancias_abc.sqlite3  (base centralizada)
@@ -33,11 +33,13 @@ Requisitos: Windows 10/11 o Server 2016+ de 64 bits, 2 GB de RAM libres, IP fija
    - **crea el usuario `admin` con una clave aleatoria** y la guarda en `CREDENCIALES_ADMIN.txt` en la carpeta de datos (solo lo pueden leer quien instaló, los administradores y el sistema). Al terminar se abre ese archivo; también está en *Inicio › Costeo ABC Ambulancias › Usuario y clave inicial*;
    - para todos los usuarios: abre el puerto en el firewall (perfiles Dominio y Privado) y registra las tareas `CosteoABC-Servidor` (al iniciar Windows) y `CosteoABC-Respaldo` (diaria 23:00); solo para mí: las mismas tareas, ligadas a la sesión del usuario;
    - deja un acceso directo en el escritorio.
-4. Abra `http://localhost:8000/` (en el servidor) o `http://NOMBRE-DEL-SERVIDOR:8000/` (desde la red), ingrese con `admin` y la clave del archivo, y cámbiela en **Cambiar mi clave**.
+4. Abra `http://localhost:8090/` (en el servidor) o `http://NOMBRE-DEL-SERVIDOR:8090/` (desde la red), ingrese con `admin` y la clave del archivo, y cámbiela en **Cambiar mi clave**.
+
+**Puerto 8090 y otras aplicaciones del mismo equipo.** Hasta la versión 1.0.7 el puerto era el 8000, el mismo que suele usar la aplicación de auditoría de facturación (u otra aplicación Django): el acceso directo abría esa aplicación. Desde la 1.0.8 el instalador usa el **8090**; si está ocupado toma el siguiente libre, lo guarda en `ambulancias.ini`, actualiza el acceso directo del escritorio y la dirección en `CREDENCIALES_ADMIN.txt`. Una instalación anterior en 8000 se mueve sola al 8090 al actualizar. Las cookies de sesión tienen nombre propio (`costeoabc_sesion`), así que tener abiertas las dos aplicaciones en el mismo navegador ya no cierra la sesión de la otra. El servidor no arranca si su puerto ya lo atiende otro programa (queda registrado en el log).
 
 Instalación desatendida (sin ninguna ventana): `Instalador_...exe /VERYSILENT /ALLUSERS` (o `/CURRENTUSER`); `/PUERTO=8080` cambia el puerto.
 
-**Actualizar**: ejecute el instalador de la nueva versión sobre la anterior. Deje la clave en blanco para conservarla. La base, el `.ini` y los respaldos no se tocan; las migraciones se aplican solas.
+**Actualizar**: ejecute el instalador de la nueva versión sobre la anterior. La base, el `.ini` y los respaldos no se tocan; las migraciones se aplican solas.
 
 **Desinstalar**: Panel de control › Programas. Se quitan las tareas y la regla de firewall; `C:\ProgramData\CosteoABCAmbulancias` se conserva.
 
@@ -91,7 +93,7 @@ cp ambulancias.ini.ejemplo ambulancias.ini   # motor = postgresql, https = true,
                                             # allowed_hosts y csrf_trusted_origins con el dominio
 python manage.py migrate && python manage.py collectstatic --noinput
 python manage.py cargar_datos_iniciales && python manage.py crear_admin --clave '...'
-python servidor.py --host 127.0.0.1 --puerto 8000     # detrás de nginx/Caddy con HTTPS
+python servidor.py --host 127.0.0.1 --puerto 8090     # detrás de nginx/Caddy con HTTPS
 ```
 
 Programe `python manage.py respaldar_bd` con cron. Las mismas variables pueden darse por entorno (`ABC_SECRET_KEY`, `ABC_DB_MOTOR=postgresql`, `ABC_DB_HOST`, ...).

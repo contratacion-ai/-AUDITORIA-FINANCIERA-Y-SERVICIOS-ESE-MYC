@@ -24,7 +24,7 @@ Fuente principal: *Informe Técnico — Costo diario de operación de la flota d
 | Combustible | $/día por placa (Anexo A) | Galones certificados ajustados por factor de sede × precio de contrato ($23.650 gasolina, $18.500 ACPM) |
 | Mantenimiento | $/día por placa (Anexo A) | Repuestos y mano de obra 01/01–10/10/2026 ÷ 283 días |
 | Tripulación | **$457.592,67** por ambulancia/día (modelo corregido; el informe usaba $458.467) | Valor hora (salario ÷ 191 h) × horas/día: médico 7.500.000 × 6,4 h, auxiliar 2.754.000 × 6,3 h, conductor 3.500.000 × 6,3 h |
-| Indirectos | **$32.906** por ambulancia/día | Partidas del centro de costos ($21.717.958/mes: oficina, seguros, sentencias, otros gastos generales, financieros, depreciaciones, amortizaciones) ÷ 22 ambulancias ÷ 30 |
+| Indirectos | **$34.473** por ambulancia/día | Partidas del centro de costos ($21.717.958/mes: oficina, seguros, sentencias, otros gastos generales, financieros, depreciaciones, amortizaciones) ÷ 21 ambulancias ÷ 30 |
 | Gastos administrativos | **6,2 %** | Sobre el total de los recursos anteriores |
 
 ```
@@ -137,7 +137,7 @@ Los modelos editables (`Ambulancia`, `Parametro`, `Traslado`, `Consumo`) llevan 
 | `tripulacion_dia` | 457.592,67 | Modelo corregido, tabla TH | No |
 | `tripulacion_dia_informe` | 458.467 | Informe num. 4.4 (solo contraste) | No |
 | `tasa_gastos_admin` | 0,062 | Modelo corregido, E44 | No |
-| `ambulancias_reparto_indirectos` | 22 | Modelo corregido, F10 (el informe costea 21) | **Sí** |
+| `ambulancias_reparto_indirectos` | 21 | Modelo corregido, F10 (TOTAL AMBULANCIAS) | No |
 | `velocidad_flota_kmh` | 34,6 | Informe num. 4.5 | No |
 | `valor_km_tarifa` | 17.000 | Anexo 3, P8 | No |
 | `tarifa_traslado_basico` | 459.300 | Anexo 3, P9 | No |

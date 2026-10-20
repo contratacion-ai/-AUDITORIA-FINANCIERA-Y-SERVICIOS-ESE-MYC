@@ -73,7 +73,8 @@ class DatosInicialesTests(BaseCargada):
     def test_hallazgos_de_fuentes(self):
         tipos = set(HallazgoCalidad.objects.values_list("tipo", flat=True))
         self.assertTrue({"ERROR_FORMULA", "ENCABEZADO", "ESTUDIO", "SUPUESTO", "INCONSISTENCIA"} <= tipos)
-        self.assertTrue(HallazgoCalidad.objects.filter(descripcion__icontains="entre 22 ambulancias").exists())
+        self.assertTrue(HallazgoCalidad.objects.filter(descripcion__icontains="El Tigre").exists())
+        self.assertEqual(Parametro.objects.get(clave="ambulancias_reparto_indirectos").valor, Decimal("21"))
         self.assertTrue(HallazgoCalidad.objects.filter(descripcion__icontains="El Tigre").exists())
 
 
@@ -143,10 +144,10 @@ class CosteoTests(BaseCargada):
 
     def _pool_estandar(self):
         """Modelo corregido: (combustible + mantenimiento + tripulación TH) × días
-        + indirectos del centro de costos ÷ 22, todo con 6,2 % de gastos administrativos."""
+        + indirectos del centro de costos ÷ 21, todo con 6,2 % de gastos administrativos."""
         dias = 30
         trip = 457592.6702
-        ind_amb = sum(D.INDIRECTOS_MES_MODELO.values()) / 22
+        ind_amb = sum(D.INDIRECTOS_MES_MODELO.values()) / 21
         base = sum((c + m + trip) * dias + ind_amb for _p, _s, _c, _k, _h, c, m, *_r in D.ANEXO_A)
         return base * 1.062
 
@@ -168,7 +169,7 @@ class CosteoTests(BaseCargada):
 
     def test_indirectos_y_gastos_administrativos(self):
         r = calcular_mes(SEP, "REAL")
-        por_amb = 21717958.27 / 22
+        por_amb = 21717958.27 / 21
         self.assertAlmostEqual(r.ambulancias["OEU846"]["pool_indirectos"], por_amb, delta=0.05)
         self.assertAlmostEqual(r.indirectos, 21 * por_amb, delta=1)
         a = r.ambulancias["OEU846"]
@@ -178,7 +179,7 @@ class CosteoTests(BaseCargada):
         # Si se excluye una partida, baja el costo indirecto
         PartidaCostoIndirecto.objects.filter(concepto="SEGUROS").update(incluir_en_abc=False)
         r2 = calcular_mes(SEP, "REAL")
-        self.assertAlmostEqual(r.indirectos - r2.indirectos, 21 * 125610.51 / 22, delta=1)
+        self.assertAlmostEqual(r.indirectos - r2.indirectos, 125610.51, delta=1)
 
     def test_consolidado_filtros(self):
         total = consolidar(SEP, SEP)
@@ -192,7 +193,7 @@ class CosteoTests(BaseCargada):
     def test_matriz_rutas_usa_costo_por_km_del_estudio(self):
         filas = matriz_rutas("REAL", sede_codigo="tame", placa="OKZ365")
         arauca = next(f for f in filas if f["ruta"].destino == "ARAUCA")
-        base_dia = 206551 + 458376 + 457592.6702 + 21717958.27 / 22 / 30
+        base_dia = 206551 + 458376 + 457592.6702 + 21717958.27 / 21 / 30
         self.assertAlmostEqual(arauca["costo"], 194 * 2 * base_dia / 209.6 * 1.062, delta=1)
         self.assertEqual(arauca["tarifa"], 3298000)
 

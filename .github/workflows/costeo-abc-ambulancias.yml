@@ -56,11 +56,20 @@ jobs:
       - name: Probar instalador (para todos, silencioso, sin credenciales)
         shell: pwsh
         run: |
+          # Simula otra aplicación (p. ej. auditoría de facturación) ocupando el 8090:
+          # el instalador debe elegir otro puerto y no abrir esa aplicación.
+          $otra = Start-Process python -ArgumentList '-m','http.server','8090' -PassThru -WindowStyle Hidden
+          Start-Sleep 3
           $exe = (Get-ChildItem installer/windows/salida/*.exe | Select-Object -First 1).FullName
           $p = Start-Process $exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/ALLUSERS','/LOG=instalacion_todos.log' -Wait -PassThru
           if ($p.ExitCode -ne 0) { Get-Content instalacion_todos.log -Tail 50; throw "El instalador terminó con código $($p.ExitCode)" }
           $datos = "$env:ProgramData\CosteoABCAmbulancias"
-          ./installer/windows/probar_instalacion.ps1 -Url "http://localhost:8000" -DirDatos $datos
+          $puerto = (Select-String -Path "$datos\ambulancias.ini" -Pattern '^\s*puerto\s*=\s*(\d+)').Matches[0].Groups[1].Value
+          if ($puerto -eq "8090") { throw "El instalador tomó el puerto 8090 aunque estaba ocupado" }
+          $acceso = Get-Content "${env:ProgramFiles}\CosteoABCAmbulancias\Costeo ABC Ambulancias.url" -Raw
+          if ($acceso -notmatch ":$puerto/") { throw "El acceso directo no apunta al puerto $puerto" }
+          ./installer/windows/probar_instalacion.ps1 -DirDatos $datos
+          Stop-Process -Id $otra.Id -Force
           Start-Process "${env:ProgramFiles}\CosteoABCAmbulancias\unins000.exe" -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES' -Wait
           if (Get-ScheduledTask -TaskName "CosteoABC-Servidor" -ErrorAction SilentlyContinue) { throw "La desinstalación no quitó la tarea del servidor" }
           Write-Host "Instalación para todos los usuarios: OK"
@@ -105,6 +114,6 @@ jobs:
             1. Descargue `Instalador_CosteoABC_Ambulancias_*.exe` y ejecútelo en el equipo servidor. No pide usuario ni contraseña.
             2. Elija "Para todos los usuarios" (servidor para toda la red) o "Solo para mí" (sin permisos de administrador).
             3. Al terminar se muestra el usuario `admin` y su clave inicial (archivo CREDENCIALES_ADMIN.txt). Cámbiela al ingresar.
-            4. Desde cualquier equipo de la red abra `http://NOMBRE-DEL-SERVIDOR:8000/`.
+            4. Desde cualquier equipo de la red abra `http://NOMBRE-DEL-SERVIDOR:8090/` (o el puerto que indique CREDENCIALES_ADMIN.txt; si el 8090 está ocupado por otra aplicación, como la de auditoría de facturación, el instalador toma el siguiente libre).
 
             Documentación: carpeta `docs` del programa instalado o `docs/ambulancias_abc/` del repositorio.

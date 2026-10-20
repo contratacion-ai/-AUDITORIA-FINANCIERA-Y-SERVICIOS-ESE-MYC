@@ -73,7 +73,8 @@ Type: filesandordirs; Name: "{app}\app"
 Type: files; Name: "{app}\Costeo ABC Ambulancias.url"
 
 [Code]
-{ Puerto: /PUERTO=nnnn en la línea de comandos, o el de una instalación previa, o 8000. }
+{ Puerto: /PUERTO=nnnn en la línea de comandos, o el que dejó configurar.ps1 en
+  ambulancias.ini (puede ser otro si el pedido estaba ocupado), o 8090. }
 function Puerto(Param: String): String;
 var
   Ini: String;
@@ -82,10 +83,10 @@ begin
   if Result = '' then
   begin
     Ini := ExpandConstant('{autoappdata}\CosteoABCAmbulancias\ambulancias.ini');
-    Result := Trim(GetIniString('servidor', 'puerto', '8000', Ini));
+    Result := Trim(GetIniString('servidor', 'puerto', '8090', Ini));
   end;
   if StrToIntDef(Result, 0) = 0 then
-    Result := '8000';
+    Result := '8090';
 end;
 
 function Modo(Param: String): String;

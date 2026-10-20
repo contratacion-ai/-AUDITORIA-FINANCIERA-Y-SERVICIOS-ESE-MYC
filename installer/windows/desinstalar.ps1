@@ -1,4 +1,4 @@
-# Lo ejecuta el desinstalador. Quita tareas programadas y la regla de firewall.
+﻿# Lo ejecuta el desinstalador. Quita tareas programadas y la regla de firewall.
 # NO borra C:\ProgramData\CosteoABCAmbulancias (base de datos y respaldos).
 $ErrorActionPreference = "SilentlyContinue"
 Stop-ScheduledTask -TaskName "CosteoABC-Servidor"

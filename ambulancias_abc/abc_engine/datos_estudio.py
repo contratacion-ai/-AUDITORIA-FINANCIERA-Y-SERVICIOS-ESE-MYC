@@ -116,12 +116,12 @@ INDIRECTOS_MES_MODELO = {
     "DEPRECIACIONES": 8129347.16557187,
     "AMORTIZACIONES": 163385.58964451315,
 }
-AMBULANCIAS_REPARTO_MODELO = 22  # "TOTAL AMBULANCIAS" del modelo (el estudio tiene 21)
-INDIRECTOS_DIA_MODELO = sum(INDIRECTOS_MES_MODELO.values()) / AMBULANCIAS_REPARTO_MODELO / 30  # 32.906
+AMBULANCIAS_REPARTO_MODELO = 21  # "TOTAL AMBULANCIAS" del modelo (versión del 20/10/2026; antes 22)
+INDIRECTOS_DIA_MODELO = sum(INDIRECTOS_MES_MODELO.values()) / AMBULANCIAS_REPARTO_MODELO / 30  # 34.473
 TASA_ADMIN_MODELO = 0.062  # gastos administrativos sobre el total de costos
 
 # Correcciones a datos del Anexo A que trae el modelo
 CORRECCIONES_ANEXO_A = {"OKZ364": {"horas_dia": 1 / 3}}  # el informe redondea a 0,2 h/día
 
 # Valores del modelo para verificar el motor (celdas G43, G44 y G45 con OEU846)
-MODELO_OEU846 = {"costos_sin_admin": 1484850.667528211, "admin": 92060.74138674907, "total": 1576911.40891496}
+MODELO_OEU846 = {"costos_sin_admin": 1486417.6197839803, "admin": 92157.89242660678, "total": 1578575.512210587}

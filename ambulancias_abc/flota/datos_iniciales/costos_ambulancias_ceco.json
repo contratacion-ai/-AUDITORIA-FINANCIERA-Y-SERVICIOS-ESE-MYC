@@ -74,7 +74,7 @@
   }
  ],
  "parametros": {
-  "ambulancias_reparto_indirectos": 22.0,
+  "ambulancias_reparto_indirectos": 21.0,
   "tasa_gastos_admin": 0.062,
   "tripulacion_dia": 457592.6702
  },
@@ -252,14 +252,6 @@
  "hallazgos": [
   {
    "fuente": "COSTOS AMBULANCIAS.xlsx",
-   "ubicacion": "MODELO COSTOS ABC PARAMETRO!F10",
-   "tipo": "SUPUESTO",
-   "descripcion": "El modelo reparte los costos indirectos entre 22 ambulancias; el informe técnico costea 21. La parte de la unidad adicional (1/22) no se asigna a la flota costeada. Ajustable en el parámetro ambulancias_reparto_indirectos.",
-   "severidad": "MEDIA",
-   "valor": "22.0"
-  },
-  {
-   "fuente": "COSTOS AMBULANCIAS.xlsx",
    "ubicacion": "MODELO COSTOS ABC PARAMETRO!F44",
    "tipo": "FORMULA",
    "descripcion": "La fórmula '=F43*E44+F43' suma el costo base al recargo; la celda vecina calcula solo el 6.2%. La aplicación aplica el 6.2% sobre el total de costos.",
@@ -283,5 +275,5 @@
    "valor": ""
   }
  ],
- "n_ambulancias": 22.0
+ "n_ambulancias": 21.0
 }

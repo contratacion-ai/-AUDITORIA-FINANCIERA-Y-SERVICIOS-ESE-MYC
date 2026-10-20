@@ -21,7 +21,10 @@ Qué hace el instalador:
   - Programa el servidor al iniciar Windows y un respaldo diario a las 23:00
 
 Después de instalar, desde cualquier equipo de la red abra:
-  http://NOMBRE-DE-ESTE-EQUIPO:8000/
+  http://NOMBRE-DE-ESTE-EQUIPO:8090/
+(si el 8090 lo usa otra aplicación, por ejemplo la de auditoría de facturación,
+el instalador toma el siguiente puerto libre; use el acceso directo del escritorio
+o la dirección que indica CREDENCIALES_ADMIN.txt)
 
 Documentación completa: carpeta "docs" del programa
   INSTALACION.md        instalación, usuarios, respaldo y restauración

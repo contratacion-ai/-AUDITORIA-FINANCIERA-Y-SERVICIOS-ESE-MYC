@@ -1,4 +1,4 @@
-<#
+﻿<#
   Construye el instalador de Windows (Instalador_CosteoABC_Ambulancias_<version>.exe).
 
   Requisitos en el equipo de construcción (Windows 10/11 x64):

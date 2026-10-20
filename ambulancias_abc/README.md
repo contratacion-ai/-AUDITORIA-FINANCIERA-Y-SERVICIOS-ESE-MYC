@@ -22,7 +22,7 @@ pip install -r requirements.txt
 python manage.py migrate
 python manage.py cargar_datos_iniciales
 python manage.py crear_admin --clave 'Clave-Desarrollo-1'
-python servidor.py            # http://localhost:8000
+python servidor.py            # http://localhost:8090
 python manage.py test         # pruebas
 ```
 
