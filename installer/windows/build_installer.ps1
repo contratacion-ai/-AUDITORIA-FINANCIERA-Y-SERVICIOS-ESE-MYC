@@ -56,7 +56,7 @@ if ($LASTEXITCODE -ge 8) { throw "Falló la copia de la aplicación" }
 
 # 4. Scripts y documentación
 New-Item -ItemType Directory -Force -Path (Join-Path $Build "scripts"), (Join-Path $Build "docs") | Out-Null
-Copy-Item (Join-Path $Aqui "configurar.ps1"), (Join-Path $Aqui "desinstalar.ps1"), (Join-Path $Aqui "habilitar_red.ps1"), (Join-Path $Aqui "probar_instalacion.ps1") (Join-Path $Build "scripts")
+Copy-Item (Join-Path $Aqui "configurar.ps1"), (Join-Path $Aqui "desinstalar.ps1"), (Join-Path $Aqui "habilitar_red.ps1"), (Join-Path $Aqui "probar_instalacion.ps1"), (Join-Path $Aqui "credenciales.ps1"), (Join-Path $Aqui "restablecer_admin.ps1") (Join-Path $Build "scripts")
 Copy-Item (Join-Path $Repo "docs\ambulancias_abc\*") (Join-Path $Build "docs")
 
 # 5. Verificación rápida con el Python embebido

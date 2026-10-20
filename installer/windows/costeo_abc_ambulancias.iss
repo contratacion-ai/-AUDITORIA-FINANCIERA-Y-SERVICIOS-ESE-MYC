@@ -53,6 +53,7 @@ Name: "{autodesktop}\Costeo ABC Ambulancias"; Filename: "{app}\Costeo ABC Ambula
 Name: "{group}\Respaldar base de datos ahora"; Filename: "{app}\python\python.exe"; Parameters: "manage.py respaldar_bd"; WorkingDir: "{app}\app"
 Name: "{group}\Documentación"; Filename: "{app}\docs"
 Name: "{group}\Usuario y clave inicial"; Filename: "{autoappdata}\CosteoABCAmbulancias\CREDENCIALES_ADMIN.txt"
+Name: "{group}\Restablecer clave del administrador"; Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\scripts\restablecer_admin.ps1"" -DirDatos ""{autoappdata}\CosteoABCAmbulancias"""
 Name: "{group}\Habilitar acceso desde la red (requiere administrador)"; Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\scripts\habilitar_red.ps1"""; Check: not IsAdminInstallMode
 Name: "{group}\Desinstalar"; Filename: "{uninstallexe}"
 

@@ -313,6 +313,29 @@ class VistasTests(BaseCargada):
         call_command("crear_admin", usuario="otro", clave="Otra-Clave-99", si_no_existe=True, stdout=salida)
         self.assertIn("CREADO", salida.getvalue())
 
+    def test_crear_admin_si_nunca_ingreso_sincroniza_clave_del_archivo(self):
+        from io import StringIO
+
+        from django.contrib.auth import get_user_model
+        from django.core.management import call_command
+
+        otro = get_user_model().objects.create_user("otro", password="Clave-Vieja-1", is_active=False)
+        call_command("crear_admin", usuario="otro", clave="Clave-Archivo-9", si_nunca_ingreso=True, stdout=StringIO())
+        otro.refresh_from_db()
+        self.assertTrue(otro.check_password("Clave-Archivo-9"))
+        self.assertTrue(otro.is_active)
+        # el admin de la prueba ya ingresó (force_login): no se toca su clave
+        self.admin.refresh_from_db()
+        self.assertIsNotNone(self.admin.last_login)
+        salida = StringIO()
+        call_command("crear_admin", usuario="admin", clave="Clave-Archivo-9", si_nunca_ingreso=True, stdout=salida)
+        self.assertIn("EXISTE", salida.getvalue())
+        self.admin.refresh_from_db()
+        self.assertTrue(self.admin.check_password("Clave-Prueba-1"))
+        salida = StringIO()
+        call_command("crear_admin", usuario="admin", clave="Clave-Prueba-1", si_nunca_ingreso=True, stdout=salida)
+        self.assertIn("VIGENTE", salida.getvalue())
+
     def test_requiere_login(self):
         self.client.logout()
         self.assertEqual(self.client.get(reverse("flota:dashboard")).status_code, 302)

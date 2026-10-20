@@ -91,6 +91,8 @@ function Aleatorio([int]$n) {
   return [Convert]::ToBase64String($bytes).Replace("+", "-").Replace("/", "_").TrimEnd("=")
 }
 
+. (Join-Path $PSScriptRoot "credenciales.ps1")
+
 # Puerto deseado: el indicado, el de la instalación anterior o el por defecto.
 # Solo la sección [servidor]: [base_datos] también tiene "puerto" (PostgreSQL).
 function Puerto-Ini {
@@ -160,31 +162,32 @@ try {
   if ($LASTEXITCODE -ne 0) { throw "Falló la carga de datos iniciales" }
 
   # Usuario administrador con clave aleatoria: solo si todavía no existe.
-  $Clave = "Abc-" + (Aleatorio 12)
-  $salida = & $Python manage.py crear_admin --usuario admin --clave $Clave --si-no-existe
+  # Si ya hay un archivo de credenciales y el admin nunca ha ingresado, se le
+  # pone la clave del archivo: así el archivo siempre sirve para el primer
+  # ingreso (versiones anteriores podían dejarlo desfasado). Si el admin ya
+  # ingresó alguna vez, su clave no se toca.
+  $ClaveArchivo = $null
+  if (Test-Path $Credenciales) {
+    $m = Select-String -Path $Credenciales -Pattern '^Clave:\s+(Abc-\S+)' | Select-Object -First 1
+    if ($m) { $ClaveArchivo = $m.Matches[0].Groups[1].Value }
+  }
+  if ($ClaveArchivo) {
+    $Clave = $ClaveArchivo
+    $salida = & $Python manage.py crear_admin --usuario admin --clave $Clave --si-nunca-ingreso
+  } else {
+    $Clave = "Abc-" + (Aleatorio 12)
+    $salida = & $Python manage.py crear_admin --usuario admin --clave $Clave --si-no-existe
+  }
   if ($LASTEXITCODE -ne 0) { throw "No se pudo crear el usuario admin" }
-  if ("$salida" -match "CREADO") {
-    @"
-COSTEO ABC AMBULANCIAS - ACCESO INICIAL
-=======================================
-Dirección:  http://localhost:$Puerto/   (desde otros equipos: http://$($env:COMPUTERNAME):$Puerto/)
-Usuario:    admin
-Clave:      $Clave
-
-Al ingresar, cambie la clave en "Cambiar mi clave" (parte superior derecha)
-y cree un usuario para cada persona en Administración > Usuarios.
-Después de cambiar la clave puede borrar este archivo.
-"@ | Set-Content -Path $Credenciales -Encoding UTF8
-    # Solo el usuario que instaló, los administradores y SYSTEM pueden leerlo.
-    icacls $Credenciales /inheritance:r /grant:r "$($env:USERNAME):(R,W,D)" "*S-1-5-32-544:(F)" "*S-1-5-18:(F)" | Out-Null
-    Write-Host "Usuario admin creado. Credenciales en $Credenciales"
+  if ("$salida" -match "CREADO|ACTUALIZADO|VIGENTE") {
+    Escribir-Credenciales $Credenciales $Clave $Puerto
+    Write-Host "Usuario admin listo. Credenciales en $Credenciales"
+  } elseif ($ClaveArchivo) {
+    # el admin ya cambió su clave: solo se corrige la dirección del archivo
+    Escribir-Credenciales $Credenciales "(la cambió el administrador; si la olvidó use 'Restablecer clave del administrador')" $Puerto
+    Write-Host "El usuario admin ya había ingresado: no se cambió su clave"
   } else {
     Write-Host "El usuario admin ya existía: no se cambió su clave"
-    if (Test-Path $Credenciales) {
-      # la dirección puede haber cambiado de puerto
-      (Get-Content $Credenciales) -replace '^Dirección:.*$', "Dirección:  http://localhost:$Puerto/   (desde otros equipos: http://$($env:COMPUTERNAME):$Puerto/)" |
-        Set-Content $Credenciales -Encoding UTF8
-    }
   }
 } finally {
   Pop-Location
