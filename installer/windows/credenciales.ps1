@@ -18,7 +18,10 @@ Al ingresar, cambie la clave en "Cambiar mi clave" (parte superior derecha)
 y cree un usuario para cada persona en Administración > Usuarios.
 Si olvida la clave: Inicio > Costeo ABC Ambulancias > Restablecer clave del administrador.
 "@
-  if (Test-Path $Archivo) { Remove-Item $Archivo -Force }
+  if (Test-Path $Archivo) {
+    icacls $Archivo /reset | Out-Null
+    Remove-Item $Archivo -Force
+  }
   [System.IO.File]::WriteAllText($Archivo, $texto, (New-Object System.Text.UTF8Encoding($true)))
   # Solo el usuario que instaló, los administradores y SYSTEM pueden leerlo.
   icacls $Archivo /inheritance:r /grant:r "$($env:USERNAME):(R,W,D)" "*S-1-5-32-544:(F)" "*S-1-5-18:(F)" | Out-Null

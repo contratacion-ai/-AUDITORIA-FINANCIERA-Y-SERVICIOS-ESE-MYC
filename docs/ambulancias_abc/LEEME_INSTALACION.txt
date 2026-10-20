@@ -10,8 +10,9 @@ No se pide usuario ni contraseña. Al iniciar elija:
   - "Solo para mí": no pide credenciales; funciona en este equipo. Para abrirlo a la
     red, un administrador ejecuta luego "Habilitar acceso desde la red".
 
-El usuario "admin" de la aplicación se crea con una clave aleatoria que se muestra
-al terminar (archivo CREDENCIALES_ADMIN.txt). Cámbiela al ingresar.
+Cada instalación genera una clave NUEVA para el usuario "admin". Se muestra al
+terminar y queda en el escritorio: "USUARIO Y CLAVE - Costeo ABC Ambulancias.txt"
+(también en CREDENCIALES_ADMIN.txt). Cámbiela al ingresar.
 
 Qué hace el instalador:
   - Instala Python embebido y la aplicación en C:\Program Files\CosteoABCAmbulancias

@@ -70,9 +70,12 @@ jobs:
           if ($acceso -notmatch ":$puerto/") { throw "El acceso directo no apunta al puerto $puerto" }
           ./installer/windows/probar_instalacion.ps1 -DirDatos $datos
           Stop-Process -Id $otra.Id -Force
-          # Actualización sobre la misma versión: el archivo de credenciales debe seguir sirviendo.
+          if (-not (Test-Path "$([Environment]::GetFolderPath('Desktop'))\USUARIO Y CLAVE - Costeo ABC Ambulancias.txt")) { throw "No se dejó el usuario y la clave en el escritorio" }
+          # Actualización: genera una clave nueva y con ella se ingresa.
+          $antes = Get-Content "$datos\CREDENCIALES_ADMIN.txt" -Raw
           $p = Start-Process $exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/ALLUSERS','/LOG=actualizacion.log' -Wait -PassThru
           if ($p.ExitCode -ne 0) { Get-Content actualizacion.log -Tail 50; throw "La actualización terminó con código $($p.ExitCode)" }
+          if ((Get-Content "$datos\CREDENCIALES_ADMIN.txt" -Raw) -eq $antes) { throw "La actualización no generó clave nueva" }
           ./installer/windows/probar_instalacion.ps1 -DirDatos $datos
           # Restablecer clave del administrador: genera una nueva y con ella se ingresa.
           $antes = Get-Content "$datos\CREDENCIALES_ADMIN.txt" -Raw

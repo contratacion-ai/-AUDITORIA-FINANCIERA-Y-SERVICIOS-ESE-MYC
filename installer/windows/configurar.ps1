@@ -15,8 +15,9 @@
    1. Crea la carpeta de datos y ambulancias.ini con claves aleatorias (solo la
       primera vez; conserva la sal y el puerto en las actualizaciones).
    2. Migra la base de datos y carga los datos iniciales (idempotente).
-   3. Crea el usuario "admin" con una clave aleatoria (solo si no existe) y la
-      guarda en CREDENCIALES_ADMIN.txt dentro de la carpeta de datos.
+   3. Crea el usuario "admin" (o le pone una clave nueva si ya existe) y guarda
+      usuario y clave en CREDENCIALES_ADMIN.txt (carpeta de datos) y en el
+      escritorio de quien instala.
    4. Firewall (solo con administrador) y tareas programadas.
 
   Puerto: por defecto 8090. Si el puerto pedido lo usa otra aplicación (por
@@ -161,34 +162,18 @@ try {
   & $Python manage.py cargar_datos_iniciales
   if ($LASTEXITCODE -ne 0) { throw "Falló la carga de datos iniciales" }
 
-  # Usuario administrador con clave aleatoria: solo si todavía no existe.
-  # Si ya hay un archivo de credenciales y el admin nunca ha ingresado, se le
-  # pone la clave del archivo: así el archivo siempre sirve para el primer
-  # ingreso (versiones anteriores podían dejarlo desfasado). Si el admin ya
-  # ingresó alguna vez, su clave no se toca.
-  $ClaveArchivo = $null
-  if (Test-Path $Credenciales) {
-    $m = Select-String -Path $Credenciales -Pattern '^Clave:\s+(Abc-\S+)' | Select-Object -First 1
-    if ($m) { $ClaveArchivo = $m.Matches[0].Groups[1].Value }
-  }
-  if ($ClaveArchivo) {
-    $Clave = $ClaveArchivo
-    $salida = & $Python manage.py crear_admin --usuario admin --clave $Clave --si-nunca-ingreso
-  } else {
-    $Clave = "Abc-" + (Aleatorio 12)
-    $salida = & $Python manage.py crear_admin --usuario admin --clave $Clave --si-no-existe
-  }
+  # Cada instalación (o actualización) genera una clave nueva para "admin" y la
+  # deja en CREDENCIALES_ADMIN.txt y en una copia en el escritorio de quien
+  # instala: así siempre se tiene un usuario y una clave que funcionan.
+  $Clave = "Abc-" + (Aleatorio 12)
+  & $Python manage.py crear_admin --usuario admin --clave $Clave
   if ($LASTEXITCODE -ne 0) { throw "No se pudo crear el usuario admin" }
-  if ("$salida" -match "CREADO|ACTUALIZADO|VIGENTE") {
-    Escribir-Credenciales $Credenciales $Clave $Puerto
-    Write-Host "Usuario admin listo. Credenciales en $Credenciales"
-  } elseif ($ClaveArchivo) {
-    # el admin ya cambió su clave: solo se corrige la dirección del archivo
-    Escribir-Credenciales $Credenciales "(la cambió el administrador; si la olvidó use 'Restablecer clave del administrador')" $Puerto
-    Write-Host "El usuario admin ya había ingresado: no se cambió su clave"
-  } else {
-    Write-Host "El usuario admin ya existía: no se cambió su clave"
+  Escribir-Credenciales $Credenciales $Clave $Puerto
+  $Escritorio = [Environment]::GetFolderPath("Desktop")
+  if ($Escritorio) {
+    Copy-Item $Credenciales (Join-Path $Escritorio "USUARIO Y CLAVE - Costeo ABC Ambulancias.txt") -Force -ErrorAction SilentlyContinue
   }
+  Write-Host "Usuario admin con clave nueva. Credenciales en $Credenciales y en el escritorio"
 } finally {
   Pop-Location
 }

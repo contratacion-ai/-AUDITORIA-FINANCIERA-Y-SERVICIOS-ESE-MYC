@@ -45,6 +45,10 @@ try {
 
 $Credenciales = Join-Path $DirDatos "CREDENCIALES_ADMIN.txt"
 Escribir-Credenciales $Credenciales $Clave $Puerto
+$Escritorio = [Environment]::GetFolderPath("Desktop")
+if ($Escritorio) {
+  Copy-Item $Credenciales (Join-Path $Escritorio "USUARIO Y CLAVE - Costeo ABC Ambulancias.txt") -Force -ErrorAction SilentlyContinue
+}
 Write-Host "Clave del usuario admin restablecida. Ver $Credenciales"
 if (-not $SinAbrir) {
   Start-Process notepad.exe -ArgumentList "`"$Credenciales`""
