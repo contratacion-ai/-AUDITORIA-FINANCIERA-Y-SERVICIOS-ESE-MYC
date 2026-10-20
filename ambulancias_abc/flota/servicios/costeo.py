@@ -49,8 +49,22 @@ def precios_vigentes(pars=None) -> Precios:
     return Precios(gasolina=float(pars["precio_gasolina"]), acpm=float(pars["precio_acpm"]))
 
 
+def indirectos_mes_incluidos() -> float:
+    """Partidas del centro de costos marcadas para el ABC ($/mes, toda la flota)."""
+    return float(PartidaCostoIndirecto.objects.filter(incluir_en_abc=True).aggregate(v=Sum("valor_mensual"))["v"] or 0)
+
+
+def indirectos_por_ambulancia_mes(pars=None) -> float:
+    """Modelo corregido: partidas incluidas ÷ número de ambulancias del reparto."""
+    pars = pars or parametros()
+    n = float(pars["ambulancias_reparto_indirectos"]) or 1.0
+    return indirectos_mes_incluidos() / n
+
+
 def perfiles_vigentes(pars=None) -> dict[str, PerfilAmbulancia]:
     pars = pars or parametros()
+    indirectos_dia = indirectos_por_ambulancia_mes(pars) / 30.0
+    tasa_admin = float(pars["tasa_gastos_admin"])
     perfiles = {}
     qs = PerfilCostoEstudio.objects.filter(vigente=True).select_related("ambulancia__sede").order_by("ambulancia__placa", "-fecha_estudio")
     for p in qs:
@@ -68,6 +82,8 @@ def perfiles_vigentes(pars=None) -> dict[str, PerfilAmbulancia]:
             # la tripulación se toma del parámetro vigente (un solo valor para la flota)
             tripulacion_dia=float(pars["tripulacion_dia"]),
             excluida_promedios=a.excluida_promedios,
+            indirectos_dia=indirectos_dia,
+            tasa_admin=tasa_admin,
         )
     return perfiles
 
@@ -101,7 +117,8 @@ class ResultadoMes:
     filas: list[dict] = field(default_factory=list)  # una por (traslado, ambulancia)
     ambulancias: dict[str, dict] = field(default_factory=dict)
     fuente_pool: dict[str, dict[str, str]] = field(default_factory=dict)  # placa -> actividad -> REAL/ESTANDAR
-    indirectos: float = 0.0
+    indirectos: float = 0.0  # suma de los indirectos de las ambulancias (informativo)
+    tasa_admin: float = 0.0
     total_pool: float = 0.0
     total_asignado: float = 0.0
     total_no_utilizado: float = 0.0
@@ -117,6 +134,7 @@ def calcular_mes(mes: dt.date, metodo: str = METODO_REAL) -> ResultadoMes:
     res = ResultadoMes(mes=mes, metodo=metodo, dias=dias)
 
     reales = consumos_del_mes(mes)
+    indirectos_amb = indirectos_por_ambulancia_mes(pars)
 
     pools, tipos = [], {}
     for amb in Ambulancia.objects.select_related("sede").exclude(estado=Ambulancia.FUERA):
@@ -131,6 +149,7 @@ def calcular_mes(mes: dt.date, metodo: str = METODO_REAL) -> ResultadoMes:
             "combustible": perfil.combustible_dia * dias if perfil else 0.0,
             "mantenimiento": perfil.mantenimiento_dia * dias if perfil else 0.0,
             "tripulacion": float(pars["tripulacion_dia"]) * dias,
+            "indirectos": indirectos_amb,
             "insumos": 0.0,
             "otros": 0.0,
         }
@@ -140,7 +159,7 @@ def calcular_mes(mes: dt.date, metodo: str = METODO_REAL) -> ResultadoMes:
                 fuentes[act] = "REAL"
             elif amb.incluir_en_costeo:
                 setattr(pool, act, valor_estandar)
-                fuentes[act] = "ESTANDAR" if valor_estandar else "-"
+                fuentes[act] = ("CENTRO_COSTOS" if act == "indirectos" else "ESTANDAR") if valor_estandar else "-"
             else:
                 fuentes[act] = "-"
         pools.append(pool)
@@ -153,18 +172,18 @@ def calcular_mes(mes: dt.date, metodo: str = METODO_REAL) -> ResultadoMes:
         TrasladoDriver(id=str(t.pk), sede=t.sede.codigo, placa=t.ambulancia.placa if t.ambulancia_id else None, km=float(t.km_recorridos))
         for t in traslados
     ]
-    res.indirectos = float(
-        PartidaCostoIndirecto.objects.filter(incluir_en_abc=True).aggregate(v=Sum("valor_mensual"))["v"] or 0
-    )
+    # Indirectos ya incluidos en el costo de cada ambulancia (modelo corregido).
+    res.indirectos = sum(p.indirectos for p in pools)
+    res.tasa_admin = float(pars["tasa_gastos_admin"])
     r = asignar_periodo(
         pools,
         drivers,
         perfiles,
         precios,
         metodo,
-        indirectos=res.indirectos,
         velocidad_flota_kmh=float(pars["velocidad_flota_kmh"]),
         tipos_combustible=tipos,
+        tasa_admin=res.tasa_admin,
     )
     res.avisos = r.avisos
     res.total_pool = r.total_pool
@@ -196,7 +215,7 @@ def calcular_mes(mes: dt.date, metodo: str = METODO_REAL) -> ResultadoMes:
                     "linea": peso,
                     "ingreso": float(t.valor_facturado) * peso,
                     "costo": costo.get("total", 0.0),
-                    **{f"costo_{k}": costo.get(k, 0.0) for k in ("combustible", "mantenimiento", "tripulacion", "insumos", "otros", "indirectos")},
+                    **{f"costo_{k}": costo.get(k, 0.0) for k in ("combustible", "mantenimiento", "tripulacion", "indirectos", "administracion", "insumos", "otros")},
                 }
             )
     return res
@@ -204,7 +223,7 @@ def calcular_mes(mes: dt.date, metodo: str = METODO_REAL) -> ResultadoMes:
 
 def _sumar(destino: dict, fila: dict):
     for k in ("km", "traslado", "linea", "ingreso", "costo", "costo_combustible", "costo_mantenimiento",
-              "costo_tripulacion", "costo_insumos", "costo_otros", "costo_indirectos"):
+              "costo_tripulacion", "costo_insumos", "costo_otros", "costo_indirectos", "costo_administracion"):
         destino[k] = destino.get(k, 0.0) + fila.get(k, 0.0)
 
 
@@ -213,7 +232,8 @@ def _cerrar(d: dict) -> dict:
     d["rentabilidad"] = (d["margen"] / d["ingreso"] * 100) if d.get("ingreso") else None
     d["costo_km"] = d["costo"] / d["km"] if d.get("km") else None
     d["costo_traslado"] = d["costo"] / d["traslado"] if d.get("traslado") else None
-    d["costo_otros_total"] = d.get("costo_insumos", 0.0) + d.get("costo_otros", 0.0) + d.get("costo_indirectos", 0.0)
+    d["costo_otros_total"] = d.get("costo_insumos", 0.0) + d.get("costo_otros", 0.0)
+    d["costo_ind_admin"] = d.get("costo_indirectos", 0.0) + d.get("costo_administracion", 0.0)
     return d
 
 
@@ -256,9 +276,6 @@ def consolidar(desde: dt.date, hasta: dt.date, metodo=METODO_REAL, filtros: dict
             a["no_utilizado"] += fila["no_utilizado_total"]
             for act, f in r.fuente_pool.get(placa, {}).items():
                 fuentes[placa].add(f"{act}:{f}")
-        if not filtros.get("placa") and not filtros.get("sede"):
-            pool_total += r.indirectos
-            m["pool"] += r.indirectos
         for fila in r.filas:
             if filtros.get("placa") and fila["placa"] != filtros["placa"]:
                 continue

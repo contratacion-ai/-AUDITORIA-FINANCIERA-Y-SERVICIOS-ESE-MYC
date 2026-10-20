@@ -112,6 +112,8 @@ def leer_anexo_traslados(ruta_o_archivo, vigencia: int = 2026, nombre_fuente: st
         km = ws_v.cell(r, col_km).value
         a_norm = normalizar(a_txt)
 
+        if a_norm == "ORIGEN":
+            continue  # encabezado repetido (versión depurada del anexo)
         if a_norm.startswith("NOTA"):
             if "KILOMETRO" in a_norm or "KM" in a_norm:
                 hallazgos.append(

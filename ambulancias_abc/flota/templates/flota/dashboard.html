@@ -73,7 +73,8 @@
 
 {% if ind %}
 <div class="panel">
-  <h2>Indicadores del estudio (perfil diario, {{ ind.n_ambulancias }} ambulancias sin excluidas)</h2>
+  <h2>Indicadores del perfil diario · modelo ABC corregido ({{ ind.n_ambulancias }} ambulancias sin excluidas)</h2>
+  <p class="suave">Incluye tripulación por horas de cada cargo, indirectos del centro de costos y gastos administrativos. Ver <a href="{% url 'flota:parametros' %}">parámetros del modelo</a>.</p>
   <table>
     <tr><th>Indicador</th><th class="n">Menor</th><th class="n">Mayor</th><th class="n">Promedio</th></tr>
     <tr><td>Recorrido (km/día)</td><td class="n">{{ ind.km_dia.min|num:1 }} ({{ ind.km_dia.min_placa }})</td><td class="n">{{ ind.km_dia.max|num:1 }} ({{ ind.km_dia.max_placa }})</td><td class="n">{{ ind.km_dia.promedio|num:1 }}</td></tr>

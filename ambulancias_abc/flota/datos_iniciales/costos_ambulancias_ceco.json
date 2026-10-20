@@ -1,156 +1,287 @@
 {
  "partidas": [
   {
-   "categoria": "COSTOS PERSONAL",
-   "concepto": "CONTRATO DIRECTO (AUXILIAR)",
-   "valor_mensual": 74256355.67,
-   "ubicacion": "AMBULANCIAS!E13"
-  },
-  {
-   "categoria": "COSTOS PERSONAL",
-   "concepto": "CONTRATO CON TERCEROS (ESPECIALISTA)",
-   "valor_mensual": 2574016.0,
-   "ubicacion": "AMBULANCIAS!E14"
-  },
-  {
    "categoria": "COSTOS GENERALES",
    "concepto": "ELEMENTOS DE CONSUMO DE OFICINA",
    "valor_mensual": 1174036.85,
-   "ubicacion": "AMBULANCIAS!E23"
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!E25",
+   "incluir_en_abc": true
   },
   {
    "categoria": "COSTOS GENERALES",
    "concepto": "SEGUROS",
    "valor_mensual": 125610.51,
-   "ubicacion": "AMBULANCIAS!E24"
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!E26",
+   "incluir_en_abc": true
   },
   {
    "categoria": "COSTOS GENERALES",
    "concepto": "SENTENCIAS JUDICIALES",
    "valor_mensual": 1990567.74,
-   "ubicacion": "AMBULANCIAS!E28"
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!E30",
+   "incluir_en_abc": true
   },
   {
    "categoria": "COSTOS GENERALES",
    "concepto": "OTROS GASTOS GENERALES",
    "valor_mensual": 10124950.41,
-   "ubicacion": "AMBULANCIAS!E35"
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!E37",
+   "incluir_en_abc": true
   },
   {
    "categoria": "COSTOS GENERALES",
    "concepto": "FINANCIEROS",
    "valor_mensual": 10060.0,
-   "ubicacion": "AMBULANCIAS!E36"
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!E38",
+   "incluir_en_abc": true
   },
   {
    "categoria": "ESTIMACIONES CONTABLES",
    "concepto": "DEPRECIACIONES",
    "valor_mensual": 8129347.17,
-   "ubicacion": "AMBULANCIAS!E38"
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!E40",
+   "incluir_en_abc": true
   },
   {
    "categoria": "ESTIMACIONES CONTABLES",
    "concepto": "AMORTIZACIONES",
    "valor_mensual": 163385.59,
-   "ubicacion": "AMBULANCIAS!E39"
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!E41",
+   "incluir_en_abc": true
   }
  ],
  "tripulacion": [
   {
    "cargo": "MEDICO PLANTA",
-   "salario_mes": 7500000,
-   "horas_mes": 191,
-   "horas_dia": 7,
-   "valor_dia": 274869.109947644
+   "salario_mes": 7500000.0,
+   "horas_mes": 191.0,
+   "horas_dia": 6.4,
+   "valor_dia": 251308.90052356024
   },
   {
    "cargo": "AUXILIAR DE ENFERMERIA",
-   "salario_mes": 2754000,
-   "horas_mes": 191,
-   "horas_dia": 7,
-   "valor_dia": 100931.93717277487
+   "salario_mes": 2754000.0,
+   "horas_mes": 191.0,
+   "horas_dia": 6.3,
+   "valor_dia": 90838.74345549737
   },
   {
    "cargo": "CONDUCTOR",
-   "salario_mes": 3500000,
-   "horas_mes": 191,
-   "horas_dia": 7,
-   "valor_dia": 128272.25130890054
+   "salario_mes": 3500000.0,
+   "horas_mes": 191.0,
+   "horas_dia": 6.3,
+   "valor_dia": 115445.02617801048
   }
  ],
+ "parametros": {
+  "ambulancias_reparto_indirectos": 22.0,
+  "tasa_gastos_admin": 0.062,
+  "tripulacion_dia": 457592.6702
+ },
+ "perfiles": [
+  {
+   "placa": "OEU846",
+   "km_dia": 281.3,
+   "horas_dia": 7.1,
+   "combustible_dia": 700215.0,
+   "mantenimiento_dia": 294137.0,
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!fila 7"
+  },
+  {
+   "placa": "OYX013",
+   "km_dia": 205.4,
+   "horas_dia": 4.7,
+   "combustible_dia": 470337.0,
+   "mantenimiento_dia": 340059.0,
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!fila 8"
+  },
+  {
+   "placa": "ODS688",
+   "km_dia": 179.8,
+   "horas_dia": 5.6,
+   "combustible_dia": 480445.0,
+   "mantenimiento_dia": 227692.0,
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!fila 9"
+  },
+  {
+   "placa": "OYX018",
+   "km_dia": 39.4,
+   "horas_dia": 1.1,
+   "combustible_dia": 116943.0,
+   "mantenimiento_dia": 585978.0,
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!fila 10"
+  },
+  {
+   "placa": "OKZ365",
+   "km_dia": 209.6,
+   "horas_dia": 6.1,
+   "combustible_dia": 206551.0,
+   "mantenimiento_dia": 458376.0,
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!fila 11"
+  },
+  {
+   "placa": "LXS630",
+   "km_dia": 202.8,
+   "horas_dia": 4.9,
+   "combustible_dia": 197118.0,
+   "mantenimiento_dia": 399350.0,
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!fila 12"
+  },
+  {
+   "placa": "OYX015",
+   "km_dia": 180.1,
+   "horas_dia": 5.4,
+   "combustible_dia": 346369.0,
+   "mantenimiento_dia": 168857.0,
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!fila 13"
+  },
+  {
+   "placa": "OLM779",
+   "km_dia": 115.2,
+   "horas_dia": 3.2,
+   "combustible_dia": 235985.0,
+   "mantenimiento_dia": 222914.0,
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!fila 14"
+  },
+  {
+   "placa": "OJZ193",
+   "km_dia": 121.8,
+   "horas_dia": 5.1,
+   "combustible_dia": 325261.0,
+   "mantenimiento_dia": 72845.0,
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!fila 15"
+  },
+  {
+   "placa": "OEU843",
+   "km_dia": 109.8,
+   "horas_dia": 4.4,
+   "combustible_dia": 271274.0,
+   "mantenimiento_dia": 66002.0,
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!fila 16"
+  },
+  {
+   "placa": "OLM788",
+   "km_dia": 131.8,
+   "horas_dia": 4.4,
+   "combustible_dia": 193647.0,
+   "mantenimiento_dia": 97757.0,
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!fila 17"
+  },
+  {
+   "placa": "OKZ367",
+   "km_dia": 17.5,
+   "horas_dia": 0.5,
+   "combustible_dia": 43490.0,
+   "mantenimiento_dia": 186557.0,
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!fila 18"
+  },
+  {
+   "placa": "OEU845",
+   "km_dia": 74.3,
+   "horas_dia": 2.3,
+   "combustible_dia": 79091.0,
+   "mantenimiento_dia": 132778.0,
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!fila 19"
+  },
+  {
+   "placa": "OKZ368",
+   "km_dia": 136.3,
+   "horas_dia": 4.0,
+   "combustible_dia": 132583.0,
+   "mantenimiento_dia": 78223.0,
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!fila 20"
+  },
+  {
+   "placa": "OLM775",
+   "km_dia": 114.5,
+   "horas_dia": 2.4,
+   "combustible_dia": 119584.0,
+   "mantenimiento_dia": 86920.0,
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!fila 21"
+  },
+  {
+   "placa": "OYX014",
+   "km_dia": 164.5,
+   "horas_dia": 4.8,
+   "combustible_dia": 125360.0,
+   "mantenimiento_dia": 79262.0,
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!fila 22"
+  },
+  {
+   "placa": "KSM545",
+   "km_dia": 37.7,
+   "horas_dia": 1.1,
+   "combustible_dia": 52008.0,
+   "mantenimiento_dia": 140275.0,
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!fila 23"
+  },
+  {
+   "placa": "OEU828",
+   "km_dia": 48.6,
+   "horas_dia": 1.4,
+   "combustible_dia": 44517.0,
+   "mantenimiento_dia": 134291.0,
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!fila 24"
+  },
+  {
+   "placa": "OKZ362",
+   "km_dia": 19.8,
+   "horas_dia": 0.6,
+   "combustible_dia": 7275.0,
+   "mantenimiento_dia": 141588.0,
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!fila 25"
+  },
+  {
+   "placa": "OYX016",
+   "km_dia": 61.5,
+   "horas_dia": 3.0,
+   "combustible_dia": 75179.0,
+   "mantenimiento_dia": 15111.0,
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!fila 26"
+  },
+  {
+   "placa": "OKZ364",
+   "km_dia": 7.6,
+   "horas_dia": 0.333333333333333,
+   "combustible_dia": 5653.0,
+   "mantenimiento_dia": 30392.0,
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!fila 27"
+  }
+ ],
+ "es_modelo": true,
  "hallazgos": [
   {
    "fuente": "COSTOS AMBULANCIAS.xlsx",
-   "ubicacion": "AMBULANCIAS!I43",
-   "tipo": "ERROR_FORMULA",
-   "descripcion": "Celda con error '#DIV/0!' (fórmula: =+J43/J44); no se usa.",
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!F10",
+   "tipo": "SUPUESTO",
+   "descripcion": "El modelo reparte los costos indirectos entre 22 ambulancias; el informe técnico costea 21. La parte de la unidad adicional (1/22) no se asigna a la flota costeada. Ajustable en el parámetro ambulancias_reparto_indirectos.",
    "severidad": "MEDIA",
-   "valor": "=+J43/J44"
+   "valor": "22.0"
   },
   {
    "fuente": "COSTOS AMBULANCIAS.xlsx",
-   "ubicacion": "AMBULANCIAS!I45",
-   "tipo": "ERROR_FORMULA",
-   "descripcion": "Celda con error '#DIV/0!' (fórmula: =+J45/J43); no se usa.",
-   "severidad": "MEDIA",
-   "valor": "=+J45/J43"
-  },
-  {
-   "fuente": "COSTOS AMBULANCIAS.xlsx",
-   "ubicacion": "TABLA DE VALOR TH MYC!C4:F12",
+   "ubicacion": "MODELO COSTOS ABC PARAMETRO!F44",
    "tipo": "FORMULA",
-   "descripcion": "36 celdas vinculadas a un libro externo ('[1]TALENTO HUMANO') que no se entregó; los valores mostrados son los últimos guardados y no se pueden recalcular.",
+   "descripcion": "La fórmula '=F43*E44+F43' suma el costo base al recargo; la celda vecina calcula solo el 6.2%. La aplicación aplica el 6.2% sobre el total de costos.",
+   "severidad": "BAJA",
+   "valor": "=F43*E44+F43"
+  },
+  {
+   "fuente": "COSTOS AMBULANCIAS.xlsx",
+   "ubicacion": "TABLA DE VALOR TH MYC",
+   "tipo": "INCONSISTENCIA",
+   "descripcion": "Tripulación por día del modelo corregido (valor hora × horas/día de cada cargo) = 457,592.67; el informe técnico usaba 458,467. Se aplica la del modelo.",
    "severidad": "BAJA",
    "valor": ""
   },
   {
    "fuente": "COSTOS AMBULANCIAS.xlsx",
-   "ubicacion": "AMBULANCIAS!F",
-   "tipo": "FALTANTE",
-   "descripcion": "La columna 'VR. PESOS HORA' está vacía: todos los 'VALOR PROCEDIMIENTO' dan 0 y el costo calculado del procedimiento no es utilizable.",
-   "severidad": "ALTA",
-   "valor": ""
-  },
-  {
-   "fuente": "COSTOS AMBULANCIAS.xlsx",
-   "ubicacion": "AMBULANCIAS!D9",
-   "tipo": "FALTANTE",
-   "descripcion": "La duración del procedimiento no es numérica (D9 vacía; aparece como texto ['HORAS', '20 MIN']). Las fórmulas que multiplican por D9 dan 0. Además, 20 minutos no representa un traslado: el informe técnico mide 3,6 h/día en misión en promedio.",
-   "severidad": "ALTA",
-   "valor": ""
-  },
-  {
-   "fuente": "COSTOS AMBULANCIAS.xlsx",
-   "ubicacion": "AMBULANCIAS!G47",
+   "ubicacion": "TABLA DE VALOR TH MYC!HORAS DIA",
    "tipo": "SUPUESTO",
-   "descripcion": "'VR. ACTUAL' (valor EPS) de 87,450 sin código CUPS asociado (CUPS: vacío); no corresponde a las tarifas por km del Anexo 3. Requiere validación.",
-   "severidad": "ALTA",
-   "valor": "87450"
-  },
-  {
-   "fuente": "COSTOS AMBULANCIAS.xlsx",
-   "ubicacion": "TABLA DE VALOR TH MYC!H20",
-   "tipo": "INCONSISTENCIA",
-   "descripcion": "Tripulación por día según la tabla TH (7 h × valor hora con 191 h/mes) = 504,073; el informe técnico usa 458,467 (= 13,754,000 ÷ 30). Se usa la cifra del informe (fuente principal); la de la tabla TH queda como parámetro de contraste.",
+   "descripcion": "Cada cargo se costea por las horas de su jornada diaria, pero la ambulancia se valora disponible 24 h con una sola tripulación. Si se requieren turnos para cubrir 24 h, el costo de tripulación estaría subestimado.",
    "severidad": "MEDIA",
-   "valor": ""
-  },
-  {
-   "fuente": "COSTOS AMBULANCIAS.xlsx",
-   "ubicacion": "TABLA DE VALOR TH MYC!G17:G19",
-   "tipo": "SUPUESTO",
-   "descripcion": "Cada cargo trabaja 7 h/día, pero la ambulancia se valora disponible 24 h con una sola tripulación. Si se requieren turnos para cubrir 24 h, el costo de tripulación estaría subestimado.",
-   "severidad": "MEDIA",
-   "valor": ""
-  },
-  {
-   "fuente": "COSTOS AMBULANCIAS.xlsx",
-   "ubicacion": "AMBULANCIAS!E12:E14",
-   "tipo": "INCONSISTENCIA",
-   "descripcion": "El costo de personal del centro de costos es 76,830,372/mes, mientras que 21 tripulaciones completas cuestan 288,834,000/mes. El personal de planta (E12) está en 0, de modo que el centro de costos no recoge toda la tripulación. Las partidas de personal no se suman al ABC para no duplicar la tripulación del informe.",
-   "severidad": "ALTA",
    "valor": ""
   }
  ],
- "n_ambulancias": 21
+ "n_ambulancias": 22.0
 }

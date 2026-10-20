@@ -7,14 +7,14 @@
 <div class="panel">
   <h2>Costo y rentabilidad por mes <a class="boton sec no-imprimir" style="float:right" href="?{{ request.GET.urlencode }}&formato=csv">Descargar CSV</a></h2>
   <table>
-    <tr><th>Mes</th><th class="n">Líneas</th><th class="n">Traslados</th><th class="n">Km</th><th class="n">Facturado</th><th class="n">Costo combustible</th><th class="n">Costo mantenimiento</th><th class="n">Costo tripulación</th><th class="n">Insumos/otros/indirectos</th><th class="n">Costo ABC</th><th class="n">Margen</th><th class="n">Rent.</th><th class="n">Costo flota</th><th class="n">No utilizado</th></tr>
+    <tr><th>Mes</th><th class="n">Líneas</th><th class="n">Traslados</th><th class="n">Km</th><th class="n">Facturado</th><th class="n">Costo combustible</th><th class="n">Costo mantenimiento</th><th class="n">Costo tripulación</th><th class="n">Indirectos y administración</th><th class="n">Insumos y otros</th><th class="n">Costo ABC</th><th class="n">Margen</th><th class="n">Rent.</th><th class="n">Costo flota</th><th class="n">No utilizado</th></tr>
     {% for m in datos.por_mes %}
     <tr><td>{{ m.mes|date:"M Y" }}</td><td class="n">{{ m.linea|num }}</td><td class="n">{{ m.traslado|num }}</td><td class="n">{{ m.km|num }}</td><td class="n">{{ m.ingreso|pesos }}</td>
       <td class="n">{{ m.costo_combustible|pesos }}</td><td class="n">{{ m.costo_mantenimiento|pesos }}</td><td class="n">{{ m.costo_tripulacion|pesos }}</td>
-      <td class="n">{{ m.costo_otros_total|pesos }}</td>
+      <td class="n">{{ m.costo_ind_admin|pesos }}</td><td class="n">{{ m.costo_otros_total|pesos }}</td>
       <td class="n">{{ m.costo|pesos }}</td><td class="n {{ m.margen|signo }}">{{ m.margen|pesos }}</td><td class="n">{{ m.rentabilidad|pct }}</td><td class="n">{{ m.pool|pesos }}</td><td class="n">{{ m.no_utilizado|pesos }}</td></tr>
     {% endfor %}
-    {% with t=datos.total %}<tr><th>Total</th><th class="n">{{ t.linea|num }}</th><th class="n">{{ t.traslado|num }}</th><th class="n">{{ t.km|num }}</th><th class="n">{{ t.ingreso|pesos }}</th><th class="n">{{ t.costo_combustible|pesos }}</th><th class="n">{{ t.costo_mantenimiento|pesos }}</th><th class="n">{{ t.costo_tripulacion|pesos }}</th><th class="n">{{ t.costo_otros_total|pesos }}</th><th class="n">{{ t.costo|pesos }}</th><th class="n {{ t.margen|signo }}">{{ t.margen|pesos }}</th><th class="n">{{ t.rentabilidad|pct }}</th><th class="n">{{ t.pool|pesos }}</th><th class="n">{{ t.no_utilizado|pesos }}</th></tr>{% endwith %}
+    {% with t=datos.total %}<tr><th>Total</th><th class="n">{{ t.linea|num }}</th><th class="n">{{ t.traslado|num }}</th><th class="n">{{ t.km|num }}</th><th class="n">{{ t.ingreso|pesos }}</th><th class="n">{{ t.costo_combustible|pesos }}</th><th class="n">{{ t.costo_mantenimiento|pesos }}</th><th class="n">{{ t.costo_tripulacion|pesos }}</th><th class="n">{{ t.costo_ind_admin|pesos }}</th><th class="n">{{ t.costo_otros_total|pesos }}</th><th class="n">{{ t.costo|pesos }}</th><th class="n {{ t.margen|signo }}">{{ t.margen|pesos }}</th><th class="n">{{ t.rentabilidad|pct }}</th><th class="n">{{ t.pool|pesos }}</th><th class="n">{{ t.no_utilizado|pesos }}</th></tr>{% endwith %}
   </table>
 </div>
 <div class="panel">

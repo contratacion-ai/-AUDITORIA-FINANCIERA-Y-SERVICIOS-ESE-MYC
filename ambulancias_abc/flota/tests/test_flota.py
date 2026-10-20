@@ -14,6 +14,9 @@ from flota.api import crear_clave
 from flota.importacion.anexo_tarifas import leer_anexo_traslados
 from flota.models import (
     Ambulancia,
+    Parametro,
+    PerfilCostoEstudio,
+    RegistroAuditoria,
     ConflictoVersion,
     Consumo,
     HallazgoCalidad,
@@ -56,7 +59,11 @@ class DatosInicialesTests(BaseCargada):
         self.assertEqual(Ambulancia.objects.filter(estado=Ambulancia.NUEVA).count(), 5)
         self.assertTrue(Ambulancia.objects.get(placa="OKZ364").excluida_promedios)
         self.assertEqual(TarifaRuta.objects.count(), 90)
-        self.assertEqual(PartidaCostoIndirecto.objects.filter(incluir_en_abc=True).count(), 0)
+        # Modelo ABC corregido: las 7 partidas del centro de costos (sin personal) entran al ABC
+        self.assertEqual(PartidaCostoIndirecto.objects.filter(incluir_en_abc=True).count(), 7)
+        self.assertEqual(Parametro.objects.get(clave="tripulacion_dia").valor, Decimal("457592.6702"))
+        self.assertEqual(Parametro.objects.get(clave="tasa_gastos_admin").valor, Decimal("0.062"))
+        self.assertEqual(PerfilCostoEstudio.objects.get(ambulancia__placa="OKZ364").horas_dia, Decimal("0.3333"))
 
     def test_carga_idempotente(self):
         antes = (Ambulancia.objects.count(), TarifaRuta.objects.count(), HallazgoCalidad.objects.count())
@@ -66,7 +73,7 @@ class DatosInicialesTests(BaseCargada):
     def test_hallazgos_de_fuentes(self):
         tipos = set(HallazgoCalidad.objects.values_list("tipo", flat=True))
         self.assertTrue({"ERROR_FORMULA", "ENCABEZADO", "ESTUDIO", "SUPUESTO", "INCONSISTENCIA"} <= tipos)
-        self.assertTrue(HallazgoCalidad.objects.filter(descripcion__icontains="#DIV/0!").exists())
+        self.assertTrue(HallazgoCalidad.objects.filter(descripcion__icontains="entre 22 ambulancias").exists())
         self.assertTrue(HallazgoCalidad.objects.filter(descripcion__icontains="El Tigre").exists())
 
 
@@ -135,13 +142,18 @@ class CosteoTests(BaseCargada):
         importar.importar_facturacion(xlsx_his(filas_basicas()), nombre="prueba.xlsx")
 
     def _pool_estandar(self):
+        """Modelo corregido: (combustible + mantenimiento + tripulación TH) × días
+        + indirectos del centro de costos ÷ 22, todo con 6,2 % de gastos administrativos."""
         dias = 30
-        return sum((c + m + D.TRIPULACION_DIA) * dias for _p, _s, _c, _k, _h, c, m, *_r in D.ANEXO_A)
+        trip = 457592.6702
+        ind_amb = sum(D.INDIRECTOS_MES_MODELO.values()) / 22
+        base = sum((c + m + trip) * dias + ind_amb for _p, _s, _c, _k, _h, c, m, *_r in D.ANEXO_A)
+        return base * 1.062
 
     def test_conservacion_costo_total_flota(self):
         for metodo in ("REAL", "CAPACIDAD"):
             r = calcular_mes(SEP, metodo)
-            self.assertTrue(math.isclose(r.total_pool, self._pool_estandar(), rel_tol=1e-9))
+            self.assertTrue(math.isclose(r.total_pool, self._pool_estandar(), rel_tol=1e-6), (r.total_pool, self._pool_estandar()))
             self.assertTrue(math.isclose(r.total_asignado + r.total_no_utilizado, r.total_pool, rel_tol=1e-9), metodo)
             self.assertAlmostEqual(sum(f["costo"] for f in r.filas), r.total_asignado, delta=0.01)
 
@@ -154,11 +166,19 @@ class CosteoTests(BaseCargada):
         self.assertEqual(r.fuente_pool["OEU846"]["mantenimiento"], "ESTANDAR")
         self.assertTrue(math.isclose(r.total_asignado + r.total_no_utilizado, r.total_pool, rel_tol=1e-9))
 
-    def test_indirectos_incluidos(self):
-        PartidaCostoIndirecto.objects.filter(concepto="SEGUROS").update(incluir_en_abc=True)
+    def test_indirectos_y_gastos_administrativos(self):
         r = calcular_mes(SEP, "REAL")
-        self.assertAlmostEqual(r.indirectos, 125610.51, places=2)
-        self.assertAlmostEqual(sum(f["costo_indirectos"] for f in r.filas), r.indirectos, delta=0.01)
+        por_amb = 21717958.27 / 22
+        self.assertAlmostEqual(r.ambulancias["OEU846"]["pool_indirectos"], por_amb, delta=0.05)
+        self.assertAlmostEqual(r.indirectos, 21 * por_amb, delta=1)
+        a = r.ambulancias["OEU846"]
+        self.assertAlmostEqual(a["pool_administracion"], (a["pool_total"] - a["pool_administracion"]) * 0.062, delta=0.01)
+        self.assertAlmostEqual(sum(f["costo_administracion"] for f in r.filas),
+                               sum(x["asignado_administracion"] for x in r.ambulancias.values()), delta=0.01)
+        # Si se excluye una partida, baja el costo indirecto
+        PartidaCostoIndirecto.objects.filter(concepto="SEGUROS").update(incluir_en_abc=False)
+        r2 = calcular_mes(SEP, "REAL")
+        self.assertAlmostEqual(r.indirectos - r2.indirectos, 21 * 125610.51 / 22, delta=1)
 
     def test_consolidado_filtros(self):
         total = consolidar(SEP, SEP)
@@ -172,7 +192,8 @@ class CosteoTests(BaseCargada):
     def test_matriz_rutas_usa_costo_por_km_del_estudio(self):
         filas = matriz_rutas("REAL", sede_codigo="tame", placa="OKZ365")
         arauca = next(f for f in filas if f["ruta"].destino == "ARAUCA")
-        self.assertAlmostEqual(arauca["costo"], 194 * 2 * (206551 + 458376 + 458467) / 209.6, delta=0.01)
+        base_dia = 206551 + 458376 + 457592.6702 + 21717958.27 / 22 / 30
+        self.assertAlmostEqual(arauca["costo"], 194 * 2 * base_dia / 209.6 * 1.062, delta=1)
         self.assertEqual(arauca["tarifa"], 3298000)
 
 
@@ -338,3 +359,27 @@ class RespaldoTests(TransactionTestCase):
                 self.assertTrue(archivo.exists())
             # los nombres llevan segundos: pueden coincidir dentro del mismo segundo
             self.assertLessEqual(len(list(Path(d).glob("*.sqlite3"))), 2)
+
+
+class ActualizacionModeloCorregidoTests(TestCase):
+    """Una instalación con los datos anteriores queda con el modelo corregido al actualizar."""
+
+    def test_actualiza_parametro_no_editado_y_respeta_el_editado(self):
+        Parametro.objects.create(clave="tripulacion_dia", valor=Decimal("458467"), descripcion="anterior")
+        Parametro.objects.create(clave="tasa_gastos_admin", valor=Decimal("0.05"), descripcion="editado a mano")
+        p = Parametro.objects.get(clave="tasa_gastos_admin")
+        u = User.objects.create_user("contador", password="Clave-Prueba-1")
+        RegistroAuditoria.objects.create(usuario=u, modelo="Parametro", objeto_id=str(p.pk), accion="editar")
+        PartidaCostoIndirecto.objects.create(categoria="COSTOS PERSONAL", concepto="CONTRATO DIRECTO (AUXILIAR)", valor_mensual=74256355)
+        cargar()
+        self.assertEqual(Parametro.objects.get(clave="tripulacion_dia").valor, Decimal("457592.6702"))
+        self.assertEqual(Parametro.objects.get(clave="tasa_gastos_admin").valor, Decimal("0.05"))  # se respeta
+        self.assertFalse(PartidaCostoIndirecto.objects.filter(categoria="COSTOS PERSONAL").exists())
+
+    def test_hallazgos_de_la_version_anterior_quedan_resueltos(self):
+        h = HallazgoCalidad.objects.create(fuente="COSTOS AMBULANCIAS.xlsx", ubicacion="AMBULANCIAS!I43", tipo="ERROR_FORMULA",
+                                           descripcion="Celda con error '#DIV/0!'", severidad="MEDIA")
+        cargar()
+        h.refresh_from_db()
+        self.assertTrue(h.resuelto)
+        self.assertIn("versión corregida", h.nota_resolucion)

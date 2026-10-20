@@ -232,7 +232,7 @@ def costos_ambulancia(request):
                 "placa": placa,
                 "mes": f"{mes:%Y-%m}",
                 "dias": res.dias,
-                **{f"costo_{k}": _r(a[f"pool_{k}"]) for k in ("combustible", "mantenimiento", "tripulacion", "insumos", "otros")},
+                **{f"costo_{k}": _r(a[f"pool_{k}"]) for k in ("combustible", "mantenimiento", "tripulacion", "indirectos", "administracion", "insumos", "otros")},
                 **{f"fuente_{k}": v for k, v in fuentes.items()},
                 "costo_total": _r(a["pool_total"]),
                 "asignado_traslados": _r(a["asignado_total"]),

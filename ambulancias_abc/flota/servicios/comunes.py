@@ -13,10 +13,22 @@ PARAMETROS_DEFECTO = {
     # clave: (valor, unidad, descripción, fuente, es_supuesto)
     "precio_gasolina": (23650, "$/gal", "Precio de contrato del galón de gasolina", "Informe técnico num. 4.2 (contrato 003-0045)", False),
     "precio_acpm": (18500, "$/gal", "Precio de contrato del galón de ACPM", "Informe técnico num. 4.2 (contrato 003-0045)", False),
-    "tripulacion_dia": (458467, "$/día", "Costo de tripulación por ambulancia y día (13.754.000 ÷ 30)", "Informe técnico num. 4.4", False),
-    "tripulacion_dia_tabla_th": (
-        504073.30, "$/día", "Tripulación por día según tabla TH (7 h × V/H, 191 h/mes). Solo contraste, no se usa en el cálculo",
-        "COSTOS AMBULANCIAS.xlsx, TABLA DE VALOR TH MYC!H20", False,
+    "tripulacion_dia": (
+        457592.6702, "$/día",
+        "Tripulación por ambulancia y día: valor hora × horas/día (médico 6,4 h, auxiliar 6,3 h, conductor 6,3 h)",
+        "Modelo ABC corregido, COSTOS AMBULANCIAS.xlsx, TABLA DE VALOR TH MYC!G9", False,
+    ),
+    "tripulacion_dia_informe": (
+        458467, "$/día", "Tripulación del informe técnico (13.754.000 ÷ 30). Solo contraste, no se usa en el cálculo",
+        "Informe técnico num. 4.4", False,
+    ),
+    "tasa_gastos_admin": (
+        0.062, "fracción", "Gastos administrativos sobre el costo total (0,062 = 6,2 %)",
+        "Modelo ABC corregido, MODELO COSTOS ABC PARAMETRO!E44", False,
+    ),
+    "ambulancias_reparto_indirectos": (
+        22, "ambulancias", "Ambulancias entre las que se reparten los costos indirectos del centro de costos",
+        "Modelo ABC corregido, MODELO COSTOS ABC PARAMETRO!F10 (el informe técnico costea 21)", True,
     ),
     "velocidad_flota_kmh": (34.6, "km/h", "Velocidad efectiva media de la flota (para unidades sin perfil)", "Informe técnico num. 4.5", False),
     "valor_km_tarifa": (17000, "$/km", "Valor del kilómetro, manual tarifario propio 2026", "ANEXOS DE TARIFAS 2026.xlsx, Anexo 3!P8", False),
@@ -30,6 +42,14 @@ PARAMETROS_DEFECTO = {
         "Supuesto basado en el num. 4.1 (traslados a veredas valorados en 30 km ida y vuelta)", True,
     ),
     "tolerancia_km_ruta": (0, "km", "Diferencia máxima entre km facturados y km de la ruta para inferirla", "Configuración", True),
+}
+
+
+# Valores por defecto que cambiaron con el modelo ABC corregido: (anterior, nuevo).
+# En una actualización solo se cambian si el parámetro conserva el valor anterior
+# (es decir, si nadie lo modificó a mano).
+CORRECCIONES_PARAMETROS = {
+    "tripulacion_dia": (Decimal("458467"), Decimal("457592.6702")),
 }
 
 

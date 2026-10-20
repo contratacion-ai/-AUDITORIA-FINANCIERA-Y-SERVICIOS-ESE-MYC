@@ -1,6 +1,6 @@
 # Modelo de costeo ABC y modelo de datos
 
-Fuente principal: *Informe Técnico — Costo diario de operación de la flota de ambulancias* (Ing. Edwin Seudiel Romero Angarita, Tame, 14/10/2026). Fuentes complementarias: `ANEXOS DE TARIFAS 2026.xlsx` (hoja *TRASLADOS Anexo 3*), `COSTOS AMBULANCIAS.xlsx` y el reporte de facturación de traslados del HIS.
+Fuente principal: *Informe Técnico — Costo diario de operación de la flota de ambulancias* (Ing. Edwin Seudiel Romero Angarita, Tame, 14/10/2026), **con las correcciones del modelo ABC parametrizado de la ESE** (COSTOS AMBULANCIAS.xlsx, hoja "MODELO COSTOS ABC PARAMETRO"; ver [CALIDAD_DATOS.md](CALIDAD_DATOS.md)). Fuentes complementarias: `ANEXOS DE TARIFAS 2026.xlsx` (hoja *TRASLADOS Anexo 3*), `COSTOS AMBULANCIAS.xlsx` y el reporte de facturación de traslados del HIS.
 
 ## 1. Lo que se extrajo del estudio
 
@@ -23,9 +23,15 @@ Fuente principal: *Informe Técnico — Costo diario de operación de la flota d
 |---|---|---|
 | Combustible | $/día por placa (Anexo A) | Galones certificados ajustados por factor de sede × precio de contrato ($23.650 gasolina, $18.500 ACPM) |
 | Mantenimiento | $/día por placa (Anexo A) | Repuestos y mano de obra 01/01–10/10/2026 ÷ 283 días |
-| Tripulación | $458.467 por ambulancia/día | (3.500.000 + 2.754.000 + 7.500.000) ÷ 30 |
+| Tripulación | **$457.592,67** por ambulancia/día (modelo corregido; el informe usaba $458.467) | Valor hora (salario ÷ 191 h) × horas/día: médico 7.500.000 × 6,4 h, auxiliar 2.754.000 × 6,3 h, conductor 3.500.000 × 6,3 h |
+| Indirectos | **$32.906** por ambulancia/día | Partidas del centro de costos ($21.717.958/mes: oficina, seguros, sentencias, otros gastos generales, financieros, depreciaciones, amortizaciones) ÷ 22 ambulancias ÷ 30 |
+| Gastos administrativos | **6,2 %** | Sobre el total de los recursos anteriores |
 
-`C_total/día = C_combustible + C_mantenimiento + C_tripulación` (num. 4).
+```
+C_total/día = (C_combustible + C_mantenimiento + C_tripulación + C_indirectos) × (1 + 6,2 %)
+```
+
+El informe (num. 4) definía solo los tres primeros recursos; el modelo corregido agrega indirectos y administración.
 
 ### Actividades y drivers (costeo ABC)
 
@@ -34,6 +40,8 @@ Fuente principal: *Informe Técnico — Costo diario de operación de la flota d
 | Desplazamiento | Combustible | **Galones** | km conducidos ÷ rendimiento de la ambulancia (km/día ÷ galones/día) |
 | Desgaste del vehículo | Mantenimiento | **Kilómetros** | km conducidos |
 | Atención en misión | Tripulación | **Horas en misión** | km conducidos ÷ velocidad efectiva (km/día ÷ h/día; 34,6 km/h si no hay perfil) |
+| Disponibilidad / soporte | Indirectos del centro de costos | **Horas en misión** | igual que la tripulación (costo fijo diario) |
+| Administración | Gastos administrativos | Recargo | 6,2 % del costo asignado (y de la capacidad no utilizada) |
 | Atención clínica | Insumos (consumos reales) | Número de traslados | 1 por traslado |
 | Soporte / otros | Otros consumos y partidas indirectas incluidas | Número de traslados | 1 por traslado |
 
@@ -59,6 +67,8 @@ Para cada ambulancia y mes, y para cada recurso:
 - Si hay **consumos registrados** de ese tipo en el mes → se usa el valor real (`fuente = REAL`).
 - Si no → estándar del estudio: `costo/día × días calendario del mes` (`fuente = ESTANDAR`).
 - Tripulación: `tripulacion_dia × días` (o consumos tipo TRIPULACION si se registran ajustes).
+- Indirectos: partidas del centro de costos marcadas para el ABC ÷ `ambulancias_reparto_indirectos` (por mes; `fuente = CENTRO_COSTOS`).
+- Gastos administrativos: `tasa_gastos_admin` sobre el total anterior; se aplica igual a lo asignado a traslados y a la capacidad no utilizada.
 - Ambulancias con `incluir_en_costeo = False` solo aportan sus consumos reales.
 
 ### Consumos por tabla y prorrateo
@@ -85,6 +95,8 @@ combustible   = galones × precio
 mantenimiento = km conducidos × mantenimiento/día ÷ km/día
 tripulación   = horas × tripulación/día ÷ horas/día        (REAL)
               = horas × tripulación/día ÷ 24               (CAPACIDAD)
+indirectos    = horas × indirectos/día ÷ horas/día (o ÷ 24 en CAPACIDAD)
+administración = (combustible + mantenimiento + tripulación + indirectos) × 6,2 %
 margen        = tarifa 2026 − costo ;  rentabilidad = margen ÷ tarifa
 ```
 
@@ -122,8 +134,10 @@ Los modelos editables (`Ambulancia`, `Parametro`, `Traslado`, `Consumo`) llevan 
 |---|---|---|---|
 | `precio_gasolina` | 23.650 | Informe num. 4.2 | No |
 | `precio_acpm` | 18.500 | Informe num. 4.2 | No |
-| `tripulacion_dia` | 458.467 | Informe num. 4.4 | No |
-| `tripulacion_dia_tabla_th` | 504.073,30 | COSTOS AMBULANCIAS, tabla TH (solo contraste) | No |
+| `tripulacion_dia` | 457.592,67 | Modelo corregido, tabla TH | No |
+| `tripulacion_dia_informe` | 458.467 | Informe num. 4.4 (solo contraste) | No |
+| `tasa_gastos_admin` | 0,062 | Modelo corregido, E44 | No |
+| `ambulancias_reparto_indirectos` | 22 | Modelo corregido, F10 (el informe costea 21) | **Sí** |
 | `velocidad_flota_kmh` | 34,6 | Informe num. 4.5 | No |
 | `valor_km_tarifa` | 17.000 | Anexo 3, P8 | No |
 | `tarifa_traslado_basico` | 459.300 | Anexo 3, P9 | No |

@@ -161,3 +161,50 @@ class ConservacionCostoTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ModeloCorregidoTests(unittest.TestCase):
+    """Reproduce la hoja 'MODELO COSTOS ABC PARAMETRO' corregida por la ESE."""
+
+    def setUp(self):
+        from abc_engine.estudio import perfiles_modelo_corregido
+
+        self.precios = precios_estudio()
+        self.perfiles = {p.placa: p for p in perfiles_modelo_corregido()}
+
+    def test_parametros_del_modelo(self):
+        self.assertAlmostEqual(D.TRIPULACION_DIA_MODELO, 457592.67015706806, places=6)
+        self.assertAlmostEqual(D.INDIRECTOS_DIA_MODELO, 32905.99737114326, places=6)
+        self.assertAlmostEqual(sum(D.INDIRECTOS_MES_MODELO.values()), 21717958.264954552, places=4)
+
+    def test_costo_diario_oeu846_igual_al_excel(self):
+        p = self.perfiles["OEU846"]
+        self.assertAlmostEqual(p.base_dia, D.MODELO_OEU846["costos_sin_admin"], places=4)
+        self.assertAlmostEqual(p.administracion_dia, D.MODELO_OEU846["admin"], places=4)
+        self.assertAlmostEqual(p.total_dia, D.MODELO_OEU846["total"], places=4)
+
+    def test_correccion_okz364(self):
+        self.assertAlmostEqual(self.perfiles["OKZ364"].horas_dia, 1 / 3)
+
+    def test_recorrido_absorbe_todo_el_costo_diario(self):
+        p = self.perfiles["OKZ365"]
+        c = costo_recorrido(p, p.km_dia, self.precios, METODO_REAL)
+        self.assertAlmostEqual(c.total, p.total_dia, places=4)
+        self.assertAlmostEqual(c.indirectos, p.indirectos_dia, places=4)
+        self.assertAlmostEqual(c.administracion, p.administracion_dia, places=4)
+
+    def test_conservacion_con_indirectos_y_administracion(self):
+        pools = [
+            PoolAmbulancia(p.placa, p.sede, p.combustible_dia * 30, p.mantenimiento_dia * 30, p.tripulacion_dia * 30,
+                           indirectos=p.indirectos_dia * 30)
+            for p in self.perfiles.values()
+        ]
+        base = sum(p.total for p in pools)
+        traslados = [TrasladoDriver(f"T{i}", "Tame", 120, placa) for i, placa in enumerate(["OEU846", "OKZ365", None, "OYX014"] * 20)]
+        for metodo in (METODO_REAL, METODO_CAPACIDAD):
+            r = asignar_periodo(pools, traslados, self.perfiles, self.precios, metodo, tasa_admin=D.TASA_ADMIN_MODELO)
+            self.assertTrue(math.isclose(r.total_pool, base * (1 + D.TASA_ADMIN_MODELO), rel_tol=1e-12))
+            self.assertTrue(math.isclose(r.total_asignado + r.total_no_utilizado, r.total_pool, rel_tol=1e-9), metodo)
+            for c in r.por_traslado.values():
+                sin_admin = c["total"] - c["administracion"]
+                self.assertAlmostEqual(c["administracion"], sin_admin * D.TASA_ADMIN_MODELO, places=4)

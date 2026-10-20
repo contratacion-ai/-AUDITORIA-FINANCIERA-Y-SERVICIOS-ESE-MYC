@@ -20,9 +20,12 @@ from ..importacion.rips import APH, TRASLADO, leer_rips_archivos
 from ..models import (
     CodigoTraslado,
     Consumo,
+    HallazgoCalidad,
     LoteImportacion,
     Parametro,
     PartidaCostoIndirecto,
+    PerfilCostoEstudio,
+    RegistroAuditoria,
     Sede,
     TarifaRuta,
     Traslado,
@@ -81,42 +84,117 @@ def importar_tarifas(archivo, usuario=None, vigencia=2026, nombre="") -> LoteImp
     return guardar_tarifas(datos, usuario, nombre or getattr(archivo, "name", str(archivo)))
 
 
-def _actualizar_parametro(clave, valor, fuente):
+def _parametro_editado_a_mano(p: Parametro) -> bool:
+    return RegistroAuditoria.objects.filter(modelo="Parametro", objeto_id=str(p.pk), usuario__isnull=False).exists()
+
+
+def _actualizar_parametro(clave, valor, fuente, forzar=True) -> bool:
+    """Actualiza un parámetro desde un archivo fuente.
+
+    ``forzar=False`` (carga automática en una actualización del programa): no
+    cambia parámetros que un usuario modificó a mano.
+    """
+    from .comunes import PARAMETROS_DEFECTO
+
+    _, unidad, descripcion, _, supuesto = PARAMETROS_DEFECTO.get(clave, (None, "", clave, "", False))
     p, creado = Parametro.objects.get_or_create(
-        clave=clave, defaults={"valor": valor, "descripcion": clave, "fuente": fuente}
+        clave=clave,
+        defaults={"valor": valor, "descripcion": descripcion, "unidad": unidad, "fuente": fuente, "es_supuesto": supuesto},
     )
-    if not creado and p.valor != Decimal(str(valor)):
-        p.valor = valor
-        p.fuente = fuente
-        p.version += 1
-        p.save()
+    if creado or p.valor == Decimal(str(valor)):
+        return creado
+    if not forzar and _parametro_editado_a_mano(p):
+        return False
+    anterior = p.valor
+    p.valor = valor
+    p.fuente = fuente
+    p.version += 1
+    p.save()
+    RegistroAuditoria.objects.create(
+        modelo="Parametro", objeto_id=str(p.pk), accion="actualizar_desde_archivo",
+        cambios={"clave": clave, "antes": str(anterior), "despues": str(valor), "fuente": fuente},
+    )
+    return True
 
 
 # ---------------------------------------------------------------------------
-# Costos del centro de costos (referencia de indirectos)
+# Costos del centro de costos y modelo ABC corregido
 # ---------------------------------------------------------------------------
 
 
-def guardar_costos_ceco(datos: dict, usuario=None, archivo="COSTOS AMBULANCIAS.xlsx") -> LoteImportacion:
+def guardar_costos_ceco(datos: dict, usuario=None, archivo="COSTOS AMBULANCIAS.xlsx", forzar_parametros=True) -> LoteImportacion:
+    """Guarda partidas, parámetros y correcciones de perfiles del libro de costos.
+
+    Con el modelo ABC corregido (``datos['es_modelo']``) el archivo es la fuente
+    de verdad: las partidas que ya no están se eliminan, las demás quedan
+    incluidas en el ABC, y los hallazgos de versiones anteriores del mismo libro
+    que ya no aparecen se marcan como resueltos.
+    """
     lote = LoteImportacion.objects.create(tipo="COSTOS_CECO", archivo=archivo, usuario=usuario)
     nuevos = actualizados = 0
+    hallazgos = list(datos["hallazgos"])
+    cambios = []
     with transaction.atomic():
+        claves = set()
         for p in datos["partidas"]:
-            _, creado = PartidaCostoIndirecto.objects.update_or_create(
-                categoria=p["categoria"],
-                concepto=p["concepto"],
-                defaults={"valor_mensual": Decimal(str(p["valor_mensual"])), "fuente": f"{archivo} {p['ubicacion']}"},
+            defaults = {"valor_mensual": Decimal(str(p["valor_mensual"])), "fuente": f"{archivo} {p['ubicacion']}"}
+            if datos.get("es_modelo"):
+                defaults["incluir_en_abc"] = p["incluir_en_abc"]
+            obj, creado = PartidaCostoIndirecto.objects.update_or_create(
+                categoria=p["categoria"], concepto=p["concepto"], defaults=defaults
             )
+            claves.add(obj.pk)
             nuevos += int(creado)
             actualizados += int(not creado)
-        if datos.get("tripulacion"):
-            dia = sum(t["valor_dia"] or 0 for t in datos["tripulacion"])
-            _actualizar_parametro("tripulacion_dia_tabla_th", round(dia, 2), f"{archivo}, TABLA DE VALOR TH MYC")
-    return _cerrar_lote(lote, nuevos, actualizados, 0, datos["hallazgos"], f"{len(datos['partidas'])} partidas mensuales")
+        if datos.get("es_modelo") and claves:
+            borradas = PartidaCostoIndirecto.objects.exclude(pk__in=claves)
+            if borradas.exists():
+                cambios.append(f"{borradas.count()} partidas que ya no están en el modelo se retiraron")
+                borradas.delete()
+
+        fuente = f"{archivo} (modelo ABC corregido)" if datos.get("es_modelo") else archivo
+        for clave, valor in datos.get("parametros", {}).items():
+            if _actualizar_parametro(clave, valor, fuente, forzar_parametros):
+                cambios.append(f"parámetro {clave} = {valor:g}")
+
+        # Correcciones de la tabla por placa del modelo (p. ej. horas/día de OKZ364).
+        for fila in datos.get("perfiles", []):
+            perfil = PerfilCostoEstudio.objects.filter(ambulancia__placa=fila["placa"], vigente=True).order_by("-fecha_estudio").first()
+            if perfil is None:
+                continue
+            diferencias = {}
+            for campo in ("km_dia", "horas_dia", "combustible_dia", "mantenimiento_dia"):
+                dec = 4 if campo == "horas_dia" else 2
+                nuevo = Decimal(str(round(fila[campo], dec)))
+                if abs(getattr(perfil, campo) - nuevo) > Decimal("0.5") / 10**dec:
+                    diferencias[campo] = (getattr(perfil, campo), nuevo)
+            if diferencias:
+                for campo, (_, nuevo) in diferencias.items():
+                    setattr(perfil, campo, nuevo)
+                perfil.save()
+                texto = ", ".join(f"{c} {a} → {n}" for c, (a, n) in diferencias.items())
+                cambios.append(f"{fila['placa']}: {texto}")
+                hallazgos.append(hallazgo(
+                    "COSTOS AMBULANCIAS.xlsx", fila["ubicacion"], "SUPUESTO",
+                    f"Corrección del modelo ABC aplicada al perfil de {fila['placa']}: {texto} (el informe técnico reporta el valor anterior).",
+                    "BAJA",
+                ))
+
+    lote = _cerrar_lote(lote, nuevos, actualizados, 0, hallazgos,
+                        f"{len(datos['partidas'])} partidas mensuales" + ("; " + "; ".join(cambios) if cambios else ""))
+    if datos.get("es_modelo"):
+        vigentes = {(h["ubicacion"][:200], h["tipo"], h["descripcion"]) for h in hallazgos}
+        anteriores = HallazgoCalidad.objects.filter(fuente="COSTOS AMBULANCIAS.xlsx", resuelto=False)
+        for h in anteriores:
+            if (h.ubicacion, h.tipo, h.descripcion) not in vigentes:
+                h.resuelto = True
+                h.nota_resolucion = "No aparece en la versión corregida del libro (modelo ABC parametrizado)."
+                h.save(update_fields=["resuelto", "nota_resolucion"])
+    return lote
 
 
 def importar_costos_ceco(archivo, usuario=None, nombre="") -> LoteImportacion:
-    datos = leer_costos_ambulancias(archivo, float(parametro("tripulacion_dia")), nombre or "COSTOS AMBULANCIAS.xlsx")
+    datos = leer_costos_ambulancias(archivo, float(parametro("tripulacion_dia_informe")), "COSTOS AMBULANCIAS.xlsx")
     return guardar_costos_ceco(datos, usuario, nombre or getattr(archivo, "name", str(archivo)))
 
 

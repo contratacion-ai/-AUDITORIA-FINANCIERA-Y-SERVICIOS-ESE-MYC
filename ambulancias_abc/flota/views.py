@@ -137,10 +137,10 @@ def consolidado(request):
         salida = io.StringIO()
         salida.write("﻿")
         w = csv.writer(salida, delimiter=";")
-        w.writerow(["mes", "traslados", "lineas", "km", "facturado", "costo_asignado", "margen", "rentabilidad_%", "costo_flota", "capacidad_no_utilizada"])
+        w.writerow(["mes", "traslados", "lineas", "km", "facturado", "costo_asignado", "indirectos_y_administracion", "margen", "rentabilidad_%", "costo_flota", "capacidad_no_utilizada"])
         for m in datos["por_mes"]:
             w.writerow([f"{m['mes']:%Y-%m}", round(m["traslado"], 2), round(m["linea"], 2), round(m["km"], 1), round(m["ingreso"]),
-                        round(m["costo"]), round(m["margen"]), "" if m["rentabilidad"] is None else round(m["rentabilidad"], 2),
+                        round(m["costo"]), round(m["costo_ind_admin"]), round(m["margen"]), "" if m["rentabilidad"] is None else round(m["rentabilidad"], 2),
                         round(m["pool"]), round(m["no_utilizado"])])
         resp = HttpResponse(salida.getvalue(), content_type="text/csv; charset=utf-8")
         resp["Content-Disposition"] = 'attachment; filename="consolidado_mensual.csv"'
@@ -180,6 +180,9 @@ def ambulancias(request):
             f["b_trip"] = f["p"].tripulacion_dia / maximo * 100
             f["b_mant"] = f["p"].mantenimiento_dia / maximo * 100
             f["b_comb"] = f["p"].combustible_dia / maximo * 100
+            f["b_ind"] = (f["p"].indirectos_dia + f["p"].administracion_dia) / maximo * 100
+            ref = f["amb"].perfil_vigente
+            f["total_informe"] = float(ref.total_dia_reportado) if ref and ref.total_dia_reportado else None
     ind = indicadores_flota(list(perfiles.values()), precios) if perfiles else {}
     return render(request, "flota/ambulancias.html", {"filas": filas, "ind": ind, "precios": precios})
 
@@ -517,6 +520,24 @@ def parametros_vista(request):
     ejemplo = None
     if "OKZ365" in perfiles:
         ejemplo = costo_recorrido(perfiles["OKZ365"], 194 * float(pars["factor_ida_vuelta"]), precios)
+    from abc_engine import datos_estudio as D
+
+    from .servicios.costeo import indirectos_mes_incluidos, indirectos_por_ambulancia_mes
+
+    modelo = {
+        "cargos": [
+            {"cargo": c, "salario": s, "horas_mes": h, "horas_dia": d, "valor_hora": s / h, "valor_dia": s / h * d}
+            for c, (s, h, d) in D.TRIPULACION_CARGOS.items()
+        ],
+        "tripulacion_dia": float(pars["tripulacion_dia"]),
+        "tripulacion_informe": float(pars["tripulacion_dia_informe"]),
+        "indirectos_mes": indirectos_mes_incluidos(),
+        "reparto": float(pars["ambulancias_reparto_indirectos"]),
+        "indirectos_amb_mes": indirectos_por_ambulancia_mes(pars),
+        "indirectos_amb_dia": indirectos_por_ambulancia_mes(pars) / 30,
+        "tasa_admin": float(pars["tasa_gastos_admin"]) * 100,
+        "oeu846": perfiles.get("OEU846"),
+    }
     return render(
         request,
         "flota/parametros.html",
@@ -526,6 +547,7 @@ def parametros_vista(request):
             "total_partidas": PartidaCostoIndirecto.objects.aggregate(v=Sum("valor_mensual"))["v"] or Decimal(0),
             "incluidas": PartidaCostoIndirecto.objects.filter(incluir_en_abc=True).aggregate(v=Sum("valor_mensual"))["v"] or Decimal(0),
             "ejemplo": ejemplo,
+            "modelo": modelo,
         },
     )
 

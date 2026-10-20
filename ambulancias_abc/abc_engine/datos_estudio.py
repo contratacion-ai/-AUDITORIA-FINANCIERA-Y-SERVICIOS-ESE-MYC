@@ -90,3 +90,38 @@ REPORTADO = {
     "rendimiento_max": (24.3, "OKZ365"),
     "combustible_asignado_ambulancias_mes": 114200000,
 }
+
+# ---------------------------------------------------------------------------
+# Modelo ABC corregido por la ESE (COSTOS AMBULANCIAS.xlsx, hoja
+# "MODELO COSTOS ABC PARAMETRO", octubre de 2026). Ajusta el estudio así:
+# ---------------------------------------------------------------------------
+FUENTE_MODELO = "COSTOS AMBULANCIAS.xlsx - MODELO COSTOS ABC PARAMETRO"
+
+# Tripulación: valor hora (salario ÷ 191 h/mes) × horas por día de cada cargo.
+TRIPULACION_CARGOS = {
+    # cargo: (salario mensual, horas mes, horas día)
+    "MEDICO PLANTA": (7500000, 191, 6.4),
+    "AUXILIAR DE ENFERMERIA": (2754000, 191, 6.3),
+    "CONDUCTOR": (3500000, 191, 6.3),
+}
+TRIPULACION_DIA_MODELO = sum(s / h * d for s, h, d in TRIPULACION_CARGOS.values())  # 457.592,67
+
+# Costos indirectos del centro de costos (VR. PESOS MES), sin personal:
+INDIRECTOS_MES_MODELO = {
+    "ELEMENTOS DE CONSUMO DE OFICINA": 1174036.8467156105,
+    "SEGUROS": 125610.51004636787,
+    "SENTENCIAS JUDICIALES": 1990567.7444015446,
+    "OTROS GASTOS GENERALES": 10124950.41006718,
+    "FINANCIEROS": 10059.998507462686,
+    "DEPRECIACIONES": 8129347.16557187,
+    "AMORTIZACIONES": 163385.58964451315,
+}
+AMBULANCIAS_REPARTO_MODELO = 22  # "TOTAL AMBULANCIAS" del modelo (el estudio tiene 21)
+INDIRECTOS_DIA_MODELO = sum(INDIRECTOS_MES_MODELO.values()) / AMBULANCIAS_REPARTO_MODELO / 30  # 32.906
+TASA_ADMIN_MODELO = 0.062  # gastos administrativos sobre el total de costos
+
+# Correcciones a datos del Anexo A que trae el modelo
+CORRECCIONES_ANEXO_A = {"OKZ364": {"horas_dia": 1 / 3}}  # el informe redondea a 0,2 h/día
+
+# Valores del modelo para verificar el motor (celdas G43, G44 y G45 con OEU846)
+MODELO_OEU846 = {"costos_sin_admin": 1484850.667528211, "admin": 92060.74138674907, "total": 1576911.40891496}

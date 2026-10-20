@@ -100,3 +100,16 @@ def verificar_estudio(tolerancia_relativa: float = 0.01) -> list[dict]:
     comparar("Num. 4.4", "Tripulación $/día = mensual ÷ 30", D.TRIPULACION_DIA, D.TRIPULACION_MES / 30, 0.00001)
     comparar("Num. 4.4", "Tripulación mensual = suma salarios", D.TRIPULACION_MES, sum(D.SALARIOS_TRIPULACION.values()), 0.00001)
     return hallazgos
+
+
+def perfiles_modelo_corregido() -> list[PerfilAmbulancia]:
+    """Perfiles del Anexo A con las correcciones del modelo ABC de la ESE."""
+    perfiles = []
+    for p in perfiles_estudio(D.TRIPULACION_DIA_MODELO):
+        cambios = dict(D.CORRECCIONES_ANEXO_A.get(p.placa, {}))
+        perfiles.append(
+            PerfilAmbulancia(
+                **{**p.__dict__, **cambios, "indirectos_dia": D.INDIRECTOS_DIA_MODELO, "tasa_admin": D.TASA_ADMIN_MODELO}
+            )
+        )
+    return perfiles

@@ -135,7 +135,7 @@ class PerfilCostoEstudio(models.Model):
     fecha_estudio = models.DateField()
     vigente = models.BooleanField(default=True)
     km_dia = models.DecimalField(max_digits=8, decimal_places=2)
-    horas_dia = models.DecimalField(max_digits=6, decimal_places=2)
+    horas_dia = models.DecimalField(max_digits=8, decimal_places=4)
     combustible_dia = models.DecimalField(max_digits=14, decimal_places=2)
     mantenimiento_dia = models.DecimalField(max_digits=14, decimal_places=2)
     tripulacion_dia = models.DecimalField(max_digits=14, decimal_places=2)

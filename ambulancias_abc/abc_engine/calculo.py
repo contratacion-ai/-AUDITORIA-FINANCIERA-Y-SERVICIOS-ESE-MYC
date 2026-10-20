@@ -10,6 +10,8 @@ Actividades y drivers usados para asignar los recursos a cada traslado:
     Desplazamiento (rodamiento)  Combustible                Galones (km / rendimiento)
     Desgaste del vehículo        Mantenimiento              Kilómetros recorridos
     Atención en misión           Tripulación                Horas en misión (km / velocidad)
+    Disponibilidad / soporte     Indirectos del centro de   Horas en misión (como la tripulación:
+                                 costos por ambulancia-día  es un costo fijo diario)
     Atención clínica             Insumos (consumos reales)  Número de traslados
     Soporte / otros              Otros consumos e indirectos Número de traslados
 
@@ -24,6 +26,10 @@ Dos métodos de asignación:
   disponibilidad por hora (C_tripulación/24 h). La diferencia entre el costo
   del periodo y lo asignado es la capacidad no utilizada (o sobreconsumo si
   es negativa).
+
+Gastos administrativos (modelo corregido de la ESE, 6,2 %): recargo
+porcentual sobre todo lo anterior; se aplica igual a lo asignado y a lo no
+utilizado, por lo que no altera la conservación.
 
 En ambos casos se cumple la identidad de conservación:
 
@@ -41,7 +47,8 @@ ACPM = "ACPM"
 METODO_REAL = "REAL"
 METODO_CAPACIDAD = "CAPACIDAD"
 
-ACTIVIDADES = ("combustible", "mantenimiento", "tripulacion", "insumos", "otros")
+ACTIVIDADES = ("combustible", "mantenimiento", "tripulacion", "indirectos", "insumos", "otros")
+COMPONENTES = ACTIVIDADES + ("administracion",)
 
 
 @dataclass(frozen=True)
@@ -68,10 +75,20 @@ class PerfilAmbulancia:
     mantenimiento_dia: float
     tripulacion_dia: float
     excluida_promedios: bool = False
+    indirectos_dia: float = 0.0  # centro de costos ÷ ambulancias ÷ 30
+    tasa_admin: float = 0.0  # gastos administrativos (0,062 = 6,2 %)
+
+    @property
+    def base_dia(self) -> float:
+        return self.combustible_dia + self.mantenimiento_dia + self.tripulacion_dia + self.indirectos_dia
+
+    @property
+    def administracion_dia(self) -> float:
+        return self.base_dia * self.tasa_admin
 
     @property
     def total_dia(self) -> float:
-        return self.combustible_dia + self.mantenimiento_dia + self.tripulacion_dia
+        return self.base_dia + self.administracion_dia
 
     def galones_dia(self, precios: Precios) -> float:
         return self.combustible_dia / precios.precio(self.tipo_combustible)
@@ -105,10 +122,12 @@ class CostoRecorrido:
     combustible: float
     mantenimiento: float
     tripulacion: float
+    indirectos: float = 0.0
+    administracion: float = 0.0
 
     @property
     def total(self) -> float:
-        return self.combustible + self.mantenimiento + self.tripulacion
+        return self.combustible + self.mantenimiento + self.tripulacion + self.indirectos + self.administracion
 
 
 def costo_recorrido(
@@ -131,11 +150,13 @@ def costo_recorrido(
     horas = km / vel
     combustible = galones * precios.precio(perfil.tipo_combustible)
     mantenimiento = km * perfil.mantenimiento_dia / perfil.km_dia
-    if metodo == METODO_CAPACIDAD:
-        tripulacion = horas * perfil.tripulacion_dia / 24.0
-    else:
-        tripulacion = horas * perfil.tripulacion_dia / perfil.horas_dia
-    return CostoRecorrido(km, galones, horas, combustible, mantenimiento, tripulacion)
+    # Tripulación e indirectos son costos fijos por día: se absorben por hora en
+    # misión (REAL) o por hora de disponibilidad de 24 h (CAPACIDAD).
+    horas_base = 24.0 if metodo == METODO_CAPACIDAD else perfil.horas_dia
+    tripulacion = horas * perfil.tripulacion_dia / horas_base
+    indirectos = horas * perfil.indirectos_dia / horas_base
+    subtotal = combustible + mantenimiento + tripulacion + indirectos
+    return CostoRecorrido(km, galones, horas, combustible, mantenimiento, tripulacion, indirectos, subtotal * perfil.tasa_admin)
 
 
 # ---------------------------------------------------------------------------
@@ -219,11 +240,13 @@ class PoolAmbulancia:
     combustible: float = 0.0
     mantenimiento: float = 0.0
     tripulacion: float = 0.0
+    indirectos: float = 0.0
     insumos: float = 0.0
     otros: float = 0.0
 
     @property
     def total(self) -> float:
+        """Total sin gastos administrativos (el recargo se aplica en la asignación)."""
         return sum(getattr(self, a) for a in ACTIVIDADES)
 
 
@@ -274,7 +297,7 @@ class ResultadoAsignacion:
 
 
 def _vacio() -> dict[str, float]:
-    return {a: 0.0 for a in ACTIVIDADES} | {"indirectos": 0.0, "total": 0.0}
+    return {a: 0.0 for a in COMPONENTES} | {"total": 0.0}
 
 
 def asignar_periodo(
@@ -286,14 +309,18 @@ def asignar_periodo(
     indirectos: float = 0.0,
     velocidad_flota_kmh: float = 34.6,
     tipos_combustible: dict[str, str] | None = None,
+    tasa_admin: float = 0.0,
 ) -> ResultadoAsignacion:
     """Asigna el costo de los recursos del periodo a los traslados.
 
     ``perfiles`` aporta rendimiento (km/gal) y velocidad efectiva por placa.
     Si una placa no tiene perfil se usan el promedio de la flota por tipo de
     combustible y ``velocidad_flota_kmh`` (34,6 km/h, num. 4.5 del informe).
+
+    ``indirectos``: monto de la flota (no de una ambulancia) que se reparte por
+    número de traslados. ``tasa_admin``: recargo de gastos administrativos.
     """
-    res = ResultadoAsignacion(metodo=metodo, indirectos=indirectos)
+    res = ResultadoAsignacion(metodo=metodo, indirectos=indirectos * (1 + tasa_admin))
     tipos_combustible = tipos_combustible or {}
     pools_por_placa = {p.placa: p for p in pools}
 
@@ -370,10 +397,12 @@ def asignar_periodo(
                 else real(pool.mantenimiento, d["km"])
             )
             tasa_trip = perfil.tripulacion_dia / 24.0 if perfil else real(pool.tripulacion, d["horas"])
+            tasa_ind_amb = perfil.indirectos_dia / 24.0 if perfil else real(pool.indirectos, d["horas"])
             tasas[pool.placa] = {
                 "combustible": precios.precio(tipo),
                 "mantenimiento": tasa_mant,
                 "tripulacion": tasa_trip,
+                "indirectos": tasa_ind_amb,
                 "insumos": real(pool.insumos, d["conteo"]),
                 "otros": real(pool.otros, d["conteo"]),
             }
@@ -382,6 +411,7 @@ def asignar_periodo(
                 "combustible": real(pool.combustible, d["galones"]),
                 "mantenimiento": real(pool.mantenimiento, d["km"]),
                 "tripulacion": real(pool.tripulacion, d["horas"]),
+                "indirectos": real(pool.indirectos, d["horas"]),
                 "insumos": real(pool.insumos, d["conteo"]),
                 "otros": real(pool.otros, d["conteo"]),
             }
@@ -390,6 +420,7 @@ def asignar_periodo(
         "combustible": "galones",
         "mantenimiento": "km",
         "tripulacion": "horas",
+        "indirectos": "horas",
         "insumos": "conteo",
         "otros": "conteo",
     }
@@ -403,14 +434,14 @@ def asignar_periodo(
         pt = res.placa_traslado.setdefault(parte.traslado_id, {})
         pt[parte.placa] = pt.get(parte.placa, 0.0) + parte.peso
         valores = {"galones": parte.galones, "km": parte.km, "horas": parte.horas, "conteo": parte.peso}
-        ind = tasa_ind * parte.peso
+        costos = {act: tasas[parte.placa][act] * valores[driver_de[act]] for act in ACTIVIDADES}
+        costos["indirectos"] += tasa_ind * parte.peso  # indirectos de flota por número de traslados
+        subtotal = sum(costos.values())
+        costos["administracion"] = subtotal * tasa_admin
         for destino in (tr, cp):
-            for act in ACTIVIDADES:
-                costo = tasas[parte.placa][act] * valores[driver_de[act]]
+            for act, costo in costos.items():
                 destino[act] += costo
-                destino["total"] += costo
-            destino["indirectos"] += ind
-            destino["total"] += ind
+            destino["total"] += subtotal + costos["administracion"]
 
     # 5. Resumen por ambulancia con capacidad no utilizada.
     for pool in pools:
@@ -426,7 +457,15 @@ def asignar_periodo(
             fila["asignado_total"] += asignado
             fila["no_utilizado_total"] += valor_pool - asignado
             fila[f"tasa_{act}"] = tasas[pool.placa][act]
-        fila["indirectos_asignados"] = tasa_ind * d["conteo"]
+        fila["indirectos_flota_asignados"] = tasa_ind * d["conteo"]
+        # Gastos administrativos: mismo recargo sobre el costo, lo asignado y lo no utilizado.
+        fila["pool_administracion"] = pool.total * tasa_admin
+        fila["asignado_administracion"] = fila["asignado_total"] * tasa_admin
+        fila["no_utilizado_administracion"] = fila["no_utilizado_total"] * tasa_admin
+        fila["pool_total"] += fila["pool_administracion"]
+        fila["asignado_total"] += fila["asignado_administracion"]
+        fila["no_utilizado_total"] += fila["no_utilizado_administracion"]
+        fila["tasa_administracion"] = tasa_admin
         if fila["no_utilizado_total"] < -0.5:
             res.avisos.append(
                 f"{pool.placa}: lo asignado a tasa estándar supera el costo del periodo "
@@ -434,5 +473,5 @@ def asignar_periodo(
             )
         res.por_ambulancia[pool.placa] = fila
 
-    res.indirectos_no_utilizados = indirectos if total_conteo == 0 else 0.0
+    res.indirectos_no_utilizados = res.indirectos if total_conteo == 0 else 0.0
     return res

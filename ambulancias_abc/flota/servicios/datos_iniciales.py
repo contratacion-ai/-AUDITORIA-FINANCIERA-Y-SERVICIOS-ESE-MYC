@@ -14,7 +14,7 @@ from abc_engine import datos_estudio as D
 from abc_engine.estudio import verificar_estudio
 
 from ..models import Ambulancia, CodigoTraslado, Parametro, PerfilCostoEstudio, Sede
-from .comunes import PARAMETROS_DEFECTO, guardar_hallazgos
+from .comunes import CORRECCIONES_PARAMETROS, PARAMETROS_DEFECTO, guardar_hallazgos
 from .importar import guardar_costos_ceco, guardar_tarifas
 
 DIR = Path(__file__).resolve().parent.parent / "datos_iniciales"
@@ -67,10 +67,19 @@ def cargar(incluir_tarifas=True, incluir_ceco=True) -> dict:
     resumen["sedes"] = Sede.objects.count()
 
     for clave, (valor, unidad, desc, fuente, supuesto) in PARAMETROS_DEFECTO.items():
-        Parametro.objects.get_or_create(
+        p, creado = Parametro.objects.get_or_create(
             clave=clave,
             defaults={"valor": Decimal(str(valor)), "unidad": unidad, "descripcion": desc, "fuente": fuente, "es_supuesto": supuesto},
         )
+        # Actualización del programa: aplica la corrección del modelo ABC solo si el
+        # parámetro conserva el valor anterior por defecto (nadie lo cambió a mano).
+        anterior_nuevo = CORRECCIONES_PARAMETROS.get(clave)
+        if not creado and anterior_nuevo and p.valor == anterior_nuevo[0]:
+            p.valor, p.descripcion, p.fuente = anterior_nuevo[1], desc, fuente
+            p.version += 1
+            p.save()
+    # Parámetro de la versión anterior que el modelo corregido reemplazó.
+    Parametro.objects.filter(clave="tripulacion_dia_tabla_th").delete()
     resumen["parametros"] = Parametro.objects.count()
 
     for codigo, desc, modalidad in CODIGOS:
@@ -78,6 +87,7 @@ def cargar(incluir_tarifas=True, incluir_ceco=True) -> dict:
 
     fecha = dt.date(2026, 10, 14)
     for placa, sede, comb, km, h, c, m, total, ckm, ch, excl in D.ANEXO_A:
+        h = D.CORRECCIONES_ANEXO_A.get(placa, {}).get("horas_dia", h)  # corrección del modelo ABC
         amb, _ = Ambulancia.objects.update_or_create(
             placa=placa,
             defaults={
@@ -93,10 +103,10 @@ def cargar(incluir_tarifas=True, incluir_ceco=True) -> dict:
             defaults={
                 "fecha_estudio": fecha,
                 "km_dia": Decimal(str(km)),
-                "horas_dia": Decimal(str(h)),
+                "horas_dia": Decimal(str(round(h, 4))),
                 "combustible_dia": c,
                 "mantenimiento_dia": m,
-                "tripulacion_dia": D.TRIPULACION_DIA,
+                "tripulacion_dia": round(D.TRIPULACION_DIA_MODELO, 2),
                 "total_dia_reportado": total,
                 "costo_km_reportado": ckm,
                 "costo_hora_reportado": ch,
@@ -152,14 +162,6 @@ def cargar(incluir_tarifas=True, incluir_ceco=True) -> dict:
             "descripcion": "La figura 2 muestra un factor de ×3,5 para Puerto Jordán; la tabla 2 reporta 3,15 (ACPM).",
             "severidad": "BAJA",
         },
-        {
-            "fuente": "COSTOS AMBULANCIAS.xlsx",
-            "ubicacion": "Libro completo",
-            "tipo": "SUPUESTO",
-            "descripcion": "No se encontraron celdas '[object Object]' en la versión recibida del archivo; sí hay "
-            "#DIV/0! (I43, I45) y fórmulas que dependen de celdas vacías.",
-            "severidad": "BAJA",
-        },
     ]
     resumen["hallazgos_estudio"] = guardar_hallazgos(hallazgos)
 
@@ -169,7 +171,8 @@ def cargar(incluir_tarifas=True, incluir_ceco=True) -> dict:
         resumen["tarifas"] = lote.nuevos + lote.actualizados
     if incluir_ceco:
         datos = json.loads((DIR / "costos_ambulancias_ceco.json").read_text(encoding="utf-8"))
-        lote = guardar_costos_ceco(datos, archivo="COSTOS AMBULANCIAS.xlsx (datos iniciales)")
+        lote = guardar_costos_ceco(datos, archivo="COSTOS AMBULANCIAS.xlsx (modelo ABC corregido, datos iniciales)",
+                                   forzar_parametros=False)
         resumen["partidas_ceco"] = lote.nuevos + lote.actualizados
 
     for nombre, acciones in GRUPOS.items():

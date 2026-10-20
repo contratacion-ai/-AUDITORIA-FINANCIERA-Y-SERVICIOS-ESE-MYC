@@ -5,9 +5,31 @@
 <div class="panel">
   <p class="suave">Los parámetros se editan en <a href="{% url 'admin:flota_parametro_changelist' %}">Administración › Parámetros</a> (solo administradores). Los marcados como <b>supuesto</b> no están definidos por el estudio y deben validarse.</p>
   <table><tr><th>Clave</th><th class="n">Valor</th><th>Unidad</th><th>Descripción</th><th>Fuente</th><th></th></tr>
-  {% for p in parametros %}<tr><td><code>{{ p.clave }}</code></td><td class="n">{{ p.valor|num:2 }}</td><td>{{ p.unidad }}</td><td>{{ p.descripcion }}</td><td class="suave">{{ p.fuente }}</td><td>{% if p.es_supuesto %}<span class="etq MEDIA">supuesto</span>{% endif %}</td></tr>{% endfor %}
+  {% for p in parametros %}<tr><td><code>{{ p.clave }}</code></td><td class="n">{% if p.unidad == "fracción" %}{{ p.valor|num:4 }}{% else %}{{ p.valor|num:2 }}{% endif %}</td><td>{{ p.unidad }}</td><td>{{ p.descripcion }}</td><td class="suave">{{ p.fuente }}</td><td>{% if p.es_supuesto %}<span class="etq MEDIA">supuesto</span>{% endif %}</td></tr>{% endfor %}
   </table>
 </div>
+<div class="panel"><h2>Modelo de costos ABC corregido</h2>
+<p class="suave">Fuente: COSTOS AMBULANCIAS.xlsx, hoja "MODELO COSTOS ABC PARAMETRO". Costo diario de cada ambulancia = (combustible + mantenimiento + tripulación + indirectos) × (1 + gastos administrativos).</p>
+<div class="grid">
+<div><h2>Tripulación por día</h2>
+<table><tr><th>Cargo</th><th class="n">Salario mes</th><th class="n">Horas mes</th><th class="n">Valor hora</th><th class="n">Horas día</th><th class="n">Valor día</th></tr>
+{% for c in modelo.cargos %}<tr><td>{{ c.cargo }}</td><td class="n">{{ c.salario|pesos }}</td><td class="n">{{ c.horas_mes|num }}</td><td class="n">{{ c.valor_hora|pesos }}</td><td class="n">{{ c.horas_dia|num:1 }}</td><td class="n">{{ c.valor_dia|pesos }}</td></tr>{% endfor %}
+<tr><th colspan="5">Tripulación por ambulancia/día (parámetro vigente)</th><th class="n">{{ modelo.tripulacion_dia|pesos }}</th></tr>
+<tr><td colspan="5" class="suave">Informe técnico (13.754.000 ÷ 30), solo contraste</td><td class="n suave">{{ modelo.tripulacion_informe|pesos }}</td></tr>
+</table></div>
+<div><h2>Indirectos y administración</h2>
+<table>
+<tr><td>Partidas del centro de costos incluidas ($/mes)</td><td class="n">{{ modelo.indirectos_mes|pesos }}</td></tr>
+<tr><td>÷ ambulancias del reparto</td><td class="n">{{ modelo.reparto|num }}</td></tr>
+<tr><td>Indirectos por ambulancia/mes</td><td class="n">{{ modelo.indirectos_amb_mes|pesos }}</td></tr>
+<tr><td>Indirectos por ambulancia/día (÷ 30)</td><td class="n"><b>{{ modelo.indirectos_amb_dia|pesos }}</b></td></tr>
+<tr><td>Gastos administrativos sobre el total</td><td class="n"><b>{{ modelo.tasa_admin|num:1 }} %</b></td></tr>
+{% if modelo.oeu846 %}<tr><th colspan="2">Ejemplo OEU846</th></tr>
+<tr><td>Combustible + mantenimiento + tripulación + indirectos</td><td class="n">{{ modelo.oeu846.base_dia|pesos }}</td></tr>
+<tr><td>Gastos administrativos</td><td class="n">{{ modelo.oeu846.administracion_dia|pesos }}</td></tr>
+<tr><th>Costo total por día</th><th class="n">{{ modelo.oeu846.total_dia|pesos }}</th></tr>{% endif %}
+</table></div>
+</div></div>
 {% if ejemplo %}
 <div class="panel"><h2>Ejemplo de cálculo: OKZ365, Tame → Arauca (194 km)</h2>
 <table>
@@ -17,12 +39,14 @@
 <tr><td>Combustible = galones × precio ACPM</td><td class="n">{{ ejemplo.combustible|pesos }}</td></tr>
 <tr><td>Mantenimiento = km × (mantenimiento/día ÷ km/día)</td><td class="n">{{ ejemplo.mantenimiento|pesos }}</td></tr>
 <tr><td>Tripulación = horas × (tripulación/día ÷ horas/día)</td><td class="n">{{ ejemplo.tripulacion|pesos }}</td></tr>
+<tr><td>Indirectos = horas × (indirectos/día ÷ horas/día)</td><td class="n">{{ ejemplo.indirectos|pesos }}</td></tr>
+<tr><td>Gastos administrativos = subtotal × tasa</td><td class="n">{{ ejemplo.administracion|pesos }}</td></tr>
 <tr><th>Costo ABC del recorrido</th><th class="n">{{ ejemplo.total|pesos }}</th></tr>
 </table></div>
 {% endif %}
 <div class="panel">
   <h2>Partidas del centro de costos (COSTOS AMBULANCIAS.xlsx)</h2>
-  <p class="suave">Referencia de costos indirectos: total {{ total_partidas|pesos }}/mes; incluido en el ABC: {{ incluidas|pesos }}/mes. Marque qué partidas incluir en <a href="{% url 'admin:flota_partidacostoindirecto_changelist' %}">Administración</a>; se reparten entre los traslados por número de traslados. Las de personal no deben incluirse porque duplicarían la tripulación del informe.</p>
+  <p class="suave">Referencia de costos indirectos: total {{ total_partidas|pesos }}/mes; incluido en el ABC: {{ incluidas|pesos }}/mes. Marque qué partidas incluir en <a href="{% url 'admin:flota_partidacostoindirecto_changelist' %}">Administración</a>; se reparten entre los traslados por número de traslados. En el modelo corregido entran todas las partidas generales; la tripulación se costea aparte, por lo que no hay partidas de personal.</p>
   <table><tr><th>Categoría</th><th>Concepto</th><th class="n">Valor mensual</th><th>Incluida</th><th>Fuente</th></tr>
   {% for p in partidas %}<tr><td>{{ p.categoria }}</td><td>{{ p.concepto }}</td><td class="n">{{ p.valor_mensual|pesos }}</td><td>{% if p.incluir_en_abc %}Sí{% else %}No{% endif %}</td><td class="suave">{{ p.fuente }}</td></tr>{% endfor %}
   </table>
