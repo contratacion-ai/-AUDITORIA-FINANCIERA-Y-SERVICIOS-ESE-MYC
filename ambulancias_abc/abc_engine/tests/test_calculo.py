@@ -7,12 +7,14 @@ import unittest
 from abc_engine import datos_estudio as D
 from abc_engine.calculo import (
     METODO_CAPACIDAD,
+    METODO_ESTANDAR,
     METODO_REAL,
     PoolAmbulancia,
     TrasladoDriver,
     asignar_periodo,
     costo_recorrido,
     indicadores_flota,
+    tasas_flota,
 )
 from abc_engine.estudio import perfiles_estudio, precios_estudio, verificar_estudio
 
@@ -208,3 +210,34 @@ class ModeloCorregidoTests(unittest.TestCase):
             for c in r.por_traslado.values():
                 sin_admin = c["total"] - c["administracion"]
                 self.assertAlmostEqual(c["administracion"], sin_admin * D.TASA_ADMIN_MODELO, places=4)
+
+
+class TasasFlotaTests(unittest.TestCase):
+    def setUp(self):
+        from abc_engine.estudio import perfiles_modelo_corregido
+
+        self.precios = precios_estudio()
+        self.perfiles = perfiles_modelo_corregido()
+        self.tasas = tasas_flota(self.perfiles, D.TRIPULACION_HORA_MODELO, 34.6)
+
+    def test_tasas_reproducen_el_total_de_la_flota(self):
+        base = [p for p in self.perfiles if not p.excluida_promedios]
+        km = sum(p.km_dia for p in base)
+        horas = sum(p.horas_dia for p in base)
+        self.assertAlmostEqual(self.tasas.mantenimiento_km * km, sum(p.mantenimiento_dia for p in base), places=4)
+        self.assertAlmostEqual(self.tasas.indirectos_hora * horas, sum(p.indirectos_dia for p in base), places=4)
+        self.assertAlmostEqual(D.TRIPULACION_HORA_MODELO, 72010.47120418848, places=6)
+
+    def test_costo_no_depende_de_la_utilizacion_salvo_combustible(self):
+        por = {p.placa: p for p in self.perfiles}
+        a = costo_recorrido(por["OKZ364"], 300, self.precios, METODO_ESTANDAR, self.tasas)
+        b = costo_recorrido(por["OEU846"], 300, self.precios, METODO_ESTANDAR, self.tasas)
+        self.assertAlmostEqual(a.mantenimiento, b.mantenimiento)
+        self.assertAlmostEqual(a.tripulacion, 300 / 34.6 * D.TRIPULACION_HORA_MODELO)
+        self.assertAlmostEqual(a.horas, b.horas)
+        # con absorción del día, OKZ364 cargaba su tiempo ocioso al recorrido
+        self.assertGreater(costo_recorrido(por["OKZ364"], 300, self.precios, METODO_REAL).total, 5 * a.total)
+
+    def test_estandar_exige_tasas(self):
+        with self.assertRaises(ValueError):
+            costo_recorrido(self.perfiles[0], 100, self.precios, METODO_ESTANDAR)

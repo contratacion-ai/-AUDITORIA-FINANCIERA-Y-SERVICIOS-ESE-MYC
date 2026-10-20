@@ -105,6 +105,8 @@ TRIPULACION_CARGOS = {
     "CONDUCTOR": (3500000, 191, 6.3),
 }
 TRIPULACION_DIA_MODELO = sum(s / h * d for s, h, d in TRIPULACION_CARGOS.values())  # 457.592,67
+# Valor de una hora del equipo completo (médico + auxiliar + conductor): 72.010,47
+TRIPULACION_HORA_MODELO = sum(s / h for s, h, d in TRIPULACION_CARGOS.values())
 
 # Costos indirectos del centro de costos (VR. PESOS MES), sin personal:
 INDIRECTOS_MES_MODELO = {

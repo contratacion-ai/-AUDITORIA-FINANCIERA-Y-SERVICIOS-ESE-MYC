@@ -46,6 +46,9 @@ ACPM = "ACPM"
 
 METODO_REAL = "REAL"
 METODO_CAPACIDAD = "CAPACIDAD"
+# Costo por recorrido con tasas de flota: lo que cuesta el recorrido en sí, sin
+# cargarle el tiempo ocioso de la ambulancia (ver TasasFlota).
+METODO_ESTANDAR = "ESTANDAR"
 
 ACTIVIDADES = ("combustible", "mantenimiento", "tripulacion", "indirectos", "insumos", "otros")
 COMPONENTES = ACTIVIDADES + ("administracion",)
@@ -130,25 +133,75 @@ class CostoRecorrido:
         return self.combustible + self.mantenimiento + self.tripulacion + self.indirectos + self.administracion
 
 
+@dataclass(frozen=True)
+class TasasFlota:
+    """Tasas por driver comunes a toda la flota (método ESTANDAR).
+
+    Con REAL, un recorrido de una ambulancia que anda poco por día absorbe
+    días enteros de tripulación, mantenimiento e indirectos (p. ej. OKZ364:
+    0,33 h/día → $1,37 M por hora de tripulación). Estas tasas cobran al
+    recorrido solo los recursos que consume:
+
+    * tripulación: valor hora del equipo (Σ salario ÷ horas mes, tabla TH);
+    * mantenimiento: $/km de la flota (Σ mantenimiento/día ÷ Σ km/día);
+    * indirectos: $/hora de operación de la flota (Σ indirectos ÷ Σ horas/día);
+    * horas del recorrido: km ÷ velocidad efectiva de la flota.
+
+    La diferencia con REAL es el sobrecosto por baja utilización de cada
+    unidad: existe, pero es capacidad ociosa y no costo del recorrido.
+    """
+
+    mantenimiento_km: float
+    tripulacion_hora: float
+    indirectos_hora: float
+    velocidad_kmh: float
+
+
+def tasas_flota(perfiles, tripulacion_hora: float, velocidad_kmh: float) -> TasasFlota:
+    """Tasas de flota con las unidades que entran en los promedios del informe."""
+    base = [p for p in perfiles if not p.excluida_promedios and p.km_dia > 0 and p.horas_dia > 0]
+    km = sum(p.km_dia for p in base)
+    horas = sum(p.horas_dia for p in base)
+    if not km or not horas:
+        raise ValueError("No hay ambulancias con km y horas para calcular las tasas de flota")
+    return TasasFlota(
+        mantenimiento_km=sum(p.mantenimiento_dia for p in base) / km,
+        tripulacion_hora=tripulacion_hora,
+        indirectos_hora=sum(p.indirectos_dia for p in base) / horas,
+        velocidad_kmh=velocidad_kmh,
+    )
+
+
 def costo_recorrido(
     perfil: PerfilAmbulancia,
     km: float,
     precios: Precios,
     metodo: str = METODO_REAL,
+    tasas: TasasFlota | None = None,
 ) -> CostoRecorrido:
     """Costo estándar de un recorrido de ``km`` kilómetros con una ambulancia.
 
     Con ``REAL`` la tripulación se absorbe en las horas en misión (costo por
     hora de operación del informe); con ``CAPACIDAD`` se cobra la hora de
-    disponibilidad (C_tripulación / 24 h).
+    disponibilidad (C_tripulación / 24 h); con ``ESTANDAR`` se usan las tasas
+    de flota (``tasas``) y solo el combustible depende de la ambulancia.
     """
     rend = perfil.rendimiento_km_gal(precios)
     vel = perfil.velocidad_kmh
     if not rend or not vel or perfil.km_dia <= 0:
         raise ValueError(f"La ambulancia {perfil.placa} no tiene km/horas/combustible suficientes")
     galones = km / rend
-    horas = km / vel
     combustible = galones * precios.precio(perfil.tipo_combustible)
+    if metodo == METODO_ESTANDAR:
+        if tasas is None:
+            raise ValueError("El método ESTANDAR requiere las tasas de flota")
+        horas = km / tasas.velocidad_kmh
+        mantenimiento = km * tasas.mantenimiento_km
+        tripulacion = horas * tasas.tripulacion_hora
+        indirectos = horas * tasas.indirectos_hora
+        subtotal = combustible + mantenimiento + tripulacion + indirectos
+        return CostoRecorrido(km, galones, horas, combustible, mantenimiento, tripulacion, indirectos, subtotal * perfil.tasa_admin)
+    horas = km / vel
     mantenimiento = km * perfil.mantenimiento_dia / perfil.km_dia
     # Tripulación e indirectos son costos fijos por día: se absorben por hora en
     # misión (REAL) o por hora de disponibilidad de 24 h (CAPACIDAD).

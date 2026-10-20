@@ -203,6 +203,9 @@ def leer_costos_ambulancias(archivo, tripulacion_dia_estudio: float | None = Non
             dia_th = sum(t["valor_dia"] or 0 for t in tripulacion)
             if es_modelo:
                 parametros["tripulacion_dia"] = round(dia_th, 4)
+                hora_th = sum(t["salario_mes"] / t["horas_mes"] for t in tripulacion if t["horas_mes"])
+                if hora_th:
+                    parametros["tripulacion_valor_hora"] = round(hora_th, 4)
             if tripulacion_dia_estudio and abs(dia_th - tripulacion_dia_estudio) > 1:
                 if es_modelo:
                     texto = (f"Tripulación por día del modelo corregido (valor hora × horas/día de cada cargo) = {dia_th:,.2f}; "

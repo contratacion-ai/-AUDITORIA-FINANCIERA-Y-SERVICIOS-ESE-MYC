@@ -19,13 +19,16 @@ from django.db.models import Sum
 
 from abc_engine.calculo import (
     METODO_CAPACIDAD,
+    METODO_ESTANDAR,
     METODO_REAL,
     PerfilAmbulancia,
     PoolAmbulancia,
     Precios,
+    TasasFlota,
     TrasladoDriver,
     asignar_periodo,
     costo_recorrido,
+    tasas_flota,
 )
 
 from ..models import (
@@ -42,6 +45,18 @@ from ..models import (
 from .comunes import parametros
 
 METODOS = {METODO_REAL: "Absorción real", METODO_CAPACIDAD: "Capacidad (tasas estándar)"}
+# Métodos para el costo de un recorrido (matriz de rutas y costo estándar por sede).
+METODOS_RECORRIDO = {
+    METODO_ESTANDAR: "Costo del recorrido (tasas de flota)",
+    METODO_REAL: "Absorción del día de la ambulancia",
+    METODO_CAPACIDAD: "Capacidad 24 h",
+}
+
+
+def tasas_vigentes(pars=None, perfiles=None) -> TasasFlota:
+    pars = pars or parametros()
+    perfiles = perfiles or perfiles_vigentes(pars)
+    return tasas_flota(perfiles.values(), float(pars["tripulacion_valor_hora"]), float(pars["velocidad_flota_kmh"]))
 
 
 def precios_vigentes(pars=None) -> Precios:
@@ -320,11 +335,17 @@ def consolidar(desde: dt.date, hasta: dt.date, metodo=METODO_REAL, filtros: dict
     }
 
 
-def matriz_rutas(metodo=METODO_REAL, sede_codigo=None, placa=None, solo_origen=True, vigencia=None) -> list[dict]:
-    """Costo estándar ABC de cada ruta del manual por ambulancia y su margen."""
+def matriz_rutas(metodo=METODO_ESTANDAR, sede_codigo=None, placa=None, solo_origen=True, vigencia=None) -> list[dict]:
+    """Costo estándar ABC de cada ruta del manual por ambulancia y su margen.
+
+    ``sobrecosto_unidad`` = costo con absorción del día (REAL) − costo del
+    recorrido con tasas de flota: lo que la baja utilización de esa ambulancia
+    agregaría si se cargara al recorrido (capacidad ociosa, no costo de la ruta).
+    """
     pars = parametros()
     precios = precios_vigentes(pars)
     perfiles = perfiles_vigentes(pars)
+    tasas = tasas_vigentes(pars, perfiles)
     factor = float(pars["factor_ida_vuelta"])
     rutas = TarifaRuta.objects.filter(activa=True)
     vigencia = vigencia or rutas.order_by("-vigencia").values_list("vigencia", flat=True).first()
@@ -346,7 +367,10 @@ def matriz_rutas(metodo=METODO_REAL, sede_codigo=None, placa=None, solo_origen=T
                 continue
             if solo_origen and normalizar(ruta.origen) != normalizar(amb.sede.origen_tarifa):
                 continue
-            c = costo_recorrido(perfil, float(ruta.km) * factor, precios, metodo)
+            km_cond = float(ruta.km) * factor
+            c = costo_recorrido(perfil, km_cond, precios, metodo, tasas)
+            absorcion = costo_recorrido(perfil, km_cond, precios, METODO_REAL)
+            estandar = c if metodo == METODO_ESTANDAR else costo_recorrido(perfil, km_cond, precios, METODO_ESTANDAR, tasas)
             tarifa = float(ruta.tarifa) if ruta.tarifa is not None else None
             margen = tarifa - c.total if tarifa is not None else None
             filas.append(
@@ -362,7 +386,11 @@ def matriz_rutas(metodo=METODO_REAL, sede_codigo=None, placa=None, solo_origen=T
                     "combustible": c.combustible,
                     "mantenimiento": c.mantenimiento,
                     "tripulacion": c.tripulacion,
+                    "indirectos": c.indirectos,
+                    "administracion": c.administracion,
+                    "ind_admin": c.indirectos + c.administracion,
                     "costo": c.total,
+                    "sobrecosto_unidad": absorcion.total - estandar.total,
                     "tarifa": tarifa,
                     "margen": margen,
                     "rentabilidad": (margen / tarifa * 100) if tarifa else None,
@@ -378,18 +406,22 @@ def matriz_rutas(metodo=METODO_REAL, sede_codigo=None, placa=None, solo_origen=T
 # ---------------------------------------------------------------------------
 
 
-def recorridos_por_sede(desde: dt.date, hasta: dt.date, metodo=METODO_REAL, sede_codigo=None, categoria=None) -> list[dict]:
+def recorridos_por_sede(desde: dt.date, hasta: dt.date, metodo=METODO_REAL, sede_codigo=None, categoria=None,
+                        metodo_recorrido=METODO_ESTANDAR) -> list[dict]:
     """Por cada sede: sus recorridos del Anexo 3 con traslados, facturación, costo ABC
     asignado (real del periodo) y costo estándar del recorrido, con márgenes.
 
     El costo estándar es el promedio de las ambulancias de la sede (con perfil y
-    no excluidas) para un viaje de ida y vuelta por esa ruta.
+    no excluidas) para un viaje de ida y vuelta por esa ruta, con
+    ``metodo_recorrido`` (por defecto tasas de flota). ``metodo`` es el de la
+    asignación del periodo (costo real).
     """
     from ..importacion import normalizar
 
     pars = parametros()
     precios = precios_vigentes(pars)
     perfiles = perfiles_vigentes(pars)
+    tasas = tasas_vigentes(pars, perfiles)
     factor = float(pars["factor_ida_vuelta"])
     sedes = Sede.objects.filter(activa=True).order_by("nombre")
     if sede_codigo:
@@ -426,7 +458,7 @@ def recorridos_por_sede(desde: dt.date, hasta: dt.date, metodo=METODO_REAL, sede
             if normalizar(ruta.origen) != normalizar(sede.origen_tarifa):
                 continue
             d = real.get((sede.codigo, ruta.pk), {})
-            costos = [costo_recorrido(p, float(ruta.km) * factor, precios, metodo).total for p in ambs] if ruta.km else []
+            costos = [costo_recorrido(p, float(ruta.km) * factor, precios, metodo_recorrido, tasas).total for p in ambs] if ruta.km else []
             estandar = sum(costos) / len(costos) if costos else None
             tarifa = float(ruta.tarifa) if ruta.tarifa is not None else None
             fila = {

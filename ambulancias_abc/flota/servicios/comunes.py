@@ -18,6 +18,12 @@ PARAMETROS_DEFECTO = {
         "Tripulación por ambulancia y día: valor hora × horas/día (médico 6,4 h, auxiliar 6,3 h, conductor 6,3 h)",
         "Modelo ABC corregido, COSTOS AMBULANCIAS.xlsx, TABLA DE VALOR TH MYC!G9", False,
     ),
+    "tripulacion_valor_hora": (
+        72010.4712, "$/hora",
+        "Valor de una hora de la tripulación completa (médico + auxiliar + conductor = Σ salario ÷ 191 h). "
+        "Es la tasa de tripulación del costo por recorrido (método ESTANDAR)",
+        "Modelo ABC corregido, COSTOS AMBULANCIAS.xlsx, TABLA DE VALOR TH MYC (VALOR HORA)", False,
+    ),
     "tripulacion_dia_informe": (
         458467, "$/día", "Tripulación del informe técnico (13.754.000 ÷ 30). Solo contraste, no se usa en el cálculo",
         "Informe técnico num. 4.4", False,

@@ -76,7 +76,8 @@
  "parametros": {
   "ambulancias_reparto_indirectos": 21.0,
   "tasa_gastos_admin": 0.062,
-  "tripulacion_dia": 457592.6702
+  "tripulacion_dia": 457592.6702,
+  "tripulacion_valor_hora": 72010.4712
  },
  "perfiles": [
   {

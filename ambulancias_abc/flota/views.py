@@ -15,7 +15,7 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from abc_engine.calculo import METODO_REAL, costo_recorrido, indicadores_flota
+from abc_engine.calculo import METODO_ESTANDAR, METODO_REAL, costo_recorrido, indicadores_flota
 
 from .forms import ConsumoForm, ImportarForm, TrasladoForm
 from .models import (
@@ -33,7 +33,15 @@ from .models import (
 )
 from .servicios import importar
 from .servicios.comunes import parametros, registrar
-from .servicios.costeo import METODOS, consolidar, matriz_rutas, perfiles_vigentes, precios_vigentes
+from .servicios.costeo import (
+    METODOS,
+    METODOS_RECORRIDO,
+    consolidar,
+    matriz_rutas,
+    perfiles_vigentes,
+    precios_vigentes,
+    tasas_vigentes,
+)
 from .servicios.importar import COLUMNAS_CONSUMO, calcular_km, es_por_km
 
 
@@ -217,7 +225,8 @@ def ambulancia_detalle(request, placa):
 
 @login_required
 def rentabilidad_rutas(request):
-    metodo = _metodo(request)
+    metodo = request.GET.get("metodo", METODO_ESTANDAR)
+    metodo = metodo if metodo in METODOS_RECORRIDO else METODO_ESTANDAR
     sede = request.GET.get("sede") or None
     placa = request.GET.get("placa") or None
     solo_origen = request.GET.get("todas") != "1"
@@ -237,7 +246,8 @@ def rentabilidad_rutas(request):
         {
             "rutas": list(rutas.values()),
             "metodo": metodo,
-            "metodos": METODOS,
+            "metodos": METODOS_RECORRIDO,
+            "tasas": tasas_vigentes(pars),
             "sede": sede,
             "placa": placa,
             "solo_origen": solo_origen,
@@ -246,6 +256,9 @@ def rentabilidad_rutas(request):
             "factor": pars["factor_ida_vuelta"],
             "n_filas": len(filas),
             "n_perdida": sum(1 for f in filas if f["margen"] is not None and f["margen"] < 0),
+            "n_perdida_absorcion": sum(
+                1 for f in filas if f["tarifa"] is not None and f["tarifa"] - f["costo"] - f["sobrecosto_unidad"] < 0
+            ) if metodo == METODO_ESTANDAR else None,
         },
     )
 

@@ -85,6 +85,20 @@ La facturación del HIS no trae la placa. Hasta que se asigne (pantalla *Traslad
 
 ### Costo estándar por recorrido (matriz de rentabilidad)
 
+**Método por defecto: ESTANDAR (tasas de flota).** Solo el combustible depende de la ambulancia; los demás recursos se cobran por lo que el recorrido consume:
+
+```
+horas          = km conducidos ÷ velocidad_flota_kmh (34,6)
+combustible    = km conducidos ÷ rendimiento de la ambulancia × precio
+mantenimiento  = km conducidos × Σ mantenimiento/día ÷ Σ km/día de la flota
+tripulación    = horas × tripulacion_valor_hora (Σ salario ÷ 191 h; $72.010)
+indirectos     = horas × Σ indirectos/día ÷ Σ horas/día de la flota
+administración = 6,2 % del subtotal
+sobrecosto por baja utilización = costo con absorción del día (REAL) − costo ESTANDAR
+```
+
+Los métodos REAL y CAPACIDAD siguientes se conservan en el selector. Con REAL, una ambulancia que anda pocas horas por día carga al recorrido su tiempo ocioso (ver CALIDAD_DATOS.md).
+
 Para una ruta del Anexo 3 de `km` kilómetros y una ambulancia:
 
 ```
@@ -135,6 +149,7 @@ Los modelos editables (`Ambulancia`, `Parametro`, `Traslado`, `Consumo`) llevan 
 | `precio_gasolina` | 23.650 | Informe num. 4.2 | No |
 | `precio_acpm` | 18.500 | Informe num. 4.2 | No |
 | `tripulacion_dia` | 457.592,67 | Modelo corregido, tabla TH | No |
+| `tripulacion_valor_hora` | 72.010,47 | Modelo corregido, tabla TH (Σ salario ÷ 191 h) | No |
 | `tripulacion_dia_informe` | 458.467 | Informe num. 4.4 (solo contraste) | No |
 | `tasa_gastos_admin` | 0,062 | Modelo corregido, E44 | No |
 | `ambulancias_reparto_indirectos` | 21 | Modelo corregido, F10 (TOTAL AMBULANCIAS) | No |

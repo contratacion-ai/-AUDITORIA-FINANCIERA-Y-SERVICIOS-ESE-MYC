@@ -197,6 +197,24 @@ class CosteoTests(BaseCargada):
         self.assertAlmostEqual(arauca["costo"], 194 * 2 * base_dia / 209.6 * 1.062, delta=1)
         self.assertEqual(arauca["tarifa"], 3298000)
 
+    def test_matriz_rutas_estandar_no_carga_tiempo_ocioso(self):
+        from flota.servicios.costeo import tasas_vigentes
+
+        t = tasas_vigentes()
+        self.assertAlmostEqual(t.tripulacion_hora, 7500000 / 191 + 2754000 / 191 + 3500000 / 191, delta=0.01)
+        filas = matriz_rutas(sede_codigo="tame", placa="OKZ365")  # por defecto ESTANDAR
+        arauca = next(f for f in filas if f["ruta"].destino == "ARAUCA")
+        km = 194 * 2
+        horas = km / 34.6
+        esperado = (206551 / 209.6 * km + km * t.mantenimiento_km + horas * t.tripulacion_hora + horas * t.indirectos_hora) * 1.062
+        self.assertAlmostEqual(arauca["costo"], esperado, delta=1)
+        real = next(f for f in matriz_rutas("REAL", sede_codigo="tame", placa="OKZ365") if f["ruta"].destino == "ARAUCA")
+        self.assertAlmostEqual(arauca["sobrecosto_unidad"], real["costo"] - arauca["costo"], delta=0.01)
+        # Una ambulancia de muy baja utilización (OKZ364: 0,33 h/día) ya no pierde por su tiempo ocioso.
+        okz = matriz_rutas(placa="OKZ364")
+        self.assertTrue(okz and all(f["margen"] > 0 for f in okz))
+        self.assertTrue(all(f["sobrecosto_unidad"] > 0 for f in okz))
+
 
 class ConcurrenciaTests(BaseCargada):
     def test_bloqueo_optimista(self):

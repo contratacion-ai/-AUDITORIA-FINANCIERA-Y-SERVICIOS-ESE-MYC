@@ -9,14 +9,24 @@
   <label><span>Rutas</span><select name="todas"><option value="">Solo las que salen de la sede de la ambulancia</option><option value="1" {% if not solo_origen %}selected{% endif %}>Todas las rutas con cada ambulancia</option></select></label>
   <button>Aplicar</button>
 </form>
-<div class="aviso">Costo del recorrido = km de la ruta × {{ factor|num:1 }} (ida y vuelta, parámetro configurable) con el perfil de la ambulancia: combustible por galones (km ÷ rendimiento × precio), mantenimiento por km y tripulación por horas en misión (km ÷ velocidad efectiva). {{ n_perdida }} de {{ n_filas }} combinaciones ruta-ambulancia dan pérdida.</div>
+<div class="aviso">Costo del recorrido = km de la ruta × {{ factor|num:1 }} (ida y vuelta, parámetro configurable).
+{% if metodo == "ESTANDAR" %}
+Combustible con el rendimiento de cada ambulancia (km ÷ km/gal × precio). Los demás recursos con <b>tasas de flota</b>, que cobran al recorrido solo lo que consume:
+horas = km ÷ {{ tasas.velocidad_kmh|num:1 }} km/h; tripulación {{ tasas.tripulacion_hora|pesos }}/hora (valor hora del equipo, tabla TH);
+mantenimiento {{ tasas.mantenimiento_km|pesos }}/km (promedio de la flota); indirectos {{ tasas.indirectos_hora|pesos }}/hora; más gastos administrativos.
+<br><b>{{ n_perdida }} de {{ n_filas }}</b> combinaciones ruta-ambulancia dan pérdida{% if n_perdida_absorcion is not None %} (con el método anterior, que carga a cada recorrido el día completo de la ambulancia, eran {{ n_perdida_absorcion }}){% endif %}.
+La columna <i>Sobrecosto por baja utilización</i> es lo que el tiempo ocioso de esa ambulancia sumaría al recorrido: es costo de capacidad no utilizada de la unidad, no de la ruta.
+{% else %}
+Tripulación, mantenimiento e indirectos se reparten con el perfil diario de la ambulancia{% if metodo == "REAL" %}: el recorrido absorbe la parte del día completo de la unidad, por lo que en las ambulancias que andan poco por día incluye su tiempo ocioso{% else %} sobre 24 h de disponibilidad{% endif %}.
+{{ n_perdida }} de {{ n_filas }} combinaciones ruta-ambulancia dan pérdida.
+{% endif %}</div>
 {% for r in rutas %}
 <div class="panel">
   <h2>{{ r.ruta.origen }} → {{ r.ruta.destino }} · {{ r.ruta.km|num }} km · tarifa {{ r.ruta.tarifa|pesos }}{% if r.perdida %} <span class="etq ALTA">{{ r.perdida }} con pérdida</span>{% endif %}</h2>
   <table>
-    <tr><th>Placa</th><th>Comb.</th><th class="n">Km conducidos</th><th class="n">Horas</th><th class="n">Galones</th><th class="n">Combustible</th><th class="n">Mantenimiento</th><th class="n">Tripulación</th><th class="n">Costo ABC</th><th class="n">Tarifa</th><th class="n">Margen</th><th class="n">Rent.</th><th class="n">Tarifa/km de equilibrio</th></tr>
+    <tr><th>Placa</th><th>Comb.</th><th class="n">Km conducidos</th><th class="n">Horas</th><th class="n">Galones</th><th class="n">Combustible</th><th class="n">Mantenimiento</th><th class="n">Tripulación</th><th class="n">Indirectos y admin.</th><th class="n">Costo ABC</th><th class="n">Tarifa</th><th class="n">Margen</th><th class="n">Rent.</th><th class="n">Tarifa/km de equilibrio</th><th class="n">Sobrecosto por baja utilización</th></tr>
     {% for f in r.filas %}
-    <tr><td>{{ f.placa }}{% if f.excluida %} <span class="etq">excluida</span>{% endif %}</td><td>{{ f.tipo_combustible }}</td><td class="n">{{ f.km_conducidos|num }}</td><td class="n">{{ f.horas|num:1 }}</td><td class="n">{{ f.galones|num:1 }}</td><td class="n">{{ f.combustible|pesos }}</td><td class="n">{{ f.mantenimiento|pesos }}</td><td class="n">{{ f.tripulacion|pesos }}</td><td class="n"><b>{{ f.costo|pesos }}</b></td><td class="n">{{ f.tarifa|pesos }}</td><td class="n {{ f.margen|signo }}">{{ f.margen|pesos }}</td><td class="n {{ f.margen|signo }}">{{ f.rentabilidad|pct }}</td><td class="n">{{ f.tarifa_km_equilibrio|pesos }}</td></tr>
+    <tr><td>{{ f.placa }}{% if f.excluida %} <span class="etq">excluida</span>{% endif %}</td><td>{{ f.tipo_combustible }}</td><td class="n">{{ f.km_conducidos|num }}</td><td class="n">{{ f.horas|num:1 }}</td><td class="n">{{ f.galones|num:1 }}</td><td class="n">{{ f.combustible|pesos }}</td><td class="n">{{ f.mantenimiento|pesos }}</td><td class="n">{{ f.tripulacion|pesos }}</td><td class="n">{{ f.ind_admin|pesos }}</td><td class="n"><b>{{ f.costo|pesos }}</b></td><td class="n">{{ f.tarifa|pesos }}</td><td class="n {{ f.margen|signo }}">{{ f.margen|pesos }}</td><td class="n {{ f.margen|signo }}">{{ f.rentabilidad|pct }}</td><td class="n">{{ f.tarifa_km_equilibrio|pesos }}</td><td class="n suave">{{ f.sobrecosto_unidad|pesos }}</td></tr>
     {% endfor %}
   </table>
 </div>

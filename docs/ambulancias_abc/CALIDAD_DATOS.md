@@ -94,6 +94,31 @@ Los hallazgos de la versión anterior del libro (`#DIV/0!`, duración "20 MIN" e
 
 - Costo promedio por ambulancia/día: **$955.456** (informe: $866.077); flota $19.669.968/día. Menor OYX016 ($618.462), mayor OEU846 ($1.578.576).
 - Rentabilidad real por sede: Tame 53,1 %, Arauquita 36,8 %, Pto Rondón 35,2 %, Fortul 34,9 %, Pto Jordán 27,7 %, Panamá 15,2 %, La Esmeralda 4,0 %, **Cravo Norte −121,6 %**.
-- Matriz ruta × ambulancia: **134 de 253** combinaciones pierden (antes 116). A las 8 unidades de bajo recorrido se suma **OLM779** (Pto Rondón), que ahora pierde en sus 18 rutas. Las de menor costo por km siguen siendo OYX014, OKZ368 y OEU846.
+- Matriz ruta × ambulancia: con el costo por recorrido corregido (tasas de flota, ver abajo) **0 de 253** combinaciones pierden; la rentabilidad estándar va de 13,4 % (OYX018) a 45,9 % (OKZ362), promedio 30,0 %. Con el cálculo anterior eran 134 de 253.
+
+### Desfase de mantenimiento y tripulación en el costo por recorrido (corregido)
+
+El cálculo anterior repartía el costo **del día completo** de cada ambulancia entre los pocos km u horas que esa unidad anda por día. En las 9 unidades de baja utilización eso cargaba al recorrido su tiempo ocioso: todas sus rutas daban pérdida, y ninguna ruta de las otras 12.
+
+| Ambulancia | h/día | km/día | Tripulación por hora (antes) | Mantenimiento por km (antes) |
+|---|---|---|---|---|
+| OKZ364 | 0,33 | 7,6 | $1.372.915 | $3.999 |
+| OKZ367 | 0,5 | 17,5 | $915.185 | $10.660 |
+| OYX018 | 1,1 | 39,4 | $415.993 | $14.873 |
+| OEU846 (referencia) | 7,1 | 281,3 | $64.450 | $1.046 |
+
+Ahora el costo del recorrido (método **ESTANDAR**, por defecto en la matriz y en el costo estándar de *Recorridos por sede*) usa tasas comunes a la flota:
+
+| Recurso | Tasa | Origen |
+|---|---|---|
+| Tripulación | **$72.010/hora** del equipo (médico + auxiliar + conductor) | Salario ÷ 191 h de cada cargo, tabla TH (parámetro `tripulacion_valor_hora`) |
+| Mantenimiento | **$1.603/km** | Σ mantenimiento/día ÷ Σ km/día de la flota (sin OKZ364) |
+| Indirectos | **$9.563/hora** | Σ indirectos/día ÷ Σ horas/día de la flota |
+| Horas del recorrido | km ÷ **34,6 km/h** | Velocidad efectiva de la flota (informe, num. 4.5) |
+| Combustible | Rendimiento de cada ambulancia | Anexo A |
+
+Ejemplo, Puerto Rondón → Arauca con OLM779 (540 km conducidos): tripulación $2.144.966 → $1.123.863; mantenimiento $1.044.909 → $865.377; costo $4.734.021 → $3.445.831 frente a una tarifa de $4.590.000 (margen 24,9 % en vez de −3,1 %).
+
+La diferencia (columna *Sobrecosto por baja utilización*) **no desaparece**: es dinero que la ESE gasta en tener esas unidades disponibles. Se informa como capacidad no utilizada de la ambulancia, no como costo de la ruta. Por eso los resultados del mes (dashboard, rentabilidad por sede) siguen absorbiendo el 100 % del costo real; para separarlo use el método *Capacidad*. Los métodos anteriores siguen disponibles en el selector de la matriz.
 
 Estas cifras usan el factor ida y vuelta = 2 (supuesto) y costos estándar; cambian al registrar consumos reales y asignar placas.
