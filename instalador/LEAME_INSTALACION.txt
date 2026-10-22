@@ -5,9 +5,13 @@ Este paquete incluye la aplicacion y sus dependencias: no necesita internet para
 instalarse (salvo Python en Windows, si el servidor no lo tiene).
 
 WINDOWS (Windows 10/11 o Windows Server 2016 o posterior, 64 bits)
-  OPCION RECOMENDADA: CostosABC-Setup-<version>.exe
-  1. Doble clic en CostosABC-Setup-<version>.exe y acepte el permiso de administrador.
-  2. Siguiente > Acepto > Siguiente (carpeta C:\CostosABC).
+
+  A) CostosABC-Setup-<version>.exe  -  NO REQUIERE ADMINISTRADOR (recomendado para un equipo)
+  1. Doble clic. Si Windows muestra "Windows protegio su PC", pulse "Mas informacion" >
+     "Ejecutar de todas formas" (el instalador no esta firmado digitalmente).
+     No pide autorizacion de administrador.
+  2. Siguiente > Acepto > Siguiente. Se instala en su carpeta de usuario
+     (%LOCALAPPDATA%\CostosABC).
   3. Complete el formulario: codigo y nombre de la institucion, NIT, municipio,
      usuario administrador y puerto (8000). NO se pide contrasena.
   4. Instalar. Al terminar deje marcado "Abrir Costos ABC para crear mi contrasena":
@@ -15,16 +19,20 @@ WINDOWS (Windows 10/11 o Windows Server 2016 o posterior, 64 bits)
      propia contrasena (minimo 10 caracteres). Ese enlace funciona una sola vez.
      Si cierra el navegador antes, use Inicio > Costos ABC > Crear contrasena del
      administrador.
-     Desde otros equipos de la red: http://NOMBRE-O-IP-DEL-SERVIDOR:8000/
-  No necesita internet ni tener Python: el instalador trae todo.
+  - Funciona en ESTE equipo: http://localhost:8000/
+  - Inicia sola cada vez que usted inicia sesion en Windows (o Inicio > Costos ABC >
+    Iniciar Costos ABC).
+  - Respaldo diario 12:30 en %LOCALAPPDATA%\CostosABC\datos\respaldos (30 dias) y
+    Inicio > Costos ABC > Respaldar ahora.
 
-  Queda instalado en C:\CostosABC:
-   - Inicia solo con Windows (tarea programada "CostosABC-Servidor").
-   - Respaldo diario 23:00 en C:\CostosABC\datos\respaldos (30 dias).
-   - Accesos en el menu Inicio > Costos ABC (aplicacion, plantilla, respaldar ahora,
-     registros, desinstalar) y en el Escritorio.
-   - Si algo falla: C:\CostosABC\datos\logs\instalacion.log
-  Desinstalar: Panel de control > Programas, o menu Inicio > Costos ABC > Desinstalar
+  B) CostosABC-Servidor-Setup-<version>.exe  -  REQUIERE ADMINISTRADOR (servidor de red)
+  Para que otros equipos del hospital entren por la red (http://IP-DEL-SERVIDOR:8000/).
+  Lo debe ejecutar el area de sistemas: instala en C:\CostosABC, como servicio que
+  arranca al encender el equipo, abre el puerto en el firewall y respalda a las 23:00.
+  Mismo formulario y misma pagina "Cree su contrasena".
+
+  Si algo falla: datos\logs\instalacion.log dentro de la carpeta de instalacion.
+  Desinstalar: Configuracion > Aplicaciones, o Inicio > Costos ABC > Desinstalar
   (pregunta si conserva la base de datos).
 
   ALTERNATIVA (paquete ZIP con scripts): descomprima y ejecute
@@ -38,7 +46,8 @@ LINUX (Ubuntu 22.04+, Debian 12+, RHEL 9+)
   Al final muestra el enlace para crear la contrasena del administrador.
 
 SI PIERDE EL ENLACE PARA CREAR LA CONTRASENA (antes de usarlo)
-  Windows: C:\CostosABC\python\python.exe C:\CostosABC\manage.py enlace_primer_acceso
+  Windows: <carpeta>\python\python.exe <carpeta>\manage.py enlace_primer_acceso
+           (<carpeta> = %LOCALAPPDATA%\CostosABC o C:\CostosABC en el servidor)
   Linux:   cd /opt/costos-abc && sudo -u costosabc .venv/bin/python manage.py enlace_primer_acceso
   Para cambiar una contrasena ya creada: menu del usuario > Cambiar contrasena.
 

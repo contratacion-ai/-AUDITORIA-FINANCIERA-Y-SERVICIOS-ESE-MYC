@@ -19,9 +19,24 @@ Unicode true
 Name "Costos ABC"
 Caption "Instalación de Costos ABC ${VERSION}"
 OutFile "${SALIDA}"
-InstallDir "C:\CostosABC"
-InstallDirRegKey HKLM "Software\CostosABC" "Ruta"
-RequestExecutionLevel admin
+; Dos variantes del mismo instalador:
+;  - Por usuario (predeterminada): NO requiere permisos de administrador. Instala en la carpeta del usuario,
+;    funciona en este equipo (http://localhost) e inicia al iniciar sesión.
+;  - Servidor (-DSERVIDOR): requiere administrador. Servicio al encender el equipo, firewall abierto para la red.
+!ifdef SERVIDOR
+  !define REGRAIZ HKLM
+  !define CONTEXTO all
+  !define MODO_ARG ""
+  InstallDir "C:\CostosABC"
+  RequestExecutionLevel admin
+!else
+  !define REGRAIZ HKCU
+  !define CONTEXTO current
+  !define MODO_ARG "--por-usuario"
+  InstallDir "$LOCALAPPDATA\CostosABC"
+  RequestExecutionLevel user
+!endif
+InstallDirRegKey ${REGRAIZ} "Software\CostosABC" "Ruta"
 SetCompressor /SOLID lzma
 ShowInstDetails show
 ShowUninstDetails show
@@ -53,7 +68,11 @@ Var Enlace
 
 !define MUI_ABORTWARNING
 !define MUI_WELCOMEPAGE_TITLE "Instalación de Costos ABC"
-!define MUI_WELCOMEPAGE_TEXT "Este asistente instala la herramienta de costos ABC (Res. DDC-000002 de 2014) en este equipo.$\r$\n$\r$\nIncluye todo lo necesario: no requiere internet ni tener Python instalado.$\r$\n$\r$\nAl terminar, la aplicación quedará funcionando como servicio que arranca con Windows y se podrá abrir desde el navegador de cualquier equipo de la red."
+!ifdef SERVIDOR
+  !define MUI_WELCOMEPAGE_TEXT "Este asistente instala la herramienta de costos ABC (Res. DDC-000002 de 2014) como SERVIDOR de la red.$\r$\n$\r$\nRequiere permisos de administrador. Incluye todo lo necesario: no requiere internet ni tener Python instalado.$\r$\n$\r$\nAl terminar, la aplicación quedará funcionando como servicio que arranca con Windows y se podrá abrir desde el navegador de cualquier equipo de la red."
+!else
+  !define MUI_WELCOMEPAGE_TEXT "Este asistente instala la herramienta de costos ABC (Res. DDC-000002 de 2014) para su usuario.$\r$\n$\r$\nNO requiere permisos de administrador ni internet, y no necesita tener Python instalado.$\r$\n$\r$\nLa aplicación funcionará en este equipo (http://localhost:8000) e iniciará sola cada vez que usted inicie sesión en Windows.$\r$\n$\r$\nPara compartirla con otros equipos de la red use el instalador de servidor."
+!endif
 !define MUI_FINISHPAGE_RUN
 !define MUI_FINISHPAGE_RUN_TEXT "Abrir Costos ABC para crear mi contraseña"
 !define MUI_FINISHPAGE_RUN_FUNCTION AbrirNavegador
@@ -193,7 +212,7 @@ FunctionEnd
 !macroend
 
 Section "Costos ABC" SecPrincipal
-  SetShellVarContext all
+  SetShellVarContext ${CONTEXTO}
   System::Call 'Kernel32::SetEnvironmentVariable(t "PYTHONUTF8", t "1") i'
   DetailPrint "Deteniendo el servidor si está en ejecución..."
   !insertmacro DetenerServidor
@@ -204,16 +223,16 @@ Section "Costos ABC" SecPrincipal
   WriteUninstaller "$INSTDIR\Desinstalar.exe"
 
   ${If} $Actualizacion == "1"
-    ReadRegStr $Puerto HKLM "Software\CostosABC" "Puerto"
+    ReadRegStr $Puerto ${REGRAIZ} "Software\CostosABC" "Puerto"
     ${If} $Puerto == ""
       StrCpy $Puerto "8000"
     ${EndIf}
     DetailPrint "Actualización: migraciones, servicio y reinicio..."
-    nsExec::ExecToLog '"$INSTDIR\python\python.exe" "$INSTDIR\instalador\windows\configurar.py" --destino "$INSTDIR" --puerto $Puerto --actualizar'
+    nsExec::ExecToLog '"$INSTDIR\python\python.exe" "$INSTDIR\instalador\windows\configurar.py" --destino "$INSTDIR" --puerto $Puerto --actualizar ${MODO_ARG}'
     Pop $0
   ${Else}
     DetailPrint "Configurando base de datos, institución, servicio, firewall y respaldo..."
-    nsExec::ExecToLog '"$INSTDIR\python\python.exe" "$INSTDIR\instalador\windows\configurar.py" --destino "$INSTDIR" --puerto $Puerto --codigo "$Codigo" --nombre "$Nombre" --nit "$Nit" --municipio "$Municipio" --usuario "$Usuario" --demo $Demo'
+    nsExec::ExecToLog '"$INSTDIR\python\python.exe" "$INSTDIR\instalador\windows\configurar.py" --destino "$INSTDIR" --puerto $Puerto --codigo "$Codigo" --nombre "$Nombre" --nit "$Nit" --municipio "$Municipio" --usuario "$Usuario" --demo $Demo ${MODO_ARG}'
     Pop $0
   ${EndIf}
   ; Verificación real: sin .env o sin base de datos la configuración no se completó.
@@ -242,25 +261,29 @@ Section "Costos ABC" SecPrincipal
   WriteINIStr "$SMPROGRAMS\Costos ABC\Costos ABC.url" "InternetShortcut" "URL" "http://localhost:$Puerto/"
   WriteINIStr "$DESKTOP\Costos ABC.url" "InternetShortcut" "URL" "http://localhost:$Puerto/"
   CreateShortcut "$SMPROGRAMS\Costos ABC\Plantilla de carga mensual.lnk" "$INSTDIR\plantillas\Plantilla_Carga_Mensual_ABC.xlsx"
-  CreateShortcut "$SMPROGRAMS\Costos ABC\Respaldar ahora.lnk" "$INSTDIR\respaldar.bat"
+  CreateShortcut "$SMPROGRAMS\Costos ABC\Respaldar ahora.lnk" "$INSTDIR\python\pythonw.exe" '"$INSTDIR\instalador\windows\respaldar.py" "$INSTDIR"'
+!ifndef SERVIDOR
+  ; Por si el equipo se reinició y la aplicación no está abierta
+  CreateShortcut "$SMPROGRAMS\Costos ABC\Iniciar Costos ABC.lnk" "$INSTDIR\python\pythonw.exe" '"$INSTDIR\manage.py" servir --host 127.0.0.1 --puerto $Puerto --log "$INSTDIR\datos\logs\servidor.log"'
+!endif
   CreateShortcut "$SMPROGRAMS\Costos ABC\Registros del servidor.lnk" "$INSTDIR\datos\logs"
   CreateShortcut "$SMPROGRAMS\Costos ABC\Desinstalar Costos ABC.lnk" "$INSTDIR\Desinstalar.exe"
 
-  WriteRegStr HKLM "Software\CostosABC" "Ruta" "$INSTDIR"
-  WriteRegStr HKLM "Software\CostosABC" "Puerto" "$Puerto"
+  WriteRegStr ${REGRAIZ} "Software\CostosABC" "Ruta" "$INSTDIR"
+  WriteRegStr ${REGRAIZ} "Software\CostosABC" "Puerto" "$Puerto"
   !define UNINST "Software\Microsoft\Windows\CurrentVersion\Uninstall\CostosABC"
-  WriteRegStr HKLM "${UNINST}" "DisplayName" "Costos ABC - herramienta de costos en salud"
-  WriteRegStr HKLM "${UNINST}" "DisplayVersion" "${VERSION}"
-  WriteRegStr HKLM "${UNINST}" "Publisher" "Costos ABC"
-  WriteRegStr HKLM "${UNINST}" "InstallLocation" "$INSTDIR"
-  WriteRegStr HKLM "${UNINST}" "UninstallString" '"$INSTDIR\Desinstalar.exe"'
-  WriteRegDWORD HKLM "${UNINST}" "NoModify" 1
-  WriteRegDWORD HKLM "${UNINST}" "NoRepair" 1
+  WriteRegStr ${REGRAIZ} "${UNINST}" "DisplayName" "Costos ABC - herramienta de costos en salud"
+  WriteRegStr ${REGRAIZ} "${UNINST}" "DisplayVersion" "${VERSION}"
+  WriteRegStr ${REGRAIZ} "${UNINST}" "Publisher" "Costos ABC"
+  WriteRegStr ${REGRAIZ} "${UNINST}" "InstallLocation" "$INSTDIR"
+  WriteRegStr ${REGRAIZ} "${UNINST}" "UninstallString" '"$INSTDIR\Desinstalar.exe"'
+  WriteRegDWORD ${REGRAIZ} "${UNINST}" "NoModify" 1
+  WriteRegDWORD ${REGRAIZ} "${UNINST}" "NoRepair" 1
 SectionEnd
 
 Section "Uninstall"
-  SetShellVarContext all
-  ReadRegStr $Puerto HKLM "Software\CostosABC" "Puerto"
+  SetShellVarContext ${CONTEXTO}
+  ReadRegStr $Puerto ${REGRAIZ} "Software\CostosABC" "Puerto"
   ${If} $Puerto == ""
     StrCpy $Puerto "8000"
   ${EndIf}
@@ -269,8 +292,11 @@ Section "Uninstall"
   Pop $0
   nsExec::ExecToLog 'schtasks.exe /Delete /TN "CostosABC-Respaldo" /F'
   Pop $0
+!ifdef SERVIDOR
   nsExec::ExecToLog 'netsh.exe advfirewall firewall delete rule "name=Costos ABC ($Puerto)"'
   Pop $0
+!endif
+  DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "CostosABC"
   ; Se elimina el programa; los datos (base de datos, archivos, respaldos y .env) se conservan salvo que el usuario confirme.
   !macro QuitarDir d
     RMDir /r "$INSTDIR\${d}"
@@ -309,6 +335,6 @@ Section "Uninstall"
   conservar:
   RMDir /r "$SMPROGRAMS\Costos ABC"
   Delete "$DESKTOP\Costos ABC.url"
-  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CostosABC"
-  DeleteRegKey HKLM "Software\CostosABC"
+  DeleteRegKey ${REGRAIZ} "Software\Microsoft\Windows\CurrentVersion\Uninstall\CostosABC"
+  DeleteRegKey ${REGRAIZ} "Software\CostosABC"
 SectionEnd

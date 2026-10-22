@@ -43,12 +43,15 @@ bash instalador/construir_instalador_windows.sh   # dist/CostosABC-Setup-<versi�
 bash instalador/construir_paquete.sh              # dist/CostosABC-<versión>.zip (scripts + dependencias)
 ```
 
-* **Windows — `CostosABC-Setup.exe`** (recomendado): asistente gráfico en español que incluye Python 3.12 portátil y
-  todas las dependencias (no requiere internet ni Python). Pide los datos de la institución y el usuario administrador (sin contraseña: al terminar se abre la página
-  *Cree su contraseña* con un enlace de un solo uso), instala
-  en `C:\CostosABC`, registra el arranque con Windows (tarea programada), abre el puerto en el firewall, programa el
-  respaldo diario, crea accesos directos y queda en *Programas y características*. La configuración la hace
-  `instalador/windows/configurar.py` con el Python incluido (sin depender de PowerShell) y verifica que la aplicación responda.
+* **Windows — `CostosABC-Setup.exe`** (recomendado para un equipo): **no requiere permisos de administrador**
+  (manifiesto `asInvoker`). Asistente en español que incluye Python 3.12 portátil y todas las dependencias. Instala en
+  `%LOCALAPPDATA%\CostosABC`, sirve solo en este equipo (`127.0.0.1`, sin aviso del firewall), inicia al iniciar sesión
+  (`HKCU\...\Run`, sin ventana) y programa un respaldo diario del usuario.
+* **Windows — `CostosABC-Servidor-Setup.exe`** (servidor de red, requiere administrador): instala en `C:\CostosABC`,
+  servicio al encender el equipo (tarea como SYSTEM con reinicio automático), firewall abierto y respaldo diario.
+* Ambos piden los datos de la institución y el usuario administrador **sin contraseña**: al terminar se abre la página
+  *Cree su contraseña* con un enlace de un solo uso. La configuración la hace `instalador/windows/configurar.py` con el
+  Python incluido (sin PowerShell) y verifica que la aplicación responda.
 * **Windows — ZIP**: descomprimir y doble clic en `instalador\windows\INSTALAR.bat` (PowerShell).
 * **Linux**: `sudo bash instalador/linux/instalar.sh` (servicio systemd) o `--docker` (Docker + PostgreSQL).
 

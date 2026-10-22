@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Genera dist/CostosABC-Setup-<versión>.exe: instalador gráfico para Windows 64 bits que incluye
+# Genera dist/CostosABC-Setup-<versión>.exe (sin administrador) y dist/CostosABC-Servidor-Setup-<versión>.exe
+# (servidor de red): instaladores gráficos para Windows 64 bits que incluyen
 # Python 3.12 portátil (paquete oficial de CPython publicado en NuGet) y todas las dependencias.
 # Requiere: makensis (apt install nsis / choco install nsis), python3 con pip, curl, unzip.
 set -euo pipefail
@@ -35,7 +36,11 @@ find "$STAGE/python/Lib/site-packages/django" -type d -name locale | while read 
   find "$d" -mindepth 1 -maxdepth 1 -type d ! -name es ! -name es_CO ! -name en -exec rm -rf {} +
 done
 
-echo "==> Compilando el instalador"
+echo "==> Compilando los instaladores"
+# Por usuario (sin permisos de administrador) y servidor de red (requiere administrador)
 SALIDA="$RAIZ/dist/CostosABC-Setup-$VERSION.exe"
 makensis -V2 -DVERSION="$VERSION" -DSTAGE="$STAGE" -DSALIDA="$SALIDA" instalador/windows/costosabc.nsi
-echo "Instalador: $SALIDA ($(du -h "$SALIDA" | cut -f1))"
+SALIDA_SRV="$RAIZ/dist/CostosABC-Servidor-Setup-$VERSION.exe"
+makensis -V2 -DSERVIDOR -DVERSION="$VERSION" -DSTAGE="$STAGE" -DSALIDA="$SALIDA_SRV" instalador/windows/costosabc.nsi
+echo "Instalador sin administrador: $SALIDA ($(du -h "$SALIDA" | cut -f1))"
+echo "Instalador de servidor:       $SALIDA_SRV ($(du -h "$SALIDA_SRV" | cut -f1))"

@@ -59,13 +59,13 @@ def ips_locales():
     return sorted(ips)
 
 
-def crear_env(destino, puerto, log):
+def crear_env(destino, puerto, log, local=False):
     ruta = destino / ".env"
     if ruta.exists():
         log.escribir("[--] .env existente conservado (no se regeneran las claves)")
         return
     equipo = socket.gethostname().lower()
-    hosts = ["localhost", "127.0.0.1", equipo] + ips_locales()
+    hosts = ["localhost", "127.0.0.1"] if local else ["localhost", "127.0.0.1", equipo] + ips_locales()
     origenes = [f"http://{h}:{puerto}" for h in hosts]
     lineas = [
         "DJANGO_ENV=production", "DJANGO_DEBUG=0", f"DJANGO_SECRET_KEY={secrets.token_urlsafe(50)}",
@@ -78,21 +78,24 @@ def crear_env(destino, puerto, log):
         f"DATABASE_URL=sqlite:///{(destino / 'datos' / 'db.sqlite3').as_posix()}",
     ]
     ruta.write_text("\n".join(lineas) + "\n", encoding="utf-8")
-    if os.name == "nt":  # solo administradores y SYSTEM leen las claves
+    if os.name == "nt" and not local:  # solo administradores y SYSTEM leen las claves (modo servidor)
         ejecutar(log, ["icacls", str(ruta), "/inheritance:r", "/grant:r", "*S-1-5-32-544:F", "*S-1-5-18:F"], obligatorio=False)
     log.escribir(f"[OK] .env creado (accesos: {', '.join(hosts)})")
 
 
-def escribir_lanzadores(destino, python, puerto, log):
+def escribir_lanzadores(destino, python, puerto, log, local=False):
+    # cmd.exe lee los .bat en la página de códigos OEM (rutas de usuario con tildes o ñ)
+    codificacion = "oem" if os.name == "nt" else "ascii"
+    host = "--host 127.0.0.1 " if local else ""
     (destino / "iniciar_servidor.bat").write_text(
         "@echo off\r\nset PYTHONUTF8=1\r\n"
         f'cd /d "{destino}"\r\n'
-        f'"{python}" manage.py servir --puerto {puerto} < NUL >> "{destino}\\datos\\logs\\servidor.log" 2>&1\r\n',
-        encoding="ascii")
+        f'"{python}" manage.py servir {host}--puerto {puerto} < NUL >> "{destino}\\datos\\logs\\servidor.log" 2>&1\r\n',
+        encoding=codificacion)
     (destino / "respaldar.bat").write_text(
         "@echo off\r\nset PYTHONUTF8=1\r\n"
         f'"{python}" "{destino}\\instalador\\windows\\respaldar.py" "{destino}" >> "{destino}\\datos\\logs\\respaldo.log" 2>&1\r\n',
-        encoding="ascii")
+        encoding=codificacion)
     log.escribir("[OK] iniciar_servidor.bat y respaldar.bat")
 
 
@@ -148,6 +151,48 @@ def registrar_tareas(destino, puerto, log):
     return advertencias
 
 
+def comando_servidor(destino, python, puerto):
+    """Servidor sin ventana (pythonw) solo para este equipo, con registro en archivo."""
+    pythonw = python.with_name("pythonw.exe") if python.with_name("pythonw.exe").exists() else python
+    return [str(pythonw), str(destino / "manage.py"), "servir", "--host", "127.0.0.1", "--puerto", str(puerto),
+            "--log", str(destino / "datos" / "logs" / "servidor.log")]
+
+
+def registrar_usuario(destino, python, puerto, log):
+    """Modo sin administrador: inicio al iniciar sesión (HKCU\\...\\Run) y respaldo diario del propio usuario."""
+    advertencias = []
+    comando = subprocess.list2cmdline(comando_servidor(destino, python, puerto))
+    try:
+        import winreg
+
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Run", 0,
+                            winreg.KEY_SET_VALUE) as clave:
+            winreg.SetValueEx(clave, "CostosABC", 0, winreg.REG_SZ, comando)
+        log.escribir("[OK] Costos ABC iniciará automáticamente al iniciar sesión en Windows")
+    except Exception as exc:
+        log.escribir(f"[!!] No se pudo programar el inicio automático: {exc}")
+        advertencias.append("inicio")
+    pythonw = comando_servidor(destino, python, puerto)[0]
+    respaldo = subprocess.list2cmdline([pythonw, str(destino / "instalador" / "windows" / "respaldar.py"), str(destino)])
+    if ejecutar(log, ["schtasks", "/Create", "/TN", TAREA_RESPALDO, "/TR", respaldo, "/SC", "DAILY", "/ST", "12:30",
+                      "/F"], obligatorio=False) == 0:
+        log.escribir(f"[OK] Respaldo diario a las 12:30 en {destino / 'datos' / 'respaldos'}")
+    else:
+        log.escribir("[!!] No se pudo programar el respaldo diario; use 'Respaldar ahora' del menú Inicio")
+        advertencias.append(TAREA_RESPALDO)
+    return advertencias
+
+
+def iniciar_directo(destino, python, puerto, local):
+    if local:
+        orden = comando_servidor(destino, python, puerto)
+    else:
+        orden = ["cmd.exe", "/c", str(destino / "iniciar_servidor.bat")]
+    subprocess.Popen(orden, cwd=destino,
+                     creationflags=getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0),
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True)
+
+
 def esperar_servidor(puerto, log, segundos=90):
     url = f"http://127.0.0.1:{puerto}/cuenta/ingresar/"
     limite = time.time() + segundos
@@ -175,6 +220,8 @@ def main():
     p.add_argument("--demo", default="N")
     p.add_argument("--actualizar", action="store_true", help="Solo migra, reescribe lanzadores y reinicia.")
     p.add_argument("--sin-servicio", action="store_true", help="No registra tareas ni firewall (pruebas).")
+    p.add_argument("--por-usuario", action="store_true",
+                   help="Instalación sin permisos de administrador: solo este equipo, inicia al iniciar sesión.")
     a = p.parse_args()
     destino = Path(a.destino).resolve()
     python = Path(sys.executable)
@@ -184,7 +231,8 @@ def main():
     entorno = dict(os.environ, PYTHONUTF8="1")
     manage = [str(python), str(destino / "manage.py")]
     try:
-        crear_env(destino, a.puerto, log)
+        local = a.por_usuario
+        crear_env(destino, a.puerto, log, local)
         if a.actualizar:
             ejecutar(log, manage + ["migrate", "--noinput"], entorno, cwd=destino)
             ejecutar(log, manage + ["collectstatic", "--noinput", "-v", "0"], entorno, cwd=destino)
@@ -195,16 +243,18 @@ def main():
             if a.demo.upper().startswith("S"):
                 comando.append("--demo")
             ejecutar(log, comando, entorno, cwd=destino)
-        escribir_lanzadores(destino, python, a.puerto, log)
+        escribir_lanzadores(destino, python, a.puerto, log, local)
         if a.sin_servicio:
             return 0
-        advertencias = registrar_tareas(destino, a.puerto, log)
-        ejecutar(log, ["schtasks", "/End", "/TN", TAREA], obligatorio=False)
-        if advertencias or ejecutar(log, ["schtasks", "/Run", "/TN", TAREA], obligatorio=False) != 0:
-            log.escribir("[--] No se pudo iniciar la tarea; se inicia el servidor directamente")
-            subprocess.Popen(["cmd.exe", "/c", str(destino / "iniciar_servidor.bat")], cwd=destino,
-                             creationflags=getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0),
-                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True)
+        if local:
+            advertencias = registrar_usuario(destino, python, a.puerto, log)
+            iniciar_directo(destino, python, a.puerto, local)
+        else:
+            advertencias = registrar_tareas(destino, a.puerto, log)
+            ejecutar(log, ["schtasks", "/End", "/TN", TAREA], obligatorio=False)
+            if advertencias or ejecutar(log, ["schtasks", "/Run", "/TN", TAREA], obligatorio=False) != 0:
+                log.escribir("[--] No se pudo iniciar la tarea; se inicia el servidor directamente")
+                iniciar_directo(destino, python, a.puerto, local)
         responde = esperar_servidor(a.puerto, log)
         log.escribir("Configuración terminada" + (" con advertencias." if advertencias or not responde else "."))
         return 2 if advertencias or not responde else 0
