@@ -44,7 +44,8 @@ bash instalador/construir_paquete.sh              # dist/CostosABC-<versión>.zi
 ```
 
 * **Windows — `CostosABC-Setup.exe`** (recomendado): asistente gráfico en español que incluye Python 3.12 portátil y
-  todas las dependencias (no requiere internet ni Python). Pide los datos de la institución y del administrador, instala
+  todas las dependencias (no requiere internet ni Python). Pide los datos de la institución y el usuario administrador (sin contraseña: al terminar se abre la página
+  *Cree su contraseña* con un enlace de un solo uso), instala
   en `C:\CostosABC`, registra el arranque con Windows (tarea programada), abre el puerto en el firewall, programa el
   respaldo diario, crea accesos directos y queda en *Programas y características*. La configuración la hace
   `instalador/windows/configurar.py` con el Python incluido (sin depender de PowerShell) y verifica que la aplicación responda.
@@ -88,7 +89,7 @@ Ubique un proxy HTTPS delante del puerto 8000. Respalde la base de datos y el vo
 ## Pruebas
 
 ```bash
-pytest            # 83 pruebas: limpieza, cargas, motor (caso calculado a mano), cruces, informe, roles y aislamiento
+pytest            # 86 pruebas: limpieza, cargas, motor (caso calculado a mano), cruces, informe, roles y aislamiento
 ```
 
 ## Estructura

@@ -153,26 +153,15 @@ $nombre = Preguntar "Nombre de la institución" "ESE HOSPITAL" $Nombre
 $nit = Preguntar "NIT" "" $Nit
 $municipio = Preguntar "Municipio" "" $Municipio
 $usuario = Preguntar "Usuario administrador" "admin" $Usuario
-if (-not $env:ABC_ADMIN_PASSWORD -and $SinPreguntas) { throw "Falta la contraseña del administrador (ABC_ADMIN_PASSWORD)." }
-if (-not $env:ABC_ADMIN_PASSWORD) {
-    do {
-        $s1 = Read-Host "Contraseña del administrador (mínimo 10 caracteres)" -AsSecureString
-        $s2 = Read-Host "Repita la contraseña" -AsSecureString
-        $c1 = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s1))
-        $c2 = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s2))
-        if ($c1 -ne $c2) { Write-Host "    No coinciden, intente de nuevo." -ForegroundColor Yellow }
-    } while ($c1 -ne $c2)
-    $env:ABC_ADMIN_PASSWORD = $c1
-}
+# Sin contraseña: el administrador la crea en el navegador con el enlace de primer acceso.
 $demo = Preguntar "¿Crear también la institución de demostración con datos sintéticos? (S/N)" "N" $Demo
-$args_instalar = @("manage.py", "instalar", "--institucion-codigo", $codigo, "--institucion-nombre", $nombre, "--nit", $nit,
+$args_instalar = @("manage.py", "instalar", "--puerto", $Puerto, "--institucion-codigo", $codigo, "--institucion-nombre", $nombre, "--nit", $nit,
                    "--municipio", $municipio, "--usuario", $usuario)
 if ($demo -match "^[sS]") { $args_instalar += "--demo" }
 Push-Location $Destino
 & $Py @args_instalar
 $rc = $LASTEXITCODE
 Pop-Location
-Remove-Item Env:ABC_ADMIN_PASSWORD -ErrorAction SilentlyContinue
 if ($rc -ne 0) { throw "La configuración inicial falló (ver mensajes anteriores)." }
 
 # --- 6. Servicio, firewall y respaldo ---------------------------------------------------
@@ -213,13 +202,15 @@ Stop-ScheduledTask -TaskName $NombreTarea -ErrorAction SilentlyContinue
 Start-ScheduledTask -TaskName $NombreTarea
 Start-Sleep -Seconds 4
 $url = "http://localhost:$Puerto/"
-try { Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec 15 | Out-Null; Ok "Servidor en ejecución" }
+$tokenArchivo = "$Destino\datos\primer_acceso.token"
+if (Test-Path $tokenArchivo) { $url = "http://localhost:$Puerto/primer-acceso/?t=" + (Get-Content $tokenArchivo -Raw).Trim() }
+try { Invoke-WebRequest -UseBasicParsing -Uri "http://localhost:$Puerto/cuenta/ingresar/" -TimeoutSec 15 | Out-Null; Ok "Servidor en ejecución" }
 catch { Write-Host "    El servidor aún no responde; revise $Destino\datos\logs\servidor.log" -ForegroundColor Yellow }
 
 Write-Host "`n=============================================================" -ForegroundColor Green
 Write-Host "  Instalación terminada" -ForegroundColor Green
 Write-Host "  Acceso:      $url  (desde otros equipos: http://<nombre o IP del servidor>:$Puerto/)"
-Write-Host "  Usuario:     $usuario"
+Write-Host "  Usuario:     $usuario  (cree su contraseña en la página que se abre; enlace de un solo uso)"
 Write-Host "  Datos:       $Destino\datos   (respaldos diarios en datos\respaldos)"
 Write-Host "  Plantilla:   $Destino\plantillas\Plantilla_Carga_Mensual_ABC.xlsx"
 Write-Host "  Manual:      $Destino\docs\MANUAL_USUARIO.md"

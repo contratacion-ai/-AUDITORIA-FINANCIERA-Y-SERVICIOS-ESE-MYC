@@ -122,6 +122,8 @@ STORAGES = {
 }
 MEDIA_URL = "media/"
 MEDIA_ROOT = Path(os.environ.get("MEDIA_ROOT", BASE_DIR / "media"))
+# Datos operativos de la instalación (enlace de primer acceso, PID del servidor, registros, respaldos)
+DATOS_DIR = Path(os.environ.get("ABC_DATOS_DIR", BASE_DIR / "datos"))
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

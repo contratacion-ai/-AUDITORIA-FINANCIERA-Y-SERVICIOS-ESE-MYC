@@ -39,8 +39,6 @@ Var hNombre
 Var hNit
 Var hMunicipio
 Var hUsuario
-Var hClave
-Var hClave2
 Var hPuerto
 Var hDemo
 Var Codigo
@@ -48,16 +46,16 @@ Var Nombre
 Var Nit
 Var Municipio
 Var Usuario
-Var Clave
 Var Puerto
 Var Demo
 Var Actualizacion
+Var Enlace
 
 !define MUI_ABORTWARNING
 !define MUI_WELCOMEPAGE_TITLE "Instalación de Costos ABC"
 !define MUI_WELCOMEPAGE_TEXT "Este asistente instala la herramienta de costos ABC (Res. DDC-000002 de 2014) en este equipo.$\r$\n$\r$\nIncluye todo lo necesario: no requiere internet ni tener Python instalado.$\r$\n$\r$\nAl terminar, la aplicación quedará funcionando como servicio que arranca con Windows y se podrá abrir desde el navegador de cualquier equipo de la red."
 !define MUI_FINISHPAGE_RUN
-!define MUI_FINISHPAGE_RUN_TEXT "Abrir Costos ABC en el navegador"
+!define MUI_FINISHPAGE_RUN_TEXT "Abrir Costos ABC para crear mi contraseña"
 !define MUI_FINISHPAGE_RUN_FUNCTION AbrirNavegador
 !define MUI_FINISHPAGE_SHOWREADME "$INSTDIR\LEAME_INSTALACION.txt"
 !define MUI_FINISHPAGE_SHOWREADME_TEXT "Ver instrucciones"
@@ -88,7 +86,7 @@ Function PaginaDatos
     StrCpy $Actualizacion "1"
     Abort
   ${EndIf}
-  !insertmacro MUI_HEADER_TEXT "Datos de la institución" "Se crearán la institución, su catálogo base y el usuario administrador."
+  !insertmacro MUI_HEADER_TEXT "Datos de la institución" "Se crearán la institución, su catálogo base y el usuario administrador (sin contraseña)."
   nsDialogs::Create 1018
   Pop $Dialogo
   ${NSD_CreateLabel} 0 0u 40% 10u "Código institución (REPS):"
@@ -106,16 +104,11 @@ Function PaginaDatos
   ${NSD_CreateLabel} 0 62u 40% 10u "Usuario administrador:"
   ${NSD_CreateText} 42% 62u 58% 11u "admin"
   Pop $hUsuario
-  ${NSD_CreateLabel} 0 77u 40% 10u "Contraseña (mín. 10 caracteres):"
-  ${NSD_CreatePassword} 42% 77u 58% 11u ""
-  Pop $hClave
-  ${NSD_CreateLabel} 0 92u 40% 10u "Repita la contraseña:"
-  ${NSD_CreatePassword} 42% 92u 58% 11u ""
-  Pop $hClave2
-  ${NSD_CreateLabel} 0 109u 40% 10u "Puerto web:"
-  ${NSD_CreateNumber} 42% 109u 20% 11u "$Puerto"
+  ${NSD_CreateLabel} 0 79u 100% 20u "La contraseña del administrador la creará usted mismo en el navegador al terminar la instalación."
+  ${NSD_CreateLabel} 0 104u 40% 10u "Puerto web:"
+  ${NSD_CreateNumber} 42% 104u 20% 11u "$Puerto"
   Pop $hPuerto
-  ${NSD_CreateCheckbox} 0 126u 100% 10u "Crear también una institución de demostración con datos sintéticos"
+  ${NSD_CreateCheckbox} 0 122u 100% 10u "Crear también una institución de demostración con datos sintéticos"
   Pop $hDemo
   nsDialogs::Show
 FunctionEnd
@@ -126,8 +119,6 @@ Function PaginaDatosSalir
   ${NSD_GetText} $hNit $Nit
   ${NSD_GetText} $hMunicipio $Municipio
   ${NSD_GetText} $hUsuario $Usuario
-  ${NSD_GetText} $hClave $Clave
-  ${NSD_GetText} $hClave2 $R0
   ${NSD_GetText} $hPuerto $Puerto
   ${NSD_GetState} $hDemo $R1
   ${If} $R1 == ${BST_CHECKED}
@@ -139,15 +130,6 @@ Function PaginaDatosSalir
   ${OrIf} $Nombre == ""
   ${OrIf} $Usuario == ""
     MessageBox MB_ICONEXCLAMATION "Complete código, nombre de la institución y usuario administrador."
-    Abort
-  ${EndIf}
-  StrLen $R2 $Clave
-  ${If} $R2 < 10
-    MessageBox MB_ICONEXCLAMATION "La contraseña debe tener al menos 10 caracteres."
-    Abort
-  ${EndIf}
-  ${If} $Clave != $R0
-    MessageBox MB_ICONEXCLAMATION "Las contraseñas no coinciden."
     Abort
   ${EndIf}
   ${If} $Puerto < 1
@@ -190,7 +172,7 @@ Function SinComillas
 FunctionEnd
 
 Function AbrirNavegador
-  ExecShell "open" "http://localhost:$Puerto/"
+  ExecShell "open" "$Enlace"
 FunctionEnd
 
 !macro DetenerServidor
@@ -231,11 +213,8 @@ Section "Costos ABC" SecPrincipal
     Pop $0
   ${Else}
     DetailPrint "Configurando base de datos, institución, servicio, firewall y respaldo..."
-    System::Call 'Kernel32::SetEnvironmentVariable(t "ABC_ADMIN_PASSWORD", t "$Clave") i'
     nsExec::ExecToLog '"$INSTDIR\python\python.exe" "$INSTDIR\instalador\windows\configurar.py" --destino "$INSTDIR" --puerto $Puerto --codigo "$Codigo" --nombre "$Nombre" --nit "$Nit" --municipio "$Municipio" --usuario "$Usuario" --demo $Demo'
     Pop $0
-    System::Call 'Kernel32::SetEnvironmentVariable(t "ABC_ADMIN_PASSWORD", n) i'
-    StrCpy $Clave ""
   ${EndIf}
   ; Verificación real: sin .env o sin base de datos la configuración no se completó.
   ${If} $0 == "2"
@@ -249,7 +228,17 @@ Section "Costos ABC" SecPrincipal
     Abort "La configuración falló"
   ${EndIf}
 
+  ; Enlace de un solo uso para que el administrador cree su contraseña
+  StrCpy $Enlace "http://localhost:$Puerto/"
+  ${If} ${FileExists} "$INSTDIR\datos\primer_acceso.token"
+    FileOpen $1 "$INSTDIR\datos\primer_acceso.token" r
+    FileRead $1 $2
+    FileClose $1
+    StrCpy $Enlace "http://localhost:$Puerto/primer-acceso/?t=$2"
+  ${EndIf}
+
   CreateDirectory "$SMPROGRAMS\Costos ABC"
+  WriteINIStr "$SMPROGRAMS\Costos ABC\Crear contraseña del administrador.url" "InternetShortcut" "URL" "$Enlace"
   WriteINIStr "$SMPROGRAMS\Costos ABC\Costos ABC.url" "InternetShortcut" "URL" "http://localhost:$Puerto/"
   WriteINIStr "$DESKTOP\Costos ABC.url" "InternetShortcut" "URL" "http://localhost:$Puerto/"
   CreateShortcut "$SMPROGRAMS\Costos ABC\Plantilla de carga mensual.lnk" "$INSTDIR\plantillas\Plantilla_Carga_Mensual_ABC.xlsx"

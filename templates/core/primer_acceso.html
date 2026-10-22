@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block titulo %}Cree su contraseña{% endblock %}
+{% block contenido %}
+<div class="row justify-content-center mt-5">
+  <div class="col-md-6 col-lg-5">
+    <div class="tarjeta p-4">
+      {% if invalido %}
+      <h1 class="h4">Enlace no válido o ya usado</h1>
+      <p>Para crear la contraseña del administrador use el acceso <strong>Inicio › Costos ABC › Crear contraseña del administrador</strong>
+         en el servidor donde se instaló la aplicación.</p>
+      <p class="small text-muted mb-0">Si no lo encuentra, en el servidor ejecute:<br>
+        <code>python manage.py enlace_primer_acceso</code> (en Windows: <code>C:\CostosABC\python\python.exe C:\CostosABC\manage.py enlace_primer_acceso</code>)
+        y abra el enlace que aparece.</p>
+      {% else %}
+      <h1 class="h4 mb-1">Cree su contraseña</h1>
+      <p class="text-muted small">Es el primer ingreso a Costos ABC. Defina el usuario y la contraseña del administrador.
+        Este enlace funciona una sola vez.</p>
+      <form method="post">{% csrf_token %}
+        <input type="hidden" name="t" value="{{ token }}">
+        {% for f in form %}
+        <div class="mb-2"><label class="form-label small mb-0" for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}
+          {% for e in f.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+        {% endfor %}
+        <p class="small text-muted">Mínimo 10 caracteres; no use contraseñas comunes ni solo números.</p>
+        <button class="btn btn-primary w-100">Guardar e ingresar</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

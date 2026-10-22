@@ -2,7 +2,7 @@
 # Instalador de Costos ABC para Linux (Ubuntu 22.04+/Debian 12+/RHEL 9+).
 #   sudo ./instalar.sh            → instalación nativa: Python + systemd (SQLite o PostgreSQL existente)
 #   sudo ./instalar.sh --docker   → Docker Compose con PostgreSQL
-# Variables opcionales: DESTINO (/opt/costos-abc), PUERTO (8000), ABC_ADMIN_PASSWORD, SIN_PREGUNTAS=1
+# Variables opcionales: DESTINO (/opt/costos-abc), PUERTO (8000), SIN_PREGUNTAS=1
 set -euo pipefail
 
 DESTINO="${DESTINO:-/opt/costos-abc}"
@@ -72,16 +72,9 @@ preguntar "Nombre de la institución" "ESE HOSPITAL"; NOMBRE="$R"
 preguntar "NIT" ""; NIT="$R"
 preguntar "Municipio" ""; MUNICIPIO="$R"
 preguntar "Usuario administrador" "admin"; ADMIN="$R"
-if [[ -z "${ABC_ADMIN_PASSWORD:-}" ]]; then
-  while true; do
-    read -r -s -p "Contraseña del administrador (mínimo 10 caracteres): " C1; echo
-    read -r -s -p "Repita la contraseña: " C2; echo
-    [[ "$C1" == "$C2" ]] && break; echo "No coinciden."
-  done
-  export ABC_ADMIN_PASSWORD="$C1"
-fi
+# Sin contraseña: el administrador la crea en el navegador con el enlace de primer acceso.
 preguntar "¿Crear también la institución de demostración (datos sintéticos)? (s/n)" "n"; [[ "$R" =~ ^[sS] ]] && DEMO="--demo" || DEMO=""
-ARGS=(instalar --institucion-codigo "$CODIGO" --institucion-nombre "$NOMBRE" --nit "$NIT" --municipio "$MUNICIPIO" --usuario "$ADMIN" $DEMO)
+ARGS=(instalar --puerto "$PUERTO" --institucion-codigo "$CODIGO" --institucion-nombre "$NOMBRE" --nit "$NIT" --municipio "$MUNICIPIO" --usuario "$ADMIN" $DEMO)
 
 if [[ $MODO == docker ]]; then
   paso "Construyendo y arrancando con Docker Compose"
@@ -89,7 +82,7 @@ if [[ $MODO == docker ]]; then
   cd "$DESTINO"
   sed -i "s/\"8000:8000\"/\"$PUERTO:8000\"/" docker-compose.yml
   docker compose up -d --build
-  docker compose exec -T -e ABC_ADMIN_PASSWORD web python manage.py "${ARGS[@]}"
+  docker compose exec -T web python manage.py "${ARGS[@]}" | tee /tmp/costos-abc-instalar.log
   cat > /etc/cron.daily/costos-abc-respaldo <<CRON
 #!/bin/sh
 F=\$(date +%Y%m%d_%H%M); mkdir -p $DESTINO/datos/respaldos/\$F
@@ -118,7 +111,7 @@ else
   mkdir -p "$DESTINO/staticfiles" && chown -R "$USUARIO_SO:$USUARIO_SO" "$DESTINO/staticfiles"
 
   paso "Base de datos, administrador e institución"
-  cd "$DESTINO" && runuser -w ABC_ADMIN_PASSWORD -u "$USUARIO_SO" -- "$DESTINO/.venv/bin/python" manage.py "${ARGS[@]}"
+  cd "$DESTINO" && runuser -u "$USUARIO_SO" -- "$DESTINO/.venv/bin/python" manage.py "${ARGS[@]}" | tee /tmp/costos-abc-instalar.log
 
   paso "Servicio systemd y respaldo diario"
   cat > /etc/systemd/system/costos-abc.service <<UNIT
@@ -159,7 +152,6 @@ CRON
 fi
 chmod 755 /etc/cron.daily/costos-abc-respaldo
 command -v ufw >/dev/null && ufw status | grep -q active && ufw allow "$PUERTO/tcp" >/dev/null || true
-unset ABC_ADMIN_PASSWORD
 
 sleep 3
 curl -fsS -o /dev/null "http://127.0.0.1:$PUERTO/cuenta/ingresar/" && ok "Servidor respondiendo" || echo "    Revise: journalctl -u costos-abc / docker compose logs"
@@ -169,6 +161,9 @@ cat <<FIN
  Instalación terminada
  Acceso:    http://$(hostname -I 2>/dev/null | awk '{print $1}'):$PUERTO/
  Usuario:   $ADMIN
+ Contraseña: créela abriendo (una sola vez) el enlace:
+   $(grep -o 'http://[^ ]*primer-acceso[^ ]*' /tmp/costos-abc-instalar.log 2>/dev/null | head -1 | sed "s/localhost/$(hostname -I 2>/dev/null | awk '{print $1}')/")
+   (si lo pierde: manage.py enlace_primer_acceso)
  Datos:     $DESTINO/datos  (respaldo diario, se conservan 30 días)
  Plantilla: $DESTINO/plantillas/Plantilla_Carga_Mensual_ABC.xlsx
 =============================================================

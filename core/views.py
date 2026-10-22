@@ -13,7 +13,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views import View
 
-from . import permisos
+from . import permisos, primer_acceso
 from .auditoria import registrar
 from .middleware import SESION_INSTITUCION, instituciones_de
 from .mixins import InstitucionMixin
@@ -44,11 +44,74 @@ class LoginConBloqueo(auth_views.LoginView):
             registrar("LOGIN_FALLIDO", descripcion=self.request.POST.get("username", "")[:150])
         return super().form_invalid(form)
 
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["primer_acceso_pendiente"] = primer_acceso.pendiente() is not None
+        return ctx
+
     def form_valid(self, form):
         cache.delete(self._llave())
         respuesta = super().form_valid(form)
         registrar("LOGIN", usuario=form.get_user(), descripcion="Inicio de sesión")
         return respuesta
+
+
+class PrimerAccesoForm(forms.Form):
+    usuario = forms.CharField(max_length=150, label="Usuario")
+    clave1 = forms.CharField(label="Nueva contraseña", widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}))
+    clave2 = forms.CharField(label="Repita la contraseña", widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}))
+
+    def __init__(self, usuario_obj, *args, **kwargs):
+        self.usuario_obj = usuario_obj
+        super().__init__(*args, **kwargs)
+        for f in self.fields.values():
+            f.widget.attrs["class"] = "form-control"
+
+    def clean_usuario(self):
+        nombre = self.cleaned_data["usuario"].strip()
+        if get_user_model().objects.filter(username=nombre).exclude(pk=self.usuario_obj.pk).exists():
+            raise forms.ValidationError("Ese usuario ya existe.")
+        return nombre
+
+    def clean(self):
+        datos = super().clean()
+        c1, c2 = datos.get("clave1"), datos.get("clave2")
+        if c1 and c2 and c1 != c2:
+            self.add_error("clave2", "Las contraseñas no coinciden.")
+        elif c1:
+            from django.contrib.auth.password_validation import validate_password
+
+            self.usuario_obj.username = datos.get("usuario") or self.usuario_obj.username
+            try:
+                validate_password(c1, self.usuario_obj)
+            except forms.ValidationError as exc:
+                self.add_error("clave1", exc)
+        return datos
+
+
+def primer_acceso_view(request):
+    """El administrador creado por el instalador define aquí su usuario y su propia contraseña (enlace de un solo uso)."""
+    usuario = primer_acceso.pendiente()
+    if usuario is None:
+        messages.info(request, "El administrador ya tiene contraseña. Ingrese con su usuario.")
+        return redirect("login")
+    token = request.GET.get("t") or request.POST.get("t", "")
+    if not primer_acceso.valido(token):
+        registrar("PRIMER_ACCESO_RECHAZADO", descripcion="Enlace de primer acceso no válido")
+        return render(request, "core/primer_acceso.html", {"invalido": True}, status=403)
+    form = PrimerAccesoForm(usuario, request.POST or None, initial={"usuario": usuario.username})
+    if request.method == "POST" and form.is_valid():
+        usuario.username = form.cleaned_data["usuario"]
+        usuario.set_password(form.cleaned_data["clave1"])
+        usuario.save()
+        primer_acceso.consumir()
+        from django.contrib.auth import login
+
+        login(request, usuario, backend="django.contrib.auth.backends.ModelBackend")
+        registrar("PRIMER_ACCESO", usuario=usuario, objeto=usuario, descripcion="El administrador creó su contraseña")
+        messages.success(request, "Contraseña creada. Bienvenido(a).")
+        return redirect("core:seleccionar_institucion")
+    return render(request, "core/primer_acceso.html", {"form": form, "token": token})
 
 
 @login_required

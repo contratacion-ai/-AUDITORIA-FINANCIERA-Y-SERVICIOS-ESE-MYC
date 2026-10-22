@@ -2,6 +2,10 @@
 
 ## 1. Ingreso
 
+0. **Primera vez**: el instalador no pide contraseña. Al terminar abre la página *Cree su contraseña*, donde el
+   administrador define su usuario y su propia contraseña (enlace de un solo uso; también en
+   *Inicio › Costos ABC › Crear contraseña del administrador*). Luego el administrador crea los demás usuarios en
+   *Usuarios y roles*.
 1. Ingrese con su usuario y contraseña. Tras 5 intentos fallidos el acceso se bloquea unos minutos.
 2. Seleccione la institución (si tiene varias, p. ej. consultores). El rol aparece junto al nombre de la institución.
 3. La sesión se cierra sola tras 30 minutos sin uso.

@@ -9,8 +9,12 @@ WINDOWS (Windows 10/11 o Windows Server 2016 o posterior, 64 bits)
   1. Doble clic en CostosABC-Setup-<version>.exe y acepte el permiso de administrador.
   2. Siguiente > Acepto > Siguiente (carpeta C:\CostosABC).
   3. Complete el formulario: codigo y nombre de la institucion, NIT, municipio,
-     usuario y contrasena del administrador (minimo 10 caracteres) y puerto (8000).
-  4. Instalar. Al terminar marque "Abrir Costos ABC en el navegador".
+     usuario administrador y puerto (8000). NO se pide contrasena.
+  4. Instalar. Al terminar deje marcado "Abrir Costos ABC para crear mi contrasena":
+     se abre la pagina "Cree su contrasena", donde usted define su usuario y su
+     propia contrasena (minimo 10 caracteres). Ese enlace funciona una sola vez.
+     Si cierra el navegador antes, use Inicio > Costos ABC > Crear contrasena del
+     administrador.
      Desde otros equipos de la red: http://NOMBRE-O-IP-DEL-SERVIDOR:8000/
   No necesita internet ni tener Python: el instalador trae todo.
 
@@ -31,6 +35,12 @@ LINUX (Ubuntu 22.04+, Debian 12+, RHEL 9+)
   sudo bash instalador/linux/instalar.sh            (nativo con systemd)
   sudo bash instalador/linux/instalar.sh --docker   (Docker + PostgreSQL)
   Queda en /opt/costos-abc, servicio "costos-abc", respaldo diario en /opt/costos-abc/datos/respaldos.
+  Al final muestra el enlace para crear la contrasena del administrador.
+
+SI PIERDE EL ENLACE PARA CREAR LA CONTRASENA (antes de usarlo)
+  Windows: C:\CostosABC\python\python.exe C:\CostosABC\manage.py enlace_primer_acceso
+  Linux:   cd /opt/costos-abc && sudo -u costosabc .venv/bin/python manage.py enlace_primer_acceso
+  Para cambiar una contrasena ya creada: menu del usuario > Cambiar contrasena.
 
 ACTUALIZAR A UNA NUEVA VERSION
   Ejecute el nuevo CostosABC-Setup.exe (o el instalador de la nueva version) sobre la

@@ -2,7 +2,8 @@
 
 No depende de PowerShell: genera .env, crea base de datos/institución/administrador, registra el servidor como tarea
 programada que arranca con Windows (schtasks), abre el puerto (netsh), programa el respaldo diario y comprueba que la
-aplicación responda. La contraseña del administrador llega en la variable de entorno ABC_ADMIN_PASSWORD.
+aplicación responda. El administrador queda sin contraseña: la crea en el navegador con un enlace de un solo uso
+(datos\\primer_acceso.token), que el instalador abre al terminar.
 
 Salida 0 = todo correcto · 2 = instalada con advertencias (p. ej. sin arranque automático) · 1 = error.
 Detalle en datos\\logs\\instalacion.log.
@@ -188,9 +189,8 @@ def main():
             ejecutar(log, manage + ["migrate", "--noinput"], entorno, cwd=destino)
             ejecutar(log, manage + ["collectstatic", "--noinput", "-v", "0"], entorno, cwd=destino)
         else:
-            if not os.environ.get("ABC_ADMIN_PASSWORD"):
-                raise RuntimeError("Falta la contraseña del administrador.")
-            comando = manage + ["instalar", "--institucion-codigo", a.codigo, "--institucion-nombre", a.nombre,
+            # Sin contraseña: el administrador la crea en el navegador con el enlace de primer acceso.
+            comando = manage + ["instalar", "--puerto", str(a.puerto), "--institucion-codigo", a.codigo, "--institucion-nombre", a.nombre,
                                 "--nit", a.nit, "--municipio", a.municipio, "--usuario", a.usuario]
             if a.demo.upper().startswith("S"):
                 comando.append("--demo")

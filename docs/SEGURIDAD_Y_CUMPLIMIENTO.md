@@ -17,6 +17,9 @@
   solo ve esas. Toda consulta filtra por la institución activa; un identificador de otra institución responde 404.
 * Los formularios restringen las listas de selección a la institución activa (no se pueden enlazar datos ajenos).
 * Superusuario: solo para soporte técnico (admin de Django).
+* Primer acceso: los instaladores crean el administrador **sin contraseña**; él la define en el navegador mediante un
+  enlace de un solo uso (token aleatorio en `datos/primer_acceso.token`, solo legible en el servidor). Así nadie más
+  en la red puede tomar la cuenta, y la contraseña nunca pasa por el instalador. Se registra en la bitácora.
 
 ## Protección de datos (Ley 1581 de 2012, Decreto 1377 de 2013)
 
