@@ -26,6 +26,22 @@ costeo por **CUPS** y su cruce con **RIPS**, **facturación por ámbito** y **no
 | Manual para el personal financiero | [docs/MANUAL_USUARIO.md](docs/MANUAL_USUARIO.md) |
 | Caso de prueba calculado a mano | [docs/CASO_DE_PRUEBA.md](docs/CASO_DE_PRUEBA.md) |
 
+## Homologación de CECO del estado financiero (herramienta independiente)
+
+`homologacion_ceco/` (Python + Pandas): carga archivos de costos por CECO (Excel, CSV, ZIP anidados), los
+homologa al CECO de la resolución con el maestro `HOMOLOGACION_CECO_EF_vs_RESOLUCION_ESE_MYC_2026.xlsx`
+respetando los estados ACTIVO / VERIFICAR / NO APLICA / EXCLUIR, y genera en un solo libro el estado financiero
+homologado por sede/IPS, la carga para la herramienta de costos (`CARGA HERRAMIENTA`, compatible con este
+sistema), los rechazos con su motivo y la trazabilidad completa. Plantilla de carga directa:
+`plantillas/Plantilla_Carga_CECO.xlsx`.
+
+```bash
+pip install -r homologacion_ceco/requirements.txt
+python -m homologacion_ceco procesar lote.zip --salida resultado.xlsx
+```
+
+Documentación: [docs/HOMOLOGACION_CECO.md](docs/HOMOLOGACION_CECO.md).
+
 ## Decisiones técnicas
 
 * **Django** en lugar de FastAPI: la herramienta es una aplicación web con formularios, autenticación, roles, ORM con
@@ -92,7 +108,7 @@ Ubique un proxy HTTPS delante del puerto 8000. Respalde la base de datos y el vo
 ## Pruebas
 
 ```bash
-pytest            # 86 pruebas: limpieza, cargas, motor (caso calculado a mano), cruces, informe, roles y aislamiento
+pytest            # 187 pruebas: aplicación ABC (limpieza, cargas, motor, cruces, informe, roles, instalador) y homologación CECO
 ```
 
 ## Estructura
@@ -102,4 +118,5 @@ abc_salud/   configuración          core/      instituciones, roles, periodos, 
 modelo/      catálogo y parametrización    cargas/    esquemas, limpieza, lectores, procesador, plantilla
 motor/       distribuciones 1ª–4ª, CUPS, trazabilidad   analisis/  consultas, cruces, informe, exportación
 seed/        catálogo base Res. 002/2014 (editable)     docs/      documentación
+homologacion_ceco/  homologación CECO E.F. → resolución (Pandas, independiente de Django)
 ```

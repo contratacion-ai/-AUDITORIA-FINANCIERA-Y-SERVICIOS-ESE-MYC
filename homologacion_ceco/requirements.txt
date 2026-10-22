@@ -1,0 +1,4 @@
+# Dependencias de la herramienta de homologación CECO (independiente de la aplicación Django).
+pandas==3.0.5
+openpyxl==3.1.5
+xlrd==2.0.2
