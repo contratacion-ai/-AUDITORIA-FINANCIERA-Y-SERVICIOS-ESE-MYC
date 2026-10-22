@@ -36,6 +36,21 @@ costeo por **CUPS** y su cruce con **RIPS**, **facturación por ámbito** y **no
 * Plantillas de Django + Bootstrap + Chart.js (sin compilación de frontend). Excel con `openpyxl`/`xlrd`.
 * Montos en `Decimal`; los repartos se hacen en centavos exactos y cada corrida verifica `entrada = finales + pendientes`.
 
+## Instalador
+
+Paquete para instalar sin internet (incluye dependencias para Windows y Linux):
+
+```bash
+bash instalador/construir_paquete.sh      # genera dist/CostosABC-<versión>.zip
+```
+
+* **Windows**: descomprimir y doble clic en `instalador\windows\INSTALAR.bat`. Instala en `C:\CostosABC`, arranca con
+  Windows (tarea programada), abre el puerto en el firewall y programa un respaldo diario.
+* **Linux**: `sudo bash instalador/linux/instalar.sh` (servicio systemd) o `--docker` (Docker + PostgreSQL).
+
+Instrucciones para el usuario final: `instalador/LEAME_INSTALACION.txt`. Volver a ejecutar el instalador actualiza la
+versión conservando datos y claves.
+
 ## Puesta en marcha (desarrollo)
 
 ```bash
@@ -70,7 +85,7 @@ Ubique un proxy HTTPS delante del puerto 8000. Respalde la base de datos y el vo
 ## Pruebas
 
 ```bash
-pytest            # 82 pruebas: limpieza, cargas, motor (caso calculado a mano), cruces, informe, roles y aislamiento
+pytest            # 83 pruebas: limpieza, cargas, motor (caso calculado a mano), cruces, informe, roles y aislamiento
 ```
 
 ## Estructura

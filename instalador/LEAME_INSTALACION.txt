@@ -1,0 +1,39 @@
+HERRAMIENTA DE COSTOS ABC PARA INSTITUCIONES DE SALUD - INSTALACION
+===================================================================
+
+Este paquete incluye la aplicacion y sus dependencias: no necesita internet para
+instalarse (salvo Python en Windows, si el servidor no lo tiene).
+
+WINDOWS (Windows 10/11 o Windows Server 2016 o posterior)
+  1. Descomprima el ZIP (por ejemplo en el Escritorio).
+  2. Abra la carpeta CostosABC\instalador\windows y haga doble clic en INSTALAR.bat.
+     Acepte el permiso de administrador.
+  3. Responda las preguntas: nombres/IP del servidor, HTTPS (S/N), base de datos
+     (Enter = SQLite local), codigo y nombre de la institucion, usuario y contrasena
+     del administrador (minimo 10 caracteres).
+  4. Al terminar se abre el navegador en http://localhost:8000/
+     Desde otros equipos de la red: http://NOMBRE-O-IP-DEL-SERVIDOR:8000/
+
+  Queda instalado en C:\CostosABC:
+   - Inicia solo con Windows (tarea programada "CostosABC-Servidor").
+   - Respaldo diario 23:00 en C:\CostosABC\datos\respaldos (30 dias).
+   - Registro del servidor: C:\CostosABC\datos\logs\servidor.log
+  Si no hay Python, el instalador intenta instalarlo con winget; si no puede,
+  instale Python 3.12 (64 bits) de python.org marcando "Add python.exe to PATH".
+  Desinstalar: instalador\windows\DESINSTALAR.bat (conserva los datos).
+
+LINUX (Ubuntu 22.04+, Debian 12+, RHEL 9+)
+  unzip CostosABC-*.zip && cd CostosABC
+  sudo bash instalador/linux/instalar.sh            (nativo con systemd)
+  sudo bash instalador/linux/instalar.sh --docker   (Docker + PostgreSQL)
+  Queda en /opt/costos-abc, servicio "costos-abc", respaldo diario en /opt/costos-abc/datos/respaldos.
+
+ACTUALIZAR A UNA NUEVA VERSION
+  Ejecute el instalador de la nueva version sobre la misma carpeta: conserva .env,
+  la base de datos y los archivos; aplica las migraciones y reinicia el servicio.
+
+IMPORTANTE
+  - Guarde una copia segura del archivo .env: contiene la clave que seudonimiza a los
+    pacientes (PSEUDONIMO_KEY). Sin ella no se pueden cruzar RIPS de meses anteriores.
+  - Para acceso desde fuera del hospital publique la aplicacion solo detras de HTTPS.
+  - Manual de uso: docs\MANUAL_USUARIO.md  ·  Plantilla: plantillas\Plantilla_Carga_Mensual_ABC.xlsx

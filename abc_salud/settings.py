@@ -10,6 +10,21 @@ import dj_database_url
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def cargar_env(ruta):
+    """Lee un archivo .env (CLAVE=valor) sin sobrescribir variables ya definidas en el sistema."""
+    if not ruta.is_file():
+        return
+    for linea in ruta.read_text(encoding="utf-8-sig").splitlines():
+        linea = linea.strip()
+        if not linea or linea.startswith("#") or "=" not in linea:
+            continue
+        clave, valor = linea.split("=", 1)
+        os.environ.setdefault(clave.strip(), valor.strip().strip('"').strip("'"))
+
+
+cargar_env(BASE_DIR / ".env")
+
+
 def env_bool(nombre, defecto=False):
     return os.environ.get(nombre, str(defecto)).strip().lower() in {"1", "true", "si", "sí", "yes"}
 
@@ -126,7 +141,8 @@ CSRF_COOKIE_HTTPONLY = False
 X_FRAME_OPTIONS = "DENY"
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
-if not DEBUG and os.environ.get("DJANGO_ENV") == "production":
+# USAR_HTTPS=0 solo para redes internas sin certificado (el instalador lo pregunta).
+if not DEBUG and os.environ.get("DJANGO_ENV") == "production" and env_bool("USAR_HTTPS", True):
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", True)
