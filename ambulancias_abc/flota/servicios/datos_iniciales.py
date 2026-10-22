@@ -39,6 +39,13 @@ SEDES = [
      ["Panama", "CENTRO DE SALUD PANAMA DE ARAUCA", "Centro de Salud Panamá"]),
 ]
 
+# Prefijo del número de factura de cada hospital (facturación HIS y RIPS de la ESE, 2026).
+# Permite reconocer el hospital de cada factura en un RIPS consolidado.
+PREFIJOS_FACTURA = {
+    "tame": ["FHSA"], "arauquita": ["FHSL"], "pto-rondon": ["FHJD"], "fortul": ["FHSF"],
+    "la-esmeralda": ["FHSR"], "cravo-norte": ["FHCN"], "pto-jordan": ["FCSJ"], "panama": ["FCSP"],
+}
+
 CODIGOS = [
     ("601T01", "Traslado asistencial básico terrestre primario", CodigoTraslado.BASE),
     ("601T02", "Traslado asistencial básico terrestre secundario", CodigoTraslado.POR_KM),
@@ -60,6 +67,9 @@ def cargar(incluir_tarifas=True, incluir_ceco=True) -> dict:
             codigo=codigo,
             defaults={"nombre": nombre, "municipio": municipio, "origen_tarifa": origen, "alias": "\n".join(alias)},
         )
+    for codigo, prefijos in PREFIJOS_FACTURA.items():
+        # solo si el usuario no los ha definido
+        Sede.objects.filter(codigo=codigo, prefijos_factura="").update(prefijos_factura="\n".join(prefijos))
     sedes = {}
     for s in Sede.objects.all():
         for n in s.nombres():

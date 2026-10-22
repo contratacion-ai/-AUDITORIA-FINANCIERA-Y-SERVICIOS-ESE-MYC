@@ -28,7 +28,7 @@ class AuditadoAdmin(admin.ModelAdmin):
 
 @admin.register(Sede)
 class SedeAdmin(AuditadoAdmin):
-    list_display = ("codigo", "nombre", "municipio", "origen_tarifa", "codigo_prestador", "activa")
+    list_display = ("codigo", "nombre", "municipio", "origen_tarifa", "codigo_prestador", "prefijos_factura", "activa")
 
 
 class PerfilInline(admin.TabularInline):

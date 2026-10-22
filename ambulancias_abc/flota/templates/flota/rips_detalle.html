@@ -1,7 +1,7 @@
 {% extends "flota/base.html" %}{% load formato %}
 {% block titulo %}RIPS {{ lote.sede }} {{ lote.mes|date:"M Y" }}{% endblock %}
 {% block contenido %}
-<h1>RIPS {{ lote.sede|default:"" }} · {{ lote.mes|date:"F Y"|default:"" }}
+<h1>RIPS {{ lote.sede|default:"varios hospitales" }} · {% if lote.mes %}{{ lote.mes|date:"F Y" }}{% elif lote.detalle.meses %}{{ lote.detalle.meses|first }} a {{ lote.detalle.meses|last }}{% endif %}
   <a class="boton" style="float:right" href="?{{ request.GET.urlencode }}&formato=xlsx">Descargar traslados y APH (Excel)</a></h1>
 <p class="suave">{{ lote.archivo }} · cargado {{ lote.fecha|date:"Y-m-d H:i" }} por {{ lote.usuario|default:"API" }}. {{ lote.resumen }}</p>
 {% with d=lote.detalle %}
@@ -10,8 +10,17 @@
   <div class="kpi"><div class="t">Traslados extraídos</div><div class="v">{{ d.traslados.lineas|num }}</div><div class="s">{{ d.traslados.valor|pesos }}</div></div>
   <div class="kpi" style="border-left-color:var(--barra3)"><div class="t">APH extraídas</div><div class="v">{{ d.aph.lineas|num }}</div><div class="s">{{ d.aph.valor|pesos }}</div></div>
   <div class="kpi"><div class="t">Conciliadas con facturación</div><div class="v">{{ lote.actualizados|num }}</div><div class="s">{{ lote.nuevos|num }} nuevas desde RIPS</div></div>
+  {% if d.con_diferencia_valor %}<div class="kpi" style="border-left-color:var(--neg)"><div class="t">Valor distinto al HIS</div><div class="v">{{ d.con_diferencia_valor|num }}</div><div class="s"><a href="{% url 'flota:auditoria_rips' %}">ver auditoría</a></div></div>{% endif %}
+  {% if d.lineas_repetidas or d.facturas_repetidas %}<div class="kpi"><div class="t">Repetidas entre carpetas</div><div class="v">{{ d.facturas_repetidas|num }}</div><div class="s">facturas · {{ d.lineas_repetidas|num }} líneas de traslado tomadas una vez</div></div>{% endif %}
+  {% if d.sin_hospital %}<div class="kpi" style="border-left-color:var(--neg)"><div class="t">Sin hospital reconocido</div><div class="v">{{ d.sin_hospital|num }}</div><div class="s">ver hallazgos de calidad</div></div>{% endif %}
   {% if d.fuera_del_mes or d.prestador_distinto %}<div class="kpi" style="border-left-color:var(--neg)"><div class="t">Revisar</div><div class="v">{{ d.fuera_del_mes|add:d.prestador_distinto }}</div><div class="s">{{ d.fuera_del_mes }} fuera del mes · {{ d.prestador_distinto }} de otro prestador</div></div>{% endif %}
 </div>
+{% if d.por_sede_mes|length > 1 %}
+<div class="panel"><h2>Traslados y APH por hospital y mes de servicio</h2><table>
+  <tr><th>Hospital</th><th>Mes</th><th class="n">Líneas</th><th class="n">Valor</th><th class="n">Conciliadas con HIS</th><th class="n">Con diferencia de valor</th><th class="n">Solo en RIPS</th></tr>
+  {% for c, m, v in d.por_sede_mes %}<tr><td>{{ c }}</td><td>{{ m }}</td><td class="n">{{ v.lineas|num }}</td><td class="n">{{ v.valor|pesos }}</td><td class="n">{{ v.conciliados|num }}</td><td class="n">{{ v.diferencia_valor|num }}</td><td class="n">{{ v.nuevos|num }}</td></tr>{% endfor %}
+</table></div>
+{% endif %}
 {% endwith %}
 <div class="panel">
   <div class="pestanas"><a href="?" class="{% if not g.categoria %}activo{% endif %}">Todos ({{ n }})</a>{% for k, v in categorias %}<a href="?categoria={{ k }}" class="{% if g.categoria == k %}activo{% endif %}">{{ v }}</a>{% endfor %}</div>

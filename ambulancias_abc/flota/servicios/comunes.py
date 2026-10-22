@@ -47,6 +47,11 @@ PARAMETROS_DEFECTO = {
         30, "km", "Km conducidos (ida y vuelta) de un traslado con tarifa básica sin km facturados",
         "Supuesto basado en el num. 4.1 (traslados a veredas valorados en 30 km ida y vuelta)", True,
     ),
+    "rips_min_facturas_mes": (
+        5, "facturas", "Facturas mínimas de un hospital en un mes para considerar que sus RIPS de ese mes están cargados "
+        "(auditoría RIPS vs facturación). Evita contar meses con pocas facturas de periodos mal digitados",
+        "Configuración", True,
+    ),
     "tolerancia_km_ruta": (0, "km", "Diferencia máxima entre km facturados y km de la ruta para inferirla", "Configuración", True),
 }
 

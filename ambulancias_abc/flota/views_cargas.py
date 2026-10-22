@@ -19,6 +19,7 @@ from .forms import CargaConsumosForm, CargaFacturacionForm, CargaRipsForm
 from .models import APH, CATEGORIAS_SERVICIO, Ambulancia, Consumo, LoteImportacion, Sede, Traslado, sumar_meses
 from .servicios import importar
 from .servicios.comunes import registrar
+from .servicios.auditoria_rips import SITUACIONES, auditoria_rips
 from .servicios.costeo import METODOS, facturacion_por_ambito, recorridos_por_sede, tabla_consumos
 from .servicios.importar import COLUMNAS_CONSUMO
 
@@ -124,10 +125,14 @@ def cargar_rips(request):
         messages.success(request, f"RIPS cargados. {lote.resumen}")
         return redirect("flota:rips_detalle", pk=lote.pk)
     return render(request, "flota/cargar.html", {
-        "form": form, "titulo": "Cargar RIPS del mes por hospital",
-        "ayuda": "Se extraen las líneas de traslados asistenciales y de atención prehospitalaria (APH). Las que ya llegaron "
-                 "en la facturación del HIS se concilian (no se duplican); las demás se crean en el hospital elegido. "
-                 "Para clasificar como APH un código específico, regístrelo en Administración › Códigos de traslado con categoría APH.",
+        "form": form, "titulo": "Cargar RIPS (un mes, varios meses o consolidado por hospital)",
+        "ayuda": "Se extraen las líneas de traslados asistenciales y de atención prehospitalaria (APH). Puede subir el ZIP "
+                 "completo del hospital con sus carpetas por mes, o un consolidado de varios hospitales: el mes se toma de la "
+                 "fecha de servicio y el hospital del prefijo de la factura (FHJD, FHSL...) o del código de prestador. "
+                 "Las líneas que ya llegaron en la facturación del HIS se concilian (no se duplican) y las que cambian de valor "
+                 "se marcan; las demás se crean como «solo en RIPS». Una factura repetida en dos carpetas se toma una vez. "
+                 "Después revise la Auditoría RIPS vs facturación. Para clasificar como APH un código específico, regístrelo en "
+                 "Administración › Códigos de traslado con categoría APH.",
         "multipart": True,
     })
 
@@ -138,6 +143,43 @@ def rips_cargas(request):
     if request.GET.get("sede"):
         lotes = lotes.filter(sede__codigo=request.GET["sede"])
     return render(request, "flota/rips_cargas.html", {"lotes": lotes[:200], "sedes": Sede.objects.all(), "g": request.GET})
+
+
+@login_required
+def auditoria_rips_vista(request):
+    desde, hasta = _rango(request, meses_atras=11)
+    sede = request.GET.get("sede") or None
+    categoria = request.GET.get("categoria") or None
+    datos = auditoria_rips(desde, hasta, sede, categoria, limite_detalle=50000 if request.GET.get("formato") == "xlsx" else 1000)
+    if request.GET.get("formato") == "xlsx":
+        meses = [[d["sede"].nombre if d["sede"] else "", d["mes"], d["estado"], d["his_lineas"], d["his_valor"], d["rips_lineas"],
+                  d["rips_valor"], d["ambos"], d["diferencia"], d["dif_valor"], d["solo_his"], d["solo_his_valor"], d["solo_rips"],
+                  d["solo_rips_valor"], d["sin_factura"], d["rips_no_cargado"], d["his_no_cargado"]] for d in datos["por_mes"]]
+        rutas = [[d["sede"].nombre, f"{d['ruta'].origen} → {d['ruta'].destino}" if d["ruta"] else "Sin ruta / tarifa básica / APH",
+                  d["his_lineas"], d["his_valor"], d["rips_lineas"], d["rips_valor"], d["ambos"], d["diferencia"], d["dif_valor"],
+                  d["solo_his"], d["solo_his_valor"], d["solo_rips"], d["solo_rips_valor"]] for d in datos["por_ruta"]]
+        det = [[x["texto"], x["t"].sede.nombre, x["t"].mes, x["t"].fecha_servicio, x["t"].categoria, x["t"].numero_factura,
+                x["t"].codigo_cups, x["t"].descripcion, float(x["t"].cantidad), float(x["t"].valor_facturado),
+                float(x["t"].valor_rips) if x["t"].valor_rips is not None else None, str(x["t"].ruta) if x["t"].ruta_id else "",
+                x["t"].ambito, x["t"].observaciones_calidad] for x in datos["detalle"]]
+        P = FORMATO_PESOS
+        return respuesta_xlsx(f"auditoria_rips_{desde:%Y-%m}_{hasta:%Y-%m}", [
+            ("Por mes y hospital", ["Hospital", "Mes", "Estado", "Líneas facturadas HIS", "Valor HIS", "Líneas RIPS", "Valor RIPS",
+                                    "Coinciden", "Con diferencia de valor", "Diferencia (RIPS − HIS)", "Facturado sin RIPS",
+                                    "Valor facturado sin RIPS", "En RIPS sin facturación", "Valor RIPS sin facturación",
+                                    "Prefacturas sin número", "RIPS no cargado", "Facturación no cargada"],
+             meses, {4: P, 6: P, 9: P, 11: P, 13: P}),
+            ("Por recorrido", ["Hospital", "Recorrido", "Líneas HIS", "Valor HIS", "Líneas RIPS", "Valor RIPS", "Coinciden",
+                               "Con diferencia", "Diferencia (RIPS − HIS)", "Facturado sin RIPS", "Valor", "En RIPS sin facturación", "Valor"],
+             rutas, {3: P, 5: P, 8: P, 10: P, 12: P}),
+            ("Diferencias", ["Situación", "Hospital", "Mes", "Fecha servicio", "Categoría", "Factura", "Código", "Descripción", "Cantidad",
+                             "Valor HIS", "Valor RIPS", "Ruta", "Ámbito", "Observaciones"],
+             det, {9: P, 10: P}),
+        ])
+    return render(request, "flota/auditoria_rips.html", {
+        **datos, "desde": desde, "hasta": hasta, "sede": sede or "", "categoria": categoria or "",
+        "sedes": Sede.objects.filter(activa=True), "categorias": CATEGORIAS_SERVICIO,
+    })
 
 
 @login_required

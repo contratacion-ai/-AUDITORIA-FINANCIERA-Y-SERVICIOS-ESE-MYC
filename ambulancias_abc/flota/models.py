@@ -85,6 +85,11 @@ class Sede(models.Model):
         blank=True, help_text="Otros nombres con que aparece en archivos (uno por línea), p. ej. 'HOSPITAL SAN ANTONIO'"
     )
     codigo_prestador = models.CharField(max_length=20, blank=True, help_text="Código de habilitación REPS (RIPS)")
+    prefijos_factura = models.TextField(
+        blank=True,
+        help_text="Prefijos del número de factura de la sede (uno por línea), p. ej. FHJD. Con ellos se reconoce "
+        "el hospital en RIPS consolidados",
+    )
     activa = models.BooleanField(default=True)
 
     class Meta:
@@ -95,6 +100,9 @@ class Sede(models.Model):
 
     def nombres(self) -> list[str]:
         return [self.nombre, self.municipio, self.codigo, *[a for a in self.alias.splitlines() if a.strip()]]
+
+    def prefijos(self) -> list[str]:
+        return [p.strip().upper() for p in self.prefijos_factura.splitlines() if p.strip()]
 
 
 class Ambulancia(VersionadoMixin):
@@ -280,6 +288,10 @@ class Traslado(VersionadoMixin):
     autorizacion = models.CharField(max_length=60, blank=True)
     rips_consecutivo = models.CharField(max_length=20, blank=True)
     conciliado_rips = models.BooleanField(default=False)
+    valor_rips = models.DecimalField(
+        max_digits=14, decimal_places=2, null=True, blank=True, help_text="Valor reportado en RIPS (auditoría RIPS vs facturación)"
+    )
+    cantidad_rips = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
 
     tipo_documento = models.CharField(max_length=5, blank=True)
     documento_hash = models.CharField(max_length=64, blank=True, db_index=True)

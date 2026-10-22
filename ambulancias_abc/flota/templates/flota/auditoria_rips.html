@@ -1,0 +1,65 @@
+{% extends "flota/base.html" %}{% load formato %}
+{% block titulo %}Auditoría RIPS vs facturación{% endblock %}
+{% block contenido %}
+<h1>Auditoría RIPS vs facturación HIS
+  <a class="boton" style="float:right" href="?{{ request.GET.urlencode }}&formato=xlsx">Descargar auditoría (Excel)</a></h1>
+<form method="get" class="filtros panel no-imprimir">
+  <label>Desde <input type="month" name="desde" value="{{ desde|date:'Y-m' }}"></label>
+  <label>Hasta <input type="month" name="hasta" value="{{ hasta|date:'Y-m' }}"></label>
+  <label>Hospital <select name="sede"><option value="">Todos</option>{% for s in sedes %}<option value="{{ s.codigo }}" {% if sede == s.codigo %}selected{% endif %}>{{ s.nombre }}</option>{% endfor %}</select></label>
+  <label>Servicio <select name="categoria"><option value="">Traslados y APH</option>{% for k, v in categorias %}<option value="{{ k }}" {% if categoria == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+  <button>Aplicar</button>
+</form>
+<div class="aviso">Cada traslado o APH facturado en el HIS se busca en los RIPS del mismo hospital por número de factura, código y documento del paciente (cifrado).
+<b>Facturado, falta en RIPS</b>: el hospital tiene RIPS cargados para ese mes pero la línea no está. <b>En RIPS, falta en facturación</b>: está en RIPS y no en la facturación HIS del mes.
+<b>Valor distinto</b>: está en ambos con otro valor o cantidad. Los meses sin RIPS (o sin facturación) cargados se muestran aparte y no cuentan como diferencia.</div>
+
+{% with t=total %}
+<div class="kpis">
+  <div class="kpi"><div class="t">Facturado HIS</div><div class="v">{{ t.his_lineas|num }}</div><div class="s">{{ t.his_valor|pesos }}</div></div>
+  <div class="kpi"><div class="t">Reportado en RIPS</div><div class="v">{{ t.rips_lineas|num }}</div><div class="s">{{ t.rips_valor|pesos }}</div></div>
+  <div class="kpi" style="border-left-color:var(--pos)"><div class="t">Coinciden</div><div class="v">{{ t.ambos|num }}</div><div class="s">{{ t.ambos_valor|pesos }}</div></div>
+  <div class="kpi" style="border-left-color:var(--neg)"><div class="t">Facturado, falta en RIPS</div><div class="v">{{ t.solo_his|num }}</div><div class="s">{{ t.solo_his_valor|pesos }}</div></div>
+  <div class="kpi" style="border-left-color:var(--neg)"><div class="t">En RIPS, falta en facturación</div><div class="v">{{ t.solo_rips|num }}</div><div class="s">{{ t.solo_rips_valor|pesos }}</div></div>
+  <div class="kpi" style="border-left-color:var(--neg)"><div class="t">Valor distinto</div><div class="v">{{ t.diferencia|num }}</div><div class="s">RIPS − HIS: {{ t.dif_valor|pesos }}</div></div>
+  <div class="kpi"><div class="t">Prefacturas sin número</div><div class="v">{{ t.sin_factura|num }}</div><div class="s">{{ t.sin_factura_valor|pesos }} · aún no pueden estar en RIPS</div></div>
+  <div class="kpi"><div class="t">Sin el otro archivo</div><div class="v">{{ t.rips_no_cargado|add:t.his_no_cargado|num }}</div><div class="s">{{ t.rips_no_cargado|num }} sin RIPS · {{ t.his_no_cargado|num }} sin facturación</div></div>
+</div>
+{% endwith %}
+
+<div class="panel"><h2>Mes a mes por hospital</h2><table>
+  <tr><th>Hospital</th><th>Mes</th><th>Estado</th><th class="n">Facturado HIS</th><th class="n">Valor HIS</th><th class="n">En RIPS</th><th class="n">Valor RIPS</th>
+    <th class="n">Coinciden</th><th class="n">Facturado sin RIPS</th><th class="n">RIPS sin facturación</th><th class="n">Valor distinto</th><th class="n">Diferencia RIPS − HIS</th><th class="n">Prefacturas sin número</th></tr>
+  {% for d in por_mes %}
+  <tr><td>{{ d.sede|default:"—" }}</td><td>{{ d.mes|date:"M Y" }}</td>
+    <td><span class="etq {% if d.estado == 'Cuadra' %}BAJA{% elif d.estado == 'Con diferencias' %}ALTA{% else %}MEDIA{% endif %}">{{ d.estado }}</span></td>
+    <td class="n">{{ d.his_lineas|num }}</td><td class="n">{{ d.his_valor|pesos }}</td><td class="n">{{ d.rips_lineas|num }}</td><td class="n">{{ d.rips_valor|pesos }}</td>
+    <td class="n">{{ d.ambos|num }}</td>
+    <td class="n {% if d.solo_his %}neg{% endif %}">{{ d.solo_his|num }}{% if d.solo_his %}<br><span class="suave">{{ d.solo_his_valor|pesos }}</span>{% endif %}</td>
+    <td class="n {% if d.solo_rips %}neg{% endif %}">{{ d.solo_rips|num }}{% if d.solo_rips %}<br><span class="suave">{{ d.solo_rips_valor|pesos }}</span>{% endif %}</td>
+    <td class="n {% if d.diferencia %}neg{% endif %}">{{ d.diferencia|num }}</td><td class="n">{{ d.dif_valor|pesos }}</td><td class="n suave">{{ d.sin_factura|num }}</td></tr>
+  {% empty %}<tr><td colspan="13" class="suave">No hay traslados ni RIPS en el periodo. Cargue la facturación del mes y los RIPS del hospital.</td></tr>{% endfor %}
+</table></div>
+
+<div class="panel"><h2>Por recorrido (periodo completo)</h2><table>
+  <tr><th>Hospital</th><th>Recorrido</th><th class="n">Facturado HIS</th><th class="n">Valor HIS</th><th class="n">En RIPS</th><th class="n">Valor RIPS</th>
+    <th class="n">Coinciden</th><th class="n">Facturado sin RIPS</th><th class="n">RIPS sin facturación</th><th class="n">Valor distinto</th></tr>
+  {% for d in por_ruta %}
+  <tr><td>{{ d.sede }}</td><td>{% if d.ruta %}{{ d.ruta.origen }} → {{ d.ruta.destino }} <span class="suave">({{ d.ruta.km|num }} km)</span>{% else %}<span class="suave">Sin ruta del anexo / tarifa básica / APH</span>{% endif %}</td>
+    <td class="n">{{ d.his_lineas|num }}</td><td class="n">{{ d.his_valor|pesos }}</td><td class="n">{{ d.rips_lineas|num }}</td><td class="n">{{ d.rips_valor|pesos }}</td>
+    <td class="n">{{ d.ambos|num }}</td><td class="n {% if d.solo_his %}neg{% endif %}">{{ d.solo_his|num }}</td><td class="n {% if d.solo_rips %}neg{% endif %}">{{ d.solo_rips|num }}</td><td class="n {% if d.diferencia %}neg{% endif %}">{{ d.diferencia|num }}</td></tr>
+  {% endfor %}
+</table></div>
+
+<div class="panel"><h2>Líneas con diferencia ({{ n_detalle|num }}{% if n_detalle > detalle|length %}; se muestran {{ detalle|length }}, el Excel trae todas{% endif %})</h2><table>
+  <tr><th>Situación</th><th>Hospital</th><th>Fecha</th><th>Factura</th><th>Código</th><th>Descripción</th><th class="n">Cant.</th><th class="n">Valor HIS</th><th class="n">Valor RIPS</th><th>Ruta</th><th>Observaciones</th></tr>
+  {% for x in detalle %}{% with t=x.t %}
+  <tr><td><span class="etq {% if x.situacion == 'diferencia' %}MEDIA{% else %}ALTA{% endif %}">{{ x.texto }}</span></td><td>{{ t.sede }}</td>
+    <td><a href="{% url 'flota:traslado_editar' t.pk %}">{{ t.fecha_servicio|date:"Y-m-d" }}</a></td><td>{{ t.numero_factura|default:"—" }}</td><td>{{ t.codigo_cups }}</td>
+    <td>{{ t.descripcion|truncatechars:40 }}</td><td class="n">{{ t.cantidad|num }}</td>
+    <td class="n">{% if t.origen_registro != "RIPS" %}{{ t.valor_facturado|pesos }}{% else %}—{% endif %}</td>
+    <td class="n">{% if t.valor_rips is not None %}{{ t.valor_rips|pesos }}{% elif x.situacion == "solo_his" %}—{% else %}{{ t.valor_facturado|pesos }}{% endif %}</td>
+    <td>{{ t.ruta.destino|default:"—" }}</td><td class="suave">{{ t.observaciones_calidad|truncatechars:100 }}</td></tr>
+  {% endwith %}{% empty %}<tr><td colspan="11" class="suave">Sin diferencias en el periodo.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

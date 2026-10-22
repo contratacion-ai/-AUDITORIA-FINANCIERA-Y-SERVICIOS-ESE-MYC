@@ -21,6 +21,19 @@ Clasificación de cada línea (la primera regla que aplica):
 4. Archivo AT con tipo de servicio 2 (traslados)                     -> TRASLADO
 
 Las líneas que no cumplen ninguna regla no se extraen.
+
+Cargues de varios meses u hospitales (consolidados):
+
+* Un ZIP puede traer carpetas por mes ("01. Enero", "08. Agosto"...) y ZIP
+  dentro de ZIP. El mes de cada línea es el de su fecha de servicio; el de la
+  carpeta se conserva como referencia (mes del envío).
+* Cada carpeta es un envío: sus AT/AP se cruzan con el AF de la misma carpeta.
+* Si una misma línea (factura, usuario, código, fecha, valor) aparece en
+  varios archivos (p. ej. la factura repetida en las carpetas de agosto y
+  septiembre), se toma una sola vez y se informa.
+* ``cobertura``: facturas por prefijo, prestador y mes del periodo que
+  declaran (AF: mes de la fecha inicial y de la final; JSON: mes de servicio
+  de sus líneas). Con ella la auditoría sabe qué hospital y mes tienen RIPS cargados.
 """
 
 from __future__ import annotations
@@ -29,7 +42,9 @@ import csv
 import datetime as dt
 import io
 import json
+import re
 import zipfile
+from collections import Counter, defaultdict
 from decimal import Decimal, InvalidOperation
 from pathlib import PurePosixPath
 
@@ -39,7 +54,32 @@ from .facturacion_his import hash_documento
 FUENTE = "RIPS"
 TRASLADO, APH = "TRASLADO", "APH"
 AMBITO_AP = {"1": "Ambulatorio", "2": "Hospitalario", "3": "Urgencias"}
-MAX_ZIP_BYTES = 300 * 1024 * 1024
+MAX_ZIP_BYTES = 1024 * 1024 * 1024
+EXT_IGNORADAS = {".xml", ".pdf", ".xlsx", ".xls", ".csv", ".png", ".jpg"}
+MESES = {
+    "ENERO": 1, "FEBRERO": 2, "MARZO": 3, "ABRIL": 4, "MAYO": 5, "JUNIO": 6, "JULIO": 7, "AGOSTO": 8,
+    "SEPTIEMBRE": 9, "SETIEMBRE": 9, "OCTUBRE": 10, "NOVIEMBRE": 11, "DICIEMBRE": 12,
+}
+
+
+def prefijo_factura(numero) -> str:
+    """Letras iniciales del número de factura (FHJD15037 -> FHJD)."""
+    m = re.match(r"\s*([A-Za-z]+)", str(numero or ""))
+    return m.group(1).upper() if m else ""
+
+
+def mes_de_carpeta(ruta: str) -> int | None:
+    """Mes indicado en el nombre de la carpeta ("08. Agosto", "SEPTIEMBRE 2026"); None si no hay."""
+    for parte in reversed(PurePosixPath(ruta).parts[:-1]):
+        nom = normalizar(parte)
+        for nombre, num in MESES.items():
+            if nombre in nom:
+                return num
+    return None
+
+
+def _carpeta(nombre: str) -> str:
+    return str(PurePosixPath(nombre).parent)
 
 
 def clasificar(codigo, nombre="", autorizacion="", tipo_servicio="", catalogo: dict | None = None):
@@ -124,7 +164,7 @@ def _leer_json(nombre: str, contenido: bytes, sal: str, catalogo: dict, salida: 
                 })
             for pr in servicios.get("procedimientos") or []:
                 lineas.append({
-                    "codigo": pr.get("codProcedimiento"), "nombre": "", "cantidad": 1,
+                    "codigo": pr.get("codProcedimiento"), "nombre": "", "cantidad": None,
                     "valor_unitario": pr.get("vrServicio"), "valor": pr.get("vrServicio"),
                     "fecha": pr.get("fechaInicioAtencion"), "consecutivo": pr.get("consecutivo"),
                     "autorizacion": pr.get("numAutorizacion") or "", "cod_prestador": pr.get("codPrestador") or "",
@@ -132,6 +172,7 @@ def _leer_json(nombre: str, contenido: bytes, sal: str, catalogo: dict, salida: 
                 })
             for ln in lineas:
                 salida["lineas_revisadas"] += 1
+                _cobertura(salida, num_factura, ln["cod_prestador"], _fecha(ln["fecha"]))
                 _agregar(nombre, num_factura, tipo_doc, doc_hash, ln, catalogo, salida)
 
 
@@ -145,27 +186,73 @@ def _filas_txt(contenido: bytes):
     return [[c.strip() for c in fila] for fila in lector if fila and any(c.strip() for c in fila)]
 
 
+def _cobertura(salida, num_factura, cod_prestador, fecha):
+    if fecha:
+        salida["cobertura"][(prefijo_factura(num_factura), str(cod_prestador or ""), f"{fecha:%Y-%m}")] += 1
+
+
+def _cobertura_periodo(salida, num_factura, cod_prestador, inicio, fin):
+    """Mes inicial y mes final del periodo de la factura (AF). No se cuentan los
+    meses intermedios: una fecha de inicio mal digitada (p. ej. 2022 en una
+    factura de 2026) haría parecer cubiertos años enteros."""
+    for fecha in {f"{d:%Y-%m}" for d in (inicio, fin) if d}:
+        salida["cobertura"][(prefijo_factura(num_factura), str(cod_prestador or ""), fecha)] += 1
+
+
+def _incompleta(salida, nombre, tipo, n, campos, esperados):
+    """Agrupa las líneas mal formadas por archivo (un hallazgo por archivo, no por línea)."""
+    salida["_incompletas"][(nombre, tipo, esperados)].append((n, campos))
+
+
 def _leer_txt(archivos: dict[str, bytes], sal: str, catalogo: dict, salida: dict):
-    """archivos: nombre -> contenido, de un mismo envío (AF + AT + AP ...)."""
-    facturas = {}  # número -> (prestador, fecha expedición, fecha inicio, fecha final)
+    """archivos: nombre -> contenido. Cada carpeta es un envío (AF + AT + AP ...)."""
+    por_carpeta: dict[str, dict] = defaultdict(dict)  # carpeta -> factura -> (prestador, exp., inicio, final)
+    global_af: dict[str, tuple] = {}
+    carpetas_factura: dict[str, set] = defaultdict(set)
     for nombre, contenido in archivos.items():
         if PurePosixPath(nombre).name.upper().startswith("AF"):
             for n, f in enumerate(_filas_txt(contenido), start=1):
                 if len(f) < 8:
-                    salida["hallazgos"].append(hallazgo(nombre, f"línea {n}", "FALTANTE", f"AF con {len(f)} campos (se esperan 17)", "MEDIA"))
+                    _incompleta(salida, nombre, "AF", n, len(f), 17)
                     continue
-                facturas[f[4]] = (f[0], _fecha(f[5]), _fecha(f[6]), _fecha(f[7]))
+                datos = (f[0], _fecha(f[5]), _fecha(f[6]), _fecha(f[7]))
+                por_carpeta[_carpeta(nombre)][f[4]] = datos
+                global_af.setdefault(f[4], datos)
+                if f[4] not in salida["facturas"]:
+                    _cobertura_periodo(salida, f[4], f[0], datos[2] or datos[1], datos[3] or datos[2] or datos[1])
+                carpetas_factura[f[4]].add(_carpeta(nombre))
                 salida["facturas"].add(f[4])
+    raras = sorted(
+        k for k, (_, exp, ini, fin) in global_af.items()
+        if ini and ((fin and ini > fin) or (exp and (exp - ini).days > 366))
+    )
+    if raras:
+        salida["hallazgos"].append(hallazgo(
+            "RIPS", "AF fecha inicio/final", "INCONSISTENCIA",
+            f"{len(raras)} facturas con periodo de atención inconsistente (inicio más de un año antes de la expedición "
+            f"o posterior a la fecha final). Ejemplos: {', '.join(raras[:10])}", "MEDIA"))
+    repetidas = {k: v for k, v in carpetas_factura.items() if len(v) > 1}
+    if repetidas:
+        ejemplos = ", ".join(sorted(repetidas)[:10])
+        carpetas = sorted({c for v in repetidas.values() for c in v})
+        salida["hallazgos"].append(hallazgo(
+            "RIPS", "AF", "DUPLICADO",
+            f"{len(repetidas)} facturas aparecen en más de un envío/carpeta ({'; '.join(carpetas)[:300]}). "
+            f"Ejemplos: {ejemplos}. Sus líneas de traslado se cargan una sola vez.", "MEDIA"))
+        salida["facturas_repetidas"] = len(repetidas)
+
+    def af_de(nombre, factura):
+        return por_carpeta.get(_carpeta(nombre), {}).get(factura) or global_af.get(factura)
 
     for nombre, contenido in archivos.items():
         base = PurePosixPath(nombre).name.upper()
         if base.startswith("AT"):
             for n, f in enumerate(_filas_txt(contenido), start=1):
                 if len(f) < 11:
-                    salida["hallazgos"].append(hallazgo(nombre, f"línea {n}", "FALTANTE", f"AT con {len(f)} campos (se esperan 11)", "MEDIA"))
+                    _incompleta(salida, nombre, "AT", n, len(f), 11)
                     continue
                 salida["lineas_revisadas"] += 1
-                af = facturas.get(f[0])
+                af = af_de(nombre, f[0])
                 fecha = (af[2] or af[1]) if af else None  # AT no trae fecha: inicio del periodo de la factura
                 ln = {
                     "codigo": f[6], "nombre": f[7], "cantidad": f[8] or 1, "valor_unitario": f[9], "valor": f[10],
@@ -177,11 +264,11 @@ def _leer_txt(archivos: dict[str, bytes], sal: str, catalogo: dict, salida: dict
         elif base.startswith("AP"):
             for n, f in enumerate(_filas_txt(contenido), start=1):
                 if len(f) < 15:
-                    salida["hallazgos"].append(hallazgo(nombre, f"línea {n}", "FALTANTE", f"AP con {len(f)} campos (se esperan 15)", "MEDIA"))
+                    _incompleta(salida, nombre, "AP", n, len(f), 15)
                     continue
                 salida["lineas_revisadas"] += 1
                 ln = {
-                    "codigo": f[6], "nombre": "", "cantidad": 1, "valor_unitario": f[14], "valor": f[14],
+                    "codigo": f[6], "nombre": "", "cantidad": None, "valor_unitario": f[14], "valor": f[14],
                     "fecha": f[4], "consecutivo": f"AP{n}", "autorizacion": f[5], "cod_prestador": f[1],
                     "tipo": "AP", "tipo_servicio": "", "ambito": AMBITO_AP.get(f[7], ""),
                 }
@@ -202,14 +289,21 @@ def _agregar(nombre, num_factura, tipo_doc, doc_hash, ln, catalogo, salida):
     obs = []
     if ln.get("fecha_aproximada"):
         obs.append("fecha tomada del periodo de la factura (AF): el archivo AT no trae fecha")
+    cantidad = _dec(ln["cantidad"], Decimal(1))
     salida["registros"].append({
-        "llave_externa": f"RIPS|{num_factura}|{doc_hash[:16]}|{cod}|{ln['tipo']}|{ln['consecutivo']}",
+        # Llave por contenido (no por número de línea): la misma línea en dos
+        # archivos o carpetas es la misma. ``_deduplicar`` agrega la ocurrencia.
+        "clave_contenido": (str(num_factura), doc_hash[:16], cod, fecha.isoformat(), f"{valor:.2f}", f"{cantidad:.2f}"),
+        "carpeta": _carpeta(nombre),
+        "mes_carpeta": mes_de_carpeta(nombre),
         "numero_factura": num_factura,
         "rips_consecutivo": str(ln["consecutivo"] or "")[:20],
         "codigo_cups": cod,
         "codigo_cups_original": str(ln["codigo"] or "")[:30],
         "descripcion": str(ln["nombre"] or "")[:250],
-        "cantidad": _dec(ln["cantidad"], Decimal(1)),
+        "cantidad": cantidad,
+        # AP y procedimientos no traen cantidad: no se compara con la facturación
+        "cantidad_reportada": None if ln["cantidad"] is None else cantidad,
         "valor_unitario": _dec(ln["valor_unitario"]),
         "valor_facturado": valor,
         "fecha_servicio": fecha,
@@ -230,10 +324,38 @@ def _agregar(nombre, num_factura, tipo_doc, doc_hash, ln, catalogo, salida):
 # ---------------------------------------------------------------------------
 
 
+def _deduplicar(salida):
+    """Una línea repetida en varios archivos se toma una vez (la mayor cantidad de
+    repeticiones en un mismo archivo, por si una factura trae dos traslados iguales)."""
+    grupos = defaultdict(list)
+    for r in salida["registros"]:
+        grupos[r["clave_contenido"]].append(r)
+    finales, repetidas = [], 0
+    for clave, regs in grupos.items():
+        por_archivo = Counter(r["archivo"] for r in regs)
+        archivo, veces = max(por_archivo.items(), key=lambda kv: (kv[1], -len(kv[0])))
+        elegidos = [r for r in regs if r["archivo"] == archivo][:veces]
+        repetidas += len(regs) - len(elegidos)
+        factura, doc16, cod, fecha, valor, _ = clave
+        for k, r in enumerate(elegidos, start=1):
+            r["llave_externa"] = f"RIPS2|{factura}|{doc16}|{cod}|{fecha.replace('-', '')}|{valor}|{k}"[:200]
+            finales.append(r)
+    salida["registros"] = finales
+    salida["lineas_repetidas"] = repetidas
+    if repetidas:
+        salida["hallazgos"].append(hallazgo(
+            "RIPS", "traslados/APH", "DUPLICADO",
+            f"{repetidas} líneas de traslado/APH repetidas en más de un archivo o carpeta: se toman una sola vez.", "MEDIA"))
+
+
 def leer_rips_archivos(archivos: list[tuple[str, bytes]], sal: str, catalogo: dict) -> dict:
-    """archivos: [(nombre, contenido)] de tipo .json, .txt o .zip."""
-    salida = {"registros": [], "hallazgos": [], "facturas": set(), "lineas_revisadas": 0}
+    """archivos: [(nombre, contenido)] de tipo .json, .txt o .zip (con carpetas y ZIP anidados)."""
+    salida = {
+        "registros": [], "hallazgos": [], "facturas": set(), "lineas_revisadas": 0, "cobertura": Counter(),
+        "_incompletas": defaultdict(list), "ignorados": 0, "facturas_repetidas": 0, "lineas_repetidas": 0,
+    }
     planos: dict[str, bytes] = {}
+    total_zip = [0]
 
     def procesar(nombre: str, contenido: bytes):
         ext = PurePosixPath(nombre).suffix.lower()
@@ -243,17 +365,23 @@ def leer_rips_archivos(archivos: list[tuple[str, bytes]], sal: str, catalogo: di
             except zipfile.BadZipFile:
                 salida["hallazgos"].append(hallazgo(nombre, "archivo", "FALTANTE", "ZIP dañado", "ALTA"))
                 return
-            if sum(i.file_size for i in zf.infolist()) > MAX_ZIP_BYTES:
-                salida["hallazgos"].append(hallazgo(nombre, "archivo", "FALTANTE", "ZIP demasiado grande descomprimido", "ALTA"))
+            total_zip[0] += sum(i.file_size for i in zf.infolist())
+            if total_zip[0] > MAX_ZIP_BYTES:
+                salida["hallazgos"].append(hallazgo(nombre, "archivo", "FALTANTE", "ZIP de más de 1 GB descomprimido: divídalo", "ALTA"))
                 return
             for info in zf.infolist():
-                if info.is_dir() or PurePosixPath(info.filename).suffix.lower() not in (".json", ".txt"):
+                if info.is_dir() or PurePosixPath(info.filename).name.startswith((".", "__MACOSX")) or "__MACOSX" in info.filename:
                     continue
-                procesar(f"{nombre}/{info.filename}", zf.read(info))
+                if PurePosixPath(info.filename).suffix.lower() in (".json", ".txt", ".zip"):
+                    procesar(f"{nombre}/{info.filename}", zf.read(info))
+                else:
+                    salida["ignorados"] += 1
         elif ext == ".json":
             _leer_json(nombre, contenido, sal, catalogo, salida)
         elif ext == ".txt":
             planos[nombre] = contenido
+        elif ext in EXT_IGNORADAS:
+            salida["ignorados"] += 1
         else:
             salida["hallazgos"].append(hallazgo(nombre, "archivo", "FALTANTE", "Extensión no soportada (use .json, .txt o .zip)", "MEDIA"))
 
@@ -261,6 +389,14 @@ def leer_rips_archivos(archivos: list[tuple[str, bytes]], sal: str, catalogo: di
         procesar(nombre, contenido)
     if planos:
         _leer_txt(planos, sal, catalogo, salida)
+    for (nombre, tipo, esperados), lineas in salida.pop("_incompletas").items():
+        muestra = ", ".join(str(n) for n, _ in lineas[:8])
+        campos = sorted({c for _, c in lineas})
+        salida["hallazgos"].append(hallazgo(
+            nombre, f"líneas {muestra}{'…' if len(lineas) > 8 else ''}", "FALTANTE",
+            f"{len(lineas)} líneas {tipo} con {', '.join(map(str, campos))} campos (se esperan {esperados}); no se leen. "
+            "Suelen ser registros con el número de factura incompleto.", "MEDIA"))
+    _deduplicar(salida)
     salida["facturas"] = len(salida["facturas"])
     return salida
 

@@ -133,11 +133,19 @@ class CargaFacturacionForm(forms.Form):
 
 
 class CargaRipsForm(forms.Form):
-    mes = CampoMes(label="Mes de los RIPS", initial=_mes_anterior)
-    sede = forms.ModelChoiceField(Sede.objects.filter(activa=True), label="Hospital")
+    mes = CampoMes(
+        label="Mes de los RIPS", required=False,
+        help_text="Déjelo vacío para cargar varios meses o un consolidado: cada línea queda en el mes de su fecha de servicio.",
+    )
+    sede = forms.ModelChoiceField(
+        Sede.objects.filter(activa=True), label="Hospital", required=False,
+        empty_label="Detectar en el archivo (prefijo de factura o código de prestador)",
+        help_text="Déjelo en «Detectar» para un consolidado de varios hospitales.",
+    )
     archivos = CampoArchivos(
         label="Archivos RIPS",
-        help_text="JSON (Res. 2275 de 2023), archivos planos AF/AT/AP (Res. 3374 de 2000) o un ZIP con ellos. Puede seleccionar varios.",
+        help_text="ZIP (con carpetas por mes, p. ej. «08. Agosto», o ZIP dentro de ZIP), JSON (Res. 2275 de 2023) o "
+        "archivos planos AF/AT/AP (Res. 3374 de 2000). Puede seleccionar varios. Los XML de factura electrónica se ignoran.",
     )
 
 

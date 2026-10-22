@@ -122,3 +122,21 @@ Ejemplo, Puerto Rondón → Arauca con OLM779 (540 km conducidos): tripulación 
 La diferencia (columna *Sobrecosto por baja utilización*) **no desaparece**: es dinero que la ESE gasta en tener esas unidades disponibles. Se informa como capacidad no utilizada de la ambulancia, no como costo de la ruta. Por eso los resultados del mes (dashboard, rentabilidad por sede) siguen absorbiendo el 100 % del costo real; para separarlo use el método *Capacidad*. Los métodos anteriores siguen disponibles en el selector de la matriz.
 
 Estas cifras usan el factor ida y vuelta = 2 (supuesto) y costos estándar; cambian al registrar consumos reales y asignar placas.
+
+
+## RIPS del Hospital San Juan de Dios (Puerto Rondón), enero a septiembre de 2026
+
+ZIP con carpetas por mes (archivos planos Res. 3374), cargado sin indicar mes ni hospital:
+
+| Observación | Cantidad | Tratamiento |
+|---|---|---|
+| Facturas | 2.979 | Hospital reconocido por el prefijo FHJD; código de prestador 815910020605 registrado en la sede |
+| Líneas AT/AP revisadas | 69.969 | Se extraen 305 traslados (601T01, 601T02, S31307) de diciembre 2025 a septiembre 2026; 0 APH |
+| Facturas que aparecen en más de una carpeta | 77 | Entre otras, la carpeta «09. Septiembre» trae archivos con el número de envío de agosto (010982); las 4 líneas de traslado repetidas se toman una vez |
+| Líneas AP con 14 campos | 971 | Número de factura sin consecutivo («FHJD») y prestador 812200020604; no se leen |
+| Facturas con periodo inconsistente | 22 | Inicio más de un año antes de la expedición (p. ej. 2022 o 2024 en facturas de 2026); para la cobertura solo cuentan el mes inicial y el final |
+| Carpetas 10, 11 y 12 | vacías | — |
+
+Auditoría de septiembre de 2026 contra la facturación HIS cargada: 36 líneas facturadas y 34 en RIPS; **33 coinciden**, 1 facturada que no está en RIPS (FHJD15138, 601T02, $3.009.000), 1 en RIPS que no está en la facturación del mes (FHJD15216, misma ruta y valor, otro paciente) y 2 prefacturas sin número de factura. Los meses de diciembre 2025 a agosto 2026 quedan como *Sin facturación HIS cargada* hasta que se cargue la facturación de esos meses.
+
+Descarga de Salud360 (7 facturas JSON + XML): 2 traslados de mayo de 2026, uno de Arauquita (FHSL) y uno de Fortul (FHSF), reconocidos por el prefijo de la factura; los XML se ignoran.

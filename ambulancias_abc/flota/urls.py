@@ -24,6 +24,7 @@ urlpatterns = [
     path("cargas/rips/", views_cargas.cargar_rips, name="cargar_rips"),
     path("rips/", views_cargas.rips_cargas, name="rips_cargas"),
     path("rips/<int:pk>/", views_cargas.rips_detalle, name="rips_detalle"),
+    path("rips/auditoria/", views_cargas.auditoria_rips_vista, name="auditoria_rips"),
     path("consumos/tabla/<slug:clave>/", views_cargas.consumos_tabla, name="consumos_tabla"),
     path("consumos/tabla/<slug:clave>/cargar/", views_cargas.cargar_consumos, name="cargar_consumos"),
     path("consumos/tabla/<slug:clave>/plantilla.xlsx", views_cargas.plantilla_consumos_tabla, name="plantilla_consumos_tabla"),

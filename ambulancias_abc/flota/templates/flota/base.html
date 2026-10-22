@@ -17,7 +17,8 @@
     <a href="{% url 'flota:facturacion_ambito' %}" class="{% if n == 'facturacion_ambito' %}activo{% endif %}">Facturación por ámbito</a>
     <a href="{% url 'flota:recorridos_sede' %}" class="{% if n == 'recorridos_sede' %}activo{% endif %}">Recorridos por sede</a>
     <a href="{% url 'flota:consumos_tabla' 'combustible' %}" class="{% if 'consumo' in n %}activo{% endif %}">Consumos</a>
-    <a href="{% url 'flota:rips_cargas' %}" class="{% if 'rips' in n %}activo{% endif %}">RIPS</a>
+    <a href="{% url 'flota:rips_cargas' %}" class="{% if 'rips' in n and n != 'auditoria_rips' %}activo{% endif %}">RIPS</a>
+    <a href="{% url 'flota:auditoria_rips' %}" class="{% if n == 'auditoria_rips' %}activo{% endif %}">Auditoría RIPS</a>
     <a href="{% url 'flota:consolidado' %}" class="{% if n == 'consolidado' %}activo{% endif %}">Consolidado</a>
     <a href="{% url 'flota:ambulancias' %}" class="{% if n == 'ambulancias' or n == 'ambulancia' %}activo{% endif %}">Ambulancias</a>
     <a href="{% url 'flota:rentabilidad_rutas' %}" class="{% if n == 'rentabilidad_rutas' %}activo{% endif %}">Ruta × ambulancia</a>

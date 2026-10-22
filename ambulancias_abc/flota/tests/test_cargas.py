@@ -228,3 +228,136 @@ class VistasCargasTests(BaseDatos):
         self.assertEqual(t["filas"][0]["km_odometro"], 250)
         self.assertAlmostEqual(t["filas"][0]["rendimiento"], 12.5)
         self.assertEqual(Ambulancia.objects.get(placa="OEU846").consumos.count(), 2)
+
+
+# ---------------------------------------------------------------------------
+# RIPS de varios meses / consolidados y auditoría RIPS vs facturación
+# ---------------------------------------------------------------------------
+
+PREST_PR = "815910020605"
+
+
+def _af(factura, inicio, fin):
+    return f"{PREST_PR},ESE,NI,900034131,{factura},{fin},{inicio},{fin},EPS037,NUEVA EPS,C1,,,0,0,0,1000000\n"
+
+
+def _ap(factura, doc, fecha, codigo, valor):
+    return f"{factura},{PREST_PR},CC,{doc},{fecha},AUT,{codigo},3,1,1,R509,,,,{valor}\n"
+
+
+def zip_hospital_varios_meses():
+    """ZIP del hospital con carpetas por mes, una factura repetida en dos carpetas,
+    una línea AP incompleta, un ZIP anidado con JSON de otro hospital y un XML."""
+    ene = "Hospital Juan de Dios /01. Enero/"
+    feb = "Hospital Juan de Dios /02. Febrero/"
+    interno = io.BytesIO()
+    with zipfile.ZipFile(interno, "w") as z:
+        z.writestr("FHSL900/FHSL900.json", json.dumps({
+            "numFactura": "FHSL900",
+            "usuarios": [{"tipoDocumentoIdentificacion": "CC", "numDocumentoIdentificacion": "77",
+                          "servicios": {"otrosServicios": [{"codTecnologiaSalud": "601T01", "cantidadOS": 1, "vrUnitOS": 459300,
+                                                            "vrServicio": 459300, "fechaSuministroTecnologia": "2026-02-03 08:00",
+                                                            "consecutivo": 1, "codPrestador": "810650020602"}]}}],
+        }))
+        z.writestr("FHSL900/FHSL900.xml", "<Invoice/>")
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr(ene + "AF000001.txt", _af("FHJD100", "01/01/2026", "31/01/2026") + _af("FHJD101", "01/01/2026", "31/01/2026"))
+        z.writestr(ene + "AP000001.txt",
+                   _ap("FHJD100", "1", "10/01/2026", "601T02", "1700000") + _ap("FHJD101", "2", "20/01/2026", "601T01", "459300")
+                   + "FHJD,812200020604,CC,9,07/01/2026,,907009,1,1,Z000,,,,0\n")  # 14 campos
+        z.writestr(feb + "AF000002.txt", _af("FHJD101", "01/01/2026", "31/01/2026") + _af("FHJD200", "01/02/2026", "28/02/2026"))
+        z.writestr(feb + "AP000002.txt",
+                   _ap("FHJD101", "2", "20/01/2026", "601T01", "459300") + _ap("FHJD200", "3", "05/02/2026", "601T02", "3400000"))
+        z.writestr("otros/consolidado.zip", interno.getvalue())
+    return buf.getvalue()
+
+
+class RipsVariosMesesTests(BaseDatos):
+    def test_lector_meses_carpetas_repetidas_y_zip_anidado(self):
+        from flota.importacion.rips import mes_de_carpeta, prefijo_factura
+
+        self.assertEqual(mes_de_carpeta("x.zip/Hospital Juan de Dios /08. Agosto/AP1.txt"), 8)
+        self.assertEqual(prefijo_factura("FHJD15037"), "FHJD")
+        r = leer_rips_archivos([("hospital.zip", zip_hospital_varios_meses())], "sal", CATALOGO)
+        self.assertEqual(sorted((x["numero_factura"], x["fecha_servicio"].month) for x in r["registros"]),
+                         [("FHJD100", 1), ("FHJD101", 1), ("FHJD200", 2), ("FHSL900", 2)])
+        self.assertEqual(r["lineas_repetidas"], 1)
+        self.assertEqual(r["facturas_repetidas"], 1)
+        self.assertEqual(r["ignorados"], 1)  # el XML
+        incompletas = [h for h in r["hallazgos"] if "14 campos" in h["descripcion"]]
+        self.assertEqual(len(incompletas), 1)
+        self.assertEqual(r["cobertura"][("FHJD", PREST_PR, "2026-01")], 2)
+
+    def _his(self, factura, fecha, codigo, cantidad, valor, doc):
+        from flota.importacion.facturacion_his import hash_documento
+        from django.conf import settings
+
+        pr = Sede.objects.get(codigo="pto-rondon")
+        return Traslado.objects.create(
+            llave_externa=f"HIS|{factura}|{fecha}|{codigo}|{doc}", origen_registro=Traslado.HIS, sede=pr, fecha_servicio=fecha,
+            codigo_cups=codigo, cantidad=cantidad, valor_facturado=valor, numero_factura=factura,
+            documento_hash=hash_documento("CC", doc, settings.SAL_DOCUMENTO) if doc else "",
+        )
+
+    def test_carga_consolidada_detecta_hospital_y_mes_y_audita(self):
+        from flota.models import Parametro
+        from flota.servicios.auditoria_rips import auditoria_rips
+
+        Parametro.objects.update_or_create(clave="rips_min_facturas_mes", defaults={"valor": 1})
+
+        self._his("FHJD100", dt.date(2026, 1, 10), "601T02", 100, Decimal("1700000"), "1")   # coincide
+        self._his("FHJD200", dt.date(2026, 2, 5), "601T02", 200, Decimal("3300000"), "3")    # valor distinto (RIPS 3.400.000)
+        self._his("FHJD300", dt.date(2026, 2, 9), "601T01", 1, Decimal("459300"), "4")       # falta en RIPS
+        self._his("", dt.date(2026, 2, 11), "601T01", 1, Decimal("459300"), "5")             # prefactura sin número
+        lote = importar.importar_rips([("hospital.zip", zip_hospital_varios_meses())], nombre="hospital.zip")
+        self.assertIsNone(lote.mes)
+        self.assertIsNone(lote.sede)  # dos hospitales: Puerto Rondón (FHJD) y Arauquita (FHSL)
+        self.assertEqual(lote.detalle["meses"], ["2026-01", "2026-02"])
+        self.assertEqual((lote.actualizados, lote.nuevos), (2, 2))
+        self.assertEqual(lote.detalle["con_diferencia_valor"], 1)
+        self.assertEqual(Traslado.objects.get(numero_factura="FHSL900").sede.codigo, "arauquita")
+        self.assertEqual(Sede.objects.get(codigo="pto-rondon").codigo_prestador, PREST_PR)
+        self.assertEqual(Traslado.objects.get(numero_factura="FHJD200").valor_rips, Decimal("3400000"))
+        # Recargar no duplica ni vuelve a conciliar
+        lote2 = importar.importar_rips([("hospital.zip", zip_hospital_varios_meses())], nombre="hospital.zip")
+        self.assertEqual((lote2.nuevos, lote2.actualizados), (0, 0))
+        self.assertEqual(Traslado.objects.filter(numero_factura="FHJD101").count(), 1)
+
+        a = auditoria_rips(dt.date(2026, 1, 1), dt.date(2026, 2, 1), "pto-rondon")
+        t = a["total"]
+        self.assertEqual((t["ambos"], t["diferencia"], t["solo_his"], t["solo_rips"], t["sin_factura"]), (1, 1, 1, 1, 1))
+        self.assertAlmostEqual(t["dif_valor"], 100000)
+        feb = next(d for d in a["por_mes"] if d["mes"].month == 2)
+        self.assertEqual(feb["estado"], "Con diferencias")
+        self.assertTrue(feb["cubierto"])
+        self.assertEqual(a["n_detalle"], 3)
+
+    def test_mes_sin_rips_cargado_no_es_diferencia(self):
+        from flota.servicios.auditoria_rips import auditoria_rips
+
+        self._his("FHJD900", dt.date(2026, 5, 2), "601T01", 1, Decimal("459300"), "8")
+        a = auditoria_rips(dt.date(2026, 5, 1), dt.date(2026, 5, 1))
+        self.assertEqual((a["total"]["solo_his"], a["total"]["rips_no_cargado"]), (0, 1))
+        self.assertEqual(a["por_mes"][0]["estado"], "Sin RIPS cargado")
+
+
+class AuditoriaRipsVistaTests(BaseDatos):
+    def setUp(self):
+        self.client.force_login(User.objects.create_superuser("aud", "", "Clave-Prueba-1"))
+
+    def test_cargar_consolidado_sin_mes_ni_hospital_y_ver_auditoria(self):
+        r = self.client.post(reverse("flota:cargar_rips"), {
+            "mes": "", "sede": "",
+            "archivos": [SimpleUploadedFile("hospital.zip", zip_hospital_varios_meses(), content_type="application/zip")],
+        })
+        lote = LoteImportacion.objects.get(tipo="RIPS")
+        self.assertRedirects(r, reverse("flota:rips_detalle", args=[lote.pk]))
+        self.assertContains(self.client.get(reverse("flota:rips_detalle", args=[lote.pk])), "2026-01 a 2026-02")
+        self.assertContains(self.client.get(reverse("flota:rips_cargas")), "Varios hospitales")
+        p = self.client.get(reverse("flota:auditoria_rips"), {"desde": "2026-01", "hasta": "2026-02"})
+        self.assertContains(p, "Mes a mes por hospital")
+        self.assertContains(p, "Hospital San Juan de Dios de Puerto Rondón")
+        x = self.client.get(reverse("flota:auditoria_rips"), {"desde": "2026-01", "hasta": "2026-02", "formato": "xlsx"})
+        wb = load_workbook(io.BytesIO(x.content))
+        self.assertEqual(wb.sheetnames, ["Por mes y hospital", "Por recorrido", "Diferencias"])

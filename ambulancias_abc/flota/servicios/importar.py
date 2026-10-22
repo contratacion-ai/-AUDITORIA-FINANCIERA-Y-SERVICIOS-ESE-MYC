@@ -5,10 +5,12 @@ from __future__ import annotations
 import csv
 import datetime as dt
 import io
+from collections import Counter, defaultdict
 from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Q
 from django.utils.text import slugify
 from openpyxl import load_workbook
 
@@ -16,7 +18,7 @@ from ..importacion import hallazgo, normalizar
 from ..importacion.anexo_tarifas import leer_anexo_traslados
 from ..importacion.costos_ceco import leer_costos_ambulancias
 from ..importacion.facturacion_his import leer_facturacion
-from ..importacion.rips import APH, TRASLADO, leer_rips_archivos
+from ..importacion.rips import APH, TRASLADO, leer_rips_archivos, prefijo_factura
 from ..models import (
     CodigoTraslado,
     Consumo,
@@ -352,16 +354,57 @@ def importar_facturacion(archivo, usuario=None, nombre="", mes: dt.date | None =
     return _cerrar_lote(lote, nuevos, actualizados, omitidos, hallazgos, texto)
 
 
+def prefijos_por_sede() -> dict[str, Sede]:
+    """Prefijo de factura -> sede: los configurados en cada sede y los aprendidos de
+    la facturación HIS ya cargada (prefijo dominante de cada sede)."""
+    mapa: dict[str, Sede] = {}
+    conteo: dict[str, Counter] = defaultdict(Counter)
+    for sede_id, num in Traslado.objects.exclude(numero_factura="").filter(origen_registro=Traslado.HIS).values_list(
+        "sede_id", "numero_factura"
+    ):
+        pre = prefijo_factura(num)
+        if pre:
+            conteo[pre][sede_id] += 1
+    sedes = {s.pk: s for s in Sede.objects.all()}
+    for pre, c in conteo.items():
+        sede_id, n = c.most_common(1)[0]
+        if n >= 0.9 * sum(c.values()):  # un prefijo compartido por varias sedes no sirve para reconocerlas
+            mapa[pre] = sedes[sede_id]
+    for s in sedes.values():
+        for pre in s.prefijos():
+            mapa[pre] = s
+    return mapa
+
+
+def resolver_sede_rips(r, sede, sedes_prestador, sedes_prefijo):
+    """Sede de una línea RIPS: la elegida en el cargue, o la del código de prestador,
+    o la del prefijo del número de factura. Devuelve (sede, cómo)."""
+    if sede is not None:
+        return sede, "elegida"
+    if r.get("cod_prestador") and r["cod_prestador"] in sedes_prestador:
+        return sedes_prestador[r["cod_prestador"]], "código de prestador"
+    pre = prefijo_factura(r.get("numero_factura"))
+    if pre in sedes_prefijo:
+        return sedes_prefijo[pre], f"prefijo de factura {pre}"
+    return None, ""
+
+
 def importar_rips(contenido, usuario=None, nombre="RIPS.json", mes: dt.date | None = None, sede: Sede | None = None) -> LoteImportacion:
-    """Carga RIPS (JSON, TXT o ZIP), extrae traslados y APH y los concilia.
+    """Carga RIPS (JSON, TXT o ZIP, con carpetas por mes y ZIP anidados), extrae
+    traslados y APH y los concilia con la facturación del HIS.
 
     ``contenido``: bytes de un archivo, o lista [(nombre, bytes)] de varios.
-    ``mes`` y ``sede``: mes y hospital del envío. Las líneas con fecha fuera
-    del mes o con prestador distinto al del hospital se cargan pero se marcan.
+    ``mes``: opcional. Sin mes, cada línea queda en el mes de su fecha de
+    servicio (cargue de varios meses o consolidado). Con mes, las líneas de
+    otros meses se cargan igual pero se marcan.
+    ``sede``: opcional. Sin sede, el hospital de cada línea se reconoce por el
+    código de prestador o por el prefijo del número de factura (FHJD, FHSL...).
 
-    Correspondencia con lo ya cargado: número de factura + código + valor
-    (+ hash del documento cuando ambos lo tienen). Una línea que ya vino en
-    la facturación del HIS no se duplica: se marca conciliado_rips.
+    Correspondencia con lo ya cargado (en este orden):
+    1. número de factura + código + valor (+ hash del documento): conciliada;
+    2. número de factura + código (+ hash), con otro valor: conciliada con
+       diferencia de valor (se guarda el valor RIPS para la auditoría);
+    3. sin equivalente: se crea el traslado con origen RIPS.
     """
     if not isinstance(contenido, list):
         if not nombre.lower().endswith((".json", ".zip", ".txt")):
@@ -371,61 +414,105 @@ def importar_rips(contenido, usuario=None, nombre="RIPS.json", mes: dt.date | No
     catalogo = dict(CodigoTraslado.objects.filter(activo=True).values_list("codigo", "categoria"))
     datos = leer_rips_archivos(archivos, settings.SAL_DOCUMENTO, catalogo)
     lote = LoteImportacion.objects.create(
-        tipo="RIPS", archivo=nombre, usuario=usuario, mes=mes.replace(day=1) if mes else None, sede=sede
+        tipo="RIPS", archivo=nombre[:250], usuario=usuario, mes=mes.replace(day=1) if mes else None, sede=sede
     )
     res = ResolutorCatalogos()
     pars = parametros()
-    sedes_por_prestador = {s.codigo_prestador: s for s in res.sedes.values() if s.codigo_prestador}
-    nuevos = conciliados = omitidos = fuera_mes = prestador_distinto = 0
+    sedes_prestador = {s.codigo_prestador: s for s in Sede.objects.exclude(codigo_prestador="")}
+    sedes_prefijo = prefijos_por_sede()
+    nuevos = conciliados = con_diferencia = omitidos = fuera_mes = prestador_distinto = otra_sede = 0
+    sin_sede = Counter()
+    prestadores_vistos: dict[int, Counter] = defaultdict(Counter)
     totales = {TRASLADO: {"lineas": 0, "valor": 0.0}, APH: {"lineas": 0, "valor": 0.0}}
+    por_sede_mes: dict[tuple, dict] = defaultdict(lambda: {"lineas": 0, "valor": 0.0, "nuevos": 0, "conciliados": 0, "diferencia_valor": 0})
     hallazgos = list(datos["hallazgos"])
+
     with transaction.atomic():
         for r in datos["registros"]:
             obs = list(r["observaciones"])
+            sede_r, como = resolver_sede_rips(r, sede, sedes_prestador, sedes_prefijo)
+            if sede_r is None:
+                sin_sede[(r["cod_prestador"], prefijo_factura(r["numero_factura"]))] += 1
+                omitidos += 1
+                continue
+            if sede is not None:
+                propia, como_propia = resolver_sede_rips(r, None, sedes_prestador, sedes_prefijo)
+                if propia is not None and propia != sede:
+                    otra_sede += 1
+                    obs.append(f"según {como_propia} la factura es de {propia.nombre}")
+            if r["cod_prestador"]:
+                prestadores_vistos[sede_r.pk][r["cod_prestador"]] += 1
             if mes and r["fecha_servicio"].replace(day=1) != mes.replace(day=1):
                 fuera_mes += 1
                 obs.append(f"fecha {r['fecha_servicio']} fuera del mes cargado {mes:%Y-%m}")
-            if sede is not None and sede.codigo_prestador and r["cod_prestador"] and r["cod_prestador"] != sede.codigo_prestador:
+            if sede_r.codigo_prestador and r["cod_prestador"] and r["cod_prestador"] != sede_r.codigo_prestador:
                 prestador_distinto += 1
-                obs.append(f"prestador {r['cod_prestador']} distinto al de {sede.nombre} ({sede.codigo_prestador})")
+                obs.append(f"prestador {r['cod_prestador']} distinto al de {sede_r.nombre} ({sede_r.codigo_prestador})")
+            if r.get("mes_carpeta") and r["mes_carpeta"] != r["fecha_servicio"].month:
+                obs.append(f"servicio de {r['fecha_servicio']:%Y-%m} enviado en la carpeta del mes {r['mes_carpeta']}")
             totales[r["categoria"]]["lineas"] += 1
             totales[r["categoria"]]["valor"] += float(r["valor_facturado"])
+            psm = por_sede_mes[(sede_r.codigo, f"{r['fecha_servicio']:%Y-%m}")]
+            psm["lineas"] += 1
+            psm["valor"] += float(r["valor_facturado"])
 
             ya = Traslado.objects.filter(llave_externa=r["llave_externa"]).first()
+            if ya is None:
+                # cargues de versiones anteriores (llave por número de línea)
+                ya = Traslado.objects.filter(
+                    origen_registro=Traslado.RIPS, llave_externa__startswith="RIPS|", numero_factura=r["numero_factura"],
+                    codigo_cups=r["codigo_cups"], valor_facturado=r["valor_facturado"], fecha_servicio=r["fecha_servicio"],
+                    documento_hash=r["documento_hash"],
+                ).first()
+            if ya is None and r["numero_factura"]:
+                # ya conciliada con la facturación HIS en un cargue anterior (k-ésima línea igual)
+                ocurrencia = int(r["llave_externa"].rsplit("|", 1)[1])
+                previas = Traslado.objects.filter(
+                    numero_factura=r["numero_factura"], codigo_cups=r["codigo_cups"], conciliado_rips=True,
+                ).exclude(origen_registro=Traslado.RIPS).exclude(lote_rips=lote)
+                if r["documento_hash"]:
+                    previas = previas.filter(documento_hash__in=[r["documento_hash"], ""])
+                previas = previas.filter(
+                    Q(valor_rips=r["valor_facturado"]) | Q(valor_rips__isnull=True, valor_facturado=r["valor_facturado"])
+                )
+                if previas.count() >= ocurrencia:
+                    omitidos += 1
+                    continue
             if ya:
                 if ya.lote_rips_id is None:
                     ya.lote_rips = lote
                     ya.save(update_fields=["lote_rips"])
                 omitidos += 1
                 continue
-            candidatos = Traslado.objects.filter(
-                numero_factura=r["numero_factura"], codigo_cups=r["codigo_cups"], valor_facturado=r["valor_facturado"], conciliado_rips=False
-            )
+            base = Traslado.objects.filter(numero_factura=r["numero_factura"], codigo_cups=r["codigo_cups"], conciliado_rips=False)
             if r["documento_hash"]:
-                con_doc = candidatos.filter(documento_hash=r["documento_hash"])
-                candidatos = con_doc if con_doc.exists() else candidatos
-            existente = candidatos.order_by("fecha_servicio", "id").first()
+                con_doc = base.filter(documento_hash=r["documento_hash"])
+                base = con_doc if con_doc.exists() else base
+            existente = base.filter(valor_facturado=r["valor_facturado"]).order_by("fecha_servicio", "id").first() if r["numero_factura"] else None
+            diferencia = False
+            if existente is None and r["numero_factura"]:
+                existente = base.order_by("fecha_servicio", "id").first()
+                diferencia = existente is not None
             if existente:
                 existente.conciliado_rips = True
                 existente.rips_consecutivo = r["rips_consecutivo"]
                 existente.lote_rips = lote
-                campos = ["conciliado_rips", "rips_consecutivo", "lote_rips", "version", "actualizado"]
+                existente.valor_rips = r["valor_facturado"]
+                existente.cantidad_rips = r["cantidad_reportada"]
+                campos = ["conciliado_rips", "rips_consecutivo", "lote_rips", "valor_rips", "cantidad_rips", "version", "actualizado"]
                 if r["categoria"] == APH and existente.categoria != APH:
                     existente.categoria = APH
                     campos.append("categoria")
+                if diferencia:
+                    nota = f"RIPS reporta {r['valor_facturado']:,.0f}; facturación HIS {existente.valor_facturado:,.0f}"
+                    existente.observaciones_calidad = "; ".join(x for x in (existente.observaciones_calidad, nota) if x)[:2000]
+                    campos.append("observaciones_calidad")
+                    con_diferencia += 1
+                    psm["diferencia_valor"] += 1
                 existente.version += 1
                 existente.save(update_fields=campos)
                 conciliados += 1
-                continue
-            sede_r = sede or sedes_por_prestador.get(r["cod_prestador"])
-            if sede_r is None:
-                hallazgos.append(
-                    hallazgo(nombre, f"factura {r['numero_factura']}", "FALTANTE",
-                             f"Línea RIPS sin equivalente en la facturación HIS y prestador '{r['cod_prestador']}' sin sede asociada; "
-                             "no se crea. Cargue el RIPS indicando el hospital o registre el código de prestador de la sede.",
-                             "ALTA")
-                )
-                omitidos += 1
+                psm["conciliados"] += 1
                 continue
             por_km = es_por_km(r["cantidad"], r["valor_unitario"], None, pars) if r["categoria"] == TRASLADO else False
             ruta, _ = res.ruta_por_km(sede_r, r["cantidad"], pars["tolerancia_km_ruta"]) if por_km else (None, "")
@@ -439,6 +526,8 @@ def importar_rips(contenido, usuario=None, nombre="RIPS.json", mes: dt.date | No
                 ruta=ruta,
                 ruta_inferida=ruta is not None,
                 conciliado_rips=True,
+                valor_rips=r["valor_facturado"],
+                cantidad_rips=r["cantidad_reportada"],
                 creado_por=usuario,
                 ambito=r["ambito"] or "SIN ÁMBITO",
                 **{k: r[k] for k in ("fecha_servicio", "codigo_cups", "codigo_cups_original", "descripcion", "cantidad",
@@ -446,14 +535,52 @@ def importar_rips(contenido, usuario=None, nombre="RIPS.json", mes: dt.date | No
                                      "tipo_documento", "documento_hash", "rips_consecutivo")},
             )
             t.km_recorridos = calcular_km(t.cantidad, por_km, pars)
-            obs.insert(0, f"creado desde RIPS ({r['regla']}): no estaba en la facturación HIS")
+            obs.insert(0, f"creado desde RIPS ({r['regla']}; hospital por {como}): no estaba en la facturación HIS")
             t.observaciones_calidad = "; ".join(obs)[:2000]
             t.save()
             nuevos += 1
+            psm["nuevos"] += 1
+
+        # Código de prestador aprendido: si la sede no lo tiene y sus líneas traen uno solo.
+        for sede_id, c in prestadores_vistos.items():
+            s_obj = Sede.objects.get(pk=sede_id)
+            cod, n = c.most_common(1)[0]
+            if not s_obj.codigo_prestador and n >= 0.9 * sum(c.values()) and cod not in sedes_prestador:
+                s_obj.codigo_prestador = cod
+                s_obj.save(update_fields=["codigo_prestador"])
+                hallazgos.append(hallazgo(nombre[:200], s_obj.nombre, "SUPUESTO",
+                                          f"Se registró el código de prestador {cod} para {s_obj.nombre} (tomado de sus RIPS)", "BAJA"))
+
+    # Cobertura: hospital y mes con RIPS cargados (según el periodo de las facturas).
+    minimo = int(pars.get("rips_min_facturas_mes", 5))
+    cobertura = Counter()
+    for (pre, prest, mes_txt), n in datos["cobertura"].items():
+        s_cob, _ = resolver_sede_rips({"cod_prestador": prest, "numero_factura": pre}, sede, sedes_prestador, sedes_prefijo)
+        if s_cob is not None:
+            cobertura[(s_cob.codigo, mes_txt)] += n
+    if sin_sede:
+        detalle = "; ".join(f"prestador {p or '¿?'} / prefijo {f or '¿?'}: {n}" for (p, f), n in sin_sede.most_common(10))
+        hallazgos.append(hallazgo(
+            nombre[:200], "hospital", "FALTANTE",
+            f"{sum(sin_sede.values())} líneas de traslado/APH sin hospital reconocido ({detalle}). Cargue indicando el hospital "
+            "o registre el código de prestador o el prefijo de factura de la sede (Administración › Sedes).", "ALTA"))
     if fuera_mes:
-        hallazgos.append(hallazgo(nombre, f"RIPS {mes:%Y-%m}", "INCONSISTENCIA", f"{fuera_mes} líneas con fecha fuera del mes cargado", "MEDIA"))
+        hallazgos.append(hallazgo(nombre[:200], f"RIPS {mes:%Y-%m}", "INCONSISTENCIA", f"{fuera_mes} líneas con fecha fuera del mes cargado", "MEDIA"))
     if prestador_distinto:
-        hallazgos.append(hallazgo(nombre, f"RIPS {sede}", "INCONSISTENCIA", f"{prestador_distinto} líneas con código de prestador distinto al del hospital", "MEDIA"))
+        hallazgos.append(hallazgo(nombre[:200], "prestador", "INCONSISTENCIA", f"{prestador_distinto} líneas con código de prestador distinto al del hospital", "MEDIA"))
+    if otra_sede:
+        hallazgos.append(hallazgo(nombre[:200], f"RIPS {sede}", "INCONSISTENCIA",
+                                  f"{otra_sede} líneas cuyo prefijo de factura o prestador corresponde a otro hospital; se cargaron en {sede}", "MEDIA"))
+    if con_diferencia:
+        hallazgos.append(hallazgo(nombre[:200], "valores", "INCONSISTENCIA",
+                                  f"{con_diferencia} líneas de RIPS con valor o cantidad distintos a la facturación HIS (ver Auditoría RIPS)", "MEDIA"))
+    meses = sorted({m for (_, m) in por_sede_mes})
+    if lote.mes is None and len(meses) == 1:
+        lote.mes = dt.date.fromisoformat(f"{meses[0]}-01")
+    if lote.sede is None:
+        sedes_lote = {c for (c, _) in por_sede_mes}
+        if len(sedes_lote) == 1:
+            lote.sede = Sede.objects.get(codigo=sedes_lote.pop())
     lote.detalle = {
         "facturas": datos["facturas"],
         "lineas_revisadas": datos["lineas_revisadas"],
@@ -461,11 +588,21 @@ def importar_rips(contenido, usuario=None, nombre="RIPS.json", mes: dt.date | No
         "aph": totales[APH],
         "fuera_del_mes": fuera_mes,
         "prestador_distinto": prestador_distinto,
+        "con_diferencia_valor": con_diferencia,
+        "sin_hospital": sum(sin_sede.values()),
+        "lineas_repetidas": datos["lineas_repetidas"],
+        "facturas_repetidas": datos["facturas_repetidas"],
+        "meses": meses,
+        "por_sede_mes": [[c, m, v] for (c, m), v in sorted(por_sede_mes.items())],
+        "cobertura": [[c, m, n] for (c, m), n in sorted(cobertura.items()) if n >= minimo],
+        "cobertura_descartada": [[c, m, n] for (c, m), n in sorted(cobertura.items()) if n < minimo],
     }
+    rango = f"{meses[0]} a {meses[-1]}" if len(meses) > 1 else (meses[0] if meses else "sin líneas")
     return _cerrar_lote(
         lote, nuevos, conciliados, omitidos, hallazgos,
-        f"{datos['facturas']} facturas, {datos['lineas_revisadas']} líneas revisadas: {totales[TRASLADO]['lineas']} traslados "
-        f"y {totales[APH]['lineas']} APH extraídos; {conciliados} conciliados con la facturación HIS, {nuevos} nuevos",
+        f"{datos['facturas']} facturas, {datos['lineas_revisadas']} líneas revisadas ({rango}): {totales[TRASLADO]['lineas']} traslados "
+        f"y {totales[APH]['lineas']} APH; {conciliados} conciliados con la facturación HIS ({con_diferencia} con diferencia de valor), "
+        f"{nuevos} solo en RIPS",
     )
 
 

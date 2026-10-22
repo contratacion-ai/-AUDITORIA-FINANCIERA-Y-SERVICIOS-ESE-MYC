@@ -159,5 +159,6 @@ Los modelos editables (`Ambulancia`, `Parametro`, `Traslado`, `Consumo`) llevan 
 | `factor_ida_vuelta` | 2 | El anexo factura un sentido; la ambulancia regresa | **Sí** |
 | `km_traslado_basico` | 30 | Analogía con num. 4.1 (veredas: 30 km ida y vuelta) | **Sí** |
 | `tolerancia_km_ruta` | 0 | Configuración | **Sí** |
+| `rips_min_facturas_mes` | 5 | Configuración (auditoría RIPS: facturas mínimas para dar un hospital-mes por cargado) | **Sí** |
 
 Los traslados mensuales, la facturación real y los consumos **no** vienen del estudio: se importan (HIS, RIPS, CSV) o se registran en la aplicación.
