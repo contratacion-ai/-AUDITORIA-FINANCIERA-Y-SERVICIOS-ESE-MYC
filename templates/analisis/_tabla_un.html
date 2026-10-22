@@ -1,0 +1,8 @@
+{% load formato %}
+<h3>{{ titulo }}</h3>
+<table class="table table-sm table-bordered table-abc"><thead><tr><th>Código</th><th>Unidad de negocio</th>{% if d.periodo_comp %}<th class="num">{{ d.periodo_comp.etiqueta_corta }} ($)</th>{% endif %}
+<th class="num">{{ d.periodo.etiqueta_corta }} ($)</th>{% if d.periodo_comp %}<th class="num">Var. %</th>{% endif %}<th class="num">% {{ clase|lower }}</th></tr></thead><tbody>
+{% for f in filas %}<tr><td>{{ f.unidad.codigo }}</td><td>{{ f.unidad.nombre|title }}</td>{% if d.periodo_comp %}<td class="num">{{ f.anterior|numero }}</td>{% endif %}
+<td class="num">{{ f.actual|numero }}</td>{% if d.periodo_comp %}<td class="num {{ f.pct|clase_var }}">{{ f.pct|pct_signo }}</td>{% endif %}<td class="num">{{ f.part_clase|pct }}</td></tr>{% endfor %}
+<tr class="fila-total"><td></td><td>TOTAL</td>{% if d.periodo_comp %}<td class="num">{{ tot.1|numero }}</td>{% endif %}<td class="num">{{ tot.0|numero }}</td>{% if d.periodo_comp %}<td></td>{% endif %}<td class="num">100%</td></tr>
+</tbody></table>

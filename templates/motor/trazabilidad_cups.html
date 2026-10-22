@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load formato %}
+{% block titulo %}CUPS {{ cc.cups.codigo }}{% endblock %}
+{% block contenido %}
+<nav class="small mb-1"><a href="{% url 'motor:cups' %}?periodo={{ cc.corrida.periodo_id }}">Costo por CUPS</a> › {{ cc.cups.codigo }}</nav>
+<h1 class="h4">{{ cc.cups.codigo }} · {{ cc.cups.descripcion }}</h1>
+<div class="row g-3 mb-3">
+<div class="col-md-3"><div class="tarjeta kpi"><div class="etiqueta">Costo unitario</div><div class="valor">{{ cc.costo_unitario|pesos }}</div></div></div>
+<div class="col-md-3"><div class="tarjeta kpi"><div class="etiqueta">Cantidad · peso</div><div class="valor">{{ cc.cantidad|numero }} × {{ cc.peso_relativo|numero:2 }}</div></div></div>
+<div class="col-md-3"><div class="tarjeta kpi"><div class="etiqueta">Costo total del CUPS</div><div class="valor">{{ cc.costo_total|pesos }}</div></div></div>
+<div class="col-md-3"><div class="tarjeta kpi"><div class="etiqueta">Centro {{ cc.centro.codigo }}</div><div class="valor">{{ total_centro|pesos }}</div>
+<div class="small text-muted">participación {{ factor|a_decimal|default:0|floatformat:4 }}</div></div></div></div>
+<div class="row g-3"><div class="col-lg-4"><div class="tarjeta"><h2 class="h6">Producción del centro</h2>
+<table class="table table-sm"><tbody>{% for h in hermanos %}<tr {% if h.pk == cc.pk %}class="table-primary"{% endif %}><td>{{ h.cups.codigo }}</td><td class="num">{{ h.cantidad|numero }}</td><td class="num">{{ h.costo_unitario|pesos }}</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="col-lg-8"><div class="tarjeta"><h2 class="h6">Origen del costo del CUPS (principales partidas)</h2>
+<div class="table-responsive"><table class="table table-sm table-abc"><thead><tr><th class="num">Valor</th><th>Recurso</th><th>Ruta</th><th>Archivo</th><th>Fila</th></tr></thead><tbody>
+{% for f in filas %}<tr><td class="num">{{ f.valor|pesos }}</td><td>{{ f.recurso.codigo }}</td><td class="small">{{ f.ruta }}</td><td class="small">{{ f.archivo|truncatechars:28 }}</td><td>{{ f.fila|default:"" }}</td></tr>{% endfor %}
+</tbody></table></div></div></div></div>
+{% endblock %}

@@ -1,0 +1,42 @@
+:root {
+  --azul: #1f3864;
+  --azul-claro: #d9e1f2;
+  --naranja: #c55a11;
+}
+body { background: #f4f6fa; font-size: .92rem; }
+.barra { background: var(--azul); }
+.tarjeta { background: #fff; border: 1px solid #e3e7ef; border-radius: .5rem; padding: 1rem; height: 100%; }
+.kpi .valor { font-size: 1.45rem; font-weight: 600; color: var(--azul); }
+.kpi .etiqueta { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: #6c757d; }
+.table-abc thead th { background: var(--azul); color: #fff; font-weight: 500; font-size: .78rem; vertical-align: middle; }
+.table-abc td, .table-abc th { white-space: nowrap; }
+.table-abc tfoot td, .table-abc .fila-total td { background: var(--azul-claro); font-weight: 600; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.nivel { border-left: 4px solid var(--azul); }
+.nivel-2 { border-left-color: #2e75b6; } .nivel-3 { border-left-color: #548235; } .nivel-4 { border-left-color: var(--naranja); }
+.matriz-wrap { max-height: 72vh; overflow: auto; }
+.matriz-wrap thead th { position: sticky; top: 0; z-index: 2; }
+.matriz-wrap td:first-child, .matriz-wrap th:first-child { position: sticky; left: 0; background: #fff; z-index: 1; }
+.matriz-wrap thead th:first-child { background: var(--azul); z-index: 3; }
+.badge-CRITICO, .badge-ALTA, .badge-ALTO { background: #c00000; }
+.badge-ATENCION, .badge-MEDIA, .badge-BAJO { background: #c55a11; }
+.badge-CRITICO, .badge-ALTO, .badge-ALTA, .badge-ATENCION, .badge-MEDIA, .badge-BAJO, .badge-NORMAL, .badge-BAJA, .badge-SIN { color: #fff; }
+.badge-NORMAL, .badge-BAJA { background: #548235; }
+.badge-SIN { background: #7f7f7f; }
+.grafico { position: relative; height: 290px; }
+/* Informe */
+.informe { max-width: 1050px; margin: 0 auto; background: #fff; padding: 2.5rem 3rem; border: 1px solid #e3e7ef; }
+.informe h2 { color: var(--azul); font-size: 1.25rem; border-bottom: 2px solid var(--azul); padding-bottom: .3rem; margin-top: 2rem; }
+.informe h3 { color: var(--azul); font-size: 1.05rem; margin-top: 1.2rem; }
+.portada { background: var(--azul); color: #fff; padding: 2.5rem; border-radius: .4rem; }
+.portada .dato { font-size: 1.4rem; font-weight: 600; }
+.pie-informe { font-size: .8rem; color: #6c757d; border-top: 1px solid #ddd; margin-top: 2rem; padding-top: .5rem; }
+@media print {
+  .no-imprimir { display: none !important; }
+  body { background: #fff; font-size: 10.5pt; }
+  .informe { border: 0; padding: 0; max-width: none; }
+  .informe h2 { page-break-after: avoid; }
+  .salto { page-break-before: always; }
+  .portada { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .table-abc thead th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

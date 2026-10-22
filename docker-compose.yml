@@ -1,0 +1,26 @@
+# Despliegue de referencia: PostgreSQL + aplicación. Ubique un proxy con HTTPS (nginx, Caddy o el del hospital) delante del puerto 8000.
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: abc_salud
+      POSTGRES_USER: abc_salud
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD en .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  web:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://abc_salud:${POSTGRES_PASSWORD}@db:5432/abc_salud
+      MEDIA_ROOT: /app/media
+    depends_on: [db]
+    ports:
+      - "8000:8000"
+    volumes:
+      - media:/app/media
+volumes:
+  pgdata:
+  media:

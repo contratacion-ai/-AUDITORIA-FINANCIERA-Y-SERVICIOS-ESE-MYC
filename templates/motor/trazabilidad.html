@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load formato %}
+{% block titulo %}Trazabilidad {{ centro.codigo }}{% endblock %}
+{% block contenido %}
+<nav class="small mb-1"><a href="{% url 'motor:corrida' corrida.pk %}">Corrida #{{ corrida.pk }}</a> › Trazabilidad</nav>
+<h1 class="h4">{{ centro.codigo }} · {{ centro.nombre }} <span class="badge bg-secondary">{{ centro.get_clase_display }}</span></h1>
+<p class="text-muted">Costo acumulado {{ total|pesos }} · {{ corrida.periodo }}. Cada fila es la porción de un movimiento fuente que llega al centro por la ruta indicada.</p>
+<div class="row g-3">
+<div class="col-lg-6"><div class="tarjeta"><h2 class="h6">Recibido</h2><table class="table table-sm"><thead><tr><th>Dist.</th><th>Origen</th><th>Método / inductor</th><th class="num">Valor</th></tr></thead><tbody>
+{% for r in recibidas %}<tr><td>{{ r.distribucion }}ª</td><td>{{ r.centro_origen__codigo|default:"Recursos" }} {{ r.centro_origen__nombre|default:""|truncatechars:26 }}</td>
+<td>{{ r.metodo }} {{ r.inductor__codigo|default:"" }}</td><td class="num">{{ r.v|pesos }}</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="col-lg-6"><div class="tarjeta"><h2 class="h6">Distribuido a otros centros</h2><table class="table table-sm"><thead><tr><th>Dist.</th><th>Destino</th><th>Inductor</th><th class="num">Valor</th></tr></thead><tbody>
+{% for r in entregadas %}<tr><td>{{ r.distribucion }}ª</td><td>{{ r.centro_destino__codigo }} {{ r.centro_destino__nombre|truncatechars:26 }}</td><td>{{ r.inductor__codigo }}</td><td class="num">{{ r.v|pesos }}</td></tr>
+{% empty %}<tr><td colspan="4" class="text-muted">No distribuye (centro final o sin regla).</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="col-12"><div class="tarjeta">
+<div class="d-flex justify-content-between"><h2 class="h6">Composición hasta la fuente ({{ n_filas }} partidas; se muestran 300)</h2><a class="btn btn-sm btn-outline-success" href="?exportar=1">Excel completo</a></div>
+<div class="table-responsive"><table class="table table-sm table-abc"><thead><tr><th class="num">Valor</th><th>Recurso</th><th>Ruta de asignación</th><th>Archivo</th><th>Hoja</th><th>Fila</th><th>Cuenta</th></tr></thead><tbody>
+{% for f in filas %}<tr><td class="num">{{ f.valor|pesos }}</td><td>{{ f.recurso.codigo }}</td><td class="small">{{ f.ruta }}</td>
+<td class="small">{% if f.movimiento %}<a href="{% url 'cargas:detalle' f.movimiento.carga_id %}">{{ f.archivo|truncatechars:30 }}</a>{% endif %}</td><td class="small">{{ f.hoja }}</td><td>{{ f.fila|default:"" }}</td><td>{{ f.cuenta }}</td></tr>{% endfor %}
+</tbody></table></div></div></div></div>
+{% endblock %}

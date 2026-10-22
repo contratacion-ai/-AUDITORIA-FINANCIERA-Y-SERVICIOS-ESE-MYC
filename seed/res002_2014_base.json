@@ -1,0 +1,2008 @@
+{
+ "_descripcion": "Catálogo base Resolución DDC-000002 de 16 de enero de 2014 (Anexos Técnicos 1, 2, 3 y 4) con 29 recursos según parametrización 2025. Es un punto de partida editable por institución; no es lógica del sistema.",
+ "elementos": [
+  {
+   "codigo": "CP",
+   "nombre": "COSTOS DE PERSONAL",
+   "orden": 1
+  },
+  {
+   "codigo": "IH",
+   "nombre": "INSUMOS HOSPITALARIOS",
+   "orden": 2
+  },
+  {
+   "codigo": "CG",
+   "nombre": "COSTOS GENERALES",
+   "orden": 3
+  },
+  {
+   "codigo": "EC",
+   "nombre": "ESTIMACIONES CONTABLES",
+   "orden": 4
+  }
+ ],
+ "recursos": [
+  {
+   "codigo": "R1",
+   "nombre": "PLANTA",
+   "elemento": "CP",
+   "orden": 1,
+   "inductor_convenido": "DIRECTO",
+   "tipo_mano_obra": "EMPLEADO",
+   "clases_permitidas": ""
+  },
+  {
+   "codigo": "R2",
+   "nombre": "CONTRATO DIRECTO",
+   "elemento": "CP",
+   "orden": 2,
+   "inductor_convenido": "DIRECTO",
+   "tipo_mano_obra": "OPS",
+   "clases_permitidas": ""
+  },
+  {
+   "codigo": "R3",
+   "nombre": "CONTRATO CON TERCEROS",
+   "elemento": "CP",
+   "orden": 3,
+   "inductor_convenido": "DIRECTO",
+   "tipo_mano_obra": "OPS",
+   "clases_permitidas": ""
+  },
+  {
+   "codigo": "R4",
+   "nombre": "MEDICAMENTOS",
+   "elemento": "IH",
+   "orden": 4,
+   "inductor_convenido": "DIRECTO",
+   "tipo_mano_obra": "",
+   "clases_permitidas": "INTERMEDIOS,FINALES"
+  },
+  {
+   "codigo": "R5",
+   "nombre": "DISPOSITIVOS MÉDICOS",
+   "elemento": "IH",
+   "orden": 5,
+   "inductor_convenido": "DIRECTO",
+   "tipo_mano_obra": "",
+   "clases_permitidas": "INTERMEDIOS,FINALES"
+  },
+  {
+   "codigo": "R6",
+   "nombre": "REACTIVOS DE DIAGNÓSTICO",
+   "elemento": "IH",
+   "orden": 6,
+   "inductor_convenido": "DIRECTO",
+   "tipo_mano_obra": "",
+   "clases_permitidas": "INTERMEDIOS,FINALES"
+  },
+  {
+   "codigo": "R7",
+   "nombre": "OTROS ELEMENTOS DE CONSUMO ASISTENCIAL",
+   "elemento": "IH",
+   "orden": 7,
+   "inductor_convenido": "DIRECTO",
+   "tipo_mano_obra": "",
+   "clases_permitidas": "INTERMEDIOS,FINALES"
+  },
+  {
+   "codigo": "R8",
+   "nombre": "ARRENDAMIENTOS",
+   "elemento": "CG",
+   "orden": 8,
+   "inductor_convenido": "POR LOS SOPORTES DE LAS FACTURAS (CÁNON DE ARRENDAMIENTO)",
+   "tipo_mano_obra": "",
+   "clases_permitidas": ""
+  },
+  {
+   "codigo": "R9",
+   "nombre": "VIÁTICOS Y GASTOS DE VIAJE",
+   "elemento": "CG",
+   "orden": 9,
+   "inductor_convenido": "N/A - DIRECTO POR FUNCIONARIO",
+   "tipo_mano_obra": "",
+   "clases_permitidas": ""
+  },
+  {
+   "codigo": "R10",
+   "nombre": "COMUNICACIONES Y TRANSPORTE",
+   "elemento": "CG",
+   "orden": 10,
+   "inductor_convenido": "No. EQUIPOS (INTERNET), LÍNEAS / EXTENSIONES POR CENTRO DE COSTO",
+   "tipo_mano_obra": "",
+   "clases_permitidas": ""
+  },
+  {
+   "codigo": "R11",
+   "nombre": "COMBUSTIBLES Y LUBRICANTES",
+   "elemento": "CG",
+   "orden": 11,
+   "inductor_convenido": "DIRECTO POR CONTABILIDAD",
+   "tipo_mano_obra": "",
+   "clases_permitidas": ""
+  },
+  {
+   "codigo": "R12",
+   "nombre": "ELEMENTOS DE CONSUMO DE OFICINA",
+   "elemento": "CG",
+   "orden": 12,
+   "inductor_convenido": "CONSUMOS / SALIDAS DE ALMACÉN DE CADA CENTRO DE COSTOS",
+   "tipo_mano_obra": "",
+   "clases_permitidas": ""
+  },
+  {
+   "codigo": "R13",
+   "nombre": "SEGUROS",
+   "elemento": "CG",
+   "orden": 13,
+   "inductor_convenido": "ÁREA PARA INMUEBLES; No. PERSONAS PARA VIDA; No. EQUIPOS; DIRECTO VEHÍCULOS",
+   "tipo_mano_obra": "",
+   "clases_permitidas": ""
+  },
+  {
+   "codigo": "R14",
+   "nombre": "ENERGÍA",
+   "elemento": "CG",
+   "orden": 14,
+   "inductor_convenido": "VALOR DE FACTURA CON BASE EN ÁREAS Y/O PUNTOS EN USO",
+   "tipo_mano_obra": "",
+   "clases_permitidas": ""
+  },
+  {
+   "codigo": "R15",
+   "nombre": "ACUEDUCTO, ALCANTARILLADO Y ASEO",
+   "elemento": "CG",
+   "orden": 15,
+   "inductor_convenido": "No. SALIDAS DE AGUA x No. PERSONAS x TIEMPO DE DISPONIBILIDAD",
+   "tipo_mano_obra": "",
+   "clases_permitidas": ""
+  },
+  {
+   "codigo": "R16",
+   "nombre": "RESIDUOS SÓLIDOS / GAS",
+   "elemento": "CG",
+   "orden": 16,
+   "inductor_convenido": "PARTICIPACIÓN PONDERADA POR CONSUMO DEL SERVICIO",
+   "tipo_mano_obra": "",
+   "clases_permitidas": ""
+  },
+  {
+   "codigo": "R17",
+   "nombre": "SENTENCIAS JUDICIALES",
+   "elemento": "CG",
+   "orden": 17,
+   "inductor_convenido": "DIRECTO - PROVISIÓN DESDE CONTABILIDAD",
+   "tipo_mano_obra": "",
+   "clases_permitidas": ""
+  },
+  {
+   "codigo": "R18",
+   "nombre": "IMPUESTOS, CONTRIBUCIONES Y TASAS",
+   "elemento": "CG",
+   "orden": 18,
+   "inductor_convenido": "PROVISIÓN DE CONTABILIDAD",
+   "tipo_mano_obra": "",
+   "clases_permitidas": ""
+  },
+  {
+   "codigo": "R19",
+   "nombre": "VIGILANCIA Y SEGURIDAD",
+   "elemento": "CG",
+   "orden": 19,
+   "inductor_convenido": "METROS CUADRADOS",
+   "tipo_mano_obra": "",
+   "clases_permitidas": ""
+  },
+  {
+   "codigo": "R20",
+   "nombre": "MANTENIMIENTO Y REPARACIONES",
+   "elemento": "CG",
+   "orden": 20,
+   "inductor_convenido": "HORAS DE MANTENIMIENTO O METROS CUADRADOS (INFRAESTRUCTURA)",
+   "tipo_mano_obra": "",
+   "clases_permitidas": ""
+  },
+  {
+   "codigo": "R21",
+   "nombre": "ASEO, CAFETERÍA Y LIMPIEZA",
+   "elemento": "CG",
+   "orden": 21,
+   "inductor_convenido": "METROS CUADRADOS (ASEO)",
+   "tipo_mano_obra": "",
+   "clases_permitidas": ""
+  },
+  {
+   "codigo": "R22",
+   "nombre": "LAVANDERÍA",
+   "elemento": "CG",
+   "orden": 22,
+   "inductor_convenido": "KILOS DE ROPA",
+   "tipo_mano_obra": "",
+   "clases_permitidas": ""
+  },
+  {
+   "codigo": "R23",
+   "nombre": "ALIMENTACIÓN",
+   "elemento": "CG",
+   "orden": 23,
+   "inductor_convenido": "VALOR DE RACIONES SUMINISTRADAS A CADA CENTRO DE COSTO",
+   "tipo_mano_obra": "",
+   "clases_permitidas": ""
+  },
+  {
+   "codigo": "R24",
+   "nombre": "OTROS GASTOS GENERALES",
+   "elemento": "CG",
+   "orden": 24,
+   "inductor_convenido": "CONTABILIDAD SUMINISTRA",
+   "tipo_mano_obra": "",
+   "clases_permitidas": ""
+  },
+  {
+   "codigo": "R25",
+   "nombre": "GASTOS FINANCIEROS",
+   "elemento": "CG",
+   "orden": 25,
+   "inductor_convenido": "CONTABILIDAD SUMINISTRA",
+   "tipo_mano_obra": "",
+   "clases_permitidas": ""
+  },
+  {
+   "codigo": "R26",
+   "nombre": "MERCADEO Y PUBLICIDAD",
+   "elemento": "CG",
+   "orden": 26,
+   "inductor_convenido": "FACTURACIÓN",
+   "tipo_mano_obra": "",
+   "clases_permitidas": ""
+  },
+  {
+   "codigo": "R27",
+   "nombre": "DEPRECIACIÓN",
+   "elemento": "EC",
+   "orden": 27,
+   "inductor_convenido": "ACTIVOS FIJOS",
+   "tipo_mano_obra": "",
+   "clases_permitidas": ""
+  },
+  {
+   "codigo": "R28",
+   "nombre": "AMORTIZACIÓN",
+   "elemento": "EC",
+   "orden": 28,
+   "inductor_convenido": "CONTABILIDAD",
+   "tipo_mano_obra": "",
+   "clases_permitidas": ""
+  },
+  {
+   "codigo": "R29",
+   "nombre": "DETERIORO DE CUENTAS POR COBRAR",
+   "elemento": "EC",
+   "orden": 29,
+   "inductor_convenido": "CONTABILIDAD SUMINISTRA",
+   "tipo_mano_obra": "",
+   "clases_permitidas": ""
+  }
+ ],
+ "unidades_negocio": [
+  {
+   "codigo": "UN01",
+   "nombre": "CONSULTA EXTERNA Y PROCEDIMIENTOS SUBESPECIALIDADES",
+   "clase": "FINALES",
+   "orden": 1
+  },
+  {
+   "codigo": "UN02",
+   "nombre": "URGENCIAS",
+   "clase": "FINALES",
+   "orden": 2
+  },
+  {
+   "codigo": "UN03",
+   "nombre": "CIRUGÍA",
+   "clase": "FINALES",
+   "orden": 3
+  },
+  {
+   "codigo": "UN04",
+   "nombre": "PROCEDIMIENTOS Y ATENCIÓN DEL PARTO",
+   "clase": "FINALES",
+   "orden": 4
+  },
+  {
+   "codigo": "UN05",
+   "nombre": "ODONTOLOGÍA",
+   "clase": "FINALES",
+   "orden": 5
+  },
+  {
+   "codigo": "UN06",
+   "nombre": "HOSPITALIZACIÓN",
+   "clase": "FINALES",
+   "orden": 6
+  },
+  {
+   "codigo": "UN07",
+   "nombre": "UNIDADES ESPECIALES",
+   "clase": "FINALES",
+   "orden": 7
+  },
+  {
+   "codigo": "UN08",
+   "nombre": "PROGRAMAS ESPECIALES (PLAN DE INTERVENCIONES COLECTIVAS)",
+   "clase": "FINALES",
+   "orden": 8
+  },
+  {
+   "codigo": "UN09",
+   "nombre": "APOYO DIAGNÓSTICO",
+   "clase": "INTERMEDIOS",
+   "orden": 9
+  },
+  {
+   "codigo": "UN10",
+   "nombre": "APOYO TERAPÉUTICO",
+   "clase": "INTERMEDIOS",
+   "orden": 10
+  },
+  {
+   "codigo": "UN11",
+   "nombre": "APOYO MÉDICO",
+   "clase": "INTERMEDIOS",
+   "orden": 11
+  },
+  {
+   "codigo": "US01",
+   "nombre": "ATENCIÓN AL PACIENTE",
+   "clase": "SERVICIOS",
+   "orden": 12
+  },
+  {
+   "codigo": "US02",
+   "nombre": "APOYO LOGÍSTICO",
+   "clase": "SERVICIOS",
+   "orden": 13
+  },
+  {
+   "codigo": "US03",
+   "nombre": "APOYO DOCUMENTAL",
+   "clase": "SERVICIOS",
+   "orden": 14
+  },
+  {
+   "codigo": "UE01",
+   "nombre": "ADMINISTRATIVA",
+   "clase": "ESTRUCTURA",
+   "orden": 15
+  },
+  {
+   "codigo": "UE02",
+   "nombre": "FINANCIERA",
+   "clase": "ESTRUCTURA",
+   "orden": 16
+  },
+  {
+   "codigo": "UE03",
+   "nombre": "GERENCIA Y GESTIÓN",
+   "clase": "ESTRUCTURA",
+   "orden": 17
+  },
+  {
+   "codigo": "UE04",
+   "nombre": "DIRECCIÓN MÉDICA",
+   "clase": "ESTRUCTURA",
+   "orden": 18
+  }
+ ],
+ "centros_costo": [
+  {
+   "codigo": "A01",
+   "nombre": "AUDIOLOGIA Y AUDIOMETRÍA",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A02",
+   "nombre": "CARDIOLOGÍA",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A03",
+   "nombre": "DERMATOLOGÍA",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A04",
+   "nombre": "ENDOCRINOLOGÍA",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A05",
+   "nombre": "GERIATRÍA",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A06",
+   "nombre": "GASTROENTEROLOGÍA",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A07",
+   "nombre": "GENÉTICA",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A08",
+   "nombre": "INMUNOHEMATOLOGÍA",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A09",
+   "nombre": "NEFROLOGÍA",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A10",
+   "nombre": "MEDICINA GENERAL",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A11",
+   "nombre": "MEDICINA INTERNA",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A12",
+   "nombre": "NEUMOLOGÍA",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A13",
+   "nombre": "NEUROLOGÍA Y NEUROPEDIATRÍA",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A14",
+   "nombre": "ONCOLOGÍA",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A15",
+   "nombre": "OPTOMETRÍA",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A16",
+   "nombre": "OTORRINOLARINGOLOGÍA",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A17",
+   "nombre": "PSIQUIATRÍA",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A18",
+   "nombre": "PSICOLOGÍA",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A19",
+   "nombre": "REUMATOLOGÍA",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A20",
+   "nombre": "UROLOGÍA",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A21",
+   "nombre": "OFTALMOLOGÍA",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A22",
+   "nombre": "MAXILOFACIAL",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A23",
+   "nombre": "CIRUGIA GENERAL",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A24",
+   "nombre": "GINECOLOGÍA Y OBSTETRICIA",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A25",
+   "nombre": "ORTOPEDIA",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A26",
+   "nombre": "PEDIATRÍA",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A27",
+   "nombre": "PLÁSTICA, ESTÉTICA Y RECONSTRUCTIVA",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A28",
+   "nombre": "CONSULTA PREANESTÉSICA",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A29",
+   "nombre": "NEUROCIRUGÍA",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A30",
+   "nombre": "TORAX",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A31",
+   "nombre": "CARDIOVASCULAR",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A32",
+   "nombre": "OTRAS CONSULTAS Y PROCEDIMIENTOS",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "A33",
+   "nombre": "VASCULAR PERIFERICA",
+   "unidad_negocio": "UN01"
+  },
+  {
+   "codigo": "B01",
+   "nombre": "CONSULTA URGENCIAS",
+   "unidad_negocio": "UN02"
+  },
+  {
+   "codigo": "B02",
+   "nombre": "OBSERVACIÓN",
+   "unidad_negocio": "UN02"
+  },
+  {
+   "codigo": "B03",
+   "nombre": "PROCEDIMIENTOS URGENCIAS",
+   "unidad_negocio": "UN02"
+  },
+  {
+   "codigo": "B04",
+   "nombre": "URGENCIAS ESPECIALIZADAS",
+   "unidad_negocio": "UN02"
+  },
+  {
+   "codigo": "B05",
+   "nombre": "URGENCIAS PEDIÁTRICAS",
+   "unidad_negocio": "UN02"
+  },
+  {
+   "codigo": "C01",
+   "nombre": "CIRUGÍA GENERAL",
+   "unidad_negocio": "UN03"
+  },
+  {
+   "codigo": "C02",
+   "nombre": "MAXILOFACIAL",
+   "unidad_negocio": "UN03"
+  },
+  {
+   "codigo": "C03",
+   "nombre": "PLÁSTICA, ESTÉTICA Y RECONSTRUCTIVA",
+   "unidad_negocio": "UN03"
+  },
+  {
+   "codigo": "C04",
+   "nombre": "NEUROCIRUGÍA",
+   "unidad_negocio": "UN03"
+  },
+  {
+   "codigo": "C05",
+   "nombre": "CARDIOVASCULAR",
+   "unidad_negocio": "UN03"
+  },
+  {
+   "codigo": "C06",
+   "nombre": "DERMATOLOGÍA",
+   "unidad_negocio": "UN03"
+  },
+  {
+   "codigo": "C07",
+   "nombre": "ENDOCRINOLOGÍA",
+   "unidad_negocio": "UN03"
+  },
+  {
+   "codigo": "C08",
+   "nombre": "GASTROINTESTINAL",
+   "unidad_negocio": "UN03"
+  },
+  {
+   "codigo": "C09",
+   "nombre": "UROLOGÍA",
+   "unidad_negocio": "UN03"
+  },
+  {
+   "codigo": "C10",
+   "nombre": "GINECOLOGÍA Y OBSTETRICIA",
+   "unidad_negocio": "UN03"
+  },
+  {
+   "codigo": "C11",
+   "nombre": "ORTOPEDIA",
+   "unidad_negocio": "UN03"
+  },
+  {
+   "codigo": "C12",
+   "nombre": "ONCOLOGÍA",
+   "unidad_negocio": "UN03"
+  },
+  {
+   "codigo": "C13",
+   "nombre": "PEDIATRÍA",
+   "unidad_negocio": "UN03"
+  },
+  {
+   "codigo": "C14",
+   "nombre": "OFTALMOLOGÍA",
+   "unidad_negocio": "UN03"
+  },
+  {
+   "codigo": "C15",
+   "nombre": "CABEZA Y CUELLO",
+   "unidad_negocio": "UN03"
+  },
+  {
+   "codigo": "C16",
+   "nombre": "OTORRINOLARINGOLOGÍA",
+   "unidad_negocio": "UN03"
+  },
+  {
+   "codigo": "C17",
+   "nombre": "TORAX",
+   "unidad_negocio": "UN03"
+  },
+  {
+   "codigo": "C18",
+   "nombre": "VASCULAR PERIFERICA",
+   "unidad_negocio": "UN03"
+  },
+  {
+   "codigo": "D02",
+   "nombre": "ATENCIÓN DE PARTO BAJA COMPLEJIDAD",
+   "unidad_negocio": "UN04"
+  },
+  {
+   "codigo": "D03",
+   "nombre": "PROCEDIMIENTOS GINECOBSTETRICIA",
+   "unidad_negocio": "UN04"
+  },
+  {
+   "codigo": "D05",
+   "nombre": "ATENCIÓN DE PARTO ALTA COMPLEJIDAD",
+   "unidad_negocio": "UN04"
+  },
+  {
+   "codigo": "E01",
+   "nombre": "ODONTOLOGÍA GENERAL",
+   "unidad_negocio": "UN05"
+  },
+  {
+   "codigo": "E02",
+   "nombre": "ODONTOLOGÍA PEDIÁTRICA",
+   "unidad_negocio": "UN05"
+  },
+  {
+   "codigo": "E03",
+   "nombre": "ORTODONCIA",
+   "unidad_negocio": "UN05"
+  },
+  {
+   "codigo": "E04",
+   "nombre": "REHABILITACIÓN ORAL",
+   "unidad_negocio": "UN05"
+  },
+  {
+   "codigo": "E05",
+   "nombre": "CIRUGÍA ORAL (AMBULATORIA)",
+   "unidad_negocio": "UN05"
+  },
+  {
+   "codigo": "I01",
+   "nombre": "HOSPITALIZACIÓN GENERAL",
+   "unidad_negocio": "UN06"
+  },
+  {
+   "codigo": "I02",
+   "nombre": "ORTOPEDIA",
+   "unidad_negocio": "UN06"
+  },
+  {
+   "codigo": "I03",
+   "nombre": "GINECOLOGÍA Y OBSTETRICIA",
+   "unidad_negocio": "UN06"
+  },
+  {
+   "codigo": "I04",
+   "nombre": "OFTALMOLOGÍA",
+   "unidad_negocio": "UN06"
+  },
+  {
+   "codigo": "I05",
+   "nombre": "PEDIATRÍA",
+   "unidad_negocio": "UN06"
+  },
+  {
+   "codigo": "I06",
+   "nombre": "MEDICINA INTERNA",
+   "unidad_negocio": "UN06"
+  },
+  {
+   "codigo": "I07",
+   "nombre": "MAXILOFACIAL",
+   "unidad_negocio": "UN06"
+  },
+  {
+   "codigo": "I08",
+   "nombre": "PLÁSTICA, ESTÉTICA Y RECONSTRUCTIVA",
+   "unidad_negocio": "UN06"
+  },
+  {
+   "codigo": "I09",
+   "nombre": "NEUROCIRUGÍA",
+   "unidad_negocio": "UN06"
+  },
+  {
+   "codigo": "I10",
+   "nombre": "CARDIOVASCULAR",
+   "unidad_negocio": "UN06"
+  },
+  {
+   "codigo": "I11",
+   "nombre": "ENDOCRINOLÓGICA",
+   "unidad_negocio": "UN06"
+  },
+  {
+   "codigo": "I12",
+   "nombre": "GASTROINTESTINAL",
+   "unidad_negocio": "UN06"
+  },
+  {
+   "codigo": "I13",
+   "nombre": "ONCOLOGÍA",
+   "unidad_negocio": "UN06"
+  },
+  {
+   "codigo": "I14",
+   "nombre": "UROLOGIA",
+   "unidad_negocio": "UN06"
+  },
+  {
+   "codigo": "I15",
+   "nombre": "PERINATOLOGÍA Y NEONATOLOGÍA",
+   "unidad_negocio": "UN06"
+  },
+  {
+   "codigo": "I16",
+   "nombre": "NEUMOLOGIA",
+   "unidad_negocio": "UN06"
+  },
+  {
+   "codigo": "J01",
+   "nombre": "ANCIANATOS Y ALBERGUES",
+   "unidad_negocio": "UN07"
+  },
+  {
+   "codigo": "J02",
+   "nombre": "UCI ADULTOS",
+   "unidad_negocio": "UN07"
+  },
+  {
+   "codigo": "J03",
+   "nombre": "UCI PEDIÁTRICA",
+   "unidad_negocio": "UN07"
+  },
+  {
+   "codigo": "J04",
+   "nombre": "UCI NEONATAL",
+   "unidad_negocio": "UN07"
+  },
+  {
+   "codigo": "J05",
+   "nombre": "UCI INTERMEDIOS ADULTOS",
+   "unidad_negocio": "UN07"
+  },
+  {
+   "codigo": "J06",
+   "nombre": "UCI INTERMEDIOS PEDIÁTRICA",
+   "unidad_negocio": "UN07"
+  },
+  {
+   "codigo": "J07",
+   "nombre": "UCI INTERMEDIOS NEONATAL",
+   "unidad_negocio": "UN07"
+  },
+  {
+   "codigo": "J08",
+   "nombre": "UNIDAD DE QUEMADOS ADULTOS",
+   "unidad_negocio": "UN07"
+  },
+  {
+   "codigo": "J09",
+   "nombre": "UNIDAD DE RECIÉN NACIDOS",
+   "unidad_negocio": "UN07"
+  },
+  {
+   "codigo": "J10",
+   "nombre": "UNIDAD SALUD MENTAL Y DESINTOXICACIÓN (BAJA COMPLEJIDAD)",
+   "unidad_negocio": "UN07"
+  },
+  {
+   "codigo": "J11",
+   "nombre": "INTERNACIÓN PARCIAL",
+   "unidad_negocio": "UN07"
+  },
+  {
+   "codigo": "J12",
+   "nombre": "UNIDAD DE AISLAMIENTO",
+   "unidad_negocio": "UN07"
+  },
+  {
+   "codigo": "J13",
+   "nombre": "OTRAS UNIDADES ESPECIALES",
+   "unidad_negocio": "UN07"
+  },
+  {
+   "codigo": "J14",
+   "nombre": "UNIDAD DE QUEMADOS PEDIATRÍA",
+   "unidad_negocio": "UN07"
+  },
+  {
+   "codigo": "J15",
+   "nombre": "UNIDAD SALUD MENTALY DESINTOXICACIÓN (ALTA COMPLEJIDAD)",
+   "unidad_negocio": "UN07"
+  },
+  {
+   "codigo": "J16",
+   "nombre": "PLAN CANGURO",
+   "unidad_negocio": "UN07"
+  },
+  {
+   "codigo": "K07",
+   "nombre": "GESTIÓN DE LA VIGILANCIA EN SALUD",
+   "unidad_negocio": "UN08"
+  },
+  {
+   "codigo": "K08",
+   "nombre": "PROYECTOS LOCALIDADES",
+   "unidad_negocio": "UN08"
+  },
+  {
+   "codigo": "K09",
+   "nombre": "INSPECCIÓN VIGILANCIA Y CONTROL",
+   "unidad_negocio": "UN08"
+  },
+  {
+   "codigo": "K10",
+   "nombre": "GESTIÓN Y ADMINISTRACIÓN DEL PROGRAMA AMPLIADO DE INMUNIZACIONES",
+   "unidad_negocio": "UN08"
+  },
+  {
+   "codigo": "K11",
+   "nombre": "SALUD INFANTIL EN LOS TERRITORIOS",
+   "unidad_negocio": "UN08"
+  },
+  {
+   "codigo": "K12",
+   "nombre": "SALUD SEXUAL Y REPRODUCTIVA EN LOS TERRITORIOS",
+   "unidad_negocio": "UN08"
+  },
+  {
+   "codigo": "K13",
+   "nombre": "PREVENCIÓN ENFERMEDADES TRANSMISIBLES Y ZOONOSIS EN LOS TERRITORIOS",
+   "unidad_negocio": "UN08"
+  },
+  {
+   "codigo": "K14",
+   "nombre": "PREVENCIÓN ENFERMEDADES CRÓNICAS NO TRANSMISIBLES EN LOS TERRITORIOS",
+   "unidad_negocio": "UN08"
+  },
+  {
+   "codigo": "K15",
+   "nombre": "SALUD ORAL EN LOS TERRITORIOS",
+   "unidad_negocio": "UN08"
+  },
+  {
+   "codigo": "K16",
+   "nombre": "SEGURIDAD ALIMENTARIA Y NUTRICIONAL EN LOS TERRITORIOS",
+   "unidad_negocio": "UN08"
+  },
+  {
+   "codigo": "K17",
+   "nombre": "ENTORNOS SALUDABLES EN LOS TERRITORIOS",
+   "unidad_negocio": "UN08"
+  },
+  {
+   "codigo": "K18",
+   "nombre": "SEGURIDAD EN EL TRABAJO Y PREVENCIÓN ENFERMEDADES ORIGEN LABORAL EN LOS TERRITORIOS",
+   "unidad_negocio": "UN08"
+  },
+  {
+   "codigo": "K19",
+   "nombre": "GESTIÓN DEL PLAN TERRITORIAL EN SALUD EN LOS TERRITORIOS",
+   "unidad_negocio": "UN08"
+  },
+  {
+   "codigo": "K20",
+   "nombre": "SALUD Y PREVENCIÓN ENFERMEDAD GRUPOS POBLACIONES ESPECIALES EN LOS TERRITORIOS",
+   "unidad_negocio": "UN08"
+  },
+  {
+   "codigo": "K21",
+   "nombre": "IMPLEMENTACIÓN POLÍTICA DISTRITAL DE PREVENCIÓN DE LA DISCAPACIDAD EN LOS TERRITORIOS",
+   "unidad_negocio": "UN08"
+  },
+  {
+   "codigo": "K22",
+   "nombre": "PREVALENCIA ACTIVIDAD FÍSICA EN LOS TERRITORIOS",
+   "unidad_negocio": "UN08"
+  },
+  {
+   "codigo": "K23",
+   "nombre": "SALUD MENTAL Y PREVENCIÓN LESIONES VIOLENTAS EVITABLES EN LOS TERRITORIOS",
+   "unidad_negocio": "UN08"
+  },
+  {
+   "codigo": "K24",
+   "nombre": "INTERVENCIÓN DE PERSONAS EN SITUACIÓN DESPLAZAMIENTO EN LOS TERRITORIOS",
+   "unidad_negocio": "UN08"
+  },
+  {
+   "codigo": "L01",
+   "nombre": "LABORATORIO ANATOMÍA PATOLÓGICA",
+   "unidad_negocio": "UN09"
+  },
+  {
+   "codigo": "L02",
+   "nombre": "IMAGENEOLOGÍA RADIOLÓGICA",
+   "unidad_negocio": "UN09"
+  },
+  {
+   "codigo": "L03",
+   "nombre": "IMAGENOLOGÍA RADIOLÓGICA ESPECIAL",
+   "unidad_negocio": "UN09"
+  },
+  {
+   "codigo": "L04",
+   "nombre": "IMAGENOLOGÍA NO RADIOLÓGICA",
+   "unidad_negocio": "UN09"
+  },
+  {
+   "codigo": "L05",
+   "nombre": "MEDICINA NUCLEAR",
+   "unidad_negocio": "UN09"
+  },
+  {
+   "codigo": "L06",
+   "nombre": "RESONANCIA MAGNÉTICA Y T.A.C.",
+   "unidad_negocio": "UN09"
+  },
+  {
+   "codigo": "L07",
+   "nombre": "LABORATORIO Y ANÁLISIS CLÍNICO",
+   "unidad_negocio": "UN09"
+  },
+  {
+   "codigo": "M01",
+   "nombre": "BANCO DE SANGRE",
+   "unidad_negocio": "UN10"
+  },
+  {
+   "codigo": "M02",
+   "nombre": "HEMOCENTRO BANCO DE ÓRGANOS Y TEJIDOS COMPONENTES ANATÓMICOS",
+   "unidad_negocio": "UN10"
+  },
+  {
+   "codigo": "M03",
+   "nombre": "TERAPIA RENAL",
+   "unidad_negocio": "UN10"
+  },
+  {
+   "codigo": "M04",
+   "nombre": "OXÍGENO",
+   "unidad_negocio": "UN10"
+  },
+  {
+   "codigo": "M05",
+   "nombre": "FARMACIA",
+   "unidad_negocio": "UN10"
+  },
+  {
+   "codigo": "M06",
+   "nombre": "FISIOTERAPIA Y REHABILITACIÓN",
+   "unidad_negocio": "UN10"
+  },
+  {
+   "codigo": "M07",
+   "nombre": "OTRAS TERAPIAS",
+   "unidad_negocio": "UN10"
+  },
+  {
+   "codigo": "M08",
+   "nombre": "MEDICINA NUCLEAR TERAPÉUTICA",
+   "unidad_negocio": "UN10"
+  },
+  {
+   "codigo": "M09",
+   "nombre": "SALAS ENFERMEDAD RESPIRATORIA AGUDA (ERA)",
+   "unidad_negocio": "UN10"
+  },
+  {
+   "codigo": "N01",
+   "nombre": "ATENCIÓN MÉDICA DOMICILIARIA",
+   "unidad_negocio": "UN11"
+  },
+  {
+   "codigo": "N02",
+   "nombre": "NUTRICION Y DIETÉTICA",
+   "unidad_negocio": "UN11"
+  },
+  {
+   "codigo": "N03",
+   "nombre": "PROMOCIÓN Y PREVENCIÓN",
+   "unidad_negocio": "UN11"
+  },
+  {
+   "codigo": "N04",
+   "nombre": "OTROS ENFERMERÍA",
+   "unidad_negocio": "UN11"
+  },
+  {
+   "codigo": "N05",
+   "nombre": "ESTERILIZACIÓN",
+   "unidad_negocio": "UN11"
+  },
+  {
+   "codigo": "N06",
+   "nombre": "INFECTOLOGÍA",
+   "unidad_negocio": "UN11"
+  },
+  {
+   "codigo": "N07",
+   "nombre": "LACTARIO",
+   "unidad_negocio": "UN11"
+  },
+  {
+   "codigo": "N08",
+   "nombre": "SERVICIO DE AMBULANCIAS",
+   "unidad_negocio": "UN11"
+  },
+  {
+   "codigo": "N09",
+   "nombre": "TOXICOLOGÍA",
+   "unidad_negocio": "UN11"
+  },
+  {
+   "codigo": "N10",
+   "nombre": "VIGILANCIA EPIDEMIOLÓGICA Y MEDIO AMBIENTE",
+   "unidad_negocio": "UN11"
+  },
+  {
+   "codigo": "O01",
+   "nombre": "TRABAJO SOCIAL",
+   "unidad_negocio": "US01"
+  },
+  {
+   "codigo": "O02",
+   "nombre": "ATENCIÓN AL USUARIO",
+   "unidad_negocio": "US01"
+  },
+  {
+   "codigo": "P01",
+   "nombre": "COCINA",
+   "unidad_negocio": "US02"
+  },
+  {
+   "codigo": "P02",
+   "nombre": "MANTENIMIENTO HOSPITALARIO",
+   "unidad_negocio": "US02"
+  },
+  {
+   "codigo": "P03",
+   "nombre": "LAVANDERIA, VESTUARIO Y COSTURERO",
+   "unidad_negocio": "US02"
+  },
+  {
+   "codigo": "P04",
+   "nombre": "NUTRICIÓN",
+   "unidad_negocio": "US02"
+  },
+  {
+   "codigo": "Q01",
+   "nombre": "ADMISIONES",
+   "unidad_negocio": "US03"
+  },
+  {
+   "codigo": "Q02",
+   "nombre": "AUTORIZACIONES",
+   "unidad_negocio": "US03"
+  },
+  {
+   "codigo": "Q03",
+   "nombre": "HISTORIAS CLÍNICAS",
+   "unidad_negocio": "US03"
+  },
+  {
+   "codigo": "Q04",
+   "nombre": "REFERENCIA Y CONTRARREFERENCIA",
+   "unidad_negocio": "US03"
+  },
+  {
+   "codigo": "R01",
+   "nombre": "COORDINACIÓN ADMINISTRATIVA",
+   "unidad_negocio": "UE01"
+  },
+  {
+   "codigo": "R02",
+   "nombre": "RECURSOS FÍSICOS",
+   "unidad_negocio": "UE01"
+  },
+  {
+   "codigo": "R03",
+   "nombre": "MANTENIMIENTO",
+   "unidad_negocio": "UE01"
+  },
+  {
+   "codigo": "R04",
+   "nombre": "ASEO Y LIMPIEZA",
+   "unidad_negocio": "UE01"
+  },
+  {
+   "codigo": "R05",
+   "nombre": "TALENTO HUMANO",
+   "unidad_negocio": "UE01"
+  },
+  {
+   "codigo": "R06",
+   "nombre": "SEGURIDAD Y VIGILANCIA",
+   "unidad_negocio": "UE01"
+  },
+  {
+   "codigo": "R07",
+   "nombre": "OTROS VEHÍCULOS Y CONDUCTORES",
+   "unidad_negocio": "UE01"
+  },
+  {
+   "codigo": "R08",
+   "nombre": "SALUD OCUPACIONAL",
+   "unidad_negocio": "UE01"
+  },
+  {
+   "codigo": "R09",
+   "nombre": "GESTIÓN DOCUMENTAL Y ARCHIVÍSTICA",
+   "unidad_negocio": "UE01"
+  },
+  {
+   "codigo": "S01",
+   "nombre": "COORDINACIÓN FINANCIERA",
+   "unidad_negocio": "UE02"
+  },
+  {
+   "codigo": "S02",
+   "nombre": "CONTABILIDAD Y COSTOS",
+   "unidad_negocio": "UE02"
+  },
+  {
+   "codigo": "S03",
+   "nombre": "CARTERA",
+   "unidad_negocio": "UE02"
+  },
+  {
+   "codigo": "S04",
+   "nombre": "FACTURACIÓN Y AUDITORIA DE CUENTAS MÉDICAS",
+   "unidad_negocio": "UE02"
+  },
+  {
+   "codigo": "S05",
+   "nombre": "TESORERÍA",
+   "unidad_negocio": "UE02"
+  },
+  {
+   "codigo": "S06",
+   "nombre": "PRESUPUESTO",
+   "unidad_negocio": "UE02"
+  },
+  {
+   "codigo": "T01",
+   "nombre": "GERENCIA Y JUNTA DIRECTIVA",
+   "unidad_negocio": "UE03"
+  },
+  {
+   "codigo": "T02",
+   "nombre": "COMUNICACIÓN Y PRENSA",
+   "unidad_negocio": "UE03"
+  },
+  {
+   "codigo": "T03",
+   "nombre": "CONTROL INTERNO DISCIPLINARIO",
+   "unidad_negocio": "UE03"
+  },
+  {
+   "codigo": "T04",
+   "nombre": "GESTION PÚBLICA Y AUTOCONTROL",
+   "unidad_negocio": "UE03"
+  },
+  {
+   "codigo": "T05",
+   "nombre": "JURÍDICA Y CONTRATACIÓN",
+   "unidad_negocio": "UE03"
+  },
+  {
+   "codigo": "T06",
+   "nombre": "MERCADEO Y PUBLICIDAD",
+   "unidad_negocio": "UE03"
+  },
+  {
+   "codigo": "T07",
+   "nombre": "SISTEMAS",
+   "unidad_negocio": "UE03"
+  },
+  {
+   "codigo": "T08",
+   "nombre": "PLANEACIÓN Y DESARROLLO INSTITUCIONAL",
+   "unidad_negocio": "UE03"
+  },
+  {
+   "codigo": "T09",
+   "nombre": "REVISORÍA FISCAL",
+   "unidad_negocio": "UE03"
+  },
+  {
+   "codigo": "T10",
+   "nombre": "PROGRAMAS DE CALIDAD Y ACREDITACIÓN",
+   "unidad_negocio": "UE03"
+  },
+  {
+   "codigo": "U01",
+   "nombre": "COORDINACION MÉDICA",
+   "unidad_negocio": "UE04"
+  },
+  {
+   "codigo": "U02",
+   "nombre": "AUDITORIA MÉDICA",
+   "unidad_negocio": "UE04"
+  },
+  {
+   "codigo": "U03",
+   "nombre": "EDUCACIÓN MÉDICA",
+   "unidad_negocio": "UE04"
+  },
+  {
+   "codigo": "U04",
+   "nombre": "INVESTIGACIÓN CIENTÍFICA",
+   "unidad_negocio": "UE04"
+  }
+ ],
+ "inductores": [
+  {
+   "codigo": "PERSONAS",
+   "nombre": "No. de personas por centro de costos",
+   "tipo": "CANTIDAD",
+   "unidad_medida": "personas"
+  },
+  {
+   "codigo": "M2",
+   "nombre": "Metros cuadrados (área + zonas comunes)",
+   "tipo": "CANTIDAD",
+   "unidad_medida": "m²"
+  },
+  {
+   "codigo": "COSTO_DIRECTO",
+   "nombre": "Ponderación por costeo directo",
+   "tipo": "COSTO_DIRECTO",
+   "unidad_medida": "$"
+  },
+  {
+   "codigo": "FACTURACION",
+   "nombre": "Valor facturado por centro de costos",
+   "tipo": "FACTURACION",
+   "unidad_medida": "$"
+  },
+  {
+   "codigo": "PRODUCCION",
+   "nombre": "Producción del centro de costos (actividades / CUPS)",
+   "tipo": "PRODUCCION",
+   "unidad_medida": "actividades"
+  },
+  {
+   "codigo": "EQUIPOS",
+   "nombre": "No. de equipos de cómputo / comunicación",
+   "tipo": "CANTIDAD",
+   "unidad_medida": "equipos"
+  },
+  {
+   "codigo": "KILOS_ROPA",
+   "nombre": "Kilos de ropa procesada",
+   "tipo": "CANTIDAD",
+   "unidad_medida": "kg"
+  },
+  {
+   "codigo": "RACIONES",
+   "nombre": "Raciones alimenticias suministradas",
+   "tipo": "CANTIDAD",
+   "unidad_medida": "raciones"
+  },
+  {
+   "codigo": "HORAS_MTTO",
+   "nombre": "Horas de mantenimiento asignadas",
+   "tipo": "CANTIDAD",
+   "unidad_medida": "horas"
+  },
+  {
+   "codigo": "UNIDADES_SERVICIO",
+   "nombre": "Unidades de servicio entregadas por el centro origen",
+   "tipo": "CANTIDAD",
+   "unidad_medida": "unidades"
+  },
+  {
+   "codigo": "SOLICITUDES",
+   "nombre": "Servicios solicitados al centro intermedio por cada centro final",
+   "tipo": "CANTIDAD",
+   "unidad_medida": "solicitudes"
+  },
+  {
+   "codigo": "ESTUDIANTES",
+   "nombre": "Estudiantes y residentes",
+   "tipo": "CANTIDAD",
+   "unidad_medida": "personas"
+  },
+  {
+   "codigo": "PORCENTAJE",
+   "nombre": "Porcentaje de distribución fijo",
+   "tipo": "CANTIDAD",
+   "unidad_medida": "%"
+  }
+ ],
+ "reglas": [
+  {
+   "distribucion": 1,
+   "recurso": "R8",
+   "inductor": "M2",
+   "clases_destino": "ESTRUCTURA,SERVICIOS,INTERMEDIOS,FINALES",
+   "misma_sede": false,
+   "observacion": "Res. 002/2014 Anexo 3: POR LOS SOPORTES DE LAS FACTURAS (CÁNON DE ARRENDAMIENTO)"
+  },
+  {
+   "distribucion": 1,
+   "recurso": "R10",
+   "inductor": "EQUIPOS",
+   "clases_destino": "ESTRUCTURA,SERVICIOS,INTERMEDIOS,FINALES",
+   "misma_sede": false,
+   "observacion": "Res. 002/2014 Anexo 3: No. EQUIPOS (INTERNET), LÍNEAS / EXTENSIONES POR CENTRO DE COSTO"
+  },
+  {
+   "distribucion": 1,
+   "recurso": "R12",
+   "inductor": "PERSONAS",
+   "clases_destino": "ESTRUCTURA,SERVICIOS,INTERMEDIOS,FINALES",
+   "misma_sede": false,
+   "observacion": "Res. 002/2014 Anexo 3: CONSUMOS / SALIDAS DE ALMACÉN DE CADA CENTRO DE COSTOS"
+  },
+  {
+   "distribucion": 1,
+   "recurso": "R13",
+   "inductor": "M2",
+   "clases_destino": "ESTRUCTURA,SERVICIOS,INTERMEDIOS,FINALES",
+   "misma_sede": false,
+   "observacion": "Res. 002/2014 Anexo 3: ÁREA PARA INMUEBLES; No. PERSONAS PARA VIDA; No. EQUIPOS; DIRECTO VEHÍCULOS"
+  },
+  {
+   "distribucion": 1,
+   "recurso": "R14",
+   "inductor": "M2",
+   "clases_destino": "ESTRUCTURA,SERVICIOS,INTERMEDIOS,FINALES",
+   "misma_sede": true,
+   "observacion": "Res. 002/2014 Anexo 3: VALOR DE FACTURA CON BASE EN ÁREAS Y/O PUNTOS EN USO"
+  },
+  {
+   "distribucion": 1,
+   "recurso": "R15",
+   "inductor": "M2",
+   "clases_destino": "ESTRUCTURA,SERVICIOS,INTERMEDIOS,FINALES",
+   "misma_sede": true,
+   "observacion": "Res. 002/2014 Anexo 3: No. SALIDAS DE AGUA x No. PERSONAS x TIEMPO DE DISPONIBILIDAD"
+  },
+  {
+   "distribucion": 1,
+   "recurso": "R16",
+   "inductor": "M2",
+   "clases_destino": "ESTRUCTURA,SERVICIOS,INTERMEDIOS,FINALES",
+   "misma_sede": true,
+   "observacion": "Res. 002/2014 Anexo 3: PARTICIPACIÓN PONDERADA POR CONSUMO DEL SERVICIO"
+  },
+  {
+   "distribucion": 1,
+   "recurso": "R18",
+   "inductor": "PERSONAS",
+   "clases_destino": "ESTRUCTURA,SERVICIOS,INTERMEDIOS,FINALES",
+   "misma_sede": false,
+   "observacion": "Res. 002/2014 Anexo 3: PROVISIÓN DE CONTABILIDAD"
+  },
+  {
+   "distribucion": 1,
+   "recurso": "R19",
+   "inductor": "M2",
+   "clases_destino": "ESTRUCTURA,SERVICIOS,INTERMEDIOS,FINALES",
+   "misma_sede": false,
+   "observacion": "Res. 002/2014 Anexo 3: METROS CUADRADOS"
+  },
+  {
+   "distribucion": 1,
+   "recurso": "R20",
+   "inductor": "M2",
+   "clases_destino": "ESTRUCTURA,SERVICIOS,INTERMEDIOS,FINALES",
+   "misma_sede": false,
+   "observacion": "Res. 002/2014 Anexo 3: HORAS DE MANTENIMIENTO O METROS CUADRADOS (INFRAESTRUCTURA)"
+  },
+  {
+   "distribucion": 1,
+   "recurso": "R21",
+   "inductor": "M2",
+   "clases_destino": "ESTRUCTURA,SERVICIOS,INTERMEDIOS,FINALES",
+   "misma_sede": true,
+   "observacion": "Res. 002/2014 Anexo 3: METROS CUADRADOS (ASEO)"
+  },
+  {
+   "distribucion": 1,
+   "recurso": "R22",
+   "inductor": "KILOS_ROPA",
+   "clases_destino": "ESTRUCTURA,SERVICIOS,INTERMEDIOS,FINALES",
+   "misma_sede": false,
+   "observacion": "Res. 002/2014 Anexo 3: KILOS DE ROPA"
+  },
+  {
+   "distribucion": 1,
+   "recurso": "R23",
+   "inductor": "RACIONES",
+   "clases_destino": "ESTRUCTURA,SERVICIOS,INTERMEDIOS,FINALES",
+   "misma_sede": false,
+   "observacion": "Res. 002/2014 Anexo 3: VALOR DE RACIONES SUMINISTRADAS A CADA CENTRO DE COSTO"
+  },
+  {
+   "distribucion": 1,
+   "recurso": "R24",
+   "inductor": "PERSONAS",
+   "clases_destino": "ESTRUCTURA,SERVICIOS,INTERMEDIOS,FINALES",
+   "misma_sede": false,
+   "observacion": "Res. 002/2014 Anexo 3: CONTABILIDAD SUMINISTRA"
+  },
+  {
+   "distribucion": 1,
+   "recurso": "R25",
+   "inductor": "PERSONAS",
+   "clases_destino": "ESTRUCTURA,SERVICIOS,INTERMEDIOS,FINALES",
+   "misma_sede": false,
+   "observacion": "Res. 002/2014 Anexo 3: CONTABILIDAD SUMINISTRA"
+  },
+  {
+   "distribucion": 1,
+   "recurso": "R26",
+   "inductor": "FACTURACION",
+   "clases_destino": "ESTRUCTURA,SERVICIOS,INTERMEDIOS,FINALES",
+   "misma_sede": false,
+   "observacion": "Res. 002/2014 Anexo 3: FACTURACIÓN"
+  },
+  {
+   "distribucion": 1,
+   "recurso": "R27",
+   "inductor": "M2",
+   "clases_destino": "ESTRUCTURA,SERVICIOS,INTERMEDIOS,FINALES",
+   "misma_sede": false,
+   "observacion": "Res. 002/2014 Anexo 3: ACTIVOS FIJOS"
+  },
+  {
+   "distribucion": 1,
+   "recurso": "R28",
+   "inductor": "EQUIPOS",
+   "clases_destino": "ESTRUCTURA,SERVICIOS,INTERMEDIOS,FINALES",
+   "misma_sede": false,
+   "observacion": "Res. 002/2014 Anexo 3: CONTABILIDAD"
+  },
+  {
+   "distribucion": 1,
+   "recurso": "R29",
+   "inductor": "FACTURACION",
+   "clases_destino": "ESTRUCTURA,SERVICIOS,INTERMEDIOS,FINALES",
+   "misma_sede": false,
+   "observacion": "Res. 002/2014 Anexo 3: CONTABILIDAD SUMINISTRA"
+  },
+  {
+   "distribucion": 2,
+   "inductor": "COSTO_DIRECTO",
+   "clases_destino": "SERVICIOS,INTERMEDIOS,FINALES",
+   "observacion": "General: ponderación por costeo directo"
+  },
+  {
+   "distribucion": 2,
+   "centro_origen": "R03",
+   "inductor": "M2",
+   "clases_destino": "SERVICIOS,INTERMEDIOS,FINALES",
+   "observacion": "Res. 002/2014 Anexo 3"
+  },
+  {
+   "distribucion": 2,
+   "centro_origen": "R04",
+   "inductor": "M2",
+   "clases_destino": "SERVICIOS,INTERMEDIOS,FINALES",
+   "observacion": "Res. 002/2014 Anexo 3"
+  },
+  {
+   "distribucion": 2,
+   "centro_origen": "R05",
+   "inductor": "PERSONAS",
+   "clases_destino": "SERVICIOS,INTERMEDIOS,FINALES",
+   "observacion": "Res. 002/2014 Anexo 3"
+  },
+  {
+   "distribucion": 2,
+   "centro_origen": "R06",
+   "inductor": "M2",
+   "clases_destino": "SERVICIOS,INTERMEDIOS,FINALES",
+   "observacion": "Res. 002/2014 Anexo 3"
+  },
+  {
+   "distribucion": 2,
+   "centro_origen": "R08",
+   "inductor": "PERSONAS",
+   "clases_destino": "SERVICIOS,INTERMEDIOS,FINALES",
+   "observacion": "Res. 002/2014 Anexo 3"
+  },
+  {
+   "distribucion": 2,
+   "centro_origen": "S03",
+   "inductor": "FACTURACION",
+   "clases_destino": "SERVICIOS,INTERMEDIOS,FINALES",
+   "observacion": "Res. 002/2014 Anexo 3"
+  },
+  {
+   "distribucion": 2,
+   "centro_origen": "S04",
+   "inductor": "FACTURACION",
+   "clases_destino": "SERVICIOS,INTERMEDIOS,FINALES",
+   "observacion": "Res. 002/2014 Anexo 3"
+  },
+  {
+   "distribucion": 2,
+   "centro_origen": "T03",
+   "inductor": "PERSONAS",
+   "clases_destino": "SERVICIOS,INTERMEDIOS,FINALES",
+   "observacion": "Res. 002/2014 Anexo 3"
+  },
+  {
+   "distribucion": 2,
+   "centro_origen": "T05",
+   "inductor": "PERSONAS",
+   "clases_destino": "SERVICIOS,INTERMEDIOS,FINALES",
+   "observacion": "Res. 002/2014 Anexo 3"
+  },
+  {
+   "distribucion": 2,
+   "centro_origen": "T06",
+   "inductor": "FACTURACION",
+   "clases_destino": "SERVICIOS,INTERMEDIOS,FINALES",
+   "observacion": "Res. 002/2014 Anexo 3"
+  },
+  {
+   "distribucion": 2,
+   "centro_origen": "T07",
+   "inductor": "EQUIPOS",
+   "clases_destino": "SERVICIOS,INTERMEDIOS,FINALES",
+   "observacion": "Res. 002/2014 Anexo 3"
+  },
+  {
+   "distribucion": 2,
+   "centro_origen": "U01",
+   "inductor": "PERSONAS",
+   "clases_destino": "SERVICIOS,INTERMEDIOS,FINALES",
+   "observacion": "Res. 002/2014 Anexo 3"
+  },
+  {
+   "distribucion": 2,
+   "centro_origen": "U02",
+   "inductor": "PERSONAS",
+   "clases_destino": "SERVICIOS,INTERMEDIOS,FINALES",
+   "observacion": "Res. 002/2014 Anexo 3"
+  },
+  {
+   "distribucion": 2,
+   "centro_origen": "U03",
+   "inductor": "ESTUDIANTES",
+   "clases_destino": "SERVICIOS,INTERMEDIOS,FINALES",
+   "observacion": "Res. 002/2014 Anexo 3"
+  },
+  {
+   "distribucion": 3,
+   "inductor": "UNIDADES_SERVICIO",
+   "clases_destino": "INTERMEDIOS,FINALES",
+   "observacion": "General: producción del servicio"
+  },
+  {
+   "distribucion": 3,
+   "centro_origen": "P01",
+   "inductor": "RACIONES",
+   "clases_destino": "INTERMEDIOS,FINALES",
+   "observacion": "Res. 002/2014 Anexo 3"
+  },
+  {
+   "distribucion": 3,
+   "centro_origen": "P02",
+   "inductor": "HORAS_MTTO",
+   "clases_destino": "INTERMEDIOS,FINALES",
+   "observacion": "Res. 002/2014 Anexo 3"
+  },
+  {
+   "distribucion": 3,
+   "centro_origen": "P03",
+   "inductor": "KILOS_ROPA",
+   "clases_destino": "INTERMEDIOS,FINALES",
+   "observacion": "Res. 002/2014 Anexo 3"
+  },
+  {
+   "distribucion": 3,
+   "centro_origen": "P04",
+   "inductor": "RACIONES",
+   "clases_destino": "INTERMEDIOS,FINALES",
+   "observacion": "Res. 002/2014 Anexo 3"
+  },
+  {
+   "distribucion": 3,
+   "centro_origen": "Q01",
+   "inductor": "PRODUCCION",
+   "clases_destino": "INTERMEDIOS,FINALES",
+   "observacion": "Res. 002/2014 Anexo 3"
+  },
+  {
+   "distribucion": 3,
+   "centro_origen": "Q02",
+   "inductor": "PRODUCCION",
+   "clases_destino": "INTERMEDIOS,FINALES",
+   "observacion": "Res. 002/2014 Anexo 3"
+  },
+  {
+   "distribucion": 3,
+   "centro_origen": "Q03",
+   "inductor": "PRODUCCION",
+   "clases_destino": "INTERMEDIOS,FINALES",
+   "observacion": "Res. 002/2014 Anexo 3"
+  },
+  {
+   "distribucion": 3,
+   "centro_origen": "Q04",
+   "inductor": "PRODUCCION",
+   "clases_destino": "INTERMEDIOS,FINALES",
+   "observacion": "Res. 002/2014 Anexo 3"
+  },
+  {
+   "distribucion": 3,
+   "centro_origen": "O01",
+   "inductor": "PRODUCCION",
+   "clases_destino": "INTERMEDIOS,FINALES",
+   "observacion": "Res. 002/2014 Anexo 3"
+  },
+  {
+   "distribucion": 3,
+   "centro_origen": "O02",
+   "inductor": "PRODUCCION",
+   "clases_destino": "INTERMEDIOS,FINALES",
+   "observacion": "Res. 002/2014 Anexo 3"
+  },
+  {
+   "distribucion": 4,
+   "inductor": "SOLICITUDES",
+   "clases_destino": "FINALES",
+   "observacion": "General: servicios solicitados por cada centro final"
+  }
+ ],
+ "cuentas_recurso": [
+  {
+   "prefijo": "5101",
+   "recurso": "R1",
+   "descripcion": "Sueldos y salarios (personal de planta) - Cuadro 2 (verificar contra el plan de cuentas institucional)"
+  },
+  {
+   "prefijo": "510106",
+   "recurso": "R2",
+   "descripcion": "Cuadro 2 - contrato directo (verificar contra el plan de cuentas institucional)"
+  },
+  {
+   "prefijo": "510107",
+   "recurso": "R2",
+   "descripcion": "Cuadro 2 - contrato directo (verificar contra el plan de cuentas institucional)"
+  },
+  {
+   "prefijo": "510109",
+   "recurso": "R2",
+   "descripcion": "Cuadro 2 - contrato directo (verificar contra el plan de cuentas institucional)"
+  },
+  {
+   "prefijo": "511111",
+   "recurso": "R2",
+   "descripcion": "Cuadro 2 - contrato directo (verificar contra el plan de cuentas institucional)"
+  },
+  {
+   "prefijo": "5111",
+   "recurso": "R24",
+   "descripcion": "Gastos generales: demás subcuentas del grupo 5111 - Cuadro 2 (verificar contra el plan de cuentas institucional)"
+  },
+  {
+   "prefijo": "511104",
+   "recurso": "R21",
+   "descripcion": "Cuadro 2 (verificar contra el plan de cuentas institucional)"
+  },
+  {
+   "prefijo": "511113",
+   "recurso": "R19",
+   "descripcion": "Cuadro 2 - vigilancia y seguridad (verificar contra el plan de cuentas institucional)"
+  },
+  {
+   "prefijo": "511114",
+   "recurso": "R12",
+   "descripcion": "Cuadro 2 (verificar contra el plan de cuentas institucional)"
+  },
+  {
+   "prefijo": "511115",
+   "recurso": "R20",
+   "descripcion": "Cuadro 2 - mantenimiento (verificar contra el plan de cuentas institucional)"
+  },
+  {
+   "prefijo": "511116",
+   "recurso": "R20",
+   "descripcion": "Cuadro 2 - reparaciones (verificar contra el plan de cuentas institucional)"
+  },
+  {
+   "prefijo": "511118",
+   "recurso": "R8",
+   "descripcion": "Cuadro 2 - arrendamientos (verificar contra el plan de cuentas institucional)"
+  },
+  {
+   "prefijo": "511119",
+   "recurso": "R9",
+   "descripcion": "Cuadro 2 - viáticos (verificar contra el plan de cuentas institucional)"
+  },
+  {
+   "prefijo": "511120",
+   "recurso": "R12",
+   "descripcion": "Cuadro 2 (verificar contra el plan de cuentas institucional)"
+  },
+  {
+   "prefijo": "511121",
+   "recurso": "R12",
+   "descripcion": "Cuadro 2 (verificar contra el plan de cuentas institucional)"
+  },
+  {
+   "prefijo": "511122",
+   "recurso": "R12",
+   "descripcion": "Cuadro 2 (verificar contra el plan de cuentas institucional)"
+  },
+  {
+   "prefijo": "511123",
+   "recurso": "R10",
+   "descripcion": "Cuadro 2 - comunicaciones y transporte (verificar contra el plan de cuentas institucional)"
+  },
+  {
+   "prefijo": "511125",
+   "recurso": "R13",
+   "descripcion": "Cuadro 2 - seguros (verificar contra el plan de cuentas institucional)"
+  },
+  {
+   "prefijo": "511146",
+   "recurso": "R11",
+   "descripcion": "Cuadro 2 - combustibles (verificar contra el plan de cuentas institucional)"
+  },
+  {
+   "prefijo": "511150",
+   "recurso": "R12",
+   "descripcion": "Cuadro 2 (verificar contra el plan de cuentas institucional)"
+  },
+  {
+   "prefijo": "5120",
+   "recurso": "R18",
+   "descripcion": "Cuadro 2 - impuestos, contribuciones y tasas (verificar contra el plan de cuentas institucional)"
+  },
+  {
+   "prefijo": "580812",
+   "recurso": "R17",
+   "descripcion": "Cuadro 2 - sentencias (verificar contra el plan de cuentas institucional)"
+  },
+  {
+   "prefijo": "5302",
+   "recurso": "R29",
+   "descripcion": "Cuadro 2 - provisiones/deterioro (verificar contra el plan de cuentas institucional)"
+  },
+  {
+   "prefijo": "5304",
+   "recurso": "R29",
+   "descripcion": "Cuadro 2 (verificar contra el plan de cuentas institucional)"
+  },
+  {
+   "prefijo": "5330",
+   "recurso": "R27",
+   "descripcion": "Cuadro 2 - depreciaciones (verificar contra el plan de cuentas institucional)"
+  },
+  {
+   "prefijo": "5331",
+   "recurso": "R27",
+   "descripcion": "Cuadro 2 - depreciaciones (verificar contra el plan de cuentas institucional)"
+  },
+  {
+   "prefijo": "5344",
+   "recurso": "R28",
+   "descripcion": "Cuadro 2 - amortizaciones (verificar contra el plan de cuentas institucional)"
+  }
+ ],
+ "ambitos": [
+  {
+   "codigo": "1",
+   "nombre": "AMBULATORIO",
+   "homologaciones": [
+    "AMB",
+    "AMBULATORIO",
+    "CONSULTA EXTERNA",
+    "A"
+   ]
+  },
+  {
+   "codigo": "2",
+   "nombre": "HOSPITALARIO",
+   "homologaciones": [
+    "HOS",
+    "HOSPITALARIO",
+    "HOSPITALIZACION",
+    "INTERNACION",
+    "H"
+   ]
+  },
+  {
+   "codigo": "3",
+   "nombre": "URGENCIAS",
+   "homologaciones": [
+    "URG",
+    "URGENCIA",
+    "URGENCIAS",
+    "U"
+   ]
+  }
+ ],
+ "indicadores": [
+  {
+   "codigo": "PCT_PERSONAL",
+   "nombre": "% Costo Personal / Total",
+   "formula": "pct_elemento:CP",
+   "minimo": 55,
+   "maximo": 65,
+   "es_valor": false,
+   "accion_recomendada": "Reducir contratos con terceros",
+   "fuente": "Referencias del Informe de Costos ABC 2025 (ANDI 2024, MinSalud) - ajustar por la institución",
+   "orden": 1
+  },
+  {
+   "codigo": "PCT_TERCEROS",
+   "nombre": "% Personal Terceros / Total",
+   "formula": "pct_recurso:R3",
+   "minimo": 35,
+   "maximo": 45,
+   "es_valor": false,
+   "accion_recomendada": "Revisión integral de contratos con terceros",
+   "fuente": "Referencias del Informe de Costos ABC 2025 (ANDI 2024, MinSalud) - ajustar por la institución",
+   "orden": 2
+  },
+  {
+   "codigo": "CRECIMIENTO",
+   "nombre": "Crecimiento del costo frente al periodo comparado",
+   "formula": "crecimiento_total",
+   "minimo": 10,
+   "maximo": 15,
+   "es_valor": false,
+   "accion_recomendada": "Programa de eficiencia y contención del costo",
+   "fuente": "Referencias del Informe de Costos ABC 2025 (ANDI 2024, MinSalud) - ajustar por la institución",
+   "orden": 3
+  },
+  {
+   "codigo": "PCT_URGENCIAS",
+   "nombre": "% Urgencias / Servicios Finales",
+   "formula": "pct_un_en_finales:UN02",
+   "minimo": 20,
+   "maximo": 30,
+   "es_valor": false,
+   "accion_recomendada": "Mantener reducción; fortalecer atención primaria",
+   "fuente": "Referencias del Informe de Costos ABC 2025 (ANDI 2024, MinSalud) - ajustar por la institución",
+   "orden": 4
+  },
+  {
+   "codigo": "PCT_APOYO_DX",
+   "nombre": "% Apoyo Diagnóstico / Total",
+   "formula": "pct_un:UN09",
+   "minimo": 8,
+   "maximo": 12,
+   "es_valor": false,
+   "accion_recomendada": "Ampliar laboratorio e imagenología",
+   "fuente": "Referencias del Informe de Costos ABC 2025 (ANDI 2024, MinSalud) - ajustar por la institución",
+   "orden": 5
+  },
+  {
+   "codigo": "PCT_MTTO",
+   "nombre": "Mantenimiento / Total",
+   "formula": "pct_recurso:R20",
+   "minimo": 3,
+   "maximo": 5,
+   "es_valor": false,
+   "accion_recomendada": "Auditoría de activos y mantenimiento preventivo",
+   "fuente": "Referencias del Informe de Costos ABC 2025 (ANDI 2024, MinSalud) - ajustar por la institución",
+   "orden": 6
+  },
+  {
+   "codigo": "PCT_PROG_ESP",
+   "nombre": "Programas Especiales / Total",
+   "formula": "pct_un:UN08",
+   "minimo": 60,
+   "maximo": 70,
+   "es_valor": false,
+   "accion_recomendada": "Diversificar portafolio de servicios",
+   "fuente": "Referencias del Informe de Costos ABC 2025 (ANDI 2024, MinSalud) - ajustar por la institución",
+   "orden": 7
+  },
+  {
+   "codigo": "SENTENCIAS",
+   "nombre": "Sentencias Judiciales",
+   "formula": "valor_recurso:R17",
+   "minimo": 0,
+   "maximo": 20000000,
+   "es_valor": true,
+   "accion_recomendada": "Plan de gestión jurídica preventiva",
+   "fuente": "Referencias del Informe de Costos ABC 2025 (ANDI 2024, MinSalud) - ajustar por la institución",
+   "orden": 8
+  },
+  {
+   "codigo": "PCT_DEPRECIACION",
+   "nombre": "Depreciación / Total",
+   "formula": "pct_recurso:R27",
+   "minimo": 3,
+   "maximo": 5,
+   "es_valor": false,
+   "accion_recomendada": "Revisar vida útil de activos",
+   "fuente": "Referencias del Informe de Costos ABC 2025 (ANDI 2024, MinSalud) - ajustar por la institución",
+   "orden": 9
+  },
+  {
+   "codigo": "PCT_SEGUROS",
+   "nombre": "Seguros / Total",
+   "formula": "pct_recurso:R13",
+   "minimo": 1,
+   "maximo": 2,
+   "es_valor": false,
+   "accion_recomendada": "Revisar cobertura de seguros institucionales",
+   "fuente": "Referencias del Informe de Costos ABC 2025 (ANDI 2024, MinSalud) - ajustar por la institución",
+   "orden": 10
+  },
+  {
+   "codigo": "PCT_MEDICAMENTOS",
+   "nombre": "Medicamentos / Total",
+   "formula": "pct_recurso:R4",
+   "minimo": 3,
+   "maximo": 6,
+   "es_valor": false,
+   "accion_recomendada": "Revisar dispensación; evitar desabastecimiento",
+   "fuente": "Referencias del Informe de Costos ABC 2025 (ANDI 2024, MinSalud) - ajustar por la institución",
+   "orden": 11
+  }
+ ]
+}

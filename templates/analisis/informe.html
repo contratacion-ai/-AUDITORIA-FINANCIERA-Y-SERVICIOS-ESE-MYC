@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% load formato %}
+{% block titulo %}Informe de costos ABC{% endblock %}
+{% block contenido %}
+{% with inst=d.institucion p=d.periodo c=d.periodo_comp %}
+<div class="no-imprimir">
+  {% with sin_filtros_extra=True %}{% include "parciales/filtros.html" %}{% endwith %}
+  <div class="d-flex gap-2 mb-3">
+    <button class="btn btn-sm btn-primary" onclick="window.print()">Imprimir / guardar PDF</button>
+    <a class="btn btn-sm btn-outline-success" href="{% url_con exportar=1 %}">Exportar Excel</a>
+    {% if puede.editar_informe %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'analisis:config_informe' %}">Editar textos y parámetros</a>{% endif %}
+  </div>
+  {% if not d.corrida %}<div class="alert alert-warning">No hay corrida vigente para {{ p }}. Ejecute el motor para generar el informe.</div>{% endif %}
+</div>
+{% if d.corrida %}
+<article class="informe">
+  <div class="portada mb-4">
+    <div class="small text-uppercase opacity-75">Informe de costos ABC · Sistema de costos basado en actividades</div>
+    <h1 class="h2 mt-1 mb-0">{{ inst.nombre|upper }}</h1>
+    <div class="opacity-75">{{ inst.municipio }}{% if inst.departamento %}, {{ inst.departamento }}{% endif %} · {{ inst.pais }}</div>
+    <div class="row mt-4 g-3">
+      <div class="col-6 col-md-3"><div class="small opacity-75">Periodo</div><div class="dato">{% if c %}{{ c.etiqueta_corta }} vs {{ p.etiqueta_corta }}{% else %}{{ p }}{% endif %}</div></div>
+      <div class="col-6 col-md-3"><div class="small opacity-75">Costo total {{ p.anio }}</div><div class="dato">{{ d.total|pesos }}</div></div>
+      <div class="col-6 col-md-3"><div class="small opacity-75">Variación</div><div class="dato">{{ d.variacion|pct_signo }}</div></div>
+      <div class="col-6 col-md-3"><div class="small opacity-75">Centros de costo</div><div class="dato">{{ d.n_unidades }} Unidades</div></div>
+    </div>
+    <div class="small mt-4 opacity-75">Elaborado por: {{ d.config.elaborado_por|default:"Área de Costos" }}{% if d.config.cargo %} · {{ d.config.cargo }}{% endif %} · {{ d.config.dirigido_a }}</div>
+  </div>
+
+  <h2>1. Introducción</h2>
+  {% if d.config.introduccion %}<p>{{ d.config.introduccion|linebreaksbr }}</p>{% else %}
+  <p>El presente informe corresponde al análisis de costos ABC (Activity Based Costing) de {{ inst.nombre }} con base en la información de {{ p|lower }}{% if c %}, comparada con {{ c|lower }}{% endif %}.
+  El modelo asigna los costos de los recursos a las actividades que los consumen y desde allí a los centros de costos y servicios que los demandan, para apoyar la toma de decisiones de la gerencia.</p>{% endif %}
+
+  <h2>2. Metodología: sistema ABC</h2>
+  <p>El modelo sigue la Resolución DDC-000002 de 2014 (Anexos Técnicos 1 a 4): los recursos se agrupan en elementos del costo y se asignan a los centros de costos de estructura, servicios, intermedios y finales mediante cuatro distribuciones secuenciales, y el costo de los centros finales se lleva a cada CUPS según la producción.</p>
+  <h3>2.1 Estructura del modelo</h3>
+  <ul>{% for nombre, inductores in d.metodologia %}<li><strong>{{ nombre }}.</strong>{% if inductores %} Inductores: {{ inductores|join:", " }}.{% endif %}</li>{% endfor %}
+    <li><strong>Costeo CUPS.</strong> Costo del centro final distribuido según la producción del periodo ({{ d.corrida.resumen.fuente_produccion|lower }}) y el peso relativo de cada CUPS.</li></ul>
+
+  <h2 class="salto">3. Análisis de costos{% if c %}: {{ c.etiqueta_corta }} vs {{ p.etiqueta_corta }}{% endif %}</h2>
+  <h3>3.1 Resumen general de costos</h3>
+  <p>El costo total institucional de {{ p|lower }} asciende a <strong>{{ d.total|pesos }}</strong>{% if c %}, {% if d.variacion >= 0 %}un incremento{% else %}una disminución{% endif %} del {{ d.variacion|pct }} frente a {{ d.total_anterior|pesos }} de {{ c|lower }}{% endif %}.</p>
+  <table class="table table-sm table-bordered table-abc"><thead><tr><th>Categoría de costo</th>{% if c %}<th class="num">{{ c.etiqueta_corta }} ($)</th>{% endif %}<th class="num">{{ p.etiqueta_corta }} ($)</th>{% if c %}<th class="num">Var. $</th><th class="num">Var. %</th>{% endif %}<th class="num">Part. %</th></tr></thead><tbody>
+  {% for e in d.elementos %}<tr><td>{{ e.elemento.nombre|title }}</td>{% if c %}<td class="num">{{ e.anterior|numero }}</td>{% endif %}<td class="num">{{ e.actual|numero }}</td>
+  {% if c %}<td class="num">{{ e.dif|numero }}</td><td class="num">{{ e.pct|pct_signo }}</td>{% endif %}<td class="num">{{ e.part_actual|pct }}</td></tr>{% endfor %}
+  <tr class="fila-total"><td>TOTAL GENERAL</td>{% if c %}<td class="num">{{ d.total_anterior|numero }}</td>{% endif %}<td class="num">{{ d.total|numero }}</td>{% if c %}<td class="num">{{ d.dif_total|numero }}</td><td class="num">{{ d.variacion|pct_signo }}</td>{% endif %}<td class="num">100%</td></tr></tbody></table>
+  <h3>3.2 Análisis por recurso</h3>
+  <table class="table table-sm table-bordered table-abc"><thead><tr><th>Elemento</th><th>Recurso</th>{% if c %}<th class="num">{{ c.etiqueta_corta }} ($)</th>{% endif %}<th class="num">{{ p.etiqueta_corta }} ($)</th>{% if c %}<th class="num">Var. $</th><th class="num">Var. %</th><th class="num">Part. {{ c.anio }}</th>{% endif %}<th class="num">Part. {{ p.anio }}</th></tr></thead><tbody>
+  {% for f in d.recursos %}<tr><td class="small">{{ f.elemento.nombre }}</td><td>{{ f.recurso.nombre|title }}</td>{% if c %}<td class="num">{{ f.anterior|numero }}</td>{% endif %}<td class="num">{{ f.actual|numero }}</td>
+  {% if c %}<td class="num {{ f.dif|clase_var }}">{{ f.dif|numero }}</td><td class="num">{{ f.pct|pct_signo }}</td><td class="num">{{ f.part_anterior|pct:2 }}</td>{% endif %}<td class="num">{{ f.part_actual|pct:2 }}</td></tr>{% endfor %}</tbody></table>
+  {% if d.conciliaciones %}<p class="small text-muted">Conciliación con el estado financiero: {% for x in d.conciliaciones %}{{ x.recurso }} diferencia {{ x.diferencia|pesos }}{% if not forloop.last %}; {% endif %}{% endfor %} (prorrateada sobre los soportes de área).</p>{% endif %}
+
+  <h2 class="salto">4. Costos por unidades de negocio</h2>
+  {% include "analisis/_tabla_un.html" with clase="FINALES" titulo="4.1 Unidades de servicio finales" filas=d.unidades.FINALES tot=d.totales_un.FINALES %}
+  {% include "analisis/_tabla_un.html" with clase="INTERMEDIOS" titulo="4.2 Unidades funcionales intermedias" filas=d.unidades.INTERMEDIOS tot=d.totales_un.INTERMEDIOS %}
+  {% include "analisis/_tabla_un.html" with clase="SERVICIOS" titulo="4.3 Unidades funcionales de servicios" filas=d.unidades.SERVICIOS tot=d.totales_un.SERVICIOS %}
+  {% include "analisis/_tabla_un.html" with clase="ESTRUCTURA" titulo="4.4 Unidades de estructura" filas=d.unidades.ESTRUCTURA tot=d.totales_un.ESTRUCTURA %}
+  <p class="small text-muted">Costo directo de cada unidad (1ª distribución). Las unidades intermedias, de servicios y de estructura se redistribuyen hacia las finales en la 2ª a 4ª distribución; el costo total final por unidad es:</p>
+  <table class="table table-sm table-bordered table-abc"><thead><tr><th>Código</th><th>Unidad final</th><th class="num">Costo total tras 4ª distribución</th><th class="num">% finales</th></tr></thead><tbody>
+  {% for f in d.finales_total.FINALES %}{% if f.actual %}<tr><td>{{ f.unidad.codigo }}</td><td>{{ f.unidad.nombre|title }}</td><td class="num">{{ f.actual|numero }}</td><td class="num">{{ f.part_clase|pct }}</td></tr>{% endif %}{% endfor %}</tbody></table>
+
+  <h2>5. Distribución de costos por sede</h2>
+  {% if d.sedes %}<table class="table table-sm table-bordered table-abc"><thead><tr><th>Sede / municipio</th>{% for r in d.rec_sede %}<th class="num">{{ r.nombre|title }} ($)</th>{% endfor %}<th class="num">Total ($)</th></tr></thead><tbody>
+  {% for s in d.sedes %}<tr><td>{{ s.sede }}</td>{% for v in s.valores %}<td class="num">{{ v|numero }}</td>{% endfor %}<td class="num">{{ s.total|numero }}</td></tr>{% endfor %}
+  <tr class="fila-total"><td>TOTAL SEDES</td>{% for v in d.totales_sede %}<td class="num">{{ v|numero }}</td>{% endfor %}<td class="num">{{ d.total_sedes|numero }}</td></tr></tbody></table>
+  {% else %}<p class="text-muted">Asigne sedes a los centros de costos para obtener esta sección.</p>{% endif %}
+
+  <h2 class="salto">6. Benchmarking</h2>
+  <table class="table table-sm table-bordered table-abc"><thead><tr><th>Indicador</th><th class="num">{{ inst.codigo }}</th><th class="num">Referencia</th><th>Estado</th><th>Recomendación</th></tr></thead><tbody>
+  {% for i in d.indicadores %}<tr><td>{{ i.indicador.nombre }}</td>
+  <td class="num">{% if i.indicador.es_valor %}{{ i.valor|pesos }}{% else %}{{ i.valor|pct }}{% endif %}</td>
+  <td class="num">{% if i.indicador.es_valor %}{{ i.indicador.minimo|pesos }} – {{ i.indicador.maximo|pesos }}{% else %}{{ i.indicador.minimo|numero }}–{{ i.indicador.maximo|numero }}%{% endif %}</td>
+  <td><span class="badge badge-{{ i.estado|sin_tildes|cut:' DATO' }}">{{ i.estado }}</span></td><td class="small">{{ i.indicador.accion_recomendada }}</td></tr>{% endfor %}</tbody></table>
+  {% if d.indicadores %}<p class="small text-muted">Fuente de referencias: {{ d.indicadores.0.indicador.fuente }}</p>{% endif %}
+
+  <h2>7. Hallazgos principales</h2>
+  {% for nivel, titulo, detalle in d.hallazgos %}
+  <p class="mb-2"><span class="badge badge-{{ nivel|sin_tildes }} me-1">{{ nivel }}</span> <strong>Hallazgo {{ forloop.counter }}. {{ titulo }}:</strong> {{ detalle }}</p>
+  {% empty %}<p class="text-muted">Sin hallazgos con los umbrales configurados.</p>{% endfor %}
+
+  <h2>8. Recomendaciones estratégicas</h2>
+  {% if d.recomendaciones %}<table class="table table-sm table-bordered table-abc"><thead><tr><th>Prioridad</th><th>Área</th><th>Recomendación</th><th>Impacto esperado</th><th>Plazo</th><th>Responsable</th></tr></thead><tbody>
+  {% for r in d.recomendaciones %}<tr>{% for x in r %}<td style="white-space:normal">{{ x }}</td>{% endfor %}</tr>{% endfor %}</tbody></table>
+  {% else %}<p class="text-muted">Registre las recomendaciones en «Editar textos y parámetros».</p>{% endif %}
+
+  <h2>9. Conclusiones</h2>
+  <p>{{ inst.nombre }} registra un costo total de {{ d.total|pesos }} en {{ p|lower }}{% if c %}, con una variación de {{ d.variacion|pct_signo }} frente a {{ c|lower }}{% endif %}.
+  Los costos de personal representan el {{ d.pct_personal|pct }} del total.{% if d.hallazgos %} Se identificaron {{ d.hallazgos|length }} hallazgos que requieren seguimiento.{% endif %}</p>
+  {% if d.config.conclusiones %}<p>{{ d.config.conclusiones|linebreaksbr }}</p>{% endif %}
+  <div class="pie-informe">Elaborado por: {{ d.config.elaborado_por|default:"Área de Costos" }}{% if d.config.cargo %} · {{ d.config.cargo }}{% endif %} · {{ inst.nombre }} · Corrida #{{ d.corrida.pk }} del {{ d.corrida.inicio|date:"Y-m-d H:i" }}{% if d.corrida_comp %} / #{{ d.corrida_comp.pk }}{% endif %}</div>
+</article>
+{% endif %}
+{% endwith %}
+{% endblock %}

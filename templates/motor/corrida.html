@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load formato %}
+{% block titulo %}Corrida #{{ c.pk }}{% endblock %}
+{% block contenido %}
+<nav class="small mb-1"><a href="{% url 'motor:panel' %}?periodo={{ c.periodo.pk }}">Motor</a> › Corrida #{{ c.pk }}</nav>
+<h1 class="h4">Corrida #{{ c.pk }} · {{ c.periodo }} {% if c.vigente %}<span class="badge bg-success">vigente</span>{% endif %}</h1>
+<div class="row g-3 mb-3">
+<div class="col-md-3"><div class="tarjeta kpi"><div class="etiqueta">Costo del periodo (entrada)</div><div class="valor">{{ c.resumen.total_entrada|pesos }}</div></div></div>
+<div class="col-md-3"><div class="tarjeta kpi"><div class="etiqueta">Costo en centros finales</div><div class="valor">{{ c.resumen.total_finales|pesos }}</div></div></div>
+<div class="col-md-3"><div class="tarjeta kpi"><div class="etiqueta">Pendiente de asignación</div><div class="valor {% if c.resumen.pendiente_asignacion != '0.00' %}text-danger{% endif %}">{{ c.resumen.pendiente_asignacion|pesos }}</div></div></div>
+<div class="col-md-3"><div class="tarjeta kpi"><div class="etiqueta">Conservación del costo</div>
+<div class="valor {% if c.resumen.conservacion_ok %}text-success{% else %}text-danger{% endif %}">{% if c.resumen.conservacion_ok %}Cuadra{% else %}Diferencia {{ c.resumen.diferencia|pesos:2 }}{% endif %}</div>
+<div class="small text-muted">entrada = finales + pendientes</div></div></div>
+</div>
+<div class="row g-3">
+<div class="col-lg-5"><div class="tarjeta">
+<h2 class="h6">Valor movido por distribución</h2>
+<table class="table table-sm"><tbody>{% for k, v in c.resumen.valor_por_distribucion.items %}<tr><td>{{ k }}ª distribución</td><td class="num">{{ v|pesos }}</td>
+<td class="num small text-muted">{{ c.resumen.filas_por_distribucion|get:k|numero }} asignaciones</td></tr>{% endfor %}
+<tr><td>Costeo CUPS</td><td class="num">{{ c.resumen.total_costo_cups|pesos }}</td><td class="num small text-muted">{{ c.resumen.cups_costeados }} CUPS·centro</td></tr>
+<tr><td>Finales sin producción</td><td class="num">{{ c.resumen.finales_sin_produccion|pesos }}</td><td class="small text-muted">fuente: {{ c.resumen.fuente_produccion }}</td></tr></tbody></table>
+<div class="d-flex gap-2 flex-wrap">
+<a class="btn btn-sm btn-outline-primary" href="{% url 'motor:asignaciones' c.pk %}">Asignaciones (tasas)</a>
+<a class="btn btn-sm btn-outline-primary" href="{% url 'motor:matriz' %}?periodo={{ c.periodo.pk }}">Matrices</a>
+<a class="btn btn-sm btn-outline-primary" href="{% url 'motor:cups' %}?periodo={{ c.periodo.pk }}">Costo CUPS</a></div>
+{% if c.resumen.conciliaciones %}<h2 class="h6 mt-3">Conciliación soportes de área vs. estado financiero</h2>
+<table class="table table-sm"><thead><tr><th>Recurso</th><th class="num">Estado financiero</th><th class="num">Soportes</th><th class="num">Diferencia prorrateada</th></tr></thead><tbody>
+{% for x in c.resumen.conciliaciones %}<tr><td>{{ x.recurso }}</td><td class="num">{{ x.estado_financiero|pesos }}</td><td class="num">{{ x.soportes_area|pesos }}</td>
+<td class="num {% if x.diferencia != '0' and x.diferencia != '0.00' %}text-warning{% endif %}">{{ x.diferencia|pesos }}</td></tr>{% endfor %}</tbody></table>{% endif %}
+{% if c.resumen.advertencias %}<h2 class="h6 mt-3">Advertencias</h2><ul class="small">{% for a in c.resumen.advertencias %}<li>{{ a }}</li>{% endfor %}</ul>{% endif %}
+<p class="small text-muted">Huella de parámetros: <code>{{ c.huella_parametros|truncatechars:20 }}</code> · {{ c.resumen.segundos }} s · {{ c.usuario|default:"" }}</p>
+</div></div>
+<div class="col-lg-7"><div class="tarjeta"><h2 class="h6">Pendientes ({{ n_pendientes }})</h2>
+<div class="table-responsive"><table class="table table-sm table-abc"><thead><tr><th>Dist.</th><th>Recurso</th><th>Centro</th><th>Origen</th><th class="num">Valor</th><th>Motivo</th></tr></thead><tbody>
+{% for p in pendientes %}<tr><td>{% if p.distribucion == 5 %}CUPS{% else %}{{ p.distribucion }}ª{% endif %}</td><td>{{ p.recurso.codigo|default:"" }}</td><td>{{ p.centro.codigo|default:"" }}</td>
+<td class="small">{% if p.movimiento %}{{ p.movimiento.carga.nombre_original|truncatechars:24 }} f.{{ p.movimiento.fila }}{% endif %}</td>
+<td class="num">{{ p.valor|pesos }}</td><td style="white-space:normal">{{ p.motivo }}</td></tr>
+{% empty %}<tr><td colspan="6" class="text-muted">Sin pendientes: todo el costo llegó a centros finales.</td></tr>{% endfor %}</tbody></table></div></div></div>
+</div>
+{% endblock %}
