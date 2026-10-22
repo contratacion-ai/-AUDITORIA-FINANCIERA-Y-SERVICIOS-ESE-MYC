@@ -15,17 +15,22 @@
 param(
     [string]$Destino = "C:\CostosABC",
     [int]$Puerto = 8000,
-    [switch]$SinPreguntas
+    [switch]$SinPreguntas,
+    # Respuestas que entrega el instalador gráfico (CostosABC-Setup.exe); vacías = preguntar en consola.
+    [string]$Codigo = "", [string]$Nombre = "", [string]$Nit = "", [string]$Municipio = "",
+    [string]$Usuario = "", [string]$Https = "", [string]$Demo = "", [string]$Hosts = ""
 )
 
 $ErrorActionPreference = "Stop"
+$env:PYTHONUTF8 = "1"   # salida de Python en UTF-8 aunque la consola use otra página de códigos
 $NombreTarea = "CostosABC-Servidor"
 $NombreRespaldo = "CostosABC-Respaldo"
 $Origen = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 
 function Paso($texto) { Write-Host "`n==> $texto" -ForegroundColor Cyan }
 function Ok($texto) { Write-Host "    $texto" -ForegroundColor Green }
-function Preguntar($texto, $defecto) {
+function Preguntar($texto, $defecto, $valor = "") {
+    if ($valor) { return $valor }
     if ($SinPreguntas) { return $defecto }
     $r = Read-Host "$texto [$defecto]"
     if ([string]::IsNullOrWhiteSpace($r)) { return $defecto } else { return $r.Trim() }
@@ -39,6 +44,10 @@ if (-not $esAdmin) {
     Start-Process powershell -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" -Destino `"$Destino`" -Puerto $Puerto"
     exit
 }
+
+New-Item -ItemType Directory -Force -Path "$Destino\datos\logs" | Out-Null
+Start-Transcript -Path "$Destino\datos\logs\instalacion.log" -Append | Out-Null
+trap { Write-Host "ERROR: $_" -ForegroundColor Red; Stop-Transcript | Out-Null; exit 1 }
 
 Write-Host "=============================================================" -ForegroundColor Blue
 Write-Host "  Instalador · Herramienta de costos ABC para instituciones de salud" -ForegroundColor Blue
@@ -60,7 +69,9 @@ function Buscar-Python {
     }
     return $null
 }
-$Python = Buscar-Python
+# El instalador .exe trae Python 3.12 portátil con las dependencias ya instaladas en la carpeta "python".
+$Incluido = Test-Path (Join-Path $Origen "python\python.exe")
+$Python = if ($Incluido) { Join-Path $Origen "python\python.exe" } else { Buscar-Python }
 if (-not $Python) {
     Write-Host "    No se encontró Python compatible. Intentando instalar Python 3.12 con winget..." -ForegroundColor Yellow
     try {
@@ -89,6 +100,10 @@ Ok "Archivos copiados"
 
 # --- 3. Entorno virtual y dependencias -----------------------------------------------
 Paso "Instalando dependencias"
+if ($Incluido) {
+    $Py = "$Destino\python\python.exe"
+    Ok "Python y dependencias incluidos en el instalador"
+} else {
 if (-not (Test-Path "$Destino\.venv\Scripts\python.exe")) { & $Python -m venv "$Destino\.venv" }
 $Py = "$Destino\.venv\Scripts\python.exe"
 if (Test-Path "$Destino\wheels") {
@@ -99,6 +114,7 @@ if (Test-Path "$Destino\wheels") {
 }
 if ($LASTEXITCODE -ne 0) { throw "No se pudieron instalar las dependencias." }
 Ok "Dependencias instaladas"
+}
 
 # --- 4. Configuración (.env) -----------------------------------------------------------
 Paso "Configuración"
@@ -109,8 +125,8 @@ if (Test-Path $Env) {
     $equipo = $env:COMPUTERNAME.ToLower()
     $ips = (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -notlike "169.*" } |
             Select-Object -ExpandProperty IPAddress) -join ","
-    $hosts = Preguntar "Nombres/IP con los que se accederá (separados por coma)" "localhost,127.0.0.1,$equipo,$ips"
-    $https = Preguntar "¿Se publicará con certificado HTTPS (proxy IIS/nginx)? (S/N)" "N"
+    $hosts = Preguntar "Nombres/IP con los que se accederá (separados por coma)" "localhost,127.0.0.1,$equipo,$ips" $Hosts
+    $https = Preguntar "¿Se publicará con certificado HTTPS (proxy IIS/nginx)? (S/N)" "N" $Https
     $usarHttps = if ($https -match "^[sS]") { "1" } else { "0" }
     $db = Preguntar "URL de PostgreSQL (vacío = base SQLite local)" ""
     $secret = & $Py -c "import secrets;print(secrets.token_urlsafe(50))"
@@ -132,11 +148,12 @@ if (Test-Path $Env) {
 
 # --- 5. Base de datos, administrador e institución ----------------------------------
 Paso "Base de datos, administrador e institución"
-$codigo = Preguntar "Código de la institución (REPS o interno)" "INST-001"
-$nombre = Preguntar "Nombre de la institución" "ESE HOSPITAL"
-$nit = Preguntar "NIT" ""
-$municipio = Preguntar "Municipio" ""
-$usuario = Preguntar "Usuario administrador" "admin"
+$codigo = Preguntar "Código de la institución (REPS o interno)" "INST-001" $Codigo
+$nombre = Preguntar "Nombre de la institución" "ESE HOSPITAL" $Nombre
+$nit = Preguntar "NIT" "" $Nit
+$municipio = Preguntar "Municipio" "" $Municipio
+$usuario = Preguntar "Usuario administrador" "admin" $Usuario
+if (-not $env:ABC_ADMIN_PASSWORD -and $SinPreguntas) { throw "Falta la contraseña del administrador (ABC_ADMIN_PASSWORD)." }
 if (-not $env:ABC_ADMIN_PASSWORD) {
     do {
         $s1 = Read-Host "Contraseña del administrador (mínimo 10 caracteres)" -AsSecureString
@@ -147,7 +164,7 @@ if (-not $env:ABC_ADMIN_PASSWORD) {
     } while ($c1 -ne $c2)
     $env:ABC_ADMIN_PASSWORD = $c1
 }
-$demo = Preguntar "¿Crear también la institución de demostración con datos sintéticos? (S/N)" "N"
+$demo = Preguntar "¿Crear también la institución de demostración con datos sintéticos? (S/N)" "N" $Demo
 $args_instalar = @("manage.py", "instalar", "--institucion-codigo", $codigo, "--institucion-nombre", $nombre, "--nit", $nit,
                    "--municipio", $municipio, "--usuario", $usuario)
 if ($demo -match "^[sS]") { $args_instalar += "--demo" }
@@ -162,8 +179,8 @@ if ($rc -ne 0) { throw "La configuración inicial falló (ver mensajes anteriore
 Paso "Registrando el servidor para que inicie con Windows"
 $bat = "$Destino\iniciar_servidor.bat"
 Set-Content -Path $bat -Encoding ASCII -Value @(
-    "@echo off", "cd /d `"$Destino`"",
-    "`"$Py`" manage.py servir --puerto $Puerto >> `"$Destino\datos\logs\servidor.log`" 2>&1"
+    "@echo off", "set PYTHONUTF8=1", "cd /d `"$Destino`"",
+    "`"$Py`" manage.py servir --puerto $Puerto < NUL >> `"$Destino\datos\logs\servidor.log`" 2>&1"
 )
 $respaldo = "$Destino\respaldar.bat"
 Set-Content -Path $respaldo -Encoding ASCII -Value @(
@@ -207,4 +224,6 @@ Write-Host "  Datos:       $Destino\datos   (respaldos diarios en datos\respaldo
 Write-Host "  Plantilla:   $Destino\plantillas\Plantilla_Carga_Mensual_ABC.xlsx"
 Write-Host "  Manual:      $Destino\docs\MANUAL_USUARIO.md"
 Write-Host "=============================================================" -ForegroundColor Green
+Stop-Transcript | Out-Null
 if (-not $SinPreguntas) { Start-Process $url }
+exit 0

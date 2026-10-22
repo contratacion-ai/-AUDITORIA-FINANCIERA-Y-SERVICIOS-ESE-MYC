@@ -4,23 +4,27 @@ HERRAMIENTA DE COSTOS ABC PARA INSTITUCIONES DE SALUD - INSTALACION
 Este paquete incluye la aplicacion y sus dependencias: no necesita internet para
 instalarse (salvo Python en Windows, si el servidor no lo tiene).
 
-WINDOWS (Windows 10/11 o Windows Server 2016 o posterior)
-  1. Descomprima el ZIP (por ejemplo en el Escritorio).
-  2. Abra la carpeta CostosABC\instalador\windows y haga doble clic en INSTALAR.bat.
-     Acepte el permiso de administrador.
-  3. Responda las preguntas: nombres/IP del servidor, HTTPS (S/N), base de datos
-     (Enter = SQLite local), codigo y nombre de la institucion, usuario y contrasena
-     del administrador (minimo 10 caracteres).
-  4. Al terminar se abre el navegador en http://localhost:8000/
+WINDOWS (Windows 10/11 o Windows Server 2016 o posterior, 64 bits)
+  OPCION RECOMENDADA: CostosABC-Setup-<version>.exe
+  1. Doble clic en CostosABC-Setup-<version>.exe y acepte el permiso de administrador.
+  2. Siguiente > Acepto > Siguiente (carpeta C:\CostosABC).
+  3. Complete el formulario: codigo y nombre de la institucion, NIT, municipio,
+     usuario y contrasena del administrador (minimo 10 caracteres) y puerto (8000).
+  4. Instalar. Al terminar marque "Abrir Costos ABC en el navegador".
      Desde otros equipos de la red: http://NOMBRE-O-IP-DEL-SERVIDOR:8000/
+  No necesita internet ni tener Python: el instalador trae todo.
 
   Queda instalado en C:\CostosABC:
    - Inicia solo con Windows (tarea programada "CostosABC-Servidor").
    - Respaldo diario 23:00 en C:\CostosABC\datos\respaldos (30 dias).
-   - Registro del servidor: C:\CostosABC\datos\logs\servidor.log
-  Si no hay Python, el instalador intenta instalarlo con winget; si no puede,
-  instale Python 3.12 (64 bits) de python.org marcando "Add python.exe to PATH".
-  Desinstalar: instalador\windows\DESINSTALAR.bat (conserva los datos).
+   - Accesos en el menu Inicio > Costos ABC (aplicacion, plantilla, respaldar ahora,
+     registros, desinstalar) y en el Escritorio.
+   - Si algo falla: C:\CostosABC\datos\logs\instalacion.log
+  Desinstalar: Panel de control > Programas, o menu Inicio > Costos ABC > Desinstalar
+  (pregunta si conserva la base de datos).
+
+  ALTERNATIVA (paquete ZIP con scripts): descomprima y ejecute
+  CostosABC\instalador\windows\INSTALAR.bat
 
 LINUX (Ubuntu 22.04+, Debian 12+, RHEL 9+)
   unzip CostosABC-*.zip && cd CostosABC
@@ -29,8 +33,9 @@ LINUX (Ubuntu 22.04+, Debian 12+, RHEL 9+)
   Queda en /opt/costos-abc, servicio "costos-abc", respaldo diario en /opt/costos-abc/datos/respaldos.
 
 ACTUALIZAR A UNA NUEVA VERSION
-  Ejecute el instalador de la nueva version sobre la misma carpeta: conserva .env,
-  la base de datos y los archivos; aplica las migraciones y reinicia el servicio.
+  Ejecute el nuevo CostosABC-Setup.exe (o el instalador de la nueva version) sobre la
+  misma carpeta: conserva .env, la base de datos y los archivos; no vuelve a pedir el
+  formulario, aplica las migraciones y reinicia el servicio.
 
 IMPORTANTE
   - Guarde una copia segura del archivo .env: contiene la clave que seudonimiza a los

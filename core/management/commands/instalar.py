@@ -28,9 +28,9 @@ class Command(BaseCommand):
     def handle(self, *args, **o):
         clave = os.environ.get(o["password_env"], "")
         call_command("migrate", interactive=False, verbosity=0)
-        self.stdout.write("✔ Base de datos lista")
+        self.stdout.write("[OK] Base de datos lista")
         call_command("collectstatic", interactive=False, verbosity=0)
-        self.stdout.write("✔ Archivos estáticos publicados")
+        self.stdout.write("[OK] Archivos estáticos publicados")
         User = get_user_model()
         with transaction.atomic():
             usuario = User.objects.filter(username=o["usuario"]).first()
@@ -44,22 +44,22 @@ class Command(BaseCommand):
                 except Exception as exc:
                     raise CommandError("Contraseña no válida: " + " ".join(getattr(exc, "messages", [str(exc)]))) from exc
                 usuario = User.objects.create_superuser(o["usuario"], o["correo"], clave)
-                self.stdout.write(f"✔ Administrador {usuario.username} creado")
+                self.stdout.write(f"[OK] Administrador {usuario.username} creado")
             else:
-                self.stdout.write(f"• El usuario {usuario.username} ya existía (no se cambió su contraseña)")
+                self.stdout.write(f"[--] El usuario {usuario.username} ya existía (no se cambió su contraseña)")
             inst, creada = Institucion.objects.get_or_create(codigo=o["institucion_codigo"], defaults={
                 "nombre": o["institucion_nombre"], "nit": o["nit"], "municipio": o["municipio"],
                 "departamento": o["departamento"]})
             if creada:
                 cargar_catalogo_base(inst, usuario=usuario)
-                self.stdout.write(f"✔ Institución {inst.nombre} creada con el catálogo base Res. 002/2014")
+                self.stdout.write(f"[OK] Institución {inst.nombre} creada con el catálogo base Res. 002/2014")
             else:
-                self.stdout.write(f"• La institución {inst.nombre} ya existía")
+                self.stdout.write(f"[--] La institución {inst.nombre} ya existía")
             Membresia.objects.update_or_create(usuario=usuario, institucion=inst, defaults={"rol": Rol.ADMIN, "activo": True})
         if o["demo"]:
             from core.demo import crear_demo
 
             demo, _ = crear_demo(usuario)
             Membresia.objects.update_or_create(usuario=usuario, institucion=demo, defaults={"rol": Rol.ADMIN, "activo": True})
-            self.stdout.write("✔ Institución de demostración creada")
+            self.stdout.write("[OK] Institución de demostración creada")
         self.stdout.write(self.style.SUCCESS("Instalación completada."))

@@ -38,14 +38,17 @@ costeo por **CUPS** y su cruce con **RIPS**, **facturación por ámbito** y **no
 
 ## Instalador
 
-Paquete para instalar sin internet (incluye dependencias para Windows y Linux):
-
 ```bash
-bash instalador/construir_paquete.sh      # genera dist/CostosABC-<versión>.zip
+bash instalador/construir_instalador_windows.sh   # dist/CostosABC-Setup-<versión>.exe (requiere makensis)
+bash instalador/construir_paquete.sh              # dist/CostosABC-<versión>.zip (scripts + dependencias)
 ```
 
-* **Windows**: descomprimir y doble clic en `instalador\windows\INSTALAR.bat`. Instala en `C:\CostosABC`, arranca con
-  Windows (tarea programada), abre el puerto en el firewall y programa un respaldo diario.
+* **Windows — `CostosABC-Setup.exe`** (recomendado): asistente gráfico en español que incluye Python 3.12 portátil y
+  todas las dependencias (no requiere internet ni Python). Pide los datos de la institución y del administrador, instala
+  en `C:\CostosABC`, registra el arranque con Windows (tarea programada), abre el puerto en el firewall, programa el
+  respaldo diario, crea accesos directos y queda en *Programas y características*. La configuración la hace
+  `instalador/windows/configurar.py` con el Python incluido (sin depender de PowerShell) y verifica que la aplicación responda.
+* **Windows — ZIP**: descomprimir y doble clic en `instalador\windows\INSTALAR.bat` (PowerShell).
 * **Linux**: `sudo bash instalador/linux/instalar.sh` (servicio systemd) o `--docker` (Docker + PostgreSQL).
 
 Instrucciones para el usuario final: `instalador/LEAME_INSTALACION.txt`. Volver a ejecutar el instalador actualiza la

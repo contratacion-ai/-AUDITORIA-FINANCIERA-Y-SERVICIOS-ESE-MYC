@@ -17,6 +17,9 @@ class Command(BaseCommand):
 
         from abc_salud.wsgi import application
 
+        datos = settings.BASE_DIR / "datos"
+        if datos.is_dir():  # el instalador de Windows usa este PID para detener el servidor al actualizar
+            (datos / "servidor.pid").write_text(str(os.getpid()))
         self.stdout.write(f"Costos ABC en http://{o['host']}:{o['puerto']} (DEBUG={settings.DEBUG})")
         opciones = {"host": o["host"], "port": o["puerto"], "threads": o["hilos"],
                     "max_request_body_size": (settings.CARGA_MAX_MB + 1) * 1024 * 1024}
