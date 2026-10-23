@@ -9,8 +9,25 @@ Cuando hay varias reglas aplicables, gana la más particular (N4 periodo &gt; N3
 </div>
 {% if vacio and puede.parametrizar %}
 <div class="alert alert-info d-flex justify-content-between align-items-center">
-  <span>La institución no tiene catálogo. Puede partir del catálogo base de la Res. DDC-000002/2014 (4 elementos, 29 recursos, 18 unidades de negocio, 179 centros de costos, inductores y reglas del Anexo 3) y ajustarlo.</span>
+  <span>La institución no tiene catálogo. Puede partir del catálogo base de la Res. DDC-000002/2014 (4 elementos, 29 recursos, 18 unidades de negocio, 184 centros de costos, inductores y reglas del Anexo 3) y ajustarlo.</span>
   <form method="post">{% csrf_token %}<button class="btn btn-primary btn-sm">Cargar catálogo base</button></form>
+</div>{% endif %}
+{% if not vacio and puede.parametrizar %}
+<div class="tarjeta mb-3">
+  <h2 class="h6 mb-1">Homologación de centros de costos del estado financiero (maestro CECO E.F. → resolución)</h2>
+  <p class="small text-muted mb-2">Crea las sedes y un centro por llave CECO|SEDE (p. ej. A10|HSLA) para costear cada servicio por IPS,
+  homologa los códigos del software contable (solo los CECO en estado ACTIVO), copia las reglas de los centros base y carga las cuentas
+  institucionales → recurso (cuentas 6310 de costo de servicios de salud). Puede volver a aplicarlo cuando se actualice el maestro.</p>
+  <form method="post" enctype="multipart/form-data" class="row g-2 align-items-end">{% csrf_token %}
+    <input type="hidden" name="accion" value="maestro_ceco">
+    <div class="col-md-5"><label class="form-label small mb-0">Maestro (.xlsx, opcional: si no se sube se usa el incluido)</label>
+      <input type="file" name="maestro" accept=".xlsx,.xlsm" class="form-control form-control-sm"></div>
+    <div class="col-auto form-check ms-2"><input class="form-check-input" type="checkbox" name="cuentas" value="1" id="chk-cuentas" checked>
+      <label class="form-check-label small" for="chk-cuentas">Cargar cuentas institucionales → recurso</label></div>
+    <div class="col-auto form-check ms-2"><input class="form-check-input" type="checkbox" name="desactivar_base" value="1" id="chk-base" checked>
+      <label class="form-check-label small" for="chk-base">Desactivar centros base sin sede</label></div>
+    <div class="col-auto"><button class="btn btn-sm btn-primary">Aplicar maestro de homologación</button></div>
+  </form>
 </div>{% endif %}
 <div class="row g-3">
 {% for g in grupos %}

@@ -153,6 +153,11 @@ la diferencia se registra **RECHAZADA – sin centro de costo** con alerta *CUEN
 RESUMEN compara, por clase, el total del reporte con lo leído (*Control contra los totales del reporte de
 origen*: debe decir CUADRA). Los textos que el software exporta con tildes dañadas («CAPITACIÃ“N») se reparan.
 
+**En la herramienta ABC (web)** el mismo reporte se sube directamente en *Cargas → Nueva carga → ESTADO_FINANCIERO*,
+después de aplicar el maestro en *Parametrización* (sedes, centros por llave CECO|SEDE, homologación y cuentas). La carga
+valida que el periodo del reporte coincida con el elegido, excluye los ingresos (clase 4) y deja las cuentas sin CECO para
+la 1.ª distribución. Con el reporte de julio de 2026: 3.037 movimientos, 0 errores, 5.326.033.841,45 = clases 5 + 6.
+
 ### 5.2 Otros archivos
 
 Se reconocen encabezados distintos para el mismo campo (sin importar mayúsculas, tildes o signos), por

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 
 from django import forms
+from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
@@ -20,6 +21,7 @@ from core.models import Periodo
 
 from . import models as M
 from .catalogo_base import cargar_catalogo_base
+from .importar_maestro import ErrorImportacion, importar_maestro
 
 
 @dataclass
@@ -167,8 +169,33 @@ class ParametrizacionView(InstitucionMixin, View):
     def post(self, request):
         if not self.puede(permisos.PARAMETRIZAR):
             raise PermissionDenied
+        if request.POST.get("accion") == "maestro_ceco":
+            return self._importar_maestro(request)
         resultado = cargar_catalogo_base(self.institucion, usuario=request.user)
         messages.success(request, "Catálogo base Res. 002/2014 cargado: " + ", ".join(f"{k} {v}" for k, v in resultado.items()))
+        return redirect("modelo:parametrizacion")
+
+    def _importar_maestro(self, request):
+        archivo = request.FILES.get("maestro")
+        kwargs = {"usuario": request.user, "desactivar_base": bool(request.POST.get("desactivar_base"))}
+        if archivo is not None:
+            if not archivo.name.lower().endswith((".xlsx", ".xlsm")) or archivo.size > settings.CARGA_MAX_MB * 1024 * 1024:
+                messages.error(request, f"Suba el maestro como .xlsx de hasta {settings.CARGA_MAX_MB} MB.")
+                return redirect("modelo:parametrizacion")
+            kwargs.update(contenido=archivo.read(), nombre=archivo.name)
+        if not request.POST.get("cuentas"):
+            kwargs["cuentas"] = None
+        try:
+            r = importar_maestro(self.institucion, **kwargs)
+        except ErrorImportacion as exc:
+            messages.error(request, str(exc))
+            return redirect("modelo:parametrizacion")
+        messages.success(request, (
+            f"Maestro {r['maestro']} aplicado: {r['llaves']} centros por sede ({r.get('centros_por_sede_creados', 0)} nuevos), "
+            f"{r.get('sedes_creadas', 0)} sedes nuevas, {r.get('homologaciones_creadas', 0) + r.get('homologaciones_actualizadas', 0)} "
+            f"homologaciones, {r.get('reglas_copiadas', 0)} reglas copiadas, {r.get('cuentas_creadas', 0)} cuentas institucionales, "
+            f"{r.get('centros_base_desactivados', 0)} centros base desactivados. Los {r['ceco_no_activos_sin_homologar']} CECO en "
+            "VERIFICAR / NO APLICA / EXCLUIR no se homologan."))
         return redirect("modelo:parametrizacion")
 
 

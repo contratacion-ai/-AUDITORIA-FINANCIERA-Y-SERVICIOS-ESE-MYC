@@ -877,6 +877,11 @@
    "unidad_negocio": "UN07"
   },
   {
+   "codigo": "J17",
+   "nombre": "CENTROS Y PUESTOS DE SALUD",
+   "unidad_negocio": "UN07"
+  },
+  {
    "codigo": "K07",
    "nombre": "GESTIÓN DE LA VIGILANCIA EN SALUD",
    "unidad_negocio": "UN08"
@@ -964,6 +969,11 @@
   {
    "codigo": "K24",
    "nombre": "INTERVENCIÓN DE PERSONAS EN SITUACIÓN DESPLAZAMIENTO EN LOS TERRITORIOS",
+   "unidad_negocio": "UN08"
+  },
+  {
+   "codigo": "K25",
+   "nombre": "SALUD PUBLICA",
    "unidad_negocio": "UN08"
   },
   {
@@ -1147,6 +1157,11 @@
    "unidad_negocio": "US03"
   },
   {
+   "codigo": "Q05",
+   "nombre": "ESTADISTICA",
+   "unidad_negocio": "US03"
+  },
+  {
    "codigo": "R01",
    "nombre": "COORDINACIÓN ADMINISTRATIVA",
    "unidad_negocio": "UE01"
@@ -1272,6 +1287,11 @@
    "unidad_negocio": "UE03"
   },
   {
+   "codigo": "T11",
+   "nombre": "CONTROL INTERNO",
+   "unidad_negocio": "UE03"
+  },
+  {
    "codigo": "U01",
    "nombre": "COORDINACION MÉDICA",
    "unidad_negocio": "UE04"
@@ -1289,6 +1309,11 @@
   {
    "codigo": "U04",
    "nombre": "INVESTIGACIÓN CIENTÍFICA",
+   "unidad_negocio": "UE04"
+  },
+  {
+   "codigo": "U05",
+   "nombre": "COORDINACION EN SALUD",
    "unidad_negocio": "UE04"
   }
  ],
@@ -1847,6 +1872,47 @@
    "prefijo": "5344",
    "recurso": "R28",
    "descripcion": "Cuadro 2 - amortizaciones (verificar contra el plan de cuentas institucional)"
+  },
+  {
+   "prefijo": "4",
+   "recurso": "",
+   "descripcion": "Ingresos: no son costo del modelo ABC (se excluyen al cargar el estado de resultados)",
+   "excluir": true
+  },
+  {
+   "prefijo": "5103",
+   "recurso": "R1",
+   "descripcion": "Contribuciones efectivas (seguridad social, caja, ARL, pensiones) del personal de planta"
+  },
+  {
+   "prefijo": "5104",
+   "recurso": "R1",
+   "descripcion": "Aportes sobre la nómina (ICBF, SENA) del personal de planta"
+  },
+  {
+   "prefijo": "5107",
+   "recurso": "R1",
+   "descripcion": "Prestaciones sociales (vacaciones, cesantías, primas) del personal de planta"
+  },
+  {
+   "prefijo": "5108",
+   "recurso": "R1",
+   "descripcion": "Gastos de personal diversos (dotación, disponibilidad, rodamiento) del personal de planta"
+  },
+  {
+   "prefijo": "5802",
+   "recurso": "R25",
+   "descripcion": "Comisiones y servicios financieros"
+  },
+  {
+   "prefijo": "5804",
+   "recurso": "R25",
+   "descripcion": "Otros gastos financieros (gravámenes)"
+  },
+  {
+   "prefijo": "5890",
+   "recurso": "R24",
+   "descripcion": "Otros gastos diversos"
   }
  ],
  "ambitos": [

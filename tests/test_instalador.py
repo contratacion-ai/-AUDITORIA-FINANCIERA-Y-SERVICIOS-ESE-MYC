@@ -18,7 +18,7 @@ def instalado(db, settings, tmp_path):
 def test_instalar_sin_contrasena_e_idempotente(instalado):
     call_command("instalar", "--institucion-codigo", "INST-9", "--institucion-nombre", "ESE PRUEBA", "--usuario", "jefe")
     inst = Institucion.objects.get(codigo="INST-9")
-    assert CentroCosto.objects.filter(institucion=inst).count() == 179
+    assert CentroCosto.objects.filter(institucion=inst).count() == 184
     m = Membresia.objects.get(institucion=inst)
     assert m.rol == "ADMIN" and m.usuario.is_superuser and not m.usuario.has_usable_password()
     assert primer_acceso.pendiente() == m.usuario

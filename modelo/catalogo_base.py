@@ -70,7 +70,8 @@ def cargar_catalogo_base(institucion, ruta=None, usuario=None):
                 clases_destino=r["clases_destino"], misma_sede=r.get("misma_sede", False), observacion=r.get("observacion", ""))
     for c in datos["cuentas_recurso"]:
         CuentaRecurso.objects.get_or_create(institucion=inst, prefijo=c["prefijo"],
-                                            defaults={"recurso": recursos[c["recurso"]], "descripcion": c["descripcion"][:200]})
+                                            defaults={"recurso": recursos.get(c.get("recurso") or ""),
+                                                      "excluir": c.get("excluir", False), "descripcion": c["descripcion"][:200]})
     for a in datos["ambitos"]:
         ambito, _ = Ambito.objects.get_or_create(institucion=inst, codigo=a["codigo"], defaults={"nombre": a["nombre"]})
         for h in a.get("homologaciones", []):

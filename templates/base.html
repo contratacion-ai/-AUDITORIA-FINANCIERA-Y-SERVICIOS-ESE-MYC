@@ -45,6 +45,7 @@
             <li><a class="dropdown-item" href="{% url 'motor:matriz' %}">Matrices de distribución</a></li>
             <li><a class="dropdown-item" href="{% url 'motor:cups' %}">Costo por CUPS</a></li>
           </ul></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'analisis:consulta' %}">Consulta de costos</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'analisis:cruces' %}">Cruces RIPS · EPS</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'analisis:informe' %}">Informe</a></li>
         {% if puede.ver_bitacora %}<li class="nav-item"><a class="nav-link" href="{% url 'core:bitacora' %}">Bitácora</a></li>{% endif %}

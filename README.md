@@ -20,6 +20,8 @@ costeo por **CUPS** y su cruce con **RIPS**, **facturación por ámbito** y **no
 | Notas técnicas EPS: costo vs. tarifa, cápita/PGP | Cruces |
 | Cruce RIPS × CUPS × centros × costos con inconsistencias | Cruces → Inconsistencias |
 | Tablero con filtros y comparación de periodos | Tablero |
+| Consulta de costos por CUPS, servicio, centro de costos y recurso (filtros por sede/IPS, Excel) | Consulta de costos |
+| Estado de resultados del software contable (reporte CTRP) cargado directo y maestro de homologación CECO | Cargas · Parametrización |
 | Informe con la estructura del informe de referencia (HTML imprimible a PDF y Excel) | Informe |
 | Roles, aislamiento por institución, bitácora | [docs/SEGURIDAD_Y_CUMPLIMIENTO.md](docs/SEGURIDAD_Y_CUMPLIMIENTO.md) |
 | Modelo entidad-relación | [docs/MODELO_DATOS.md](docs/MODELO_DATOS.md) |
@@ -109,7 +111,7 @@ Ubique un proxy HTTPS delante del puerto 8000. Respalde la base de datos y el vo
 ## Pruebas
 
 ```bash
-pytest            # 198 pruebas: aplicación ABC (limpieza, cargas, motor, cruces, informe, roles, instalador) y homologación CECO
+pytest            # 205 pruebas: aplicación ABC (limpieza, cargas, motor, cruces, informe, roles, instalador) y homologación CECO
 ```
 
 ## Estructura

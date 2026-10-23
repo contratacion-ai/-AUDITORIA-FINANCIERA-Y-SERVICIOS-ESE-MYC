@@ -10,9 +10,10 @@ from cargas.models import Facturacion
 from core import permisos
 from core.auditoria import foto, registrar
 from core.mixins import InstitucionMixin
-from modelo.models import Ambito, CentroCosto, Clase, ConfiguracionInforme, Eps, NotaTecnicaItem, UnidadNegocio
+from modelo.models import Ambito, CentroCosto, Clase, ConfiguracionInforme, Eps, NotaTecnicaItem, Sede, UnidadNegocio
 from motor.models import CostoCups
 
+from . import consulta as C
 from . import consultas as Q
 from . import cruces as X
 from .exportar import informe_excel, tabla_excel
@@ -217,3 +218,72 @@ class ConfigInformeView(InstitucionMixin, View):
             messages.success(request, "Configuración del informe guardada.")
             return redirect("analisis:informe")
         return render(request, "analisis/config_informe.html", {"form": form})
+
+
+class ConsultaCostosView(InstitucionMixin, View):
+    """Consulta de costos de la corrida vigente por CUPS, servicio, centro de costos y recurso, con filtros y Excel."""
+
+    def get(self, request):
+        r = request.GET
+        periodo = self.periodo_seleccionado()
+        corrida = Q.corrida_vigente(periodo)
+        vista = r.get("vista") if r.get("vista") in C.VISTAS else "cups"
+        inst = self.institucion
+        f = {
+            "sede": Sede.objects.de(inst).filter(pk=r.get("sede")).first() if r.get("sede") else None,
+            "unidad": UnidadNegocio.objects.de(inst).filter(pk=r.get("unidad")).first() if r.get("unidad") else None,
+            "centro": CentroCosto.objects.de(inst).filter(pk=r.get("centro")).first() if r.get("centro") else None,
+            "clase": r.get("clase") if r.get("clase") in Clase.values else "",
+            "q": r.get("q", "").strip()[:60],
+        }
+        detalle = r.get("detalle") == "1"
+        ctx = {"periodos": self.periodos(), "periodo": periodo, "corrida": corrida, "vista": vista, "vistas": C.VISTAS,
+               "sedes": Sede.objects.de(inst), "unidades": UnidadNegocio.objects.de(inst), "clases": Clase.choices,
+               "centros": CentroCosto.objects.de(inst).filter(activo=True).order_by("codigo"), "detalle": detalle, **f}
+        sub = f"{inst} · {periodo}" + "".join(f" · {k}: {v}" for k, v in (("Sede", f["sede"]), ("Unidad", f["unidad"]),
+                                                                            ("Centro", f["centro"]), ("Clase", f["clase"]),
+                                                                            ("Texto", f["q"])) if v)
+        if vista == "cups":
+            filas = C.por_cups(inst, corrida, f, detalle)
+            if detalle:
+                columnas = ["CÓDIGO CECO", "CENTRO", "SEDE", "CUPS", "DESCRIPCIÓN", "CANTIDAD", "COSTO TOTAL", "COSTO UNITARIO",
+                            "PERSONAL (CP)", "INSUMOS (IH)", "GENERALES (CG)", "ESTIMACIONES (EC)"]
+                datos = [[x["centro"].codigo, x["centro"].nombre, x["centro"].sede.codigo if x["centro"].sede else "",
+                          x["cups"].codigo, x["cups"].descripcion, x["cantidad"], x["costo_total"], x["costo_unitario"]]
+                         + [x[e] for e in C.ELEMENTOS] for x in filas]
+            else:
+                columnas = ["CUPS", "DESCRIPCIÓN", "N.º CENTROS", "CANTIDAD", "COSTO TOTAL", "COSTO UNITARIO", "PERSONAL (CP)",
+                            "INSUMOS (IH)", "GENERALES (CG)", "ESTIMACIONES (EC)"]
+                datos = [[x["cups"].codigo, x["cups"].descripcion, x["n_centros"], x["cantidad"], x["costo_total"],
+                          x["costo_unitario"]] + [x[e] for e in C.ELEMENTOS] for x in filas]
+            ctx["total"] = sum((x["costo_total"] for x in filas), CERO)
+        elif vista == "centros":
+            filas = C.por_centro(inst, corrida, f)
+            columnas = ["CÓDIGO", "CENTRO", "SEDE", "UNIDAD DE NEGOCIO", "CLASE", "DIRECTO (1ª)", "RECIBIDO ESTRUCTURA (2ª)",
+                        "RECIBIDO SERVICIOS (3ª)", "RECIBIDO INTERMEDIOS (4ª)", "DISTRIBUIDO", "COSTO FINAL", "PRODUCCIÓN",
+                        "COSTO POR UNIDAD"]
+            datos = [[x["centro"].codigo, x["centro"].nombre, x["centro"].sede.codigo if x["centro"].sede else "",
+                      x["centro"].unidad_negocio.nombre, x["clase"], x["directo"], x["recibido_2"], x["recibido_3"], x["recibido_4"],
+                      x["distribuido"], x["final"], x["produccion"], x["costo_unidad"]] for x in filas]
+            ctx["total"] = sum((x["final"] for x in filas), CERO)
+            ctx["total_directo"] = sum((x["directo"] for x in filas), CERO)
+        elif vista == "servicios":
+            filas, sedes = C.por_servicio(inst, corrida, f)
+            ctx["sedes_columnas"] = sedes
+            columnas = ["CÓDIGO", "UNIDAD DE NEGOCIO", "CLASE", "N.º CENTROS", "DIRECTO (1ª)", "COSTO FINAL", "PRODUCCIÓN",
+                        "COSTO POR UNIDAD"] + [f"FINAL {s}" for s in sedes]
+            datos = [[x["unidad"].codigo, x["unidad"].nombre, x["unidad"].clase, x["centros"], x["directo"], x["final"],
+                      x["produccion"], x["costo_unidad"]] + x["valores_sede"] for x in filas]
+            ctx["total"] = sum((x["final"] for x in filas), CERO)
+        else:
+            filas, total = C.por_recurso(inst, corrida, f)
+            columnas = ["ELEMENTO", "RECURSO", "NOMBRE", "COSTO DEL PERIODO (1ª)", "PARTICIPACIÓN %"]
+            datos = [[x["recurso"].elemento.nombre, x["recurso"].codigo, x["recurso"].nombre, x["valor"], x["part"]] for x in filas]
+            ctx["total"] = total
+        if r.get("exportar") and corrida is not None:
+            titulo = f"COSTOS {C.VISTAS[vista].upper()}"[:31]
+            resp = HttpResponse(tabla_excel(titulo, sub, columnas, datos), content_type=XLSX)
+            resp["Content-Disposition"] = f'attachment; filename="consulta_costos_{vista}.xlsx"'
+            return resp
+        ctx["filas"] = filas
+        return render(request, "analisis/consulta.html", ctx)

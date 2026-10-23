@@ -635,10 +635,20 @@ def procesar_carga(*, institucion, usuario, tipo_archivo, contenido, nombre, per
     if repetida:
         raise ErrorCargaArchivo(f"Este archivo ya fue aplicado el {repetida.creado:%Y-%m-%d %H:%M} (carga #{repetida.pk}). "
                                 "Anule esa carga antes de volver a cargarlo.")
+    formato = {}
     try:
-        encabezados, datos, inicio = leer_tabla(contenido, nombre, hoja, plantilla.fila_encabezado if plantilla else 1)
+        encabezados, datos, inicio = leer_tabla(contenido, nombre, hoja, plantilla.fila_encabezado if plantilla else 1,
+                                                meta=formato)
     except ErrorArchivo as exc:
         raise ErrorCargaArchivo(str(exc)) from exc
+    if formato:
+        if tipo_archivo != "ESTADO_FINANCIERO":
+            raise ErrorCargaArchivo("El archivo es el estado de resultados del software contable (reporte CTRP): "
+                                    "cárguelo como ESTADO_FINANCIERO.")
+        reporte = formato.get("periodo", "")
+        if periodo is not None and reporte and reporte != f"{periodo.anio:04d}-{periodo.mes:02d}":
+            raise ErrorCargaArchivo(f"El reporte es del periodo {reporte} y la carga es para {periodo}: elija el periodo correcto.")
+        plantilla = None  # el formato reconocido ya trae las columnas estándar
     indices, errores_estructura = resolver_columnas(encabezados, esq, plantilla)
     if errores_estructura:
         raise ErrorCargaArchivo("Estructura del archivo no válida: " + " ".join(errores_estructura))
@@ -671,6 +681,12 @@ def procesar_carga(*, institucion, usuario, tipo_archivo, contenido, nombre, per
         carga.filas_duplicadas = res.duplicadas
         carga.filas_omitidas = res.omitidas
         carga.valor_total = res.valor_total.quantize(DOS) if aplicar else Decimal(0)
+        if formato:
+            res.resumen["formato"] = formato.get("formato")
+            res.resumen["totales_reporte_por_clase"] = {k: str(Decimal(v) / 100) for k, v in formato.get("totales_clase", {}).items()}
+            for cod, nombre_cta, fila, cent in formato.get("diferencias", []):
+                res.advertencias.append((fila, "CENTRO DE COSTOS", cod, f"La cuenta {cod} {nombre_cta} trae {Decimal(cent) / 100} sin "
+                                                                         "centro de costo: la reparte la 1.ª distribución."))
         carga.resumen = {**res.resumen, "columnas": {k: encabezados[v] for k, v in indices.items() if v < len(encabezados)},
                          "aplicacion_parcial": bool(aplicar and hay_errores)}
         carga.save()
