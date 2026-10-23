@@ -13,7 +13,7 @@ TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 STAGE="$TMP/CostosABC"; mkdir -p "$STAGE"
 
 echo "==> Aplicación"
-git ls-files -z --cached --others --exclude-standard | grep -zv -e '^tests/' -e '^instalador/linux/' | xargs -0 -I{} cp --parents {} "$STAGE"/
+git ls-files -z --cached --others --exclude-standard | grep -zv -e '^tests/' -e '^homologacion_ceco/tests/' -e '^instalador/linux/' | xargs -0 -I{} cp --parents {} "$STAGE"/
 cp instalador/LEAME_INSTALACION.txt "$STAGE/LEAME_INSTALACION.txt"
 echo "$VERSION" > "$STAGE/VERSION"
 

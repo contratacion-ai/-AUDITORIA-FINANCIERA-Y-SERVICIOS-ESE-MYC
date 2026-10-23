@@ -19,8 +19,6 @@ que lo leído cuadre con el total del reporte.
 """
 import re
 
-import pandas as pd
-
 from .normalizar import centavos, clave, cuenta, es_vacio, periodo_en_nombre, texto
 
 COLUMNAS_CTRP = {"OIDCUENTACONTABLE", "CODIGOCUENTACONTABLE", "OIDCUENTAPROCESO", "CODIGOCENTROCOSTO",
@@ -130,6 +128,8 @@ def adaptar(tabla, usar_movimiento=False):
         if c["nivel"] == "CLASE" and c["codigo"]:
             totales[c["codigo"]] = (centavos(c["debito"]) or 0) - (centavos(c["credito"]) or 0)
     nombres = {c["codigo"]: c["nombre"] for c in cuentas.values() if c["codigo"] and c["nombre"]}
+
+    import pandas as pd
 
     tabla.datos = pd.DataFrame(nuevo, dtype=object)
     tabla.meta = {

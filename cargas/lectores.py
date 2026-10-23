@@ -100,7 +100,7 @@ def adaptar_reporte_ctrp(filas, meta=None):
     """
     if not filas:
         return filas
-    from homologacion_ceco import formatos
+    from homologacion_ceco import formatos  # liviano: no importa pandas
 
     columnas = {clave(v).replace(" ", "") for v in filas[0]}
     if not formatos.COLUMNAS_CTRP <= columnas:
