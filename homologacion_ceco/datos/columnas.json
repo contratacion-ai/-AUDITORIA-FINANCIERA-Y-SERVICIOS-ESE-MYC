@@ -1,0 +1,60 @@
+{
+  "_descripcion": "Sinónimos de encabezados por campo canónico. Se comparan normalizados (MAYÚSCULAS, sin tildes, signos como espacios). El orden indica preferencia cuando varias columnas coinciden con el mismo campo. 'excluir' lista encabezados que nunca deben tomarse para ese campo. Para un archivo puntual use un archivo de mapeo (--mapeo), ver docs/HOMOLOGACION_CECO.md.",
+  "campos": {
+    "cod_ceco": {
+      "requerido": true,
+      "etiqueta": "CODIGO CECO",
+      "sinonimos": ["CODIGO CECO", "COD CECO", "CECO", "CODIGO CENTRO COSTO", "CODIGO CENTRO DE COSTO", "CODIGO CENTRO DE COSTOS",
+                    "COD CENTRO COSTO", "COD CENTRO DE COSTOS", "CENTRO COSTO", "CENTRO DE COSTO", "CENTRO DE COSTOS", "CENTROCOSTO",
+                    "CODIGOCENTROCOSTO", "ID CENTRO COSTO", "CC", "C COSTO", "C COSTOS", "CENTRO"],
+      "excluir": ["NOMBRE CENTRO COSTO", "NOMBRE CENTRO DE COSTOS", "CECO RESOLUCION"]
+    },
+    "nombre_ceco": {
+      "etiqueta": "NOMBRE CECO",
+      "sinonimos": ["NOMBRE CECO", "NOMBRE CENTRO COSTO", "NOMBRE CENTRO DE COSTO", "NOMBRE CENTRO DE COSTOS", "NOMBRECENTROCOSTO",
+                    "DESCRIPCION CECO", "DESCRIPCION CENTRO COSTO", "DESCRIPCION CENTRO DE COSTOS", "NOMBRE"]
+    },
+    "cuenta": {
+      "requerido": true,
+      "etiqueta": "CUENTA",
+      "sinonimos": ["CUENTA", "CODIGO CUENTA", "CUENTA CONTABLE", "CODIGOCUENTA", "COD CUENTA", "NUMERO CUENTA", "CODIGO CONTABLE",
+                    "AUXILIAR", "CODIGO AUXILIAR", "CTA", "PUC", "CODIGO PUC"],
+      "excluir": ["NOMBRE CUENTA", "DESCRIPCION CUENTA"]
+    },
+    "nombre_cuenta": {
+      "etiqueta": "NOMBRE CUENTA",
+      "sinonimos": ["NOMBRE CUENTA", "NOMBRECUENTA", "DESCRIPCION CUENTA", "NOMBRE CUENTA CONTABLE", "NOMBRECUENTACONTABLE",
+                    "NOMBRE AUXILIAR", "DESCRIPCION AUXILIAR", "NOMBRE PUC"]
+    },
+    "valor": {
+      "etiqueta": "VALOR",
+      "sinonimos": ["VALOR", "VALOR MES", "SALDO FINAL", "NUEVO SALDO", "VALOR NUEVO SALDO", "VALORNUEVOSALDO", "SALDO", "MOVIMIENTO",
+                    "MOVIMIENTO MES", "TOTAL", "IMPORTE", "MONTO", "VALOR COSTO", "COSTO", "GASTO", "VALOR TOTAL"],
+      "excluir": ["SALDO ANTERIOR", "SALDO INICIAL", "MOVIMIENTO DEBITO", "MOVIMIENTO CREDITO"]
+    },
+    "debito": {
+      "etiqueta": "DEBITO",
+      "sinonimos": ["DEBITO", "DEBITOS", "DEBE", "MOVIMIENTO DEBITO", "MOV DEBITO", "VALOR DEBITO", "DB"]
+    },
+    "credito": {
+      "etiqueta": "CREDITO",
+      "sinonimos": ["CREDITO", "CREDITOS", "HABER", "MOVIMIENTO CREDITO", "MOV CREDITO", "VALOR CREDITO", "CR"]
+    },
+    "periodo": {
+      "etiqueta": "PERIODO",
+      "sinonimos": ["PERIODO", "PERIODO CONTABLE", "MES", "ANO MES", "FECHA CORTE", "CORTE", "FECHA", "FECHA DOCUMENTO", "FECHA CONTABLE"]
+    },
+    "sede": {
+      "etiqueta": "SEDE",
+      "sinonimos": ["SEDE", "SEDE IPS", "IPS", "PUNTO DE ATENCION", "MUNICIPIO"]
+    },
+    "descripcion": {
+      "etiqueta": "DESCRIPCION",
+      "sinonimos": ["DESCRIPCION", "DETALLE", "CONCEPTO", "OBSERVACION", "OBSERVACIONES"]
+    },
+    "documento": {
+      "etiqueta": "COMPROBANTE",
+      "sinonimos": ["COMPROBANTE", "DOCUMENTO", "NUMERO DOCUMENTO", "NRO DOCUMENTO", "NO DOCUMENTO", "CONSECUTIVO", "TIPO Y NUMERO"]
+    }
+  }
+}

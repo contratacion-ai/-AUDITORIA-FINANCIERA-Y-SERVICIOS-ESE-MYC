@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% load formato %}
+{% block titulo %}Consulta de costos{% endblock %}
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+  <div><h1 class="h4 mb-0">Consulta de costos · {{ periodo|default:"sin periodo" }}</h1>
+  <p class="text-muted small mb-2">Costos de la corrida vigente del motor ABC. Filtre por sede, servicio, clase, centro o texto; cada vista se exporta a Excel.</p></div>
+  {% if corrida %}<a class="btn btn-sm btn-outline-success" href="{% url_con exportar=1 page='' %}">Exportar a Excel</a>{% endif %}
+</div>
+<ul class="nav nav-tabs mb-2">
+  {% for clave, nombre in vistas.items %}<li class="nav-item"><a class="nav-link {% if clave == vista %}active{% endif %}" href="{% url_con vista=clave detalle='' %}">{{ nombre }}</a></li>{% endfor %}
+</ul>
+<form class="row g-2 align-items-end mb-3 no-imprimir">
+  <input type="hidden" name="vista" value="{{ vista }}">
+  <div class="col-auto"><label class="form-label small mb-0">Periodo</label><select name="periodo" class="form-select form-select-sm">
+    {% for p in periodos %}<option value="{{ p.pk }}" {% if p.pk == periodo.pk %}selected{% endif %}>{{ p }}</option>{% endfor %}</select></div>
+  <div class="col-auto"><label class="form-label small mb-0">Sede / IPS</label><select name="sede" class="form-select form-select-sm">
+    <option value="">Todas</option>{% for s in sedes %}<option value="{{ s.pk }}" {% if s.pk == sede.pk %}selected{% endif %}>{{ s.codigo }} · {{ s.nombre|truncatechars:28 }}</option>{% endfor %}</select></div>
+  <div class="col-auto"><label class="form-label small mb-0">Servicio (unidad de negocio)</label><select name="unidad" class="form-select form-select-sm">
+    <option value="">Todos</option>{% for u in unidades %}<option value="{{ u.pk }}" {% if u.pk == unidad.pk %}selected{% endif %}>{{ u.codigo }} · {{ u.nombre|truncatechars:30 }}</option>{% endfor %}</select></div>
+  <div class="col-auto"><label class="form-label small mb-0">Clase</label><select name="clase" class="form-select form-select-sm">
+    <option value="">Todas</option>{% for v, n in clases %}<option value="{{ v }}" {% if v == clase %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+  <div class="col-auto"><label class="form-label small mb-0">Centro de costos</label><select name="centro" class="form-select form-select-sm" style="max-width:16rem">
+    <option value="">Todos</option>{% for c in centros %}<option value="{{ c.pk }}" {% if c.pk == centro.pk %}selected{% endif %}>{{ c.codigo }} · {{ c.nombre|truncatechars:30 }}</option>{% endfor %}</select></div>
+  <div class="col-auto"><label class="form-label small mb-0">{% if vista == "cups" %}CUPS o descripción{% else %}Texto{% endif %}</label>
+    <input name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="{% if vista == 'cups' %}890201, consulta…{% else %}código o nombre{% endif %}"></div>
+  {% if vista == "cups" %}<div class="col-auto form-check ms-1"><input class="form-check-input" type="checkbox" name="detalle" value="1" id="chk-det" {% if detalle %}checked{% endif %}>
+    <label class="form-check-label small" for="chk-det">Detalle por centro</label></div>{% endif %}
+  <div class="col-auto"><button class="btn btn-sm btn-primary">Consultar</button></div>
+</form>
+
+{% if not corrida %}<div class="alert alert-info">No hay corrida vigente para el periodo: ejecute el motor ABC (Motor ABC → Generar distribuciones).</div>
+{% else %}
+<div class="tarjeta"><div class="table-responsive"><table class="table table-sm table-hover table-abc">
+{% if vista == "cups" and detalle %}
+<thead><tr><th>Centro</th><th>Sede</th><th>CUPS</th><th>Descripción</th><th class="num">Cantidad</th><th class="num">Costo total</th><th class="num">Costo unitario</th>
+<th class="num">Personal</th><th class="num">Insumos</th><th class="num">Generales</th><th class="num">Estimaciones</th></tr></thead>
+<tbody>{% for x in filas %}<tr><td><a href="{% url 'motor:traza_centro' corrida.pk x.centro.pk %}">{{ x.centro.codigo }}</a></td><td>{{ x.centro.sede.codigo|default:"" }}</td>
+<td><a href="{% url 'motor:traza_cups' x.pk %}">{{ x.cups.codigo }}</a></td><td>{{ x.cups.descripcion|truncatechars:50 }}</td><td class="num">{{ x.cantidad|numero }}</td>
+<td class="num">{{ x.costo_total|pesos }}</td><td class="num fw-semibold">{{ x.costo_unitario|pesos }}</td><td class="num">{{ x.CP|pesos }}</td><td class="num">{{ x.IH|pesos }}</td>
+<td class="num">{{ x.CG|pesos }}</td><td class="num">{{ x.EC|pesos }}</td></tr>
+{% empty %}<tr><td colspan="11" class="text-muted">Sin costos por CUPS con estos filtros (verifique la producción o los RIPS y la asociación CUPS–centro).</td></tr>{% endfor %}</tbody>
+{% elif vista == "cups" %}
+<thead><tr><th>CUPS</th><th>Descripción</th><th class="num">Centros</th><th class="num">Cantidad</th><th class="num">Costo total</th><th class="num">Costo unitario</th>
+<th class="num">Personal</th><th class="num">Insumos</th><th class="num">Generales</th><th class="num">Estimaciones</th></tr></thead>
+<tbody>{% for x in filas %}<tr><td><a href="{% url_con detalle=1 q=x.cups.codigo %}">{{ x.cups.codigo }}</a></td><td>{{ x.cups.descripcion|truncatechars:55 }}</td><td class="num">{{ x.n_centros }}</td>
+<td class="num">{{ x.cantidad|numero }}</td><td class="num">{{ x.costo_total|pesos }}</td><td class="num fw-semibold">{{ x.costo_unitario|pesos }}</td>
+<td class="num">{{ x.CP|pesos }}</td><td class="num">{{ x.IH|pesos }}</td><td class="num">{{ x.CG|pesos }}</td><td class="num">{{ x.EC|pesos }}</td></tr>
+{% empty %}<tr><td colspan="10" class="text-muted">Sin costos por CUPS con estos filtros (verifique la producción o los RIPS y la asociación CUPS–centro).</td></tr>{% endfor %}</tbody>
+<tfoot><tr><th colspan="4">Total</th><th class="num">{{ total|pesos }}</th><th colspan="5"></th></tr></tfoot>
+{% elif vista == "centros" %}
+<thead><tr><th>Centro</th><th>Sede</th><th>Unidad de negocio</th><th>Clase</th><th class="num">Directo (1ª)</th><th class="num">Recibido 2ª</th><th class="num">Recibido 3ª</th>
+<th class="num">Recibido 4ª</th><th class="num">Distribuido</th><th class="num">Costo final</th><th class="num">Producción</th><th class="num">Costo por unidad</th></tr></thead>
+<tbody>{% for x in filas %}<tr><td><a href="{% url 'motor:traza_centro' corrida.pk x.centro.pk %}" title="{{ x.centro.nombre }}">{{ x.centro.codigo }}</a> <span class="small text-muted">{{ x.centro.nombre|truncatechars:32 }}</span></td>
+<td>{{ x.centro.sede.codigo|default:"" }}</td><td class="small">{{ x.centro.unidad_negocio.nombre|truncatechars:30 }}</td><td class="small">{{ x.clase }}</td>
+<td class="num">{{ x.directo|pesos }}</td><td class="num">{{ x.recibido_2|pesos }}</td><td class="num">{{ x.recibido_3|pesos }}</td><td class="num">{{ x.recibido_4|pesos }}</td>
+<td class="num">{{ x.distribuido|pesos }}</td><td class="num fw-semibold">{{ x.final|pesos }}</td><td class="num">{{ x.produccion|numero }}</td><td class="num">{{ x.costo_unidad|pesos }}</td></tr>
+{% empty %}<tr><td colspan="12" class="text-muted">Sin centros con costo para estos filtros.</td></tr>{% endfor %}</tbody>
+<tfoot><tr><th colspan="4">Total</th><th class="num">{{ total_directo|pesos }}</th><th colspan="4"></th><th class="num">{{ total|pesos }}</th><th colspan="2"></th></tr></tfoot>
+{% elif vista == "servicios" %}
+<thead><tr><th>Unidad de negocio</th><th>Clase</th><th class="num">Centros</th><th class="num">Directo (1ª)</th><th class="num">Costo final</th><th class="num">Producción</th><th class="num">Costo por unidad</th>
+{% for s in sedes_columnas %}<th class="num">{{ s }}</th>{% endfor %}</tr></thead>
+<tbody>{% for x in filas %}<tr><td><a href="{% url_con vista='centros' unidad=x.unidad.pk %}">{{ x.unidad.codigo }}</a> {{ x.unidad.nombre|truncatechars:40 }}</td><td class="small">{{ x.unidad.clase }}</td>
+<td class="num">{{ x.centros }}</td><td class="num">{{ x.directo|pesos }}</td><td class="num fw-semibold">{{ x.final|pesos }}</td><td class="num">{{ x.produccion|numero }}</td><td class="num">{{ x.costo_unidad|pesos }}</td>
+{% for v in x.valores_sede %}<td class="num">{{ v|pesos }}</td>{% endfor %}</tr>
+{% empty %}<tr><td colspan="7" class="text-muted">Sin costos para estos filtros.</td></tr>{% endfor %}</tbody>
+<tfoot><tr><th colspan="4">Total</th><th class="num">{{ total|pesos }}</th><th colspan="{{ sedes_columnas|length|add:2 }}"></th></tr></tfoot>
+{% else %}
+<thead><tr><th>Elemento</th><th>Recurso</th><th class="num">Costo del periodo (1ª)</th><th class="num">Participación</th></tr></thead>
+<tbody>{% for x in filas %}<tr><td class="small">{{ x.recurso.elemento.nombre }}</td><td>{{ x.recurso.codigo }} · {{ x.recurso.nombre }}</td>
+<td class="num fw-semibold">{{ x.valor|pesos }}</td><td class="num">{{ x.part|pct }}</td></tr>
+{% empty %}<tr><td colspan="4" class="text-muted">Sin costos para estos filtros.</td></tr>{% endfor %}</tbody>
+<tfoot><tr><th colspan="2">Total</th><th class="num">{{ total|pesos }}</th><th></th></tr></tfoot>
+{% endif %}
+</table></div></div>
+<p class="small text-muted mt-2">Directo (1ª) = costo asignado por cuenta, nómina, contratos e inductores de 1ª distribución. Final = directo + lo recibido de
+estructura, servicios e intermedios − lo que el centro distribuyó. Costo por unidad = costo final / producción (centros finales).
+Clic en un centro o CUPS para ver de qué archivo, cuenta e inductor proviene cada peso.</p>
+{% endif %}
+{% endblock %}

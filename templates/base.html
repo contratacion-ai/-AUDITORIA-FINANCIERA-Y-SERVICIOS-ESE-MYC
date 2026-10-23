@@ -1,0 +1,84 @@
+{% load static %}<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}Costos ABC{% endblock %} · {{ institucion_activa.nombre|default:"Costos ABC en salud" }}</title>
+  <link href="{% static 'vendor/bootstrap.min.css' %}" rel="stylesheet">
+  <link href="{% static 'css/app.css' %}" rel="stylesheet">
+  {% block cabecera %}{% endblock %}
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark barra no-imprimir">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-semibold" href="{% url 'inicio' %}">Costos ABC</a>
+    {% if user.is_authenticated %}
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#menu" aria-label="Menú">
+      <span class="navbar-toggler-icon"></span></button>
+    <div class="collapse navbar-collapse" id="menu">
+      {% if institucion_activa %}
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a class="nav-link" href="{% url 'analisis:tablero' %}">Tablero</a></li>
+        <li class="nav-item dropdown"><a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Cargas</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{% url 'cargas:lista' %}">Historial de cargas</a></li>
+            {% if puede.cargar %}<li><a class="dropdown-item" href="{% url 'cargas:nueva' %}">Nueva carga</a></li>{% endif %}
+            <li><a class="dropdown-item" href="{% url 'cargas:mapeos' %}">Mapeo de columnas</a></li>
+            <li><a class="dropdown-item" href="{% url 'cargas:plantilla_estandar' %}">Descargar plantilla estándar</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{% url 'core:periodos' %}">Periodos</a></li>
+          </ul></li>
+        <li class="nav-item dropdown"><a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Parametrización</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{% url 'modelo:parametrizacion' %}">Cuatro niveles de parametrización</a></li>
+            <li><a class="dropdown-item" href="{% url 'modelo:catalogo' 'centros' %}">Centros de costos</a></li>
+            <li><a class="dropdown-item" href="{% url 'modelo:catalogo' 'reglas' %}">Reglas de distribución</a></li>
+            <li><a class="dropdown-item" href="{% url 'modelo:valores_inductor' %}">Valores de inductores</a></li>
+            <li><a class="dropdown-item" href="{% url 'modelo:catalogo' 'mano-obra' %}">Mano de obra (Empleado/OPS)</a></li>
+            <li><a class="dropdown-item" href="{% url 'modelo:resumen_reglas' %}">Regla efectiva por recurso y centro</a></li>
+            <li><a class="dropdown-item" href="{% url 'modelo:catalogo' 'cups' %}">Catálogo CUPS</a></li>
+            <li><a class="dropdown-item" href="{% url 'modelo:catalogo' 'notas-tecnicas' %}">Notas técnicas EPS</a></li>
+          </ul></li>
+        <li class="nav-item dropdown"><a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Motor ABC</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{% url 'motor:panel' %}">Generar distribuciones 1ª–4ª</a></li>
+            <li><a class="dropdown-item" href="{% url 'motor:matriz' %}">Matrices de distribución</a></li>
+            <li><a class="dropdown-item" href="{% url 'motor:cups' %}">Costo por CUPS</a></li>
+          </ul></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'analisis:consulta' %}">Consulta de costos</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'analisis:cruces' %}">Cruces RIPS · EPS</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'analisis:informe' %}">Informe</a></li>
+        {% if puede.ver_bitacora %}<li class="nav-item"><a class="nav-link" href="{% url 'core:bitacora' %}">Bitácora</a></li>{% endif %}
+      </ul>
+      {% else %}<ul class="navbar-nav me-auto"></ul>{% endif %}
+      <ul class="navbar-nav">
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+            {{ institucion_activa.nombre|default:"Sin institución"|truncatechars:34 }}
+            {% if rol_activo %}<span class="badge bg-light text-dark ms-1">{{ rol_activo }}</span>{% endif %}</a>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><span class="dropdown-item-text small text-muted">{{ user.username }}</span></li>
+            <li><a class="dropdown-item" href="{% url 'core:seleccionar_institucion' %}?cambiar=1">Cambiar institución</a></li>
+            {% if puede.gestionar_usuarios %}<li><a class="dropdown-item" href="{% url 'core:usuarios' %}">Usuarios y roles</a></li>{% endif %}
+            <li><a class="dropdown-item" href="{% url 'password_change' %}">Cambiar contraseña</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="dropdown-item">Salir</button></form></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</nav>
+<main class="container-fluid py-3 px-3 px-lg-4">
+  {% for m in messages %}
+  <div class="alert alert-{% if m.tags == 'error' %}danger{% else %}{{ m.tags }}{% endif %} alert-dismissible fade show no-imprimir" role="alert">
+    {{ m }}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button></div>
+  {% endfor %}
+  {% block contenido %}{% endblock %}
+</main>
+<footer class="text-center text-muted small py-3 no-imprimir">Modelo de costos ABC · Res. DDC-000002 de 2014 · Datos protegidos (Ley 1581 de 2012)</footer>
+<script src="{% static 'vendor/bootstrap.bundle.min.js' %}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

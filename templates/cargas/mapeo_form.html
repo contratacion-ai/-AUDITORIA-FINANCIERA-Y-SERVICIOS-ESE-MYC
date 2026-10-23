@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block titulo %}Mapeo de columnas{% endblock %}
+{% block contenido %}
+<nav class="small mb-1"><a href="{% url 'cargas:mapeos' %}">Mapeos</a> › {{ obj|default:"Nuevo" }}</nav>
+<h1 class="h4">Mapeo · {{ esq.nombre }}</h1>
+<form method="post" enctype="multipart/form-data">{% csrf_token %}
+<div class="row g-3">
+<div class="col-lg-4"><div class="tarjeta">
+{% for f in form %}<div class="mb-2">{% if f.field.widget.input_type == 'checkbox' %}<div class="form-check">{{ f }} <label class="form-check-label" for="{{ f.id_for_label }}">{{ f.label }}</label></div>
+{% else %}<label class="form-label small mb-0">{{ f.label }}</label>{{ f }}{% endif %}{% if f.help_text %}<div class="form-text">{{ f.help_text }}</div>{% endif %}
+{% for e in f.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>{% endfor %}
+<hr><label class="form-label small mb-0">Archivo de muestra (para sugerir columnas)</label>
+<input type="file" name="muestra" class="form-control form-control-sm mb-2" accept=".xlsx,.xls,.xlsm,.csv">
+<button class="btn btn-sm btn-outline-primary" name="sugerir" value="1">Leer encabezados y sugerir</button>
+{% if hojas %}<div class="small text-muted mt-2">Hojas del libro: {{ hojas|join:", " }}</div>{% endif %}
+</div></div>
+<div class="col-lg-8"><div class="tarjeta">
+<p class="small text-muted">Columna de origen: nombre del encabezado en el archivo (sin importar tildes o mayúsculas) o letra con «#» (#C).
+Valor fijo: se usa en todas las filas cuando la columna está vacía o no existe (p. ej. RECURSO = R1 para una nómina de planta).</p>
+{% if encabezados %}<datalist id="encabezados">{% for e in encabezados %}<option value="{{ e }}">{% endfor %}</datalist>
+<div class="small mb-2">Columnas detectadas: {% for e in encabezados %}<span class="badge bg-light text-dark border">{{ e }}</span> {% endfor %}</div>{% endif %}
+<table class="table table-sm table-abc"><thead><tr><th>Campo estándar</th><th>Columna de origen</th><th>Valor fijo</th></tr></thead><tbody>
+{% for x in campos %}<tr><td><strong>{{ x.c.etiqueta }}</strong>{% if x.c.requerido %} <span class="text-danger">*</span>{% endif %}
+<div class="small text-muted" style="white-space:normal">{{ x.c.ayuda }}</div></td>
+<td><input name="origen_{{ x.c.nombre }}" value="{{ x.origen }}" list="encabezados" class="form-control form-control-sm"></td>
+<td><input name="constante_{{ x.c.nombre }}" value="{{ x.constante }}" class="form-control form-control-sm"></td></tr>{% endfor %}
+</tbody></table>
+{% if not solo_lectura %}<button class="btn btn-primary">Guardar mapeo</button>{% endif %}
+</div></div></div></form>
+{% endblock %}

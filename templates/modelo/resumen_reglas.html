@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block titulo %}Regla efectiva{% endblock %}
+{% block contenido %}
+<h1 class="h4">Regla de distribución efectiva</h1>
+<p class="text-muted small">Muestra qué regla aplicará el motor en el periodo seleccionado y desde qué nivel de parametrización proviene.</p>
+{% include "parciales/selector_periodo.html" %}
+<div class="row g-3">
+<div class="col-xl-6"><div class="tarjeta"><h2 class="h6">1ª distribución · recursos sin centro de costos</h2>
+<table class="table table-sm table-abc"><thead><tr><th>Recurso</th><th>Elemento</th><th>Inductor</th><th>Destinos</th><th>Nivel</th></tr></thead><tbody>
+{% for r, regla in filas_rec %}<tr><td>{{ r.codigo }} {{ r.nombre }}</td><td>{{ r.elemento.codigo }}</td>
+<td>{% if regla %}{{ regla.inductor.codigo }}{% if regla.misma_sede %} (por sede){% endif %}{% elif r.tipo_mano_obra %}% mano de obra ({{ r.tipo_mano_obra }}){% else %}<span class="text-muted">Directo (el movimiento debe traer centro)</span>{% endif %}</td>
+<td class="small">{{ regla.clases_destino|default:"" }}</td><td>{% if regla %}<span class="badge bg-primary">N{{ regla.nivel }}</span>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div></div>
+<div class="col-xl-6"><div class="tarjeta"><h2 class="h6">2ª a 4ª distribución · centros que distribuyen</h2>
+<table class="table table-sm table-abc"><thead><tr><th>Centro</th><th>Clase</th><th>Dist.</th><th>Inductor</th><th>Destinos</th><th>Nivel</th></tr></thead><tbody>
+{% for c, d, regla in filas_cc %}<tr><td>{{ c.codigo }} {{ c.nombre|truncatechars:34 }}</td><td>{{ c.get_clase_display }}</td><td>{{ d }}ª</td>
+<td>{% if regla %}{{ regla.inductor.codigo }}{% else %}<span class="text-danger">Sin regla</span>{% endif %}</td><td class="small">{{ regla.clases_destino|default:"" }}</td>
+<td>{% if regla %}<span class="badge bg-primary">N{{ regla.nivel }}</span>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div></div>
+</div>
+{% endblock %}

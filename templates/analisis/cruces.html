@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load formato %}
+{% block titulo %}Cruces{% endblock %}
+{% block contenido %}
+<h1 class="h4">Cruces: facturación por ámbito · notas técnicas EPS · RIPS</h1>
+{% include "parciales/filtros.html" %}
+<ul class="nav nav-tabs mb-3">
+<li class="nav-item"><a class="nav-link {% if vista == 'ambito' %}active{% endif %}" href="{% url_con vista='ambito' tipo='' %}">Facturación por ámbito</a></li>
+<li class="nav-item"><a class="nav-link {% if vista == 'tarifas' %}active{% endif %}" href="{% url_con vista='tarifas' tipo='' %}">Costo vs. tarifa (notas técnicas)</a></li>
+<li class="nav-item"><a class="nav-link {% if vista == 'capita' %}active{% endif %}" href="{% url_con vista='capita' tipo='' %}">Cápita / PGP</a></li>
+<li class="nav-item"><a class="nav-link {% if vista == 'inconsistencias' %}active{% endif %}" href="{% url_con vista='inconsistencias' %}">Inconsistencias RIPS · facturación · costos</a></li>
+</ul>
+{% if not corrida %}<div class="alert alert-warning">No hay corrida vigente para el periodo: los costos aparecerán vacíos. Ejecute el motor.</div>{% endif %}
+{% if vista == 'ambito' %}
+<p class="small text-muted">Agrupa la facturación del periodo por ámbito (homologado desde el software de facturación) y la compara con el costo ABC (cantidad × costo unitario CUPS).</p>
+<div class="tarjeta"><table class="table table-sm table-abc"><thead><tr><th>Ámbito</th><th class="num">Facturas</th><th class="num">Cantidad</th><th class="num">Facturado</th><th class="num">Costo ABC</th><th class="num">Margen</th><th class="num">Margen %</th><th class="num">Ítems sin costo</th></tr></thead><tbody>
+{% for f in filas %}<tr><td><strong>{{ f.ambito }}</strong></td><td class="num">{{ f.facturas|numero }}</td><td class="num">{{ f.cantidad|numero }}</td><td class="num">{{ f.facturado|pesos }}</td>
+<td class="num">{{ f.costo|pesos }}</td><td class="num {{ f.margen|clase_margen }}">{{ f.margen|pesos }}</td><td class="num">{{ f.margen_pct|pct }}</td><td class="num">{{ f.sin_costo }}</td></tr>
+{% for e in f.eps %}<tr class="small text-muted"><td class="ps-4">{{ e.eps|truncatechars:40 }}</td><td></td><td></td><td class="num">{{ e.facturado|pesos }}</td><td class="num">{{ e.costo|pesos }}</td><td class="num">{{ e.margen|pesos }}</td><td></td><td></td></tr>{% endfor %}
+{% empty %}<tr><td colspan="8" class="text-muted">Sin facturación cargada en el periodo.</td></tr>{% endfor %}</tbody></table></div>
+{% elif vista == 'tarifas' %}
+<div class="d-flex justify-content-between"><p class="small text-muted">Ítems de notas técnicas vigentes (evento/paquete) frente al costo unitario ABC del periodo.</p>
+<a class="btn btn-sm btn-outline-success" href="{% url_con exportar=1 %}">Excel</a></div>
+<div class="tarjeta"><div class="table-responsive"><table class="table table-sm table-abc"><thead><tr><th>EPS</th><th>Contrato</th><th>Modalidad</th><th>CUPS</th><th>Descripción</th><th class="num">Tarifa</th>
+<th class="num">Costo unit. ABC</th><th class="num">Margen unit.</th><th class="num">Margen %</th><th class="num">Cant. facturada</th><th>Resultado</th></tr></thead><tbody>
+{% for f in filas %}<tr><td>{{ f.eps.nombre|truncatechars:26 }}</td><td>{{ f.nota.contrato }}</td><td>{{ f.modalidad }}</td><td>{{ f.cups.codigo }}</td><td>{{ f.cups.descripcion|truncatechars:36 }}</td>
+<td class="num">{{ f.tarifa|pesos }}</td><td class="num">{{ f.costo_unitario|pesos }}</td><td class="num {{ f.margen_unitario|clase_margen }}">{{ f.margen_unitario|pesos }}</td>
+<td class="num">{{ f.margen_pct|pct }}</td><td class="num">{{ f.cantidad_facturada|numero }}</td>
+<td><span class="badge {% if f.resultado == 'PÉRDIDA' %}bg-danger{% elif f.resultado == 'SIN COSTO' %}bg-secondary{% else %}bg-success{% endif %}">{{ f.resultado }}</span></td></tr>
+{% empty %}<tr><td colspan="11" class="text-muted">No hay notas técnicas vigentes en el periodo.</td></tr>{% endfor %}</tbody></table></div></div>
+{% elif vista == 'capita' %}
+<p class="small text-muted">Contratos por cápita o PGP: valor mensual contratado frente al costo ABC de lo prestado a la EPS (actividades de los RIPS × costo unitario).</p>
+<div class="tarjeta"><table class="table table-sm table-abc"><thead><tr><th>EPS</th><th>Contrato</th><th>Modalidad</th><th class="num">Población</th><th class="num">Valor mensual</th><th class="num">Costo ABC</th>
+<th class="num">Margen</th><th class="num">Índice costo / valor</th><th class="num">Actividades RIPS</th><th class="num">Frecuencia esperada</th></tr></thead><tbody>
+{% for f in filas %}<tr><td>{{ f.nota.eps.nombre }}</td><td>{{ f.nota.contrato }}</td><td>{{ f.nota.get_modalidad_display }}</td><td class="num">{{ f.nota.poblacion|numero }}</td>
+<td class="num">{{ f.valor_mensual|pesos }}</td><td class="num">{{ f.costo|pesos }}</td><td class="num {{ f.margen|clase_margen }}">{{ f.margen|pesos }}</td>
+<td class="num">{{ f.indice_costo|pct }}</td><td class="num">{{ f.actividades|numero }}</td><td class="num">{{ f.frecuencia_esperada|numero }}</td></tr>
+{% empty %}<tr><td colspan="10" class="text-muted">No hay contratos por cápita o PGP vigentes.</td></tr>{% endfor %}</tbody></table></div>
+{% else %}
+<div class="row g-3">
+<div class="col-lg-4"><div class="tarjeta"><h2 class="h6">Resumen ({{ total_incons }})</h2>
+<div class="list-group list-group-flush">
+<a class="list-group-item list-group-item-action small {% if not tipo %}active{% endif %}" href="{% url_con tipo='' %}">Todas</a>
+{% for r in resumen %}<a class="list-group-item list-group-item-action small d-flex justify-content-between {% if tipo == r.tipo %}active{% endif %}" href="{% url_con tipo=r.tipo %}">
+<span><span class="badge badge-{{ r.severidad }} me-1">{{ r.severidad }}</span>{{ r.descripcion }}</span><span class="badge bg-secondary">{{ r.cantidad }}</span></a>{% endfor %}</div>
+<a class="btn btn-sm btn-outline-success mt-2" href="{% url_con exportar=1 %}">Exportar todas a Excel</a></div></div>
+<div class="col-lg-8"><div class="tarjeta"><div class="table-responsive"><table class="table table-sm table-abc"><thead><tr><th>Sev.</th><th>Tipo</th><th>Factura</th><th>CUPS</th><th>EPS</th><th>Centro</th><th class="num">Valor</th><th>Referencia</th></tr></thead><tbody>
+{% for i in filas %}<tr><td><span class="badge badge-{{ i.severidad }}">{{ i.severidad }}</span></td><td class="small">{{ i.tipo }}</td><td>{{ i.factura }}</td><td>{{ i.cups }}</td><td>{{ i.eps|truncatechars:22 }}</td>
+<td>{{ i.centro }}</td><td class="num">{% if i.valor is not None %}{{ i.valor|numero:2 }}{% endif %}</td><td class="small">{{ i.referencia }}</td></tr>
+{% empty %}<tr><td colspan="8" class="text-muted">Sin inconsistencias.</td></tr>{% endfor %}</tbody></table></div></div></div></div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block titulo %}Error {{ codigo }}{% endblock %}
+{% block contenido %}
+<div class="row justify-content-center mt-5"><div class="col-md-6"><div class="tarjeta text-center p-5">
+<div class="display-5 text-muted">{{ codigo }}</div><p class="lead">{{ mensaje }}</p>
+<a href="{% url 'inicio' %}" class="btn btn-primary">Volver al inicio</a></div></div></div>
+{% endblock %}

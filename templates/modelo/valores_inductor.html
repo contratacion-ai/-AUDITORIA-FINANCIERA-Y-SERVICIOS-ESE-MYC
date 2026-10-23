@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% load formato %}
+{% block titulo %}Valores de inductores{% endblock %}
+{% block contenido %}
+<h1 class="h4">Valores de inductores por centro de costos</h1>
+<p class="text-muted small">Digite la cantidad del inductor en cada centro; el sistema calcula el porcentaje de participación (como el formulario «Distribución» de Gastos generales).
+Sin periodo = valor permanente (p. ej. m²). Con centro origen = cantidades propias de ese centro (raciones de cocina, exámenes solicitados al laboratorio).</p>
+<form class="row g-2 align-items-end mb-3">
+  <div class="col-auto"><label class="form-label small mb-0">Inductor</label><select name="inductor" class="form-select form-select-sm">
+    {% for i in inductores %}<option value="{{ i.pk }}" {% if i.pk == inductor.pk %}selected{% endif %}>{{ i.codigo }} · {{ i.nombre }}</option>{% endfor %}</select></div>
+  <div class="col-auto"><label class="form-label small mb-0">Periodo</label><select name="periodo" class="form-select form-select-sm">
+    <option value="permanente">Permanente (todos los periodos)</option>
+    {% for p in periodos %}<option value="{{ p.pk }}" {% if p.pk == periodo.pk %}selected{% endif %}>{{ p }}</option>{% endfor %}</select></div>
+  <div class="col-auto"><label class="form-label small mb-0">Centro origen (opcional)</label><select name="origen" class="form-select form-select-sm">
+    <option value="">— Todos los orígenes —</option>
+    {% for o in origenes %}<option value="{{ o.pk }}" {% if o.pk == origen.pk %}selected{% endif %}>{{ o.codigo }} · {{ o.nombre }}</option>{% endfor %}</select></div>
+  <div class="col-auto"><label class="form-label small mb-0">Clases destino</label><div>
+    {% for v, n in todas_clases %}<label class="me-2 small"><input type="checkbox" name="clase" value="{{ v }}" {% if v in clases %}checked{% endif %}> {{ n }}</label>{% endfor %}</div></div>
+  <div class="col-auto"><button class="btn btn-sm btn-primary">Ver</button></div>
+</form>
+{% if inductor %}
+<form method="post">{% csrf_token %}
+<input type="hidden" name="inductor" value="{{ inductor.pk }}"><input type="hidden" name="periodo" value="{% if periodo %}{{ periodo.pk }}{% else %}permanente{% endif %}">
+<input type="hidden" name="origen" value="{{ origen.pk|default:'' }}">{% for c in clases %}<input type="hidden" name="clase" value="{{ c }}">{% endfor %}
+<div class="tarjeta"><div class="table-responsive" style="max-height:65vh">
+<table class="table table-sm table-abc" id="tabla-valores">
+<thead><tr><th>Código</th><th>Centro de costos</th><th>Clase</th><th>Unidad de negocio</th><th class="num">Cantidad ({{ inductor.unidad_medida }})</th><th class="num">% participación</th></tr></thead>
+<tbody>{% for c, v, p in filas %}<tr><td>{{ c.codigo }}</td><td>{{ c.nombre }}</td><td>{{ c.get_clase_display }}</td><td>{{ c.unidad_negocio.codigo }}</td>
+<td><input name="c_{{ c.pk }}" value="{% if v is not None %}{{ v|floatformat:"-4" }}{% endif %}" class="form-control form-control-sm text-end cant" {% if not puede.parametrizar %}disabled{% endif %}></td>
+<td class="num pct">{{ p|pct:2 }}</td></tr>{% endfor %}</tbody>
+<tfoot><tr><td colspan="4">TOTAL</td><td class="num" id="total">{{ total|numero:2 }}</td><td class="num">100%</td></tr></tfoot></table></div>
+{% if puede.parametrizar %}<button class="btn btn-primary mt-2" {% if periodo.cerrado %}disabled{% endif %}>Guardar valores</button>{% endif %}</div>
+</form>
+{% else %}<div class="alert alert-info">Cree primero un inductor de tipo «Cantidad».</div>{% endif %}
+{% endblock %}
+{% block scripts %}<script>
+(function(){
+  const inputs=[...document.querySelectorAll('#tabla-valores .cant')];
+  const n=s=>{s=(s||'').trim();if(!s)return 0;if(s.includes(',')&&s.includes('.')){s=s.lastIndexOf(',')>s.lastIndexOf('.')?s.replace(/\./g,'').replace(',','.'):s.replace(/,/g,'')}else{s=s.replace(',','.')}return parseFloat(s)||0};
+  function recalc(){const t=inputs.reduce((a,i)=>a+n(i.value),0);document.getElementById('total').textContent=t.toLocaleString('es-CO',{maximumFractionDigits:2});
+    inputs.forEach(i=>{i.closest('tr').querySelector('.pct').textContent=t?(n(i.value)/t*100).toLocaleString('es-CO',{maximumFractionDigits:2})+'%':'—'})}
+  inputs.forEach(i=>i.addEventListener('input',recalc));
+})();
+</script>{% endblock %}
