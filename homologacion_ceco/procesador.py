@@ -20,6 +20,7 @@ import pandas as pd
 
 from . import config as C
 from .columnas import Detector, ErrorMapeo
+from .formatos import adaptar
 from .lectores import ERROR as EV_ERROR
 from .lectores import OMITIDO, PROCESADO, EventoArchivo, Lector
 from .normalizar import (ErrorValor, centavos, clave, codigo_ceco, cuenta, es_vacio, formato_pesos, periodo,
@@ -37,7 +38,7 @@ class ErrorConciliacion(AssertionError):
 @dataclass
 class Opciones:
     periodo: str = ""                    # periodo por defecto AAAA-MM si el archivo no lo trae
-    clases: tuple = None                 # clases de cuenta a cargar; None = datos/sedes_y_puc.json
+    clases: tuple = None                 # clases de cuenta a leer; None = datos/sedes_y_puc.json (4, 5, 6, 7)
     activar_nuevos: bool = False         # cargar CECO nuevos homologados por regla (salvo VERIFICAR/EXCLUIR)
     eliminar_duplicados: bool = True
     excluir_subtotales: bool = True
@@ -50,7 +51,7 @@ class Opciones:
         if self.periodo:
             self.periodo = periodo(self.periodo)
         if self.clases is None:
-            self.clases = tuple(C.sedes_y_puc()["clases_costo"])
+            self.clases = tuple(C.sedes_y_puc()["clases_lectura"])
         self.clases = tuple(str(c) for c in self.clases)
 
 
@@ -66,6 +67,7 @@ class Resultado:
     conciliacion: pd.DataFrame
     control_referencia: pd.DataFrame
     hallazgos_referencia: pd.DataFrame
+    control_origen: pd.DataFrame
     nombres_cuenta: dict
     referencia: object
     opciones: Opciones
@@ -120,6 +122,7 @@ class _Proceso:
         self.eventos = []
         self.alertas = []
         self.nombres_cuenta = {}
+        self.controles = []   # (origen, hoja, formato, clase, centavos según el reporte)
         self._n = 0
 
     # ------------------------------------------------------------------ orquestación
@@ -135,6 +138,7 @@ class _Proceso:
         archivos = pd.DataFrame([e.__dict__ for e in self.eventos],
                                 columns=["origen", "hoja", "estado", "motivo", "huella", "tamano", "filas"])
         nuevos = self._nuevos(registros)
+        control_origen = self._control_origen(registros)
         resumen = {
             "archivos": int(archivos["origen"].nunique()) if len(archivos) else 0,
             "archivos_con_error": int((archivos["estado"] == EV_ERROR).sum()),
@@ -149,11 +153,13 @@ class _Proceso:
             trazabilidad=self.traza.df(),
             alertas=pd.DataFrame(self.alertas, columns=["id_registro", "origen", "hoja", "fila", "tipo", "detalle"]),
             nuevos=nuevos, conciliacion=conciliacion, control_referencia=self.ref.control_calidad(),
-            hallazgos_referencia=self.ref.hallazgos, nombres_cuenta=self.nombres_cuenta, referencia=self.ref,
+            hallazgos_referencia=self.ref.hallazgos, control_origen=control_origen, nombres_cuenta=self.nombres_cuenta,
+            referencia=self.ref,
             opciones=self.op, resumen=resumen)
 
     # ------------------------------------------------------------------ lectura de una tabla
     def _tabla(self, t):
+        t = adaptar(t, usar_movimiento=self.op.usar_movimiento)
         try:
             mapeo = self.detector.detectar(t, self.ref)
         except ErrorMapeo as exc:
@@ -183,7 +189,12 @@ class _Proceso:
         if not periodo_tabla and self.op.periodo:
             periodo_tabla, fuente_periodo = self.op.periodo, "parámetro --periodo"
 
+        formato = t.meta.get("formato", mapeo.formato)
+        if t.meta:
+            self._meta_formato(t)
         for campo, (met, punt, enc) in mapeo.metodo.items():
+            if t.meta:
+                continue
             self.mapeos.append((t.origen, t.hoja, mapeo.formato, mapeo.fila_encabezado + 1, campo, enc, met, punt))
             self.traza.add("MAPEO", f"Columna '{enc}' → campo {campo} ({met}, puntaje {punt:.2f})", origen=t.origen,
                            hoja=t.hoja, fila=mapeo.fila_encabezado + 1, campo=campo, antes=enc, despues=campo)
@@ -224,7 +235,7 @@ class _Proceso:
                     base["cod_ceco"] = mapeo.ceco_fijo
                 self._registro(t, i, base, periodo_tabla)
         self.eventos.append(EventoArchivo(t.origen, t.hoja, PROCESADO,
-                                          f"Formato {mapeo.formato}; encabezado en la fila {mapeo.fila_encabezado + 1}",
+                                          f"Formato {formato}; encabezado en la fila {mapeo.fila_encabezado + 1}",
                                           t.huella, filas=filas_con_datos))
 
     # ------------------------------------------------------------------ limpieza de un registro
@@ -251,7 +262,8 @@ class _Proceso:
             limpio["cod_ceco"] = ""
             problemas.append((C.ERROR, str(exc)))
         if not limpio["cod_ceco"] and not problemas:
-            problemas.append((C.ERROR, "Sin código de centro de costos"))
+            nota = texto(crudo.get("descripcion"))
+            problemas.append((C.ERROR, "Sin código de centro de costos" + (f": {nota}" if nota else "")))
 
         try:
             limpio["cuenta"] = cuenta(crudo.get("cuenta"))
@@ -328,6 +340,45 @@ class _Proceso:
         if reg["destino"]:
             self.traza.add("VALIDACION", f"{reg['destino']}: {reg['motivo']}", rid, t.origen, t.hoja, i + 1)
 
+    def _meta_formato(self, t):
+        """Registra el mapeo, los nombres de cuenta y los totales de control de un formato de software contable."""
+        m = t.meta
+        for campo, origen_col in m.get("mapeo", []):
+            self.mapeos.append((t.origen, t.hoja, m["formato"], 1, campo, origen_col, "FORMATO RECONOCIDO", 1.0))
+            self.traza.add("MAPEO", f"{m['formato']}: {origen_col} → campo {campo}", origen=t.origen, hoja=t.hoja, fila=1,
+                           campo=campo, antes=origen_col, despues=campo)
+        for cod, nombre in m.get("nombres_cuenta", {}).items():
+            self.nombres_cuenta.setdefault(cod, nombre)
+        for clase, cent in m.get("totales_clase", {}).items():
+            self.controles.append((t.origen, t.hoja, m["formato"], clase, cent))
+        for cod, nombre, fila, cent in m.get("diferencias", []):
+            self.alertas.append(("", t.origen, t.hoja, fila, "CUENTA SIN DETALLE POR CECO",
+                                 f"La cuenta {cod} {nombre} tiene {formato_pesos(cent)} sin centro de costo en el reporte: "
+                                 "se registra como rechazada para que el total cuadre; pida a contabilidad asignar el CECO"))
+        if m.get("detalle_sin_cuenta"):
+            self.alertas.append(("", t.origen, t.hoja, None, "DETALLE SIN CUENTA",
+                                 f"{m['detalle_sin_cuenta']} fila(s) de detalle apuntan a una cuenta que no está en el reporte"))
+        if not m.get("periodo"):
+            self.alertas.append(("", t.origen, t.hoja, None, "SIN PERIODO EN EL REPORTE",
+                                 "No se encontró el periodo en el pie del reporte; se usa el nombre del archivo o --periodo"))
+
+    def _control_origen(self, registros):
+        """Total por clase según el propio reporte vs. total leído de esa hoja (todos los destinos)."""
+        filas = []
+        for origen, hoja, formato, clase, cent in self.controles:
+            sub = registros[(registros["origen"] == origen) & (registros["hoja"] == hoja)
+                            & registros["cuenta"].fillna("").str.startswith(clase)]
+            leido = sum(int(v) for v in sub["valor_cent"] if v is not None and not pd.isna(v))
+            dif = leido - cent
+            filas.append({"origen": origen, "hoja": hoja, "formato": formato, "clase": clase,
+                          "nombre": self.nombres_cuenta.get(clase, ""), "reporte": cent / 100, "leido": leido / 100,
+                          "diferencia": dif / 100, "estado": "CUADRA" if dif == 0 else "DIFERENCIA"})
+            if dif:
+                self.alertas.append(("", origen, hoja, None, "NO CUADRA CON EL REPORTE",
+                                     f"Clase {clase}: el reporte totaliza {formato_pesos(cent)} y se leyeron {formato_pesos(leido)}"))
+        return pd.DataFrame(filas, columns=["origen", "hoja", "formato", "clase", "nombre", "reporte", "leido", "diferencia",
+                                            "estado"])
+
     # ------------------------------------------------------------------ reglas que miran varias filas
     def _excluir(self, reg, motivo, severidad=C.INFO):
         reg.update(destino=EXCLUIDO, severidad=severidad, motivo=motivo)
@@ -340,7 +391,7 @@ class _Proceso:
             if r["cuenta"]:
                 cuentas_hoja[(r["origen"], r["hoja"])].add(r["cuenta"])
         for r in self.registros:
-            if r["destino"] == RECHAZADO and r["motivo"] == "Sin código de centro de costos" and r["cuenta"]:
+            if r["destino"] == RECHAZADO and r["motivo"].startswith("Sin código de centro de costos") and r["cuenta"]:
                 if any(c != r["cuenta"] and c.startswith(r["cuenta"]) for c in cuentas_hoja[(r["origen"], r["hoja"])]):
                     if r["nombre_cuenta"]:
                         self.nombres_cuenta.setdefault(r["cuenta"], r["nombre_cuenta"])
@@ -352,7 +403,7 @@ class _Proceso:
         # 1. Clases de cuenta
         for r in pendientes:
             if r["cuenta"][:1] not in self.op.clases:
-                self._excluir(r, f"Cuenta de clase {r['cuenta'][:1]}: fuera de las clases de costo/gasto ({', '.join(self.op.clases)})")
+                self._excluir(r, f"Cuenta de clase {r['cuenta'][:1]}: fuera de las clases del estado de resultados ({', '.join(self.op.clases)})")
         # 2. Subtotales: una cuenta que es prefijo de otra del mismo CECO, periodo y hoja es un total de nivel superior.
         if self.op.excluir_subtotales:
             grupos = defaultdict(list)
@@ -387,6 +438,7 @@ class _Proceso:
 
     # ------------------------------------------------------------------ homologación
     def _homologar(self):
+        fuera = {}  # código de resolución fuera de «Utilizados» → [primer registro, n.º de registros]
         for r in self.registros:
             if r["destino"] in (RECHAZADO,) or not r["cod_ceco"]:
                 continue
@@ -419,7 +471,7 @@ class _Proceso:
             if h.nota and h.cargable:
                 self._alerta(r, "NOTA DE REGLA", h.nota)
             if h.estado == C.ACTIVO and not h.en_utilizados:
-                self._alerta(r, "FUERA DE UTILIZADOS", f"{h.cod_res} no está en la lista 'Utilizados': agréguelo para que la herramienta de costos lo reconozca")
+                fuera.setdefault(h.cod_res, [r, 0])[1] += 1
             if r["sede_fuente"] and h.sede:
                 s = self.homologador.sede_por_texto(r["sede_fuente"])
                 if s and C.sede_corta(s) != C.sede_corta(h.sede):
@@ -429,6 +481,10 @@ class _Proceso:
                 if a != b and SequenceMatcher(None, a, b).ratio() < 0.6:
                     self._alerta(r, "NOMBRE CECO DISTINTO", f"Nombre en el archivo '{r['nombre_ceco_fuente']}' vs. maestro '{h.nombre_ef}': "
                                                            "verifique que el código sea el correcto")
+
+        for cod, (r, n) in sorted(fuera.items()):
+            self._alerta(r, "FUERA DE UTILIZADOS", f"{cod} no está en la lista 'Utilizados' ({n} registro(s); se indica el "
+                                                   "primero): agréguelo para que la herramienta de costos lo reconozca")
 
     def _alerta(self, r, tipo, detalle):
         self.alertas.append((r["id_registro"], r["origen"], r["hoja"], r["fila"], tipo, detalle))

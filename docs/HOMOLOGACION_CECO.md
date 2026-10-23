@@ -6,7 +6,8 @@ de la resolución con el archivo de referencia **HOMOLOGACION_CECO_EF_vs_RESOLUC
 en **un solo libro de Excel**, el estado financiero homologado, la carga lista para la herramienta de costos y
 la trazabilidad completa. Incluye una **plantilla de carga directa**.
 
-Es independiente de la aplicación Django: solo requiere `pandas`, `openpyxl` y `xlrd`
+Reconoce directamente el **estado de resultados por tercero y centro de costo (CTRP) del software contable** de la
+ESE (§5.1). Es independiente de la aplicación Django: solo requiere `pandas`, `openpyxl` y `xlrd`
 (`homologacion_ceco/requirements.txt`). La hoja *CARGA HERRAMIENTA* se carga tal cual en la herramienta ABC
 (Cargas → Estado financiero, hoja `CARGA HERRAMIENTA`).
 
@@ -23,7 +24,7 @@ python -m homologacion_ceco procesar lote_enero.zip EF_FEB_2026.xlsx --salida re
 #   --mapeo mapeo.json      columnas fijas o sinónimos para archivos con encabezados atípicos
 #   --usar-movimiento       usar débito − crédito aunque el archivo traiga SALDO (balances acumulados)
 #   --activar-nuevos        cargar CECO nuevos que una regla homologa (ver §4)
-#   --clases 5,6,7          clases de cuenta a cargar
+#   --clases 4,5,6,7        clases de cuenta a leer (por defecto; la carga para la herramienta ABC lleva solo 5, 6, 7)
 
 python -m homologacion_ceco plantilla --salida Plantilla_Carga_CECO.xlsx   # plantilla de carga directa
 python -m homologacion_ceco validar-referencia                             # control de calidad del maestro
@@ -132,6 +133,28 @@ Filipinas comparten la IPS `HSAT`, como en el maestro.
 
 ## 5. Archivos de entrada y mapeo de columnas
 
+### 5.1 Estado de resultados del software contable (reporte CTRP)
+
+El reporte **CTRPEstadoResultadosTerCen** (estado de resultados por tercero y centro de costo) se reconoce solo,
+sin mapeo: `python -m homologacion_ceco procesar CTRPEstadoResultadosTerCen.xlsx --salida resultado.xlsx`.
+
+| En el reporte | Cómo se usa |
+|---|---|
+| Filas de cuenta (Nivel Clase → Subauxiliar, `OidCuentaContable`, `CodigoCuentaContable`) | Jerarquía y nombres del estado de resultados; totales de control por clase |
+| Filas de detalle (tercero × centro de costo) **sin código de cuenta** | La cuenta se toma de `OidCuentaProceso` → cuenta de detalle (subauxiliar) |
+| `CodigoCentroCosto`, `NombreCentroCosto` | Código del CECO E.F. que se homologa con el maestro |
+| `ValorSaldoDebito`, `ValorSaldoCredito` (o `ValorMovimiento…` con `--usar-movimiento`) | Valor = débito − crédito; los ingresos (naturaleza crédito) se muestran en positivo |
+| Pie del reporte (`DescripcionFiltros`: «ESTADO DE RESULTADOS DEL MES JULIO DE 2026 …») | Periodo 2026-07 |
+| `OidTercero` | Solo el identificador interno, para no confundir filas iguales de distintos terceros (p. ej. nómina por empleado). **No** se copian nombres ni documentos de terceros |
+| Hojas CALSIFICACION CUENTA, PUC, CENTROS DE COSTOS | Se omiten (el catálogo de CECO es el mismo del maestro) |
+
+Controles: si una cuenta de detalle trae un total que no se explica por su detalle por CECO (o no trae detalle),
+la diferencia se registra **RECHAZADA – sin centro de costo** con alerta *CUENTA SIN DETALLE POR CECO*; el
+RESUMEN compara, por clase, el total del reporte con lo leído (*Control contra los totales del reporte de
+origen*: debe decir CUADRA). Los textos que el software exporta con tildes dañadas («CAPITACIÃ“N») se reparan.
+
+### 5.2 Otros archivos
+
 Se reconocen encabezados distintos para el mismo campo (sin importar mayúsculas, tildes o signos), por
 sinónimo, sin espacios o por similitud (≥ 0,88). Los sinónimos están en `datos/columnas.json`:
 
@@ -171,9 +194,9 @@ columna fija inexistente deja esa hoja en ERROR con el detalle, y el resto del l
 | Hoja | Contenido |
 |---|---|
 | RESUMEN | Parámetros, huella SHA-256 de la referencia, **conciliación** y control de calidad del maestro |
-| **EF HOMOLOGADO** | Estado financiero por periodo: clase → grupo → cuenta → subcuenta → auxiliar × **sede/IPS** + total; debajo, las partidas no cargadas por estado y el total leído válido |
-| **EF POR CECO** | Por periodo: tipo de centro → CECO de resolución × sede/IPS |
-| **CARGA HERRAMIENTA** | Consolidado listo para cargar (PERIODO, CUENTA, NOMBRE CUENTA, CENTRO DE COSTOS, SEDE, LLAVE, TIPO, VALOR, DESCRIPCION, ID CONSOLIDADO, CECO E.F. ORIGEN, EN LISTA UTILIZADOS) |
+| **EF HOMOLOGADO** | Estado de resultados por periodo: clase → grupo → cuenta → subcuenta → auxiliar × **sede/IPS** + total; total de ingresos, de gastos y costos y **resultado del periodo**; debajo, los gastos y costos no cargados (por estado del CECO y sin centro de costo) y el total leído, que cuadra con el reporte |
+| **EF POR CECO** | Por periodo: gastos y costos por tipo de centro → CECO de resolución × sede/IPS |
+| **CARGA HERRAMIENTA** | Consolidado de gastos y costos (clases 5, 6, 7) listo para cargar (PERIODO, CUENTA, NOMBRE CUENTA, CENTRO DE COSTOS, SEDE, LLAVE, TIPO, VALOR, DESCRIPCION, ID CONSOLIDADO, CECO E.F. ORIGEN, EN LISTA UTILIZADOS) |
 | DETALLE CARGADO | Cada registro cargado con su origen, homologación e ID consolidado |
 | RETENIDOS | VERIFICAR / NO APLICA / EXCLUIR / SIN HOMOLOGAR con su motivo |
 | RECHAZOS Y EXCLUSIONES | Errores de datos y exclusiones por regla, con severidad y motivo |
@@ -195,7 +218,7 @@ Si una hoja supera el límite de filas de Excel, el detalle completo se escribe 
 | Situación | Destino |
 |---|---|
 | Sin CECO, sin cuenta, cuenta con letras, monto ilegible (`ABC`), periodo inválido (`31/13/2026`) o ausente | RECHAZADO (ERROR) |
-| Cuenta fuera de las clases 5, 6, 7 | EXCLUIDO (INFO) |
+| Cuenta fuera de las clases 4, 5, 6, 7 (balance) | EXCLUIDO (INFO) |
 | Cuenta que es prefijo de otra del mismo CECO y hoja (subtotal), o subtotal sin CECO | EXCLUIDO (INFO) — evita duplicar |
 | Filas de TOTAL del reporte, encabezados repetidos, valor cero | EXCLUIDO (INFO) |
 | Fila idéntica (periodo, CECO, cuenta, valor, descripción, comprobante), aun en otro archivo | EXCLUIDO (AVISO) |
@@ -224,7 +247,7 @@ La herramienta reconoce la plantilla sin mapeo (sola o dentro de un ZIP) y omite
    archivo de mapeo; no hay que cambiar código.
 2. Si el archivo trae SALDO y DÉBITO/CRÉDITO, se usa el saldo. Para balances **acumulados** del año use
    `--usar-movimiento` (débito − crédito del mes).
-3. El formato del estado financiero de origen es la jerarquía del catálogo de cuentas CGN (clase 1 dígito,
+3. El formato del estado financiero de origen es el reporte CTRP del software contable (§5.1) o la jerarquía del catálogo de cuentas CGN (clase 1 dígito,
    grupo 2, cuenta 4, subcuenta 6, auxiliar) con las IPS en columnas. Los niveles y nombres de clase/grupo
    están en `datos/sedes_y_puc.json`; los demás nombres se toman del propio archivo.
 4. Las cuentas que son prefijo de otras en el mismo CECO y hoja son subtotales (en el PUC no se registra en
@@ -255,11 +278,12 @@ EXCLUIR 1.000.000; CECO nuevo 1100201 700.000; CECO nuevo quirófanos 300.000). 
 ## 11. Pruebas
 
 ```bash
-pytest homologacion_ceco/tests        # 100 pruebas de la herramienta (sin Django)
+pytest homologacion_ceco/tests        # 111 pruebas de la herramienta (sin Django)
 pytest tests/test_homologacion_ceco_abc.py   # la hoja CARGA HERRAMIENTA entra a la herramienta ABC
 ```
 
-Cubren limpieza de montos/periodos/códigos, lectura del maestro y recálculo de fórmulas, reglas (incluido el
+Cubren el reporte CTRP del software contable (cuenta por OidCuentaProceso, periodo del pie, terceros sin
+duplicar ni copiar, cuentas sin detalle por CECO, control contra los totales, tildes dañadas), limpieza de montos/periodos/códigos, lectura del maestro y recálculo de fórmulas, reglas (incluido el
 contraste con los 549 CECO), formatos largo/matriz/por CECO, ZIP anidados/dañados/límites, duplicados,
 subtotales, estados no cargables, mapeo del usuario, conciliación, trazabilidad hasta la fila de Excel,
 protección contra fórmulas en textos de origen, plantilla (validaciones y carga directa) y línea de comandos.

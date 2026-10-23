@@ -177,7 +177,7 @@ def test_exportar_libro(tmp_path, resultado_lote):
     # Un texto de origen que empieza por "=" se guarda como texto, nunca como fórmula.
     textos = [c for fila in wb["DETALLE CARGADO"].iter_rows() for c in fila if c.value == "=1+1"]
     assert textos and all(c.data_type == "s" for c in textos)
-    ef = [f for f in wb["EF HOMOLOGADO"].iter_rows(values_only=True) if f[1] == "TOTAL COSTOS Y GASTOS HOMOLOGADOS (CARGADOS)"]
+    ef = [f for f in wb["EF HOMOLOGADO"].iter_rows(values_only=True) if f[1] == "TOTAL GASTOS Y COSTOS HOMOLOGADOS (CARGADOS)"]
     assert [round(f[-1] if f[-1] is not None else [v for v in f if v is not None][-1], 2) for f in ef] == [15300000.5, 6600000.0, 6010000.0]
 
 

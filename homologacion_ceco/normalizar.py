@@ -39,9 +39,29 @@ def texto(valor):
         return ""
     if isinstance(valor, float) and valor.is_integer():
         valor = int(valor)
-    s = unicodedata.normalize("NFC", str(valor)).replace(" ", " ")
+    s = reparar_mojibake(unicodedata.normalize("NFC", str(valor)).replace(" ", " "))
     s = "".join(ch for ch in s if unicodedata.category(ch)[0] != "C" or ch == " ")
     return re.sub(r"\s+", " ", s).strip()
+
+
+def reparar_mojibake(s):
+    """Repara texto UTF-8 que el sistema de origen exportó como Windows-1252: 'CAPITACIÃ“N' → 'CAPITACIÓN'.
+
+    Solo actúa si aparece 'Ã' o 'Â' y el resultado es UTF-8 válido; si no, devuelve el texto sin cambios.
+    """
+    if "Ã" not in s and "Â" not in s:
+        return s
+    try:
+        return b"".join(_byte_cp1252(ch) for ch in s).decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return s
+
+
+def _byte_cp1252(ch):
+    try:
+        return ch.encode("cp1252")
+    except UnicodeEncodeError:
+        return ch.encode("latin-1")  # 0x81, 0x8d, 0x8f, 0x90 y 0x9d no tienen carácter en cp1252
 
 
 def sin_tildes(s):

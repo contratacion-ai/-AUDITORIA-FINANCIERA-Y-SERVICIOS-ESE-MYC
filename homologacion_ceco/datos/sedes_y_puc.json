@@ -1,5 +1,5 @@
 {
-  "_descripcion": "Sedes/IPS y nombres de niveles superiores del catálogo de cuentas (CGN). El nombre de la sede debe coincidir con la columna SEDE / IPS del maestro; 'alias' son palabras que, si aparecen en el nombre de un CECO nuevo, indican la sede ('prioritario': el alias en el nombre prevalece sobre el segmento de sede del código, útil para subsedes). El orden define el orden de las columnas en el estado financiero.",
+  "_descripcion": "clases_lectura: clases del estado de resultados que se leen (4 ingresos, 5 gastos, 6 costos de venta, 7 costos de transformación); clases_costo: las que van a la carga de la herramienta de costos; clases_naturaleza_credito: se muestran con signo crédito (ingresos). Sedes/IPS y nombres de niveles superiores del catálogo de cuentas (CGN). El nombre de la sede debe coincidir con la columna SEDE / IPS del maestro; 'alias' son palabras que, si aparecen en el nombre de un CECO nuevo, indican la sede ('prioritario': el alias en el nombre prevalece sobre el segmento de sede del código, útil para subsedes). El orden define el orden de las columnas en el estado financiero.",
   "sedes": [
     {"sede": "ESE01 - Sede Administrativa (Tame)", "alias": ["ESE01", "SEDE ADMINISTRATIVA", "SEDE CENTRAL"]},
     {"sede": "HSLA - Arauquita", "alias": ["HSLA", "ARAUQUITA"]},
@@ -12,7 +12,9 @@
     {"sede": "CSJSC - Tame", "alias": ["CSJSC"]},
     {"sede": "HSAT - Filipinas", "alias": ["FILIPINAS", "FILIPINA"], "prioritario": true}
   ],
+  "clases_lectura": ["4", "5", "6", "7"],
   "clases_costo": ["5", "6", "7"],
+  "clases_naturaleza_credito": ["4"],
   "niveles_cuenta": [1, 2, 4, 6],
   "nombres_cuenta": {
     "5": "GASTOS",
@@ -22,6 +24,9 @@
     "58": "OTROS GASTOS",
     "6": "COSTOS DE VENTAS",
     "63": "COSTO DE VENTAS DE SERVICIOS",
-    "7": "COSTOS DE TRANSFORMACIÓN"
+    "7": "COSTOS DE TRANSFORMACIÓN",
+    "4": "INGRESOS",
+    "43": "VENTA DE SERVICIOS",
+    "48": "OTROS INGRESOS"
   }
 }

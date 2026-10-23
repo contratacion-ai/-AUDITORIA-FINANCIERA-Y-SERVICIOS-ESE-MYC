@@ -12,7 +12,7 @@ import hashlib
 import io
 import warnings
 import zipfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 
 import pandas as pd
@@ -39,6 +39,7 @@ class Tabla:
     hoja: str
     datos: pd.DataFrame  # sin encabezado; índice = fila de Excel - 1
     huella: str          # SHA-256 del archivo que contiene la hoja
+    meta: dict = field(default_factory=dict)  # datos del formato de origen (ver formatos.py)
 
 
 @dataclass

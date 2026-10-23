@@ -30,7 +30,8 @@ costeo por **CUPS** y su cruce con **RIPS**, **facturación por ámbito** y **no
 
 `homologacion_ceco/` (Python + Pandas): carga archivos de costos por CECO (Excel, CSV, ZIP anidados), los
 homologa al CECO de la resolución con el maestro `HOMOLOGACION_CECO_EF_vs_RESOLUCION_ESE_MYC_2026.xlsx`
-respetando los estados ACTIVO / VERIFICAR / NO APLICA / EXCLUIR, y genera en un solo libro el estado financiero
+respetando los estados ACTIVO / VERIFICAR / NO APLICA / EXCLUIR. Reconoce el estado de resultados por tercero y
+centro de costo (reporte CTRP) del software contable de la ESE, y genera en un solo libro el estado financiero
 homologado por sede/IPS, la carga para la herramienta de costos (`CARGA HERRAMIENTA`, compatible con este
 sistema), los rechazos con su motivo y la trazabilidad completa. Plantilla de carga directa:
 `plantillas/Plantilla_Carga_CECO.xlsx`.
@@ -108,7 +109,7 @@ Ubique un proxy HTTPS delante del puerto 8000. Respalde la base de datos y el vo
 ## Pruebas
 
 ```bash
-pytest            # 187 pruebas: aplicación ABC (limpieza, cargas, motor, cruces, informe, roles, instalador) y homologación CECO
+pytest            # 198 pruebas: aplicación ABC (limpieza, cargas, motor, cruces, informe, roles, instalador) y homologación CECO
 ```
 
 ## Estructura

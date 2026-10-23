@@ -36,8 +36,13 @@ SUPUESTOS = [
     "siempre quedan en VERIFICAR.",
     "La llave CECO|SEDE usa el primer token de la sede (misma fórmula de la columna G del maestro): HSAT - Tame y HSAT - "
     "Filipinas comparten la IPS HSAT.",
-    "Se cargan las cuentas de las clases configuradas (por defecto 5, 6 y 7). Las cuentas que son prefijo de otras del "
-    "mismo CECO y hoja se tratan como subtotales del reporte y no se suman, para no duplicar.",
+    "Se leen las clases del estado de resultados (4 ingresos, 5 gastos, 6 y 7 costos); la hoja CARGA HERRAMIENTA solo "
+    "lleva gastos y costos (5, 6, 7). Los ingresos se muestran en positivo y se calcula el resultado del periodo. Las "
+    "cuentas que son prefijo de otras del mismo CECO y hoja se tratan como subtotales y no se suman, para no duplicar.",
+    "Reporte CTRP del software contable (estado de resultados por tercero y centro): la cuenta de cada fila de detalle "
+    "se toma de OidCuentaProceso; el periodo, del pie del reporte; el tercero solo por su identificador interno "
+    "(OidTercero) para no confundir filas iguales de distintos terceros. Una cuenta sin detalle por CECO queda "
+    "rechazada (SIN CENTRO DE COSTO) para que lo leído cuadre con el total del reporte.",
     "Si el archivo trae VALOR (o SALDO / MOVIMIENTO) se usa ese valor; si solo trae DÉBITO y CRÉDITO, valor = débito − crédito.",
     "Montos: se aceptan formatos 1.234.567,89 · 1,234,567.89 · $ (1.000) · 1.234 (miles). Un único separador seguido de "
     "exactamente 3 dígitos se interpreta como separador de miles (costumbre colombiana).",
@@ -206,6 +211,12 @@ def exportar(resultado, salida):
     fila, _ = _tabla(ws, conc, [("concepto", "CONCILIACIÓN"), ("registros", "REGISTROS"), ("valor", "VALOR")], fila=fila,
                      titulo="Conciliación de valores", montos=("valor",), anchos={"concepto": 70, "registros": 12, "valor": 22})
     fila += 2
+    if len(resultado.control_origen):
+        fila, _ = _tabla(ws, resultado.control_origen, [
+            ("origen", "ARCHIVO"), ("clase", "CLASE"), ("nombre", "NOMBRE"), ("reporte", "TOTAL SEGÚN EL REPORTE (D − C)"),
+            ("leido", "TOTAL LEÍDO (D − C)"), ("diferencia", "DIFERENCIA"), ("estado", "ESTADO")], fila=fila,
+            titulo="Control contra los totales del reporte de origen", montos=("reporte", "leido", "diferencia"))
+        fila += 2
     fila, _ = _tabla(ws, resultado.control_referencia, [("seccion", "SECCIÓN"), ("indicador", "INDICADOR"), ("valor", "N°"),
                                                         ("porcentaje", "%")],
                      fila=fila, titulo="Control de calidad del archivo de referencia", anchos={"seccion": 70})
@@ -216,13 +227,14 @@ def exportar(resultado, salida):
 
     # ------------------------------------------------------------------ Estados financieros
     _ef(wb.create_sheet("EF HOMOLOGADO"), EF.por_cuenta(resultado),
-        "ESTADO FINANCIERO DE COSTOS Y GASTOS POR SEDE / IPS – HOMOLOGADO A LA RESOLUCIÓN", nombres_sede, resultado,
+        "ESTADO DE RESULTADOS POR SEDE / IPS – CENTROS DE COSTOS HOMOLOGADOS A LA RESOLUCIÓN", nombres_sede, resultado,
         negritas=(0, 1, 2, -1))
     _ef(wb.create_sheet("EF POR CECO"), EF.por_ceco(resultado),
-        "COSTOS POR CENTRO DE COSTOS DE RESOLUCIÓN Y SEDE / IPS (CECO ACTIVOS)", nombres_sede, resultado)
+        "GASTOS Y COSTOS POR CENTRO DE COSTOS DE RESOLUCIÓN Y SEDE / IPS (CECO ACTIVOS)", nombres_sede, resultado)
 
     # ------------------------------------------------------------------ Carga para la herramienta de costos
     cons = _pesos_df(resultado.consolidado)
+    cons = cons[cons["cuenta"].fillna("").map(EF.es_costo)] if len(cons) else cons  # la herramienta ABC costea gastos y costos
     cons["descripcion"] = cons.apply(lambda r: f"CECO E.F. {r['cecos_ef']} · {r['id_consolidado']}", axis=1) if len(cons) else ""
     cons["utilizados"] = cons["en_utilizados"].map(lambda v: "SÍ" if v else "NO") if len(cons) else ""
     _tabla(wb.create_sheet("CARGA HERRAMIENTA"), cons, [
