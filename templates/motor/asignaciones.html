@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load formato %}
+{% block titulo %}Asignaciones{% endblock %}
+{% block contenido %}
+<nav class="small mb-1"><a href="{% url 'motor:corrida' corrida.pk %}">Corrida #{{ corrida.pk }}</a> › Asignaciones</nav>
+<h1 class="h4">Asignaciones y tasas de asignación · {{ corrida.periodo }}</h1>
+<form class="row g-2 mb-2"><div class="col-auto"><select name="distribucion" class="form-select form-select-sm"><option value="">Todas</option>
+{% for d in "1234" %}<option value="{{ d }}" {% if request.GET.distribucion == d %}selected{% endif %}>{{ d }}ª distribución</option>{% endfor %}</select></div>
+<div class="col-auto"><input name="recurso__codigo" value="{{ request.GET.recurso__codigo }}" class="form-control form-control-sm" placeholder="Recurso (R14)"></div>
+<div class="col-auto"><input name="centro_origen__codigo" value="{{ request.GET.centro_origen__codigo }}" class="form-control form-control-sm" placeholder="Centro origen"></div>
+<div class="col-auto"><input name="centro_destino__codigo" value="{{ request.GET.centro_destino__codigo }}" class="form-control form-control-sm" placeholder="Centro destino"></div>
+<div class="col-auto"><button class="btn btn-sm btn-primary">Filtrar</button> <a class="btn btn-sm btn-outline-success" href="{% url_con exportar=1 %}">Excel</a></div></form>
+<div class="tarjeta"><div class="table-responsive"><table class="table table-sm table-abc">
+<thead><tr><th>Dist.</th><th>Recurso</th><th>Origen</th><th>Destino</th><th>Método</th><th>Inductor</th><th class="num">Valor a distribuir</th><th class="num">Cantidad</th>
+<th class="num">Total inductor</th><th class="num">Tasa ($/unidad)</th><th class="num">Ajuste concil.</th><th class="num">Valor asignado</th><th>Fuente</th><th>Nivel</th></tr></thead>
+<tbody>{% for a in pagina %}<tr><td>{{ a.distribucion }}ª</td><td>{{ a.recurso.codigo }}</td><td>{{ a.centro_origen.codigo|default:"" }}</td><td>{{ a.centro_destino.codigo }}</td>
+<td class="small">{{ a.metodo }}</td><td>{{ a.inductor.codigo|default:"" }}</td><td class="num">{{ a.base|pesos }}</td><td class="num">{{ a.cantidad_inductor|numero:2 }}</td>
+<td class="num">{{ a.total_inductor|numero:2 }}</td><td class="num">{{ a.tasa|pesos:2 }}</td><td class="num">{% if a.ajuste_conciliacion %}{{ a.ajuste_conciliacion|pesos:2 }}{% endif %}</td>
+<td class="num fw-semibold">{{ a.valor|pesos:2 }}</td><td class="small">{% if a.movimiento %}{{ a.movimiento.carga.nombre_original|truncatechars:20 }} f.{{ a.movimiento.fila }}{% endif %}</td>
+<td>{% if a.regla %}N{{ a.regla.nivel }}{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+{% include "parciales/paginacion.html" %}</div>
+{% endblock %}

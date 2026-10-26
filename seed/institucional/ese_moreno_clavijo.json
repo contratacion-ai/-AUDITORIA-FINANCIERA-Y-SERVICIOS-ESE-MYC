@@ -1,0 +1,30 @@
+{
+ "_descripcion": "Parametrización institucional de la ESE Departamental de Primer Nivel Moreno y Clavijo para la herramienta de costos ABC: cuentas contables → recurso de las cuentas del estado de resultados del software contable (reporte CTRP, julio de 2026) que no cubre el catálogo base. Se aplica el prefijo más largo: un código de 10 dígitos prevalece sobre su auxiliar de 8. Validar con contabilidad y ajustar en Parametrización → Cuentas contables - Recursos.",
+ "cuentas_recurso": [
+  {"prefijo": "63100102", "recurso": "R7", "descripcion": "Urgencias - materiales y suministros"},
+  {"prefijo": "6310010202", "recurso": "R20", "descripcion": "Urgencias - mantenimiento equipo biomédico"},
+  {"prefijo": "63100106", "recurso": "R2", "descripcion": "Urgencias - honorarios asistenciales (contrato directo / OPS)"},
+  {"prefijo": "63101501", "recurso": "R3", "descripcion": "Consulta externa y procedimientos contratados con terceros"},
+  {"prefijo": "63101504", "recurso": "R1", "descripcion": "Consulta externa - sueldos, aportes y horas extras (planta)"},
+  {"prefijo": "63101602", "recurso": "R3", "descripcion": "Consulta especializada contratada con terceros"},
+  {"prefijo": "63101701", "recurso": "R2", "descripcion": "Salud oral - remuneración de servicios técnicos (OPS)"},
+  {"prefijo": "63101702", "recurso": "R2", "descripcion": "Salud oral - honorarios profesionales (OPS)"},
+  {"prefijo": "63101703", "recurso": "R7", "descripcion": "Salud oral - materiales e insumos"},
+  {"prefijo": "63101704", "recurso": "R1", "descripcion": "Salud oral - salarios, prestaciones y aportes (planta)"},
+  {"prefijo": "63101901", "recurso": "R2", "descripcion": "Otras actividades extramurales - honorarios (OPS)"},
+  {"prefijo": "63101902", "recurso": "R2", "descripcion": "Otras actividades extramurales - servicios técnicos (OPS)"},
+  {"prefijo": "63102501", "recurso": "R7", "descripcion": "Hospitalización - materiales e insumos"},
+  {"prefijo": "63104002", "recurso": "R2", "descripcion": "Laboratorio clínico - honorarios (OPS)"},
+  {"prefijo": "63104004", "recurso": "R6", "descripcion": "Laboratorio clínico - materiales (reactivos)"},
+  {"prefijo": "63104006", "recurso": "R1", "descripcion": "Laboratorio clínico - sueldos, prestaciones y aportes (planta)"},
+  {"prefijo": "63104102", "recurso": "R2", "descripcion": "Imagenología - honorarios (OPS)"},
+  {"prefijo": "63104103", "recurso": "R1", "descripcion": "Imagenología - riesgos profesionales rayos X (planta)"},
+  {"prefijo": "63105002", "recurso": "R2", "descripcion": "Rehabilitación y terapias - honorarios (OPS)"},
+  {"prefijo": "63106001", "recurso": "R24", "descripcion": "Servicios conexos (medio ambiente) - bienes y servicios"},
+  {"prefijo": "63106737", "recurso": "R14", "descripcion": "Servicios públicos hospitales (energía, acueducto y aseo agrupados; separar si se requiere)"},
+  {"prefijo": "511179", "recurso": "R2", "descripcion": "Honorarios administrativos (contrato directo / OPS)"},
+  {"prefijo": "511180", "recurso": "R2", "descripcion": "Remuneración de servicios técnicos administrativos (OPS)"},
+  {"prefijo": "5890900201", "recurso": "R2", "descripcion": "Honorarios (resolución del Ministerio de Salud)"},
+  {"prefijo": "5890900301", "recurso": "R2", "descripcion": "Remuneración de servicios técnicos (resolución del Ministerio de Salud)"}
+ ]
+}

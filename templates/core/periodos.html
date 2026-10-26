@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block titulo %}Periodos{% endblock %}
+{% block contenido %}
+<h1 class="h4">Periodos contables (carga mes a mes)</h1>
+<p class="text-muted">Un periodo cerrado no admite cargas, anulaciones, cambios de valores del mes ni nuevas corridas del motor.</p>
+<div class="row g-3">
+  <div class="col-lg-8"><div class="tarjeta">
+  <table class="table table-sm table-abc">
+    <thead><tr><th>Periodo</th><th>Estado</th><th>Cerrado por</th><th>Fecha cierre</th><th></th></tr></thead>
+    <tbody>
+    {% for p in periodos %}
+      <tr><td>{{ p }}</td><td><span class="badge {% if p.cerrado %}bg-secondary{% else %}bg-success{% endif %}">{{ p.get_estado_display }}</span></td>
+        <td>{{ p.cerrado_por|default:"" }}</td><td>{{ p.cerrado_en|date:"Y-m-d H:i"|default:"" }}</td>
+        <td class="text-end">
+          <a class="btn btn-sm btn-outline-primary" href="{% url 'motor:panel' %}?periodo={{ p.pk }}">Motor</a>
+          {% if puede.cerrar_periodo %}
+          <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="periodo" value="{{ p.pk }}">
+            {% if p.cerrado %}<button class="btn btn-sm btn-outline-warning" name="accion" value="abrir">Reabrir</button>
+            {% else %}<button class="btn btn-sm btn-outline-secondary" name="accion" value="cerrar" onclick="return confirm('¿Cerrar el periodo {{ p }}?')">Cerrar</button>{% endif %}
+          </form>{% endif %}
+        </td></tr>
+    {% empty %}<tr><td colspan="5" class="text-muted">No hay periodos. Cree el primero.</td></tr>{% endfor %}
+    </tbody></table></div></div>
+  {% if puede.cerrar_periodo %}
+  <div class="col-lg-4"><div class="tarjeta">
+    <h2 class="h6">Nuevo periodo</h2>
+    <form method="post" class="row g-2">{% csrf_token %}
+      <div class="col-6"><label class="form-label small">Año</label><input name="anio" type="number" class="form-control" value="{{ hoy.year }}" min="2000" max="2100"></div>
+      <div class="col-6"><label class="form-label small">Mes</label><input name="mes" type="number" class="form-control" value="{{ hoy.month }}" min="1" max="12"></div>
+      <div class="col-12"><button class="btn btn-primary" name="accion" value="crear">Crear periodo</button></div>
+    </form></div></div>{% endif %}
+</div>
+{% endblock %}

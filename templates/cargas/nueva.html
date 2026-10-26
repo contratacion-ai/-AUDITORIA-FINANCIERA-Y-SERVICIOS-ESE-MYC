@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block titulo %}Nueva carga{% endblock %}
+{% block contenido %}
+<h1 class="h4">Nueva carga</h1>
+<div class="row g-3">
+<div class="col-lg-6"><div class="tarjeta">
+<form method="post" enctype="multipart/form-data">{% csrf_token %}
+{% for f in form %}<div class="mb-2">{% if f.field.widget.input_type == 'checkbox' %}<div class="form-check">{{ f }} <label class="form-check-label" for="{{ f.id_for_label }}">{{ f.label }}</label></div>
+{% else %}<label class="form-label small mb-0" for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{% endif %}
+{% if f.help_text %}<div class="form-text">{{ f.help_text }}</div>{% endif %}{% for e in f.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>{% endfor %}
+<button class="btn btn-primary">Validar y cargar</button>
+</form>
+<p class="small text-muted mt-2 mb-0">El archivo se valida completo: estructura, columnas obligatorias, números, fechas, duplicados y códigos (cuentas, centros, CUPS, EPS).
+Si hay errores la carga se rechaza, salvo que marque «aplicar filas válidas». Formatos: .xlsx, .xls, .csv.</p>
+</div></div>
+<div class="col-lg-6"><div class="tarjeta"><h2 class="h6">Tipos de archivo</h2>
+<div class="accordion accordion-flush" id="tipos">{% for e in esquemas %}
+<div class="accordion-item"><h3 class="accordion-header"><button class="accordion-button collapsed py-2 small" type="button" data-bs-toggle="collapse" data-bs-target="#t{{ forloop.counter }}">
+{{ e.nombre }}{% if not e.periodico %} <span class="badge bg-secondary ms-2">catálogo</span>{% endif %}</button></h3>
+<div id="t{{ forloop.counter }}" class="accordion-collapse collapse" data-bs-parent="#tipos"><div class="accordion-body small">
+<p>{{ e.descripcion }}</p><ul class="mb-0">{% for c in e.campos %}<li><strong>{{ c.etiqueta }}</strong>{% if c.requerido %} <span class="text-danger">*</span>{% endif %}{% if c.ayuda %} — {{ c.ayuda }}{% endif %}</li>{% endfor %}</ul>
+</div></div></div>{% endfor %}</div></div></div>
+</div>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% load formato static %}
+{% block titulo %}Tablero{% endblock %}
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center"><h1 class="h4 mb-2">Tablero de costos · {{ institucion_activa }}</h1>
+{% if corrida %}<a class="btn btn-sm btn-outline-primary no-imprimir" href="{% url 'analisis:informe' %}?periodo={{ periodo.pk }}&comparar={{ comparar.pk|default:0 }}">Ver informe gerencial</a>{% endif %}</div>
+{% include "parciales/filtros.html" %}
+{% if not periodo %}<div class="alert alert-info">Cree un periodo, cargue la información del mes y ejecute el motor.</div>
+{% elif not corrida %}<div class="alert alert-warning">No hay corrida vigente para {{ periodo }}. <a href="{% url 'motor:panel' %}?periodo={{ periodo.pk }}">Ejecutar el motor</a>.</div>
+{% else %}
+<div class="row g-3 mb-3">
+  <div class="col-6 col-xl-2"><div class="tarjeta kpi"><div class="etiqueta">Costo total {{ periodo.etiqueta_corta }}</div><div class="valor">{{ total|pesos }}</div>
+    {% if corrida_comp %}<div class="small {{ dif|clase_var }}">{{ pct|pct_signo }} vs {{ comparar.etiqueta_corta }} ({{ dif|pesos }})</div>{% endif %}</div></div>
+  <div class="col-6 col-xl-2"><div class="tarjeta kpi"><div class="etiqueta">Costo de personal</div><div class="valor">{{ pct_personal|pct }}</div><div class="small text-muted">del costo total</div></div></div>
+  <div class="col-6 col-xl-2"><div class="tarjeta kpi"><div class="etiqueta">Costo centros finales{% if unidad %} · {{ unidad.codigo }}{% endif %}</div><div class="valor">{{ costo_finales|pesos }}</div><div class="small text-muted">tras la 4ª distribución</div></div></div>
+  <div class="col-6 col-xl-2"><div class="tarjeta kpi"><div class="etiqueta">Facturado{% if eps %} · {{ eps.nombre|truncatechars:16 }}{% endif %}</div><div class="valor">{{ facturado|pesos }}</div><div class="small text-muted">costo ABC {{ costo_facturado|pesos }}</div></div></div>
+  <div class="col-6 col-xl-2"><div class="tarjeta kpi"><div class="etiqueta">Margen sobre costo</div><div class="valor {{ margen|clase_margen }}">{{ margen|pesos }}</div><div class="small">{{ margen_pct|pct }}</div></div></div>
+  <div class="col-6 col-xl-2"><div class="tarjeta kpi"><div class="etiqueta">Calidad de la corrida</div>
+    <div class="valor {% if corrida.resumen.conservacion_ok and corrida.resumen.pendiente_asignacion == '0.00' %}text-success{% else %}text-warning{% endif %}">{% if corrida.resumen.pendiente_asignacion == '0.00' %}Sin pendientes{% else %}{{ corrida.resumen.pendiente_asignacion|pesos }}{% endif %}</div>
+    <div class="small text-muted">{{ corrida.resumen.cups_costeados }} CUPS costeados · <a href="{% url 'motor:corrida' corrida.pk %}">detalle</a></div></div></div>
+</div>
+<div class="row g-3 mb-3">
+  <div class="col-lg-4"><div class="tarjeta"><h2 class="h6">Costo por elemento</h2><div class="grafico"><canvas id="gElementos"></canvas></div></div></div>
+  <div class="col-lg-8"><div class="tarjeta"><h2 class="h6">Costo total por unidad de negocio final{% if corrida_comp %} · {{ comparar.etiqueta_corta }} vs {{ periodo.etiqueta_corta }}{% endif %}</h2><div class="grafico"><canvas id="gUnidades"></canvas></div></div></div>
+  <div class="col-lg-6"><div class="tarjeta"><h2 class="h6">Principales centros de costos finales{% if unidad %} · {{ unidad }}{% endif %}</h2><div class="grafico"><canvas id="gCentros"></canvas></div></div></div>
+  <div class="col-lg-6"><div class="tarjeta"><h2 class="h6">Tendencia mensual del costo</h2><div class="grafico"><canvas id="gSerie"></canvas></div></div></div>
+  <div class="col-lg-6"><div class="tarjeta"><h2 class="h6">Facturado vs. costo ABC por EPS</h2><div class="grafico"><canvas id="gEps"></canvas></div></div></div>
+  <div class="col-lg-6"><div class="tarjeta"><h2 class="h6">Facturado vs. costo por ámbito de facturación</h2><div class="grafico"><canvas id="gAmbitos"></canvas></div></div></div>
+</div>
+<div class="row g-3">
+  <div class="col-xl-6"><div class="tarjeta"><h2 class="h6">CUPS de mayor costo{% if eps %} · tarifa {{ eps.nombre }}{% endif %}</h2><div class="table-responsive">
+  <table class="table table-sm table-abc"><thead><tr><th>CUPS</th><th>Descripción</th><th>Centro</th><th class="num">Cantidad</th><th class="num">Costo unit.</th><th class="num">Tarifa prom.</th><th class="num">Margen unit.</th></tr></thead><tbody>
+  {% for x in top_cups %}<tr><td><a href="{% url 'motor:traza_cups' x.c.pk %}">{{ x.c.cups.codigo }}</a></td><td>{{ x.c.cups.descripcion|truncatechars:34 }}</td><td>{{ x.c.centro.codigo }}</td>
+  <td class="num">{{ x.c.cantidad|numero }}</td><td class="num">{{ x.c.costo_unitario|pesos }}</td><td class="num">{{ x.tarifa|pesos }}</td><td class="num {{ x.margen|clase_margen }}">{{ x.margen|pesos }}</td></tr>
+  {% empty %}<tr><td colspan="7" class="text-muted">Sin costos CUPS.</td></tr>{% endfor %}</tbody></table></div></div></div>
+  <div class="col-xl-6"><div class="tarjeta"><h2 class="h6">Margen por EPS</h2><div class="table-responsive">
+  <table class="table table-sm table-abc"><thead><tr><th>EPS</th><th class="num">Facturado</th><th class="num">Costo ABC</th><th class="num">Margen</th><th class="num">%</th></tr></thead><tbody>
+  {% for e in por_eps %}<tr><td>{{ e.eps|truncatechars:34 }}</td><td class="num">{{ e.facturado|pesos }}</td><td class="num">{{ e.costo|pesos }}</td><td class="num {{ e.margen|clase_margen }}">{{ e.margen|pesos }}</td><td class="num">{{ e.margen_pct|pct }}</td></tr>
+  {% empty %}<tr><td colspan="5" class="text-muted">Sin facturación cargada.</td></tr>{% endfor %}</tbody></table></div></div></div>
+  <div class="col-12"><div class="tarjeta"><h2 class="h6">Centros de costos finales{% if corrida_comp %} · comparación de periodos{% endif %}</h2><div class="table-responsive">
+  <table class="table table-sm table-abc"><thead><tr><th>Código</th><th>Centro</th><th>Unidad</th><th class="num">{{ comparar.etiqueta_corta|default:"Anterior" }}</th><th class="num">{{ periodo.etiqueta_corta }}</th><th class="num">Var. %</th><th></th></tr></thead><tbody>
+  {% for c, v, a, var in finales %}<tr><td>{{ c.codigo }}</td><td>{{ c.nombre }}</td><td>{{ c.unidad_negocio.codigo }}</td><td class="num">{{ a|pesos }}</td><td class="num">{{ v|pesos }}</td>
+  <td class="num {{ var|clase_var }}">{{ var|pct_signo }}</td>
+  <td><a class="small" href="{% url 'motor:traza_centro' corrida.pk c.pk %}">trazar</a></td></tr>{% endfor %}</tbody></table></div></div></div>
+</div>
+{{ graficos|json_script:"datos-graficos" }}
+{% endif %}
+{% endblock %}
+{% block scripts %}{% if corrida %}
+<script src="{% static 'vendor/chart.umd.js' %}"></script>
+<script>
+(function(){
+  const d = JSON.parse(document.getElementById('datos-graficos').textContent);
+  const fmt = v => '$' + Math.round(v).toLocaleString('es-CO');
+  const corto = v => Math.abs(v) >= 1e9 ? '$' + (v/1e9).toFixed(1) + ' MM' : Math.abs(v) >= 1e6 ? '$' + (v/1e6).toFixed(0) + ' M' : fmt(v);
+  const azul = '#1f3864', azul2 = '#8faadc', naranja = '#c55a11', verde = '#548235';
+  const comunes = {responsive: true, maintainAspectRatio: false, plugins: {tooltip: {callbacks: {label: c => (c.dataset.label ? c.dataset.label + ': ' : '') + fmt(c.parsed.y ?? c.parsed.x ?? c.parsed)}}}};
+  const ejes = {y: {ticks: {callback: corto}}};
+  new Chart(gElementos, {type: 'doughnut', data: {labels: d.elementos.labels, datasets: [{data: d.elementos.data, backgroundColor: [azul, naranja, '#2e75b6', verde]}]},
+    options: {...comunes, plugins: {...comunes.plugins, legend: {position: 'bottom'}}}});
+  new Chart(gUnidades, {type: 'bar', data: {labels: d.unidades.labels, datasets: [{label: 'Anterior', data: d.unidades.anterior, backgroundColor: azul2},
+    {label: 'Actual', data: d.unidades.actual, backgroundColor: azul}]},
+    options: {...comunes, scales: ejes, plugins: {...comunes.plugins, tooltip: {callbacks: {title: i => d.unidades.nombres[i[0].dataIndex], label: c => c.dataset.label + ': ' + fmt(c.parsed.y)}}}}});
+  new Chart(gCentros, {type: 'bar', data: {labels: d.centros.labels, datasets: [{label: 'Anterior', data: d.centros.anterior, backgroundColor: azul2},
+    {label: 'Actual', data: d.centros.actual, backgroundColor: azul}]},
+    options: {...comunes, indexAxis: 'y', scales: {x: {ticks: {callback: corto}}},
+      plugins: {tooltip: {callbacks: {title: i => d.centros.nombres[i[0].dataIndex], label: c => c.dataset.label + ': ' + fmt(c.parsed.x)}}}}});
+  new Chart(gSerie, {type: 'line', data: {labels: d.serie.labels, datasets: [{label: 'Costo total', data: d.serie.data, borderColor: azul, backgroundColor: azul, tension: .25}]},
+    options: {...comunes, scales: ejes}});
+  const barras = (el, x) => new Chart(el, {type: 'bar', data: {labels: x.labels, datasets: [{label: 'Facturado', data: x.facturado, backgroundColor: azul},
+    {label: 'Costo ABC', data: x.costo, backgroundColor: naranja}]}, options: {...comunes, scales: ejes}});
+  barras(gEps, d.eps); barras(gAmbitos, d.ambitos);
+})();
+</script>{% endif %}{% endblock %}

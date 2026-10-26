@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% load formato %}
+{% block titulo %}Motor ABC{% endblock %}
+{% block contenido %}
+<h1 class="h4">Generación de distribuciones 1ª a 4ª y costeo CUPS</h1>
+{% include "parciales/selector_periodo.html" %}
+{% if periodo %}
+<div class="row g-3">
+<div class="col-lg-5"><div class="tarjeta">
+<h2 class="h6">Insumos cargados · {{ periodo }}</h2>
+<table class="table table-sm"><tbody>{% for c in cargas %}<tr><td>{{ c.tipo_archivo }}</td><td class="num">{{ c.n|numero }} filas</td><td class="num">{{ c.v|pesos }}</td></tr>
+{% empty %}<tr><td class="text-muted">No hay cargas aplicadas en el periodo.</td></tr>{% endfor %}</tbody></table>
+<p class="small">Total movimientos contables: <strong>{{ movimientos|pesos }}</strong></p>
+<ol class="small text-muted"><li><strong>1ª</strong> Recursos → centros de costos (directo, % mano de obra Empleado/OPS o inductor; conciliación área vs. estado financiero).</li>
+<li><strong>2ª</strong> Estructura → servicios, intermedios y finales.</li><li><strong>3ª</strong> Servicios → intermedios y finales.</li>
+<li><strong>4ª</strong> Intermedios → finales.</li><li><strong>CUPS</strong> Costo de cada centro final → CUPS producidos (producción o RIPS) × peso relativo.</li></ol>
+{% if puede.ejecutar_motor %}<form method="post">{% csrf_token %}<input type="hidden" name="periodo" value="{{ periodo.pk }}">
+<button class="btn btn-primary" {% if periodo.cerrado %}disabled{% endif %}>Generar distribuciones del periodo</button>
+{% if periodo.cerrado %}<span class="small text-muted ms-2">Periodo cerrado.</span>{% endif %}</form>{% endif %}
+</div></div>
+<div class="col-lg-7"><div class="tarjeta"><h2 class="h6">Corridas del periodo</h2>
+<table class="table table-sm table-abc"><thead><tr><th>#</th><th>Fecha</th><th>Usuario</th><th>Estado</th><th class="num">Entrada</th><th class="num">Finales</th><th class="num">Pendiente</th><th></th></tr></thead><tbody>
+{% for c in corridas %}<tr><td>{{ c.pk }}{% if c.vigente %} <span class="badge bg-success">vigente</span>{% endif %}</td><td>{{ c.inicio|date:"Y-m-d H:i" }}</td><td>{{ c.usuario|default:"" }}</td>
+<td>{{ c.get_estado_display }}</td><td class="num">{{ c.resumen.total_entrada|pesos }}</td><td class="num">{{ c.resumen.total_finales|pesos }}</td>
+<td class="num">{{ c.resumen.pendiente_asignacion|pesos }}</td><td><a class="btn btn-sm btn-outline-primary" href="{% url 'motor:corrida' c.pk %}">Detalle</a></td></tr>
+{% empty %}<tr><td colspan="8" class="text-muted">Aún no se ha ejecutado el motor para este periodo.</td></tr>{% endfor %}</tbody></table>
+<p class="small text-muted mb-0">Se conservan las últimas 5 corridas por periodo; tablero e informe usan la vigente.</p></div></div>
+</div>
+{% else %}<div class="alert alert-info">Cree un periodo para comenzar.</div>{% endif %}
+{% endblock %}

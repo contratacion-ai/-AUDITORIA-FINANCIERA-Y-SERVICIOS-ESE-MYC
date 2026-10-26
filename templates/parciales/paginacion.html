@@ -1,0 +1,6 @@
+{% load formato %}{% if pagina.has_other_pages %}
+<nav class="mt-2"><ul class="pagination pagination-sm mb-0">
+{% if pagina.has_previous %}<li class="page-item"><a class="page-link" href="{% url_con page=pagina.previous_page_number %}">«</a></li>{% endif %}
+<li class="page-item disabled"><span class="page-link">Página {{ pagina.number }} de {{ pagina.paginator.num_pages }} · {{ pagina.paginator.count }} registros</span></li>
+{% if pagina.has_next %}<li class="page-item"><a class="page-link" href="{% url_con page=pagina.next_page_number %}">»</a></li>{% endif %}
+</ul></nav>{% endif %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block titulo %}Mapeo de columnas{% endblock %}
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center"><h1 class="h4">Plantillas de mapeo de columnas</h1>
+{% if puede.parametrizar %}<div class="dropdown"><button class="btn btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown">Nuevo mapeo</button>
+<ul class="dropdown-menu dropdown-menu-end">{% for v, n in tipos %}<li><a class="dropdown-item" href="{% url 'cargas:mapeo_nuevo' %}?tipo={{ v }}">{{ n }}</a></li>{% endfor %}</ul></div>{% endif %}</div>
+<p class="text-muted small">Cada institución define cómo se llaman sus columnas (nómina, inventarios, contratistas, depreciación, facturación del software 360, RIPS…).
+Un mapeo asocia cada columna del archivo de origen con el campo estándar; puede referirse a la columna por su nombre o por su letra con «#» (#C).</p>
+<div class="tarjeta"><table class="table table-sm table-abc"><thead><tr><th>Nombre</th><th>Tipo de archivo</th><th>Hoja</th><th>Fila encabezado</th><th>Separador</th><th>Campos mapeados</th><th></th></tr></thead><tbody>
+{% for m in mapeos %}<tr><td>{{ m.nombre }}{% if m.es_estandar %} <span class="badge bg-info text-dark">estándar</span>{% endif %}{% if not m.activo %} <span class="badge bg-secondary">inactivo</span>{% endif %}</td>
+<td>{{ m.get_tipo_archivo_display }}</td><td>{{ m.hoja|default:"(primera)" }}</td><td>{{ m.fila_encabezado }}</td><td>{{ m.get_separador_decimal_display }}</td>
+<td>{{ m.mapeo|length }}{% if m.constantes %} + {{ m.constantes|length }} fijos{% endif %}</td>
+<td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'cargas:mapeo_editar' m.pk %}">Abrir</a></td></tr>
+{% empty %}<tr><td colspan="7" class="text-muted">Sin mapeos. Cargue el catálogo base para crear los mapeos estándar.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

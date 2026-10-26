@@ -1,0 +1,66 @@
+HERRAMIENTA DE COSTOS ABC PARA INSTITUCIONES DE SALUD - INSTALACION
+===================================================================
+
+El instalador incluye la aplicacion, Python y sus dependencias: no necesita internet
+ni tener Python instalado.
+
+WINDOWS (Windows 10/11, 64 bits)
+
+  CostosABC-<version>.exe  -  NO PIDE PERMISOS NI CONTRASENA DE ADMINISTRADOR
+  1. Doble clic. Si Windows muestra "Windows protegio su PC", pulse "Mas informacion" >
+     "Ejecutar de todas formas" (el instalador no esta firmado digitalmente). Esto NO
+     pide contrasena.
+  2. Siguiente > Acepto > Siguiente. Se instala en su carpeta de usuario
+     (%LOCALAPPDATA%\CostosABC), donde usted ya tiene permiso de escritura.
+  3. Complete el formulario: codigo y nombre de la institucion, NIT, municipio,
+     usuario administrador de la aplicacion y puerto (8000). NO se pide contrasena.
+  4. Instalar. Al terminar deje marcado "Abrir Costos ABC para crear mi contrasena":
+     se abre la pagina "Cree su contrasena", donde usted define su usuario y su
+     propia contrasena de la aplicacion (minimo 10 caracteres). Ese enlace funciona una
+     sola vez. Si cierra el navegador antes, use Inicio > Costos ABC > Crear contrasena
+     del administrador.
+  - Funciona en ESTE equipo: http://localhost:8000/
+  - Inicia sola cada vez que usted inicia sesion en Windows (o Inicio > Costos ABC >
+    Iniciar Costos ABC).
+  - La propia aplicacion hace un respaldo cada 24 horas en
+    %LOCALAPPDATA%\CostosABC\datos\respaldos (30 dias); tambien Inicio > Costos ABC >
+    Respaldar ahora. No usa el Programador de tareas ni el firewall.
+
+  SI WINDOWS LE PIDE LA CONTRASENA DEL ADMINISTRADOR, esta abriendo otro archivo:
+  - el antiguo "CostosABC-Servidor-Setup" (instalador de servidor de red, solo para el
+    area de sistemas) o el antiguo paquete ZIP con INSTALAR.bat. Borrelos y use
+    unicamente CostosABC-<version>.exe.
+  - Si su equipo tiene una politica que bloquea programas que no sean del area de
+    sistemas, Windows lo indicara con un mensaje de bloqueo (no con contrasena): en ese
+    caso solicite a sistemas que lo autorice.
+
+  Si algo falla: datos\logs\instalacion.log dentro de la carpeta de instalacion.
+  Desinstalar: Configuracion > Aplicaciones, o Inicio > Costos ABC > Desinstalar
+  (pregunta si conserva la base de datos). Tampoco pide administrador.
+
+  SERVIDOR DE RED (opcional, lo hace el area de sistemas): para que otros equipos entren
+  por la red se usa un instalador de servidor aparte que SI requiere administrador
+  (instala como servicio y abre el firewall). Se genera solo a pedido.
+
+LINUX (Ubuntu 22.04+, Debian 12+, RHEL 9+)
+  unzip CostosABC-*.zip && cd CostosABC
+  sudo bash instalador/linux/instalar.sh            (nativo con systemd)
+  sudo bash instalador/linux/instalar.sh --docker   (Docker + PostgreSQL)
+  Queda en /opt/costos-abc, servicio "costos-abc", respaldo diario en /opt/costos-abc/datos/respaldos.
+  Al final muestra el enlace para crear la contrasena del administrador.
+
+SI PIERDE EL ENLACE PARA CREAR LA CONTRASENA (antes de usarlo)
+  Windows: <carpeta>\python\python.exe <carpeta>\manage.py enlace_primer_acceso
+           (<carpeta> = %LOCALAPPDATA%\CostosABC o C:\CostosABC en el servidor)
+  Linux:   cd /opt/costos-abc && sudo -u costosabc .venv/bin/python manage.py enlace_primer_acceso
+  Para cambiar una contrasena ya creada: menu del usuario > Cambiar contrasena.
+
+ACTUALIZAR A UNA NUEVA VERSION
+  Ejecute el nuevo CostosABC-<version>.exe sobre la misma carpeta: conserva .env, la base de datos y los archivos; no vuelve a pedir el
+  formulario, aplica las migraciones y reinicia el servicio.
+
+IMPORTANTE
+  - Guarde una copia segura del archivo .env: contiene la clave que seudonimiza a los
+    pacientes (PSEUDONIMO_KEY). Sin ella no se pueden cruzar RIPS de meses anteriores.
+  - Para acceso desde fuera del hospital publique la aplicacion solo detras de HTTPS.
+  - Manual de uso: docs\MANUAL_USUARIO.md  ·  Plantilla: plantillas\Plantilla_Carga_Mensual_ABC.xlsx

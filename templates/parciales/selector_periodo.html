@@ -1,0 +1,6 @@
+<form class="row g-2 align-items-end mb-3 no-imprimir">
+  <div class="col-auto"><label class="form-label small mb-0">Periodo</label>
+    <select name="periodo" class="form-select form-select-sm" onchange="this.form.submit()">
+      {% for p in periodos %}<option value="{{ p.pk }}" {% if p.pk == periodo.pk %}selected{% endif %}>{{ p }}</option>{% endfor %}</select></div>
+  {% for k, v in request.GET.items %}{% if k != "periodo" and k != "page" %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endif %}{% endfor %}
+</form>

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block titulo %}Usuarios y roles{% endblock %}
+{% block contenido %}
+<h1 class="h4">Usuarios y roles · {{ institucion_activa }}</h1>
+<div class="row g-3">
+<div class="col-lg-7"><div class="tarjeta">
+<table class="table table-sm table-abc"><thead><tr><th>Usuario</th><th>Rol</th><th>Estado</th><th></th></tr></thead><tbody>
+{% for m in membresias %}<tr><td>{{ m.usuario.username }}</td><td>{{ m.get_rol_display }}</td>
+<td>{% if m.activo %}<span class="badge bg-success">Activo</span>{% else %}<span class="badge bg-secondary">Revocado</span>{% endif %}</td>
+<td class="text-end">{% if m.activo %}<form method="post">{% csrf_token %}<input type="hidden" name="membresia" value="{{ m.pk }}">
+<button class="btn btn-sm btn-outline-danger" name="accion" value="revocar">Revocar</button></form>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div></div>
+<div class="col-lg-5"><div class="tarjeta">
+<h2 class="h6">Asignar usuario</h2>
+<p class="small text-muted">Si el usuario ya existe (p. ej. un consultor que atiende otras instituciones) solo se le asigna el rol aquí; no verá datos de instituciones que no tenga asignadas.</p>
+<form method="post" class="row g-2">{% csrf_token %}
+<div class="col-12"><input name="username" class="form-control" placeholder="Usuario" required></div>
+<div class="col-12"><select name="rol" class="form-select">{% for v, n in roles %}<option value="{{ v }}">{{ n }}</option>{% endfor %}</select></div>
+<div class="col-12"><input name="email" type="email" class="form-control" placeholder="Correo (usuario nuevo)"></div>
+<div class="col-12"><input name="password" type="password" class="form-control" placeholder="Contraseña inicial (usuario nuevo)" autocomplete="new-password"></div>
+<div class="col-12"><button class="btn btn-primary" name="accion" value="asignar">Asignar</button></div>
+</form></div></div>
+<div class="col-12"><div class="tarjeta"><h2 class="h6">Matriz de permisos por rol</h2>
+<table class="table table-sm table-abc"><thead><tr><th>Permiso</th>{% for v, n in roles %}<th class="text-center">{{ n }}</th>{% endfor %}</tr></thead>
+<tbody>{% for p, desc, fila in matriz %}<tr><td>{{ desc }}</td>{% for ok in fila %}<td class="text-center">{% if ok %}✔{% else %}<span class="text-muted">—</span>{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div></div>
+</div>
+{% endblock %}
