@@ -41,9 +41,10 @@ def respaldar(base, datos=None, dias=DIAS):
         origen.close()
         copia.close()
     if (datos / "media").exists():
-        shutil.copytree(datos / "media", carpeta / "media", dirs_exist_ok=True)
+        # copyfile (sin metadatos): no depende de CopyFile2 de Windows, que algunos entornos no implementan
+        shutil.copytree(datos / "media", carpeta / "media", dirs_exist_ok=True, copy_function=shutil.copyfile)
     if (base / ".env").exists():
-        shutil.copy2(base / ".env", carpeta / "env.txt")
+        shutil.copyfile(base / ".env", carpeta / "env.txt")
     limite = time.time() - dias * 86400
     for viejo in (datos / "respaldos").iterdir():
         if viejo.is_dir() and viejo.stat().st_mtime < limite:
