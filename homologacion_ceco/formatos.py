@@ -16,13 +16,19 @@ interno del software) para distinguir filas legítimamente iguales (p. ej. nómi
 nombres ni documentos de personas. Si una cuenta de detalle trae un total distinto a la suma de su detalle por
 CECO (o no trae detalle), la diferencia se emite como registro **sin CECO**, que queda rechazado y visible, para
 que lo leído cuadre con el total del reporte.
+
+También se acepta el reporte **editado a mano** (caso frecuente: se borran `OidCuentaContable`, `OidTercero` y el pie,
+y los valores se renombran `DEBITO`/`CREDITO`): sin `OidCuentaContable` cada fila de detalle se asigna a la cuenta de
+detalle (`NivelAuxiliar = True`) que la precede, que es el orden en que el software exporta el reporte; sin
+`OidTercero` el tercero se distingue con una huella irreversible del documento (no se copia el documento).
 """
+import hashlib
 import re
 
 from .normalizar import centavos, clave, cuenta, es_vacio, periodo_en_nombre, texto
 
-COLUMNAS_CTRP = {"OIDCUENTACONTABLE", "CODIGOCUENTACONTABLE", "OIDCUENTAPROCESO", "CODIGOCENTROCOSTO",
-                 "VALORSALDODEBITO", "VALORSALDOCREDITO"}
+COLUMNAS_CTRP = {"CODIGOCUENTACONTABLE", "OIDCUENTAPROCESO", "CODIGOCENTROCOSTO", "NIVEL", "NIVELAUXILIAR"}
+PARES_VALOR = (("VALORSALDODEBITO", "VALORSALDOCREDITO"), ("DEBITO", "CREDITO"), ("VALORMOVIMIENTODEBITO", "VALORMOVIMIENTOCREDITO"))
 NIVELES = ("CLASE", "GRUPO", "CUENTA", "SUBCUENTA", "AUXILIAR", "SUBAUXILIAR")
 ENCABEZADO = ["CODIGO CECO", "NOMBRE CECO", "CUENTA", "NOMBRE CUENTA", "DEBITO", "CREDITO", "PERIODO", "COMPROBANTE",
               "DESCRIPCION"]
@@ -33,10 +39,29 @@ def _clave_col(v):
     return clave(v).replace(" ", "")
 
 
+def columnas_son_ctrp(columnas):
+    """`columnas`: encabezados ya pasados por `clave` y sin espacios."""
+    return COLUMNAS_CTRP <= columnas and any(d in columnas and c in columnas for d, c in PARES_VALOR)
+
+
 def es_ctrp(df):
     if df is None or df.empty:
         return False
-    return COLUMNAS_CTRP <= {_clave_col(v) for v in df.iloc[0].tolist()}
+    return columnas_son_ctrp({_clave_col(v) for v in df.iloc[0].tolist()})
+
+
+def _mes(v):
+    from .normalizar import MESES
+
+    return MESES.get(clave(v)) if not es_vacio(v) else None
+
+
+def _tercero(oid, documento):
+    if oid is not None:
+        return f"OidTercero {oid}"
+    if es_vacio(documento):
+        return ""
+    return "Tercero " + hashlib.sha256(texto(documento).encode()).hexdigest()[:10]
 
 
 def _entero(v):
@@ -62,31 +87,39 @@ def adaptar(tabla, usar_movimiento=False):
         j = cols.get(nombre)
         return fila[j] if j is not None and j < len(fila) else None
 
-    deb, cre = (("VALORMOVIMIENTODEBITO", "VALORMOVIMIENTOCREDITO") if usar_movimiento and "VALORMOVIMIENTODEBITO" in cols
-                else ("VALORSALDODEBITO", "VALORSALDOCREDITO"))
+    pares = [p for p in PARES_VALOR if p[0] in cols and p[1] in cols]
+    deb, cre = next((p for p in pares if p[0].startswith("VALORMOVIMIENTO")), pares[0]) if usar_movimiento else pares[0]
+    con_oid = "OIDCUENTACONTABLE" in cols     # sin él (reporte editado) la cuenta se toma por orden de filas
     matriz = df.to_numpy(dtype=object)
 
-    cuentas = {}      # oid → dict(codigo, nombre, nivel, hoja, fila, debito, credito, clase)
+    cuentas = {}      # oid (o fila, sin OidCuentaContable) → dict(codigo, nombre, nivel, hoja, fila, debito, credito)
     detalle_por_oid = {}
     filas_detalle = []
     periodo = ""
+    meses = set()
+    ultima_hoja = None
     for i in range(1, len(matriz)):
         f = list(matriz[i])
         nivel = clave(col(f, "NIVEL"))
-        oid = _entero(col(f, "OIDCUENTACONTABLE"))
+        oid = _entero(col(f, "OIDCUENTACONTABLE")) if con_oid else ("fila", i)
         if nivel in NIVELES and oid is not None:
             try:
                 codigo = cuenta(col(f, "CODIGOCUENTACONTABLE"))
             except ValueError:
                 codigo = ""
+            hoja = clave(col(f, "NIVELAUXILIAR")) == "TRUE"
             cuentas[oid] = {
                 "codigo": codigo, "nombre": texto(col(f, "NOMBRECUENTACONTABLE")), "nivel": nivel, "fila": i,
-                "hoja": clave(col(f, "NIVELAUXILIAR")) == "TRUE", "debito": col(f, deb), "credito": col(f, cre),
+                "hoja": hoja, "debito": col(f, deb), "credito": col(f, cre),
             }
+            ultima_hoja = oid if hoja else None
             continue
         proceso = _entero(col(f, "OIDCUENTAPROCESO"))
-        if proceso and not es_vacio(col(f, "CODIGOCENTROCOSTO")) or (proceso and _entero(col(f, "OIDTERCERO"))):
-            filas_detalle.append((i, proceso, f))
+        tercero = _entero(col(f, "OIDTERCERO"))
+        if proceso and (not es_vacio(col(f, "CODIGOCENTROCOSTO")) or tercero or not es_vacio(col(f, "DOCUMENTOTERCERO"))):
+            filas_detalle.append((i, proceso if con_oid else ultima_hoja, f))
+            if _mes(col(f, "MES")):
+                meses.add(_mes(col(f, "MES")))
             continue
         # Pie del reporte: buscar la descripción del filtro para el periodo.
         for v in f:
@@ -100,11 +133,10 @@ def adaptar(tabla, usar_movimiento=False):
         c = cuentas.get(proceso)
         if c is None:
             sin_cuenta += 1
-        oid_tercero = _entero(col(f, "OIDTERCERO"))
         nuevo[i] = [
             col(f, "CODIGOCENTROCOSTO"), texto(col(f, "NOMBRECENTROCOSTO")), c["codigo"] if c else "",
             c["nombre"] if c else texto(col(f, "NOMBRECUENTACONTABLE")), col(f, deb), col(f, cre), periodo,
-            f"OidTercero {oid_tercero}" if oid_tercero is not None else "", "",
+            _tercero(_entero(col(f, "OIDTERCERO")), col(f, "DOCUMENTOTERCERO")), "",
         ]
         detalle_por_oid.setdefault(proceso, [0, 0])
         detalle_por_oid[proceso][0] += centavos(col(f, deb)) or 0
@@ -139,13 +171,17 @@ def adaptar(tabla, usar_movimiento=False):
         "diferencias": diferencias,
         "detalle_sin_cuenta": sin_cuenta,
         "periodo": periodo,
+        "mes": next(iter(meses)) if len(meses) == 1 else None,    # columna Mes, si el pie del reporte no está
+        "editado": not con_oid,
         "columnas_valor": (deb, cre),
         "mapeo": [
             ("cod_ceco", "CodigoCentroCosto"), ("nombre_ceco", "NombreCentroCosto"),
-            ("cuenta", "OidCuentaProceso → OidCuentaContable → CodigoCuentaContable"),
+            ("cuenta", "OidCuentaProceso → OidCuentaContable → CodigoCuentaContable" if con_oid
+             else "Cuenta de detalle (NivelAuxiliar = True) que precede a la fila → CodigoCuentaContable"),
             ("nombre_cuenta", "NombreCuentaContable de la cuenta de detalle"),
             ("debito", original[deb]), ("credito", original[cre]), ("periodo", f"Pie del reporte (DescripcionFiltros): {periodo or 'no encontrado'}"),
-            ("documento", "OidTercero (identificador interno; no se copian nombres ni documentos)"),
+            ("documento", "OidTercero (identificador interno; no se copian nombres ni documentos)" if "OIDTERCERO" in cols
+             else "Huella irreversible de DocumentoTercero (no se copian nombres ni documentos)"),
         ],
     }
     return tabla

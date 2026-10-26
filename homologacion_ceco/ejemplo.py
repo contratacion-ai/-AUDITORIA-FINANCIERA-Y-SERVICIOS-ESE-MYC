@@ -84,6 +84,29 @@ COLUMNAS_CTRP = ["Mes", "OidCuentaContable", "CodigoCuentaContable", "OidCuentaP
 
 
 def ctrp_estado_resultados():
+    return _xlsx(_filas_ctrp(), "CTRPEstadoResultadosTerCen")
+
+
+def ctrp_editado(mes="JULIO"):
+    """El mismo reporte editado a mano como suele hacerse en Excel: sin OidCuentaContable, OidTercero, OidCentroCosto ni
+    pie; valores renombrados DEBITO/CREDITO; el Oid de la cuenta copiado en CodigoCuentaContable de las filas de detalle
+    y la columna Mes diligenciada."""
+    filas = _filas_ctrp()[:-3]
+    enc = filas[0]
+    quitar = [enc.index(c) for c in ("OidCuentaContable", "OidTercero", "OidCentroCosto")]
+    salida = []
+    for n, f in enumerate(filas):
+        f = list(f)
+        if n:
+            f[0] = mes
+            if f[enc.index("OidCuentaProceso")] is not None:
+                f[enc.index("CodigoCuentaContable")] = f[enc.index("OidCuentaProceso")]
+        salida.append([v for j, v in enumerate(f) if j not in quitar])
+    salida[0] = [{"ValorSaldoDebito": "DEBITO", "ValorSaldoCredito": "CREDITO"}.get(c, c) for c in salida[0]]
+    return _xlsx(salida, "CTRPEstadoResultadosTerCen")
+
+
+def _filas_ctrp():
     """Reporte CTRPEstadoResultadosTerCen SINTÉTICO (misma estructura que el del software contable; terceros ficticios).
 
     Esperado (julio 2026): ingresos 1.000.000 (CECO 3012105 facturación); gastos 5101010101 = 600.000 en 2012003 (dos
@@ -136,7 +159,7 @@ def ctrp_estado_resultados():
               "ESTADO DE RESULTADOS DEL MES JULIO DE 2026 DESDE EL CENTRO DE COSTO 1010204 HASTA EL CENTRO DE COSTO 7090101"]
              + [None] * 16,
              ]
-    return _xlsx(filas, "CTRPEstadoResultadosTerCen")
+    return filas
 
 
 def lote_ejemplo():

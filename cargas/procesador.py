@@ -648,6 +648,10 @@ def procesar_carga(*, institucion, usuario, tipo_archivo, contenido, nombre, per
         reporte = formato.get("periodo", "")
         if periodo is not None and reporte and reporte != f"{periodo.anio:04d}-{periodo.mes:02d}":
             raise ErrorCargaArchivo(f"El reporte es del periodo {reporte} y la carga es para {periodo}: elija el periodo correcto.")
+        mes = formato.get("mes")
+        if periodo is not None and not reporte and mes and mes != periodo.mes:
+            raise ErrorCargaArchivo(f"La columna Mes del reporte indica el mes {mes} y la carga es para {periodo}: "
+                                    "elija el periodo correcto.")
         plantilla = None  # el formato reconocido ya trae las columnas estándar
     indices, errores_estructura = resolver_columnas(encabezados, esq, plantilla)
     if errores_estructura:

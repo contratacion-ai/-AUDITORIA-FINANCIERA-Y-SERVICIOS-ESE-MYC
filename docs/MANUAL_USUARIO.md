@@ -35,7 +35,7 @@
 | Paso | Dónde | Quién |
 |---|---|---|
 | 1. Crear el periodo del mes | Cargas → Periodos | Financiero |
-| 2. Cargar estado financiero: el **estado de resultados por tercero y centro (reporte CTRP)** del software contable se sube tal cual; la herramienta toma la cuenta, el periodo y el CECO del reporte | Cargas → Nueva carga (ESTADO_FINANCIERO) | Financiero |
+| 2. Cargar estado financiero: el **estado de resultados por tercero y centro (reporte CTRP)** del software contable se sube tal cual; la herramienta toma la cuenta, el periodo y el CECO del reporte. También acepta el reporte editado en Excel (sin OidCuentaContable/OidTercero, con DEBITO/CREDITO): la cuenta se toma de la cuenta de detalle que precede a cada fila y el mes de la columna Mes. No sume filas de subtotal ni cambie códigos de CECO por nombres | Cargas → Nueva carga (ESTADO_FINANCIERO) | Financiero |
 | 3. Cargar soportes: nómina, contratistas, inventarios, depreciación | Nueva carga (o libro estándar completo) | Financiero / costos |
 | 4. Cargar valores del mes: personas, raciones, kilos, solicitudes; % mano de obra si cambió | Nueva carga o Valores de inductores | Costos |
 | 5. Cargar producción (o RIPS), facturación y RIPS | Nueva carga | Facturación / costos |

@@ -12,7 +12,7 @@ from cargas.models import MovimientoContable
 from cargas.procesador import ErrorCargaArchivo, procesar_carga
 from core.demo import crear_demo
 from core.models import Institucion, Membresia, Periodo
-from homologacion_ceco.ejemplo import ctrp_estado_resultados
+from homologacion_ceco.ejemplo import ctrp_editado, ctrp_estado_resultados
 from modelo.catalogo_base import cargar_catalogo_base
 from modelo.importar_maestro import ErrorImportacion, importar_maestro
 from modelo.models import CentroCosto, CuentaRecurso, HomologacionCentro, ReglaDistribucion, Sede
@@ -96,6 +96,23 @@ def test_carga_ctrp_valida_periodo_y_tipo(ese):
     with pytest.raises(ErrorCargaArchivo, match="ESTADO_FINANCIERO"):
         procesar_carga(institucion=inst, usuario=None, tipo_archivo="NOMINA", contenido=ctrp_estado_resultados(),
                        nombre="c.xlsx", periodo=otro)
+
+
+def test_carga_ctrp_editado_a_mano(ese):
+    """Reporte sin OidCuentaContable/OidTercero ni pie: la cuenta sale del orden de filas y el mes de la columna Mes."""
+    inst, _ = ese
+    periodo = Periodo.objects.create(institucion=inst, anio=2026, mes=7)
+    r = procesar_carga(institucion=inst, usuario=None, tipo_archivo="ESTADO_FINANCIERO", contenido=ctrp_editado(),
+                       nombre="CTRP_JULIO_HOMOLOGADO.xlsx", periodo=periodo)
+    assert not r.errores and r.validas == 4 and r.omitidas == 2 and r.duplicadas == 0
+    assert r.valor_total == D("1250000.00")
+    movs = {(m.fila, m.cuenta): m for m in MovimientoContable.objects.filter(institucion=inst)}
+    assert movs[(16, "5101010101")].centro.codigo == "R05|ESE01" and (17, "5101010101") in movs
+    assert movs[(27, "6310500201")].centro.codigo == "A10|HSAT"
+    assert "9000000" not in " ".join(m.descripcion for m in movs.values())               # no se copia el documento
+    with pytest.raises(ErrorCargaArchivo, match="mes 7"):
+        procesar_carga(institucion=inst, usuario=None, tipo_archivo="ESTADO_FINANCIERO", contenido=ctrp_editado(),
+                       nombre="c.xlsx", periodo=Periodo.objects.create(institucion=inst, anio=2026, mes=8))
 
 
 def test_pantalla_importar_maestro(client, db):
