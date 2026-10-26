@@ -155,11 +155,12 @@ def comando_servidor(destino, python, puerto):
     """Servidor sin ventana (pythonw) solo para este equipo, con registro en archivo."""
     pythonw = python.with_name("pythonw.exe") if python.with_name("pythonw.exe").exists() else python
     return [str(pythonw), str(destino / "manage.py"), "servir", "--host", "127.0.0.1", "--puerto", str(puerto),
-            "--log", str(destino / "datos" / "logs" / "servidor.log")]
+            "--respaldo-diario", "--log", str(destino / "datos" / "logs" / "servidor.log")]
 
 
 def registrar_usuario(destino, python, puerto, log):
-    """Modo sin administrador: inicio al iniciar sesión (HKCU\\...\\Run) y respaldo diario del propio usuario."""
+    """Modo sin administrador: inicio al iniciar sesión (HKCU\\...\\Run). Nada aquí pide permisos de administrador:
+    no usa el Programador de tareas, el firewall ni carpetas del sistema; el respaldo diario lo hace el servidor."""
     advertencias = []
     comando = subprocess.list2cmdline(comando_servidor(destino, python, puerto))
     try:
@@ -172,14 +173,8 @@ def registrar_usuario(destino, python, puerto, log):
     except Exception as exc:
         log.escribir(f"[!!] No se pudo programar el inicio automático: {exc}")
         advertencias.append("inicio")
-    pythonw = comando_servidor(destino, python, puerto)[0]
-    respaldo = subprocess.list2cmdline([pythonw, str(destino / "instalador" / "windows" / "respaldar.py"), str(destino)])
-    if ejecutar(log, ["schtasks", "/Create", "/TN", TAREA_RESPALDO, "/TR", respaldo, "/SC", "DAILY", "/ST", "12:30",
-                      "/F"], obligatorio=False) == 0:
-        log.escribir(f"[OK] Respaldo diario a las 12:30 en {destino / 'datos' / 'respaldos'}")
-    else:
-        log.escribir("[!!] No se pudo programar el respaldo diario; use 'Respaldar ahora' del menú Inicio")
-        advertencias.append(TAREA_RESPALDO)
+    # Sin Programador de tareas (schtasks puede pedir credenciales): el propio servidor respalda cada 24 h.
+    log.escribir(f"[OK] Respaldo diario automático en {destino / 'datos' / 'respaldos'} (lo hace la aplicación, 30 días)")
     return advertencias
 
 

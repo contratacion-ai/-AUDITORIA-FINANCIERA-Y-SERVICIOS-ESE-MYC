@@ -58,20 +58,20 @@ Documentación: [docs/HOMOLOGACION_CECO.md](docs/HOMOLOGACION_CECO.md).
 ## Instalador
 
 ```bash
-bash instalador/construir_instalador_windows.sh   # dist/CostosABC-Setup-<versión>.exe (requiere makensis)
-bash instalador/construir_paquete.sh              # dist/CostosABC-<versión>.zip (scripts + dependencias)
+bash instalador/construir_instalador_windows.sh   # dist/CostosABC-<versión>.exe (requiere makensis)
+bash instalador/construir_paquete.sh              # dist/CostosABC-<versión>.zip (Linux: scripts + dependencias)
 ```
 
-* **Windows — `CostosABC-Setup.exe`** (recomendado para un equipo): **no requiere permisos de administrador**
-  (manifiesto `asInvoker`). Asistente en español que incluye Python 3.12 portátil y todas las dependencias. Instala en
-  `%LOCALAPPDATA%\CostosABC`, sirve solo en este equipo (`127.0.0.1`, sin aviso del firewall), inicia al iniciar sesión
-  (`HKCU\...\Run`, sin ventana) y programa un respaldo diario del usuario.
-* **Windows — `CostosABC-Servidor-Setup.exe`** (servidor de red, requiere administrador): instala en `C:\CostosABC`,
-  servicio al encender el equipo (tarea como SYSTEM con reinicio automático), firewall abierto y respaldo diario.
-* Ambos piden los datos de la institución y el usuario administrador **sin contraseña**: al terminar se abre la página
-  *Cree su contraseña* con un enlace de un solo uso. La configuración la hace `instalador/windows/configurar.py` con el
-  Python incluido (sin PowerShell) y verifica que la aplicación responda.
-* **Windows — ZIP**: descomprimir y doble clic en `instalador\windows\INSTALAR.bat` (PowerShell).
+* **Windows — `CostosABC-<versión>.exe`**: **no pide permisos ni contraseña de administrador** (manifiesto `asInvoker`;
+  el nombre evita «setup»/«install», que Windows asocia a instaladores del sistema). Asistente en español que incluye
+  Python 3.12 portátil y todas las dependencias. Instala en `%LOCALAPPDATA%\CostosABC`, sirve solo en este equipo
+  (`127.0.0.1`, sin aviso del firewall), inicia al iniciar sesión (`HKCU\...\Run`, sin ventana) y la propia aplicación
+  respalda cada 24 h (`servir --respaldo-diario`): no usa el Programador de tareas, el firewall ni carpetas del sistema.
+* El administrador de la aplicación se crea **sin contraseña**: al terminar se abre la página *Cree su contraseña* con
+  un enlace de un solo uso. La configuración la hace `instalador/windows/configurar.py` con el Python incluido.
+* **Servidor de red** (opcional, área de sistemas): `construir_instalador_windows.sh --servidor` genera además
+  `dist/servidor/CostosABC-Servidor-<versión>.exe`, que **sí** requiere administrador (servicio, firewall, respaldo
+  programado). No se entrega por defecto.
 * **Linux**: `sudo bash instalador/linux/instalar.sh` (servicio systemd) o `--docker` (Docker + PostgreSQL).
 
 Instrucciones para el usuario final: `instalador/LEAME_INSTALACION.txt`. Volver a ejecutar el instalador actualiza la

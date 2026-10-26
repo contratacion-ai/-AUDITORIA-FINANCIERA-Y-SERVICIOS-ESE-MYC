@@ -71,7 +71,7 @@ Var Enlace
 !ifdef SERVIDOR
   !define MUI_WELCOMEPAGE_TEXT "Este asistente instala la herramienta de costos ABC (Res. DDC-000002 de 2014) como SERVIDOR de la red.$\r$\n$\r$\nRequiere permisos de administrador. Incluye todo lo necesario: no requiere internet ni tener Python instalado.$\r$\n$\r$\nAl terminar, la aplicación quedará funcionando como servicio que arranca con Windows y se podrá abrir desde el navegador de cualquier equipo de la red."
 !else
-  !define MUI_WELCOMEPAGE_TEXT "Este asistente instala la herramienta de costos ABC (Res. DDC-000002 de 2014) para su usuario.$\r$\n$\r$\nNO requiere permisos de administrador ni internet, y no necesita tener Python instalado.$\r$\n$\r$\nLa aplicación funcionará en este equipo (http://localhost:8000) e iniciará sola cada vez que usted inicie sesión en Windows.$\r$\n$\r$\nPara compartirla con otros equipos de la red use el instalador de servidor."
+  !define MUI_WELCOMEPAGE_TEXT "Este asistente instala la herramienta de costos ABC (Res. DDC-000002 de 2014) para su usuario.$\r$\n$\r$\nNO requiere permisos de administrador ni internet, y no necesita tener Python instalado.$\r$\n$\r$\nLa aplicación funcionará en este equipo (http://localhost:8000) e iniciará sola cada vez que usted inicie sesión en Windows.$\r$\n$\r$\nEl respaldo diario lo hace la propia aplicación. No usa el Programador de tareas, el firewall ni carpetas del sistema."
 !endif
 !define MUI_FINISHPAGE_RUN
 !define MUI_FINISHPAGE_RUN_TEXT "Abrir Costos ABC para crear mi contraseña"
@@ -196,8 +196,10 @@ FunctionEnd
 
 !macro DetenerServidor
   ; Detiene el servidor en ejecución (actualización / desinstalación) usando el PID que escribe "manage.py servir".
+!ifdef SERVIDOR
   nsExec::ExecToLog 'schtasks.exe /End /TN "CostosABC-Servidor"'
   Pop $0
+!endif
   ${If} ${FileExists} "$INSTDIR\datos\servidor.pid"
     FileOpen $1 "$INSTDIR\datos\servidor.pid" r
     FileRead $1 $2
@@ -264,7 +266,7 @@ Section "Costos ABC" SecPrincipal
   CreateShortcut "$SMPROGRAMS\Costos ABC\Respaldar ahora.lnk" "$INSTDIR\python\pythonw.exe" '"$INSTDIR\instalador\windows\respaldar.py" "$INSTDIR"'
 !ifndef SERVIDOR
   ; Por si el equipo se reinició y la aplicación no está abierta
-  CreateShortcut "$SMPROGRAMS\Costos ABC\Iniciar Costos ABC.lnk" "$INSTDIR\python\pythonw.exe" '"$INSTDIR\manage.py" servir --host 127.0.0.1 --puerto $Puerto --log "$INSTDIR\datos\logs\servidor.log"'
+  CreateShortcut "$SMPROGRAMS\Costos ABC\Iniciar Costos ABC.lnk" "$INSTDIR\python\pythonw.exe" '"$INSTDIR\manage.py" servir --host 127.0.0.1 --puerto $Puerto --respaldo-diario --log "$INSTDIR\datos\logs\servidor.log"'
 !endif
   CreateShortcut "$SMPROGRAMS\Costos ABC\Registros del servidor.lnk" "$INSTDIR\datos\logs"
   CreateShortcut "$SMPROGRAMS\Costos ABC\Desinstalar Costos ABC.lnk" "$INSTDIR\Desinstalar.exe"
@@ -288,11 +290,11 @@ Section "Uninstall"
     StrCpy $Puerto "8000"
   ${EndIf}
   !insertmacro DetenerServidor
+!ifdef SERVIDOR
   nsExec::ExecToLog 'schtasks.exe /Delete /TN "CostosABC-Servidor" /F'
   Pop $0
   nsExec::ExecToLog 'schtasks.exe /Delete /TN "CostosABC-Respaldo" /F'
   Pop $0
-!ifdef SERVIDOR
   nsExec::ExecToLog 'netsh.exe advfirewall firewall delete rule "name=Costos ABC ($Puerto)"'
   Pop $0
 !endif

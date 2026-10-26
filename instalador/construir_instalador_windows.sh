@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Genera dist/CostosABC-Setup-<versión>.exe (sin administrador) y dist/CostosABC-Servidor-Setup-<versión>.exe
-# (servidor de red): instaladores gráficos para Windows 64 bits que incluyen
+# Genera dist/CostosABC-<versión>.exe: instalador gráfico para Windows 64 bits que NO pide permisos ni contraseña
+# de administrador (se instala en la carpeta del usuario). Con --servidor genera además
+# dist/servidor/CostosABC-Servidor-<versión>.exe (solo para el área de sistemas: requiere administrador). Incluyen
 # Python 3.12 portátil (paquete oficial de CPython publicado en NuGet) y todas las dependencias.
 # Requiere: makensis (apt install nsis / choco install nsis), python3 con pip, curl, unzip.
 set -euo pipefail
@@ -36,11 +37,14 @@ find "$STAGE/python/Lib/site-packages/django" -type d -name locale | while read 
   find "$d" -mindepth 1 -maxdepth 1 -type d ! -name es ! -name es_CO ! -name en -exec rm -rf {} +
 done
 
-echo "==> Compilando los instaladores"
-# Por usuario (sin permisos de administrador) y servidor de red (requiere administrador)
-SALIDA="$RAIZ/dist/CostosABC-Setup-$VERSION.exe"
+echo "==> Compilando el instalador"
+# Sin permisos de administrador. El nombre evita "setup"/"install": Windows no lo trata como instalador del sistema.
+SALIDA="$RAIZ/dist/CostosABC-$VERSION.exe"
 makensis -V2 -DVERSION="$VERSION" -DSTAGE="$STAGE" -DSALIDA="$SALIDA" instalador/windows/costosabc.nsi
-SALIDA_SRV="$RAIZ/dist/CostosABC-Servidor-Setup-$VERSION.exe"
-makensis -V2 -DSERVIDOR -DVERSION="$VERSION" -DSTAGE="$STAGE" -DSALIDA="$SALIDA_SRV" instalador/windows/costosabc.nsi
-echo "Instalador sin administrador: $SALIDA ($(du -h "$SALIDA" | cut -f1))"
-echo "Instalador de servidor:       $SALIDA_SRV ($(du -h "$SALIDA_SRV" | cut -f1))"
+echo "Instalador (sin administrador): $SALIDA ($(du -h "$SALIDA" | cut -f1))"
+if [[ "${1:-}" == "--servidor" ]]; then
+  mkdir -p "$RAIZ/dist/servidor"
+  SALIDA_SRV="$RAIZ/dist/servidor/CostosABC-Servidor-$VERSION.exe"
+  makensis -V2 -DSERVIDOR -DVERSION="$VERSION" -DSTAGE="$STAGE" -DSALIDA="$SALIDA_SRV" instalador/windows/costosabc.nsi
+  echo "Instalador de servidor (requiere administrador; solo área de sistemas): $SALIDA_SRV"
+fi

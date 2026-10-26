@@ -58,3 +58,46 @@ def test_enlace_nuevo_si_se_pierde(instalado, capsys):
     nuevo = (instalado / "datos" / "primer_acceso.token").read_text()
     assert nuevo != viejo and f"http://localhost:8080/primer-acceso/?t={nuevo}" in salida
     assert not primer_acceso.valido(viejo)
+
+
+def test_respaldo_diario_sin_programador_de_tareas(tmp_path):
+    """La instalación sin administrador respalda desde el propio servidor: copia la base, media y .env, y depura."""
+    import os
+    import sqlite3
+    import time
+    from datetime import datetime, timedelta
+
+    from core.respaldo import respaldar, respaldo_pendiente, ultimo_respaldo
+
+    datos = tmp_path / "datos"
+    (datos / "media").mkdir(parents=True)
+    (datos / "media" / "x.txt").write_text("a")
+    (tmp_path / ".env").write_text("PSEUDONIMO_KEY=k")
+    con = sqlite3.connect(datos / "db.sqlite3")
+    con.execute("create table t (v)")
+    con.execute("insert into t values (1)")
+    con.commit()
+    con.close()
+    assert respaldo_pendiente(datos)
+    viejo = datos / "respaldos" / "20000101_0000"
+    viejo.mkdir(parents=True)
+    os.utime(viejo, (time.time() - 40 * 86400,) * 2)
+    carpeta = respaldar(tmp_path, datos)
+    assert sqlite3.connect(carpeta / "db.sqlite3").execute("select v from t").fetchone() == (1,)
+    assert (carpeta / "media" / "x.txt").exists() and (carpeta / "env.txt").exists()
+    assert not viejo.exists()                                       # respaldos de más de 30 días se borran
+    assert not respaldo_pendiente(datos)
+    assert respaldo_pendiente(datos, ahora=ultimo_respaldo(datos) + timedelta(hours=25))
+    assert ultimo_respaldo(datos) <= datetime.now()
+
+
+def test_instalador_por_usuario_no_usa_programador_ni_firewall():
+    """El modo sin administrador no llama a schtasks ni netsh (pueden pedir credenciales)."""
+    import ast
+    from pathlib import Path
+
+    fuente = (Path(__file__).resolve().parents[1] / "instalador" / "windows" / "configurar.py").read_text(encoding="utf-8")
+    funcion = next(n for n in ast.walk(ast.parse(fuente)) if isinstance(n, ast.FunctionDef) and n.name == "registrar_usuario")
+    texto = ast.get_source_segment(fuente, funcion)
+    assert '"schtasks"' not in texto and '"netsh"' not in texto
+    assert "--respaldo-diario" in fuente
