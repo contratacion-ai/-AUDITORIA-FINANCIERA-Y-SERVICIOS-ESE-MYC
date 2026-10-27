@@ -41,6 +41,7 @@ import numpy as np
 import pandas as pd
 import xlsxwriter
 
+from . import catalogo_cups
 from .aplicativo import COLUMNAS, _norm
 from .config import carpeta_datos
 
@@ -609,6 +610,8 @@ def _con_descripcion(d: pd.DataFrame, g: pd.DataFrame) -> pd.DataFrame:
     sedes = d.groupby("CODIGO_CUPS_CUMS")["SEDE"].nunique().rename("sedes")
     g = g.join(sedes, on="CODIGO_CUPS_CUMS")
     g.insert(1, "descripcion", g["CODIGO_CUPS_CUMS"].map(desc).fillna(""))
+    # Códigos sin descripción en los RIPS: la guardada desde el Excel o el tarifario UVB
+    g["descripcion"] = catalogo_cups.completar(g["descripcion"], g["CODIGO_CUPS_CUMS"])
     return g
 
 
@@ -620,6 +623,7 @@ TABLAS = {
     "modalidad": "RIPS por modalidad", "sede_mes": "Sede por mes", "eps_sede": "Empresa por sede",
     "cups_sede": "CUPS por sede", "cups_mes": "CUPS por mes", "frecuencias": "Frecuencia de uso por sede y mes",
     "indicadores": "Indicadores de cargue por sede y mes", "alertas": "Alertas",
+    "cups_enriquecido": "RIPS por CUPS enriquecido (archivo complementario y tarifario UVB)",
 }
 
 
@@ -643,8 +647,9 @@ def tabla(df: pd.DataFrame, ind: pd.DataFrame, nombre: str, filtros: dict | None
     simples = {"eps": ["EPS"], "servicio": ["TIPO_SERVICIO"], "contrato": ["CONTRATO", "MODALIDAD"],
                "modalidad": ["MODALIDAD"], "sede_mes": ["SEDE", "MES"], "eps_sede": ["EPS", "SEDE"],
                "cups_sede": ["CODIGO_CUPS_CUMS", "SEDE"], "cups_mes": ["CODIGO_CUPS_CUMS", "MES"]}
-    if nombre == "cups":
-        return _con_descripcion(d, agrupar(d, ["CODIGO_CUPS_CUMS"]))
+    if nombre in ("cups", "cups_enriquecido"):
+        # mismo informe de siempre + los campos del archivo complementario y del tarifario al final
+        return catalogo_cups.enriquecer(_con_descripcion(d, agrupar(d, ["CODIGO_CUPS_CUMS"])), d)
     if nombre in simples:
         g = agrupar(d, simples[nombre])
         return _con_descripcion(d, g) if nombre.startswith("cups") else g

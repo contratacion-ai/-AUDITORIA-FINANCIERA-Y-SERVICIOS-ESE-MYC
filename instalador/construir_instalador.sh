@@ -96,6 +96,14 @@ TABLERO DE ANÁLISIS: botón "Tablero de análisis" (http://localhost:8100/table
  automático; consolidado RIPS completo (CSV) e informe Excel para la gerencia. Usa los mismos
  datos homologados que se envían al aplicativo de auditoría y permite reenviar meses.
 
+INFORME POR CUPS ENRIQUECIDO (pestaña "CUPS enriquecido" del tablero): cargue el Excel/CSV
+ complementario por CUPS y el tarifario del Manual UVB (.xlsb). Se agregan sus columnas al
+ informe y se completan y guardan las descripciones que faltan.
+
+DEPURACIÓN DE DATOS (pestaña "Depuración de datos"): limpiar un mes, una sede o ambos antes de
+ volver a cargar, depurar duplicados (siempre con vista previa y confirmación; lo eliminado
+ queda en la carpeta "papelera") y cargar RIPS en JSON (Res. 2275) sin duplicar.
+
 CARGUE SIN LÍMITE: se pueden subir carpetas con miles de TXT y archivos con todas sus líneas.
 
 USO EN RED (otros computadores):

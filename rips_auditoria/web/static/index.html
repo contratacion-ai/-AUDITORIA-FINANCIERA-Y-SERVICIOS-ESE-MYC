@@ -112,7 +112,7 @@
     <section class="tarjeta">
       <h2><span class="num">1</span> Archivos RIPS descargados</h2>
       <div class="zona" id="zona">
-        <strong>Arrastre aquí el ZIP, la carpeta del hospital o los TXT</strong>
+        <strong>Arrastre aquí el ZIP, la carpeta del hospital, los TXT o los JSON</strong>
         <span>Estructura recomendada: Hospital / 05. Mayo / remisión / Rips / AF000123.txt …</span>
       </div>
       <div class="botones">
@@ -120,7 +120,7 @@
         <button class="sec" id="btn-carpeta">Elegir carpeta</button>
         <button class="sec" id="btn-limpiar" style="display:none">Quitar selección</button>
       </div>
-      <input type="file" id="f-archivos" multiple accept=".zip,.txt,.ZIP,.TXT" hidden>
+      <input type="file" id="f-archivos" multiple accept=".zip,.txt,.json,.ZIP,.TXT,.JSON" hidden>
       <input type="file" id="f-carpeta" webkitdirectory multiple hidden>
       <div class="seleccion" id="seleccion">Ningún archivo seleccionado.</div>
       <div class="sep" id="sep-ruta">o, para lotes grandes, escriba la ruta en este equipo</div>
@@ -139,6 +139,8 @@
       <label class="interruptor"><input type="checkbox" id="consolidado">
         <div><b>Generar consolidado anual</b>
         <span>Un Excel y un JSON con todos los hospitales y meses (más lento en lotes grandes).</span></div></label>
+      <div class="ayuda" style="margin-top:10px">¿Va a volver a cargar un mes o una sede? Revise y limpie antes lo ya cargado en
+        <a href="/tablero#depuracion" style="color:var(--verde-osc)">Tablero › Depuración de datos</a>. Los RIPS en JSON (Res. 2275) se integran sin duplicar.</div>
       <button class="pri" id="btn-iniciar">Iniciar cargue</button>
     </section>
   </div>
@@ -320,7 +322,10 @@ function mostrarResultados(t){
     ["valor_neto_facturado_af", "Valor neto AF", "$"], ["valor_servicios_rips", "Valor servicios RIPS", "$"],
     ["facturas_con_diferencia", "Facturas con diferencia", "#"], ["inc_error", "Errores", "#"], ["inc_advertencia", "Advertencias", "#"]], u);
   tabla("#t-incidencias", [["severidad", "Severidad", "chip"], ["regla", "Regla"], ["descripcion", "Descripción"], ["cantidad", "Cantidad", "#"]], r.incidencias);
-  $("#aviso-envio").innerHTML = r.aviso_envio ? `<div class="aviso">${esc(r.aviso_envio)}</div>` : "";
+  $("#aviso-envio").innerHTML = (r.aviso_envio ? `<div class="aviso">${esc(r.aviso_envio)}</div>` : "") + (r.json ?
+    `<div class="aviso" style="background:var(--verde-claro);color:var(--verde-osc)">RIPS JSON: ${ent(r.json.registros_leidos)} registros leídos ·
+     ${ent(r.json.repetidos_en_json)} repetidos en el JSON · ${ent(r.json.ya_cargadas)} ya cargados · <b>${ent(r.json.agregadas)} filas agregadas</b></div>` +
+     r.json.avisos.map(a => `<div class="aviso">${esc(a)}</div>`).join("") : "");
   if (r.envio){
     $("#bloque-envio").innerHTML = '<h3>Envío al aplicativo de auditoría</h3><div class="tabla"><table id="t-envio"></table></div>';
     tabla("#t-envio", [["mes", "Mes"], ["estado", "Estado", "chip"], ["mensaje", "Resultado en el aplicativo"], ["carga_id", "Id carga", "#"]], r.envio);

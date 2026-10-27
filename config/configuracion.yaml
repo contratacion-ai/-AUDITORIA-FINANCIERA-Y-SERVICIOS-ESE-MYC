@@ -62,6 +62,18 @@ tablero:
   minimo_cantidad_cups: 5        # usos mínimos de un CUPS para comparar su valor unitario
   frecuencia_variacion_pct: 30   # variación de atenciones por usuario entre meses
 
+catalogo_cups:
+  # Informe «RIPS por CUPS» enriquecido con el archivo complementario y el tarifario UVB.
+  # Columnas del archivo que se calculan con los datos cargados: «promedio mes», una por EPS,
+  # «otras» (las EPS sin columna propia) y «evento»/«capita»/«pgp».
+  medida: valor                    # valor | cantidad
+  # Nombre de la columna en el archivo -> textos que identifican la EPS en los RIPS:
+  # columnas_eps:
+  #   nueva eps: [NUEVA EPS, NUEVA EMPRESA PROMOTORA]
+  #   sanitas: [SANITAS]
+  #   coosalud: [COOSALUD]
+  #   fomag: [FOMAG, FIDUPREVISORA, FIDUCIARIA LA PREVISORA, MAGISTERIO]
+
 exportacion:
   excel: true
   json: true

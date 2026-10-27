@@ -71,6 +71,36 @@ consolidado completo; el consolidado se divide en hojas de 1.000.000 de filas si
 **Sin límite de archivos ni de líneas:** el formulario de carga admite carpetas con miles de TXT (Starlette
 limita por defecto un formulario a 1000 archivos; aquí se amplió) y cada TXT se procesa completo.
 
+### Informe RIPS por CUPS enriquecido, depuración de datos y JSON (v1.3)
+
+**Informe enriquecido** (Tablero › «CUPS enriquecido»; también se aplica a «RIPS por CUPS» y a su hoja del
+informe Excel): el informe conserva sus columnas y agrega al final:
+
+- Las columnas del **archivo complementario** (Excel .xlsx/.xlsb o CSV con `CODIGO_CUPS_CUMS`), unidas por
+  código. «promedio mes» (o «pormedio mes»), las columnas de EPS (`nueva eps`, `sanitas`, `coosalud`,
+  `fomag`…), `otras`, `evento`, `capita` y `pgp` **se calculan** con los datos cargados y los filtros
+  (valor de servicios; `catalogo_cups.medida`). EPS + otras = valor; evento + capita = valor.
+- La **tarifa del tarifario UVB** (p. ej. `SOAT-2026-UVB (tarifario)`) y `fuente_descripcion`.
+- **Descripciones faltantes** completadas en este orden: RIPS (AM/AT) → archivo complementario → tarifario
+  UVB. Se guardan en `catalogos/descripciones_cups.csv` y se reutilizan; se actualizan al cargar un
+  catálogo y en cada cargue. Los catálogos también se guardan (no hay que volver a cargarlos).
+
+**Depuración de datos** (Tablero › «Depuración de datos» o `python -m rips_auditoria datos …`):
+
+| Acción | Cómo |
+|---|---|
+| Limpiar por mes, sede o ambos | «Ver qué se eliminaría» → lista y resumen → casilla de confirmación + diálogo → «Confirmar eliminación». Consola: `datos limpiar --mes 2026-05 --sede "Hospital San Antonio"` (pide escribir SI) |
+| Duplicados reales | Filas idénticas y facturas repetidas en otro mes (misma sede, factura, código, cantidad y valor); se conserva la del mes más antiguo. Consola: `datos duplicados` |
+| JSON | RIPS JSON de la Res. 2275 o filas homologadas, en el cargue normal, en la pestaña o con `datos json <rutas> [--hospital] [--mes]` |
+| Catálogos | Pestaña «CUPS enriquecido» o `datos catalogo --complemento RIPS_cups.csv --tarifario Tarifa_UVB.xlsb` |
+
+Nada se borra sin vista previa y confirmación explícita; la confirmación lleva una huella de los datos vistos
+(si cambiaron, hay que volver a revisar) y lo eliminado se copia en `acumulado_aplicativo/papelera/`.
+Los JSON se depuran con la misma lógica de los TXT (sede y códigos normalizados, registros repetidos dentro
+del JSON contados una vez, agregación por la llave de la plantilla) y sólo se agregan las filas que no estén
+ya cargadas en ningún mes. Nota: reprocesar los TXT de una sede-mes la reemplaza completa (incluidas filas
+que vinieron de JSON); vuelva a cargar el JSON si lo necesita.
+
 ### Uso desde otros computadores de la red
 
 Acceso **«Cargue RIPS ESE MyC (en red)»** (o `python -m rips_auditoria.web --red`, o
@@ -274,6 +304,9 @@ rips_auditoria/
   cargue.py           inicio guiado del cargue en consola (selección de archivos, abre la salida)
   aplicativo.py       enlace con el aplicativo de Auditoría ESE MyC (plantilla RIPS, acumulado, API)
   tablero.py          tablero de análisis: agregados, comparativos, frecuencias, alertas, informe Excel
+  catalogo_cups.py    archivo complementario y tarifario UVB: informe por CUPS enriquecido y descripciones
+  depuracion.py       limpieza por mes/sede y duplicados, con vista previa y confirmación
+  json_rips.py        lectura de RIPS JSON (Res. 2275 u homologados) e integración sin duplicar
   web/                ventana de cargue y tablero (FastAPI + páginas con la imagen de la ESE)
   web/red.py          acceso en red con clave y puente hacia el aplicativo de auditoría
 config/

@@ -37,7 +37,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from .. import __version__
+from .. import __version__, catalogo_cups, depuracion, json_rips
 from .. import tablero as tb
 from ..aplicativo import ClienteAplicativo, ErrorAplicativo, enviar_meses, escribir_mes, resumen_cruce
 from ..config import cargar_configuracion, carpeta_datos
@@ -207,10 +207,23 @@ def _ejecutar(t: dict, entradas: list[Path], hospital, enviar: bool, consolidado
             t["salida"] = str(salida)
             t["fase"] = "Leyendo y validando RIPS (Res. 3374)"
             res = procesar(entradas, cfg, hospital=hospital)
-            if res.envios.empty:
-                raise ValueError("No se encontraron archivos RIPS (CT, AF, US, AC, AP, AU, AH, AN, AM, AT) en lo cargado.")
-            t["fase"] = "Generando Excel, JSON y archivos para el aplicativo de auditoría"
-            archivos = exportar_todo(res, salida, cfg)
+            con_json = json_rips.hay_json(entradas)
+            if res.envios.empty and not con_json:
+                raise ValueError("No se encontraron archivos RIPS (CT, AF, US, AC, AP, AU, AH, AN, AM, AT ni JSON) en lo cargado.")
+            archivos = []
+            if not res.envios.empty:
+                t["fase"] = "Generando Excel, JSON y archivos para el aplicativo de auditoría"
+                archivos = exportar_todo(res, salida, cfg)
+            resumen_json = None
+            if con_json:
+                # RIPS en JSON (Res. 2275 u homologados): se depuran y se agregan sin duplicar lo ya cargado
+                t["fase"] = "Leyendo RIPS en JSON y agregándolos sin duplicar"
+                resumen_json = json_rips.cargar_json(entradas, hospital=hospital, cfg=cfg,
+                                                     carpeta=tb.carpeta_acumulado(cfg))
+                t["log"].append(f"JSON: {resumen_json['registros_leidos']} registros leídos, "
+                                f"{resumen_json['repetidos_en_json']} repetidos en el JSON, "
+                                f"{resumen_json['ya_cargadas']} ya cargados, {resumen_json['agregadas']} filas agregadas")
+                catalogo_cups.actualizar_descripciones(tb.cargar(tb.carpeta_acumulado(cfg))[0])
             tabla = res.resumen_unidades()
             inc = res.resumen_incidencias().head(15)
             resultado = {
@@ -218,7 +231,7 @@ def _ejecutar(t: dict, entradas: list[Path], hospital, enviar: bool, consolidado
                 "unidades": json.loads(tabla.to_json(orient="records", force_ascii=False)),
                 "incidencias": json.loads(inc.to_json(orient="records", force_ascii=False)),
                 "archivos": [str(Path(a).relative_to(salida)).replace("\\", "/") for a in archivos],
-                "envio": None, "cruce": None, "aviso_envio": None,
+                "envio": None, "cruce": None, "aviso_envio": None, "json": resumen_json,
             }
             mensuales = [a for a in archivos if Path(a).parent.name == "APLICATIVO_AUDITORIA"]
             if enviar and mensuales:
@@ -415,3 +428,110 @@ def _enviar_desde_tablero(t: dict, df, meses: list[str]):
         t["fase"] = "El envío no se completó"
         t["error"] = f"{type(exc).__name__}: {exc}"
         t["log"].append(traceback.format_exc(limit=3))
+
+
+# ---------------------------------------------------------------------------
+# Catálogos de CUPS (informe enriquecido) y depuración de datos cargados
+# ---------------------------------------------------------------------------
+
+async def _archivo_subido(request: Request, carpeta: Path) -> Path:
+    form = await request.form()
+    a = form.get("archivo")
+    if a is None or isinstance(a, str) or not a.filename:
+        raise HTTPException(400, "Seleccione el archivo.")
+    destino = _ruta_segura(carpeta, Path(a.filename).name)
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    with destino.open("wb") as fh:
+        shutil.copyfileobj(a.file, fh, 1 << 20)
+    return destino
+
+
+@app.get("/api/catalogos/estado")
+def catalogos_estado():
+    return catalogo_cups.estado()
+
+
+@app.post("/api/catalogos/{tipo}")
+async def catalogos_cargar(tipo: str, request: Request):
+    """Carga el archivo complementario (Excel/CSV) o el tarifario UVB y completa las descripciones."""
+    if tipo not in ("complemento", "tarifario"):
+        raise HTTPException(404, "Catálogo no reconocido")
+    temporal = carpeta_datos() / "temporal" / uuid.uuid4().hex[:10]
+    ruta = await _archivo_subido(request, temporal)
+    try:
+        r = catalogo_cups.cargar_complemento(ruta) if tipo == "complemento" else catalogo_cups.cargar_tarifario(ruta)
+    except (ValueError, KeyError, ImportError) as exc:
+        raise HTTPException(400, f"No se pudo leer el archivo: {exc}") from exc
+    finally:
+        shutil.rmtree(temporal, ignore_errors=True)
+    return r  # incluye las descripciones completadas y guardadas
+
+
+def _carpeta_datos_acumulado() -> Path:
+    if _turno.locked():
+        raise HTTPException(409, "Hay un cargue en curso. Espere a que termine para limpiar o depurar.")
+    return tb.carpeta_acumulado(cargar_configuracion())
+
+
+@app.post("/api/datos/limpieza/vista")
+async def limpieza_vista(request: Request):
+    """Muestra (sin borrar) lo que se eliminaría al limpiar un mes, una sede o ambos."""
+    c = await request.json()
+    try:
+        return depuracion.vista_limpieza(c.get("mes"), c.get("sede"), _carpeta_datos_acumulado())
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/api/datos/limpieza/confirmar")
+async def limpieza_confirmar(request: Request):
+    c = await request.json()
+    if c.get("confirmar") is not True:
+        raise HTTPException(400, "Falta la confirmación explícita.")
+    try:
+        return depuracion.aplicar_limpieza(str(c.get("ficha") or ""), c.get("mes"), c.get("sede"),
+                                           _carpeta_datos_acumulado())
+    except depuracion.FichaVencida as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/api/datos/duplicados/vista")
+def duplicados_vista():
+    return depuracion.vista_duplicados(_carpeta_datos_acumulado())
+
+
+@app.post("/api/datos/duplicados/confirmar")
+async def duplicados_confirmar(request: Request):
+    c = await request.json()
+    if c.get("confirmar") is not True:
+        raise HTTPException(400, "Falta la confirmación explícita.")
+    try:
+        return depuracion.aplicar_duplicados(str(c.get("ficha") or ""), _carpeta_datos_acumulado())
+    except depuracion.FichaVencida as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@app.post("/api/datos/json")
+async def datos_json(request: Request):
+    """Lee uno o varios JSON (RIPS Res. 2275 u homologados) y los integra sin duplicar."""
+    carpeta = _carpeta_datos_acumulado()
+    form = await request.form(max_files=MAX_ARCHIVOS_FORMULARIO, max_fields=MAX_ARCHIVOS_FORMULARIO)
+    archivos = [a for a in form.getlist("archivos") if not isinstance(a, str)]
+    if not archivos:
+        raise HTTPException(400, "Seleccione uno o varios archivos JSON.")
+    temporal = carpeta_datos() / "temporal" / uuid.uuid4().hex[:10]
+    try:
+        for a in archivos:
+            destino = _ruta_segura(temporal, a.filename or "archivo.json")
+            destino.parent.mkdir(parents=True, exist_ok=True)
+            with destino.open("wb") as fh:
+                shutil.copyfileobj(a.file, fh, 1 << 20)
+        with _turno:
+            r = json_rips.cargar_json(sorted(temporal.iterdir()), hospital=_texto(form, "hospital").strip() or None,
+                                      mes=_texto(form, "mes").strip() or None, carpeta=carpeta)
+            catalogo_cups.actualizar_descripciones(tb.cargar(carpeta)[0])
+        return r
+    finally:
+        shutil.rmtree(temporal, ignore_errors=True)

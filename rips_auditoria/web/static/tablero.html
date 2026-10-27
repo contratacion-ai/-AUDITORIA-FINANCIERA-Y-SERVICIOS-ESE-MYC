@@ -82,6 +82,10 @@
   .vacio b{display:block;font-size:18px;color:var(--verde-osc);margin-bottom:8px}
   .meses{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
   .meses label{display:flex;gap:6px;align-items:center;border:1px solid var(--borde);border-radius:9px;padding:6px 10px;font-size:14px;cursor:pointer}
+  .ok-caja{background:var(--verde-claro);color:var(--verde-osc);border-radius:10px;padding:10px 12px;font-size:14px;margin:10px 0}
+  .fila-form{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin:8px 0}
+  .fila-form label{display:flex;flex-direction:column;font-size:12px;font-weight:600;color:var(--gris);gap:4px}
+  .confirma{display:flex;gap:8px;align-items:center;font-size:14px;margin:10px 0}
   .aviso{background:var(--vino-claro);color:var(--vino-osc);border-radius:10px;padding:10px 12px;font-size:14px;margin:10px 0}
   .cargando{opacity:.45;pointer-events:none;transition:opacity .2s}
   .leyenda-calor{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--gris);margin-top:6px}
@@ -129,6 +133,8 @@
     <button data-v="consolidado">Consolidado RIPS</button>
     <button data-v="alertas">Alertas y análisis</button>
     <button data-v="aplicativo">Aplicativo de auditoría</button>
+    <button data-v="cupsenr">CUPS enriquecido</button>
+    <button data-v="depuracion">Depuración de datos</button>
   </div>
 
   <div id="sin-datos" class="tarjeta vacio" style="display:none"><b>Todavía no hay RIPS cargados</b>
@@ -246,6 +252,47 @@
     </div>
     <div class="tarjeta"><h2>Validación del cruce en el aplicativo (RIPS ↔ Software 360)</h2><div id="ap-cruce" class="nota">Consultando…</div></div>
   </section>
+
+  <!-- INFORME RIPS POR CUPS ENRIQUECIDO -->
+  <section class="vista" id="v-cupsenr">
+    <div class="rej2">
+      <div class="tarjeta"><h2>1. Archivo complementario por CUPS (Excel o CSV)</h2>
+        <p class="nota">Una fila por código (columna CODIGO_CUPS_CUMS o CUPS). Sus columnas se agregan al informe por código.
+          «promedio mes», las columnas de EPS (nueva eps, sanitas, coosalud, fomag…), «otras», «evento» y «capita» se calculan con los datos cargados.</p>
+        <div class="fila-form"><input type="file" id="cat-comp" accept=".xlsx,.xlsb,.xls,.csv"><button class="ver" data-cat="complemento">Cargar archivo</button></div>
+        <div id="cat-comp-estado" class="nota"></div></div>
+      <div class="tarjeta"><h2>2. Tarifario del Manual UVB</h2>
+        <p class="nota">Completa la descripción de los códigos que llegan sin ella y agrega la tarifa (p. ej. SOAT-2026-UVB). Columnas: MAPIISS, DESCRIPCION y la tarifa.</p>
+        <div class="fila-form"><input type="file" id="cat-tar" accept=".xlsb,.xlsx,.xls,.csv"><button class="ver" data-cat="tarifario">Cargar tarifario</button></div>
+        <div id="cat-tar-estado" class="nota"></div></div>
+    </div>
+    <div class="tarjeta"><h2>Informe RIPS por CUPS enriquecido</h2>
+      <p class="nota" id="cat-desc-estado">Las descripciones completadas quedan guardadas y se reutilizan en cada cargue.</p>
+      <div id="tp-cupsenr"></div></div>
+  </section>
+
+  <!-- DEPURACIÓN DE DATOS -->
+  <section class="vista" id="v-depuracion">
+    <div class="tarjeta"><h2>Limpiar datos cargados antes de una nueva carga</h2>
+      <p class="nota">Elimina lo cargado de un mes, de una sede o de ambos (por ejemplo, antes de volver a cargar un mes corregido). Primero se muestra
+        lo que se eliminaría; nada se borra sin su confirmación. Lo eliminado se guarda en la carpeta «papelera» del acumulado.</p>
+      <div class="fila-form"><label>Mes<select id="dp-mes"></select></label><label>Sede<select id="dp-sede"></select></label>
+        <button class="sec" id="dp-ver">Ver qué se eliminaría</button></div>
+      <div id="dp-vista"></div></div>
+    <div class="tarjeta"><h2>Depurar duplicados</h2>
+      <p class="nota">Busca filas idénticas y facturas repetidas en otro mes (misma sede, factura, código, cantidad y valor). Se conserva la primera
+        (la del mes más antiguo).</p>
+      <button class="sec" id="du-ver">Buscar duplicados</button>
+      <div id="du-vista"></div></div>
+    <div class="tarjeta"><h2>Cargar RIPS en JSON</h2>
+      <p class="nota">RIPS JSON de la Res. 2275 de 2023 (una factura por archivo) o filas homologadas. Se depuran con la misma lógica de los TXT
+        y sólo se agregan los registros que no estén ya cargados. También puede incluir los JSON en el cargue normal.</p>
+      <div class="fila-form"><input type="file" id="js-arch" accept=".json" multiple>
+        <label>Sede (si no está en la carpeta)<input type="text" id="js-sede" placeholder="Hospital San Antonio"></label>
+        <label>Mes AAAA-MM (opcional)<input type="text" id="js-mes" placeholder="2026-05" size="8"></label>
+        <button class="ver" id="js-cargar">Leer e integrar</button></div>
+      <div id="js-res"></div></div>
+  </section>
 </main>
 <footer>ESE Departamental de Primer Nivel Moreno y Clavijo · NIT 900034131 · Datos: <span id="carpeta"></span></footer>
 
@@ -267,7 +314,8 @@ const ETQ = {MES:"Mes", SEDE:"Sede", EPS:"Empresa (EPS)", TIPO_SERVICIO:"Servici
   eps:"Empresas", meses:"Meses", sedes:"Sedes", variacion_valor_pct:"Var. % valor", remisiones:"Remisiones",
   valor_neto_af:"Valor neto AF", valor_servicios_rips:"Valor servicios RIPS", facturas_con_diferencia:"Facturas con diferencia",
   errores:"Errores", advertencias:"Advertencias", actualizado:"Actualizado", nivel:"Nivel", categoria:"Categoría", sede:"Sede",
-  mes:"Mes", mensaje:"Hallazgo", accion:"Acción recomendada", TOTAL:"Total", PARTICIPACION_PCT:"% part.", VARIACION_PCT:"Var. % último mes"};
+  mes:"Mes", mensaje:"Hallazgo", tipo_duplicado:"Tipo de duplicado", filas:"Filas", fuente_descripcion:"Fuente descripción",
+  FACTURA_FEV:"Factura", CANTIDAD:"Cantidad", VALOR_SERVICIO:"Valor servicio", accion:"Acción recomendada", TOTAL:"Total", PARTICIPACION_PCT:"% part.", VARIACION_PCT:"Var. % último mes"};
 const ES_PESOS = c => /^valor|VALOR_|^valor_/.test(c) && !/pct/i.test(c);
 const ES_NUM = (c, v) => typeof v === "number";
 
@@ -405,7 +453,10 @@ function tablaComparativa(sel, c, etiquetaFila){
 async function iniciar(){
   const o = estado.opc = await (await fetch("/api/tablero/opciones")).json();
   $("#carpeta").textContent = o.carpeta;
-  if (!o.meses.length){ $("#sin-datos").style.display = "block"; $$(".vista").forEach(v => v.style.display = "none"); return; }
+  const sel = (id, lista, vacio) => $(id).innerHTML = `<option value="">${vacio}</option>` + lista.map(m => `<option>${esc(m)}</option>`).join("");
+  sel("#dp-mes", o.meses, "(todos los meses)"); sel("#dp-sede", o.sede, "(todas las sedes)");
+  if (!o.meses.length){ $("#sin-datos").style.display = "block";
+    $$(".vista").forEach(v => v.style.display = ["v-depuracion", "v-cupsenr"].includes(v.id) ? "" : "none"); return; }
   const opciones = (sel, lista, vacio) => $(sel).innerHTML = `<option value="">${vacio}</option>` + lista.map(m => `<option>${esc(m)}</option>`).join("");
   opciones("#f-desde", o.meses, "(primero)"); opciones("#f-hasta", o.meses, "(último)");
   $$(".multi").forEach(m => multi(m, m.dataset.f, o[m.dataset.f] || []));
@@ -425,6 +476,8 @@ async function actualizar(){
 }
 function pintarVista(todo){
   const v = estado.vista, d = estado.datos;
+  if (v === "depuracion") return pintarDepuracion();
+  if (v === "cupsenr") return pintarCupsEnr();
   if (!d) return;
   ({resumen: pintarResumen, comparativos: pintarComparativo, frecuencias: pintarFrecuencias, empresa: pintarEmpresa, sede: pintarSede,
     servicio: pintarServicio, cups: pintarCups, consolidado: () => tablaPaginada("tp-consolidado", "consolidado"),
@@ -557,6 +610,82 @@ $("#ap-enviar").onclick = async () => {
   consultar();
 };
 
+
+/* ---------- Informe enriquecido y catálogos ---------- */
+async function pintarCupsEnr(){
+  const e = await (await fetch("/api/catalogos/estado")).json();
+  const txt = (x, extra = "") => x ? `Guardado: ${ent(x.registros)} códigos · ${esc(x.actualizado.replace("T", " "))}${extra}` : "Sin cargar.";
+  $("#cat-comp-estado").innerHTML = txt(e.complemento, e.complemento ? `<br>Columnas: ${esc(e.complemento.columnas.join(", "))}` : "");
+  $("#cat-tar-estado").innerHTML = txt(e.tarifario);
+  const pf = e.descripciones && e.descripciones.por_fuente ? Object.entries(e.descripciones.por_fuente).map(([k, v]) => `${ent(v)} desde ${esc(k)}`).join(" · ") : "";
+  $("#cat-desc-estado").textContent = "Descripciones completadas y guardadas: " + (pf || "ninguna todavía") + ". La columna fuente_descripcion indica el origen.";
+  if (estado.opc && estado.opc.meses.length) tablaPaginada("tp-cupsenr", "cups_enriquecido");
+}
+$$("[data-cat]").forEach(b => b.onclick = async () => {
+  const tipo = b.dataset.cat, input = tipo === "complemento" ? $("#cat-comp") : $("#cat-tar"), destino = tipo === "complemento" ? "#cat-comp-estado" : "#cat-tar-estado";
+  if (!input.files.length){ alert("Seleccione el archivo."); return; }
+  const fd = new FormData(); fd.append("archivo", input.files[0]);
+  b.disabled = true; $(destino).textContent = "Leyendo…";
+  const r = await fetch(`/api/catalogos/${tipo}`, {method: "POST", body: fd}); const d = await r.json(); b.disabled = false;
+  if (!r.ok){ $(destino).innerHTML = `<div class="aviso">${esc(d.detail)}</div>`; return; }
+  const c = d.descripciones.completadas || {};
+  $(destino).innerHTML = `<div class="ok-caja">${ent(d.codigos)} códigos leídos${d.codigos_repetidos ? ` (${d.codigos_repetidos} repetidos ignorados)` : ""}.
+    Descripciones completadas: ${Object.entries(c).map(([k, v]) => `${v} desde ${esc(k)}`).join(", ") || "ninguna nueva"}; sin descripción: ${d.descripciones.sin_descripcion}.</div>`;
+  input.value = ""; await actualizar(); pintarCupsEnr();
+});
+
+/* ---------- Depuración de datos ---------- */
+function pintarDepuracion(){}
+function vistaBorrado(sel, v, extraCols, alConfirmar){
+  if (!v.total_filas){ $(sel).innerHTML = '<div class="ok-caja">No hay registros para eliminar.</div>'; return; }
+  const cols = ["MES", "SEDE", "EPS", "FACTURA_FEV", "TIPO_SERVICIO", "CODIGO_CUPS_CUMS", "CANTIDAD", "VALOR_SERVICIO", ...extraCols];
+  const res = Object.keys(v.resumen[0] || {});
+  $(sel).innerHTML = `<div class="aviso"><b>Se eliminarían ${ent(v.total_filas)} fila(s)</b> · ${ent(v.facturas)} factura(s) · ${pesos(v.valor)}` +
+    (v.indicadores ? ` · ${v.indicadores} registro(s) de indicadores` : "") + `</div>
+    <div class="tabla" style="max-height:220px"><table><thead><tr>${res.map(c => `<th>${esc(ETQ[c] || c)}</th>`).join("")}</tr></thead><tbody>` +
+    v.resumen.map(f => "<tr>" + res.map(c => celda(c, f[c])).join("") + "</tr>").join("") + `</tbody></table></div>
+    <p class="nota">Detalle (${v.filas.length < v.total_filas ? `primeras ${ent(v.filas.length)} de ${ent(v.total_filas)}` : "todas"}):</p>
+    <div class="tabla" style="max-height:320px"><table><thead><tr>${cols.map(c => `<th>${esc(ETQ[c] || c)}</th>`).join("")}</tr></thead><tbody>` +
+    v.filas.map(f => "<tr>" + cols.map(c => ["CANTIDAD", "VALOR_SERVICIO"].includes(c) ? celda(c, Number(f[c])) : `<td>${esc(f[c])}</td>`).join("") + "</tr>").join("") + `</tbody></table></div>
+    <label class="confirma"><input type="checkbox" class="ok"> Revisé la lista y confirmo que se eliminen estos ${ent(v.total_filas)} registros</label>
+    <button class="pri conf" disabled>Confirmar eliminación</button> <button class="sec canc">Cancelar</button>`;
+  const caja = $(sel);
+  caja.querySelector(".ok").onchange = e => caja.querySelector(".conf").disabled = !e.target.checked;
+  caja.querySelector(".canc").onclick = () => caja.innerHTML = '<p class="nota">Cancelado: no se eliminó nada.</p>';
+  caja.querySelector(".conf").onclick = async () => {
+    if (!confirm(`¿Eliminar definitivamente ${v.total_filas} registros? (quedan copiados en la papelera del acumulado)`)) return;
+    const r = await alConfirmar(v.ficha); const d = await r.json();
+    caja.innerHTML = r.ok ? `<div class="ok-caja">Eliminadas ${ent(d.eliminadas)} fila(s)${d.indicadores_eliminados ? ` y ${d.indicadores_eliminados} registro(s) de indicadores` : ""}.</div>`
+                          : `<div class="aviso">${esc(d.detail)}</div>`;
+    await iniciar();
+  };
+}
+const postJSON = (url, cuerpo) => fetch(url, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(cuerpo)});
+$("#dp-ver").onclick = async () => {
+  const crit = {mes: $("#dp-mes").value, sede: $("#dp-sede").value};
+  const r = await postJSON("/api/datos/limpieza/vista", crit); const v = await r.json();
+  if (!r.ok){ $("#dp-vista").innerHTML = `<div class="aviso">${esc(v.detail)}</div>`; return; }
+  vistaBorrado("#dp-vista", v, [], ficha => postJSON("/api/datos/limpieza/confirmar", {...crit, ficha, confirmar: true}));
+};
+$("#du-ver").onclick = async () => {
+  const r = await postJSON("/api/datos/duplicados/vista", {}); const v = await r.json();
+  if (!r.ok){ $("#du-vista").innerHTML = `<div class="aviso">${esc(v.detail)}</div>`; return; }
+  vistaBorrado("#du-vista", v, ["tipo_duplicado"], ficha => postJSON("/api/datos/duplicados/confirmar", {ficha, confirmar: true}));
+};
+$("#js-cargar").onclick = async () => {
+  const files = $("#js-arch").files;
+  if (!files.length){ alert("Seleccione uno o varios archivos JSON."); return; }
+  const fd = new FormData(); [...files].forEach(f => fd.append("archivos", f, f.name));
+  fd.append("hospital", $("#js-sede").value.trim()); fd.append("mes", $("#js-mes").value.trim());
+  $("#js-cargar").disabled = true; $("#js-res").innerHTML = '<p class="nota">Leyendo…</p>';
+  const r = await fetch("/api/datos/json", {method: "POST", body: fd}); const d = await r.json(); $("#js-cargar").disabled = false;
+  if (!r.ok){ $("#js-res").innerHTML = `<div class="aviso">${esc(d.detail)}</div>`; return; }
+  $("#js-res").innerHTML = `<div class="ok-caja">${ent(d.archivos_json)} archivo(s) · ${ent(d.registros_leidos)} registros leídos ·
+    ${ent(d.repetidos_en_json)} repetidos dentro del JSON · ${ent(d.ya_cargadas)} fila(s) ya cargadas (no se duplicaron) ·
+    <b>${ent(d.agregadas)} fila(s) agregadas</b>${d.meses.length ? " en " + esc(d.meses.join(", ")) : ""}.</div>` +
+    d.avisos.map(a => `<div class="aviso">${esc(a)}</div>`).join("");
+  $("#js-arch").value = ""; await iniciar();
+};
 /* ---------- Eventos ---------- */
 $$("#pestanas button").forEach(b => b.onclick = () => {
   $$("#pestanas button").forEach(x => x.classList.toggle("activa", x === b));
@@ -572,6 +701,9 @@ $("#sel-empresa").onchange = () => tablaPaginada("tp-empresa", $("#sel-empresa")
 $("#sel-sede").onchange = () => tablaPaginada("tp-sede", $("#sel-sede").value);
 $("#sel-cups").onchange = () => tablaPaginada("tp-cups", $("#sel-cups").value);
 $("#a-nivel").onchange = () => pintarAlertas(estado.datos); $("#a-cat").onchange = () => pintarAlertas(estado.datos);
+// /tablero#depuracion abre directamente esa pestaña
+const inicial = location.hash.replace("#", "");
+if (inicial && document.querySelector(`#pestanas button[data-v="${CSS.escape(inicial)}"]`)) document.querySelector(`#pestanas button[data-v="${CSS.escape(inicial)}"]`).click();
 iniciar();
 </script>
 </body>

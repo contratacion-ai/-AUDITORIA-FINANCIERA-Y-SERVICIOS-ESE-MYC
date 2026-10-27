@@ -99,6 +99,12 @@ DEFAULTS: dict[str, Any] = {
         "minimo_cantidad_cups": 5,
         "frecuencia_variacion_pct": 30,
     },
+    "catalogo_cups": {
+        # Columnas calculadas del informe enriquecido por CUPS (ver catalogo_cups.py)
+        "medida": "valor",  # valor | cantidad
+        "columnas_eps": None,  # None = catalogo_cups.DEFAULTS["columnas_eps"]
+        "columna_otras": "OTRAS",
+    },
     "exportacion": {
         "excel": True,
         "json": True,
