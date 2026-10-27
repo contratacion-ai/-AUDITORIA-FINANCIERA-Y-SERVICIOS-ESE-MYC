@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tablero RIPS · ESE Moreno y Clavijo</title>
+<link rel="icon" href="/favicon.ico">
+<script src="/static/vendor/chart.umd.js"></script>
+<style>
+  :root{
+    /* Identidad de la ESE (cromo de la página) */
+    --verde:#18A020; --verde-osc:#0E6B16; --verde-claro:#E8F6E9; --vino:#A01038; --vino-osc:#760A29; --vino-claro:#FBEAEF;
+    --tinta:#1D2B22; --gris:#5F6B63; --borde:#DCE3DD; --fondo:#F4F7F4; --blanco:#FFFFFF; --radio:14px;
+    --sombra:0 2px 10px rgba(16,40,20,.08);
+    /* Datos: paleta categórica validada (orden fijo) + rampa secuencial azul */
+    --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#6250d6; --s8:#e34948;
+    --rejilla:#E6E9E7; --eje:#5F6B63;
+    /* Estados (reservados para alertas) */
+    --critica:#B3261E; --critica-f:#FDE7E5; --alta:#9C5700; --alta-f:#FFF1D6; --media:#6B5A00; --media-f:#FFF8DC;
+    --info:#0E6B16; --info-f:#E8F6E9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif;color:var(--tinta);background:var(--fondo)}
+  header{background:var(--blanco);border-bottom:4px solid var(--verde);box-shadow:var(--sombra)}
+  .franja{height:6px;background:linear-gradient(90deg,var(--verde) 0 62%,var(--vino) 62% 100%)}
+  .cab{max-width:1320px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+  .cab img{height:58px;width:auto}
+  .cab .titulo{flex:1;min-width:220px;border-left:3px solid var(--borde);padding-left:20px}
+  .cab h1{margin:0;font-size:21px;color:var(--verde-osc)} .cab p{margin:3px 0 0;color:var(--gris);font-size:13.5px}
+  nav.app{display:flex;gap:6px} nav.app a{padding:9px 14px;border-radius:10px;text-decoration:none;font-weight:600;color:var(--verde-osc);border:1.5px solid var(--verde)}
+  nav.app a.activa{background:var(--verde);color:#fff}
+  main{max-width:1320px;margin:16px auto;padding:0 20px 40px}
+  .filtros{background:var(--blanco);border:1px solid var(--borde);border-radius:var(--radio);padding:12px 14px;box-shadow:var(--sombra);
+    display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;position:sticky;top:0;z-index:20}
+  .filtros label{display:flex;flex-direction:column;font-size:12px;font-weight:600;color:var(--gris);gap:4px}
+  select,input[type=text],input[type=search]{font:inherit;font-size:14px;padding:7px 9px;border:1.5px solid var(--borde);border-radius:9px;background:#fff;color:var(--tinta)}
+  select:focus,input:focus{outline:none;border-color:var(--verde)}
+  .multi{position:relative} .multi>button{min-width:150px;max-width:220px;justify-content:space-between;background:#fff;border:1.5px solid var(--borde);
+    color:var(--tinta);font-weight:400;font-size:14px;padding:7px 9px;border-radius:9px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .multi .panel{display:none;position:absolute;top:100%;left:0;margin-top:4px;background:#fff;border:1px solid var(--borde);border-radius:10px;
+    box-shadow:0 8px 24px rgba(0,0,0,.15);padding:8px;width:300px;max-height:340px;overflow:auto;z-index:30}
+  .multi.abierto .panel{display:block}
+  .multi .panel label{flex-direction:row;align-items:center;font-weight:400;color:var(--tinta);font-size:13px;padding:3px 2px;gap:8px;cursor:pointer}
+  .multi .panel input[type=search]{width:100%;margin-bottom:6px}
+  .multi .panel .acc{display:flex;gap:8px;margin-bottom:6px} .multi .panel .acc a{font-size:12px;color:var(--verde-osc);cursor:pointer}
+  button,.boton{font:inherit;border:0;border-radius:10px;padding:9px 14px;cursor:pointer;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:8px;font-size:14px}
+  .pri{background:var(--vino);color:#fff} .pri:hover{background:var(--vino-osc)} .pri:disabled{background:#c9a3ae;cursor:not-allowed}
+  .sec{background:var(--blanco);color:var(--verde-osc);border:1.5px solid var(--verde)} .sec:hover{background:var(--verde-claro)}
+  .ver{background:var(--verde);color:#fff} .ver:hover{background:var(--verde-osc)}
+  .pestanas{display:flex;gap:4px;flex-wrap:wrap;margin:16px 0 12px;border-bottom:2px solid var(--borde)}
+  .pestanas button{background:none;color:var(--gris);border-radius:10px 10px 0 0;padding:10px 14px;margin-bottom:-2px;border-bottom:3px solid transparent}
+  .pestanas button.activa{color:var(--vino);border-bottom-color:var(--vino);background:var(--blanco)}
+  .vista{display:none} .vista.activa{display:block}
+  .tarjeta{background:var(--blanco);border:1px solid var(--borde);border-radius:var(--radio);padding:16px 18px;box-shadow:var(--sombra);margin-bottom:16px;min-width:0}
+  .tarjeta h2{margin:0 0 4px;font-size:16px;color:var(--verde-osc)} .tarjeta .nota{margin:0 0 10px;color:var(--gris);font-size:12.5px}
+  .rej2{display:grid;grid-template-columns:1fr 1fr;gap:16px} .rej3{display:grid;grid-template-columns:2fr 1fr;gap:16px}
+  @media (max-width:980px){.rej2,.rej3{grid-template-columns:1fr}}
+  @media (max-width:700px){.filtros{position:static}}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px;margin-bottom:16px}
+  .kpi{background:var(--blanco);border:1px solid var(--borde);border-radius:12px;padding:12px 14px;box-shadow:var(--sombra)}
+  .kpi small{display:block;color:var(--gris);font-size:12.5px;font-weight:600} .kpi b{display:block;font-size:21px;margin-top:4px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .kpi span{font-size:12px;color:var(--gris)}
+  .lienzo{position:relative;height:280px} .lienzo.alto{height:380px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{background:var(--verde);color:#fff;text-align:left;padding:7px 8px;font-weight:600;position:sticky;top:0;cursor:pointer;white-space:nowrap;z-index:1}
+  th.n{text-align:right} th .flecha{opacity:.8;font-size:11px}
+  td{padding:6px 8px;border-bottom:1px solid var(--borde)} tr:nth-child(even) td{background:#f8fbf8}
+  td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  tfoot td{font-weight:700;background:var(--verde-claro)!important;border-top:2px solid var(--verde)}
+  .tabla{max-height:520px;overflow:auto;border:1px solid var(--borde);border-radius:10px}
+  .barra-tabla{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}
+  .barra-tabla .crece{flex:1} .barra-tabla span{color:var(--gris);font-size:13px}
+  .chip{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+  .n-CRÍTICA{background:var(--critica-f);color:var(--critica)} .n-ALTA{background:var(--alta-f);color:var(--alta)}
+  .n-MEDIA{background:var(--media-f);color:var(--media)} .n-INFORMATIVA{background:var(--info-f);color:var(--info)}
+  .sube{color:var(--verde-osc)} .baja{color:var(--critica)}
+  .alerta{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;padding:10px 4px;border-bottom:1px solid var(--borde);align-items:start}
+  .alerta>.chip{align-self:start;margin-top:2px}
+  .alerta .accion{grid-column:2;color:var(--gris);font-size:13px} .alerta .accion::before{content:"→ ";color:var(--vino);font-weight:700}
+  ol.rec li,ul.hall li{margin:6px 0;line-height:1.45}
+  .vacio{padding:40px;text-align:center;color:var(--gris)}
+  .vacio b{display:block;font-size:18px;color:var(--verde-osc);margin-bottom:8px}
+  .meses{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+  .meses label{display:flex;gap:6px;align-items:center;border:1px solid var(--borde);border-radius:9px;padding:6px 10px;font-size:14px;cursor:pointer}
+  .ok-caja{background:var(--verde-claro);color:var(--verde-osc);border-radius:10px;padding:10px 12px;font-size:14px;margin:10px 0}
+  .fila-form{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin:8px 0}
+  .fila-form label{display:flex;flex-direction:column;font-size:12px;font-weight:600;color:var(--gris);gap:4px}
+  .confirma{display:flex;gap:8px;align-items:center;font-size:14px;margin:10px 0}
+  .aviso{background:var(--vino-claro);color:var(--vino-osc);border-radius:10px;padding:10px 12px;font-size:14px;margin:10px 0}
+  .cargando{opacity:.45;pointer-events:none;transition:opacity .2s}
+  .leyenda-calor{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--gris);margin-top:6px}
+  .leyenda-calor i{display:inline-block;width:22px;height:10px;border-radius:2px}
+  pre{background:#0f1a12;color:#cfe8d2;border-radius:10px;padding:10px;max-height:200px;overflow:auto;font-size:12px;white-space:pre-wrap}
+  footer{text-align:center;color:var(--gris);font-size:12.5px;padding:18px}
+</style>
+</head>
+<body>
+<header>
+  <div class="franja"></div>
+  <div class="cab">
+    <img src="/static/logo_ese.png" alt="ESE Moreno y Clavijo">
+    <div class="titulo">
+      <h1>Tablero de análisis de RIPS</h1>
+      <p>Por sede, mes, empresa, servicio y CUPS · mismos datos homologados que recibe el aplicativo de Auditoría de Facturación</p>
+    </div>
+    <nav class="app"><a href="/">Cargue de RIPS</a><a href="/tablero" class="activa">Tablero de análisis</a></nav>
+  </div>
+</header>
+
+<main>
+  <section class="filtros" id="filtros">
+    <label>Desde<select id="f-desde"></select></label>
+    <label>Hasta<select id="f-hasta"></select></label>
+    <div class="multi" data-f="sede"><label>Sede</label></div>
+    <div class="multi" data-f="eps"><label>Empresa (EPS)</label></div>
+    <div class="multi" data-f="servicio"><label>Servicio</label></div>
+    <div class="multi" data-f="modalidad"><label>Modalidad</label></div>
+    <div class="multi" data-f="contrato"><label>Contrato</label></div>
+    <label>CUPS / descripción<input type="text" id="f-cups" placeholder="Ej.: 890201" size="12"></label>
+    <button class="pri" id="btn-aplicar">Aplicar</button>
+    <button class="sec" id="btn-limpiar">Limpiar</button>
+    <a class="boton ver" id="btn-excel" href="#">⬇ Informe Excel</a>
+  </section>
+
+  <div class="pestanas" id="pestanas">
+    <button data-v="resumen" class="activa">Resumen</button>
+    <button data-v="comparativos">Comparativos</button>
+    <button data-v="frecuencias">Frecuencias de uso</button>
+    <button data-v="empresa">RIPS por empresa</button>
+    <button data-v="sede">RIPS por sede</button>
+    <button data-v="servicio">RIPS por servicio</button>
+    <button data-v="cups">RIPS por CUPS</button>
+    <button data-v="consolidado">Consolidado RIPS</button>
+    <button data-v="alertas">Alertas y análisis</button>
+    <button data-v="aplicativo">Aplicativo de auditoría</button>
+    <button data-v="cupsenr">CUPS enriquecido</button>
+    <button data-v="depuracion">Depuración de datos</button>
+  </div>
+
+  <div id="sin-datos" class="tarjeta vacio" style="display:none"><b>Todavía no hay RIPS cargados</b>
+    Haga un cargue en la ventana <a href="/">Cargue de RIPS</a>: cada mes procesado queda disponible aquí y en el aplicativo de auditoría.</div>
+
+  <!-- RESUMEN -->
+  <section class="vista activa" id="v-resumen">
+    <div class="kpis" id="kpis"></div>
+    <div class="rej2">
+      <div class="tarjeta"><h2>Valor de servicios por mes</h2><p class="nota">Suma de VALOR_SERVICIO homologado</p><div class="lienzo"><canvas id="g-mes-valor"></canvas></div></div>
+      <div class="tarjeta"><h2>Cantidad de servicios por mes</h2><p class="nota">Frecuencia de uso: consultas y procedimientos cuentan 1, medicamentos y otros su cantidad</p><div class="lienzo"><canvas id="g-mes-cant"></canvas></div></div>
+    </div>
+    <div class="rej2">
+      <div class="tarjeta"><h2>Valor por sede (de mayor a menor)</h2><div class="lienzo"><canvas id="g-sede"></canvas></div></div>
+      <div class="tarjeta"><h2>Valor por empresa · 10 mayores</h2><div class="lienzo"><canvas id="g-eps"></canvas></div></div>
+    </div>
+    <div class="rej3">
+      <div class="tarjeta"><h2>Análisis de los datos</h2><ul class="hall" id="r-hallazgos"></ul>
+        <h2 style="margin-top:12px">Acciones recomendadas</h2><ol class="rec" id="r-recomendaciones"></ol></div>
+      <div class="tarjeta"><h2>Valor por tipo de servicio</h2><div class="lienzo"><canvas id="g-servicio"></canvas></div>
+        <h2 style="margin-top:14px">Alertas prioritarias</h2><div id="r-alertas"></div></div>
+    </div>
+  </section>
+
+  <!-- COMPARATIVOS -->
+  <section class="vista" id="v-comparativos">
+    <div class="tarjeta">
+      <h2>Informe comparativo entre parámetros</h2>
+      <p class="nota">Elija qué comparar en filas y columnas y la medida. Las filas van de mayor a menor; el color de cada celda indica su magnitud.</p>
+      <div class="barra-tabla">
+        <label>Filas <select id="c-filas"></select></label>
+        <label>Columnas <select id="c-columnas"></select></label>
+        <label>Medida <select id="c-medida"></select></label>
+        <span class="crece"></span>
+        <button class="sec" id="c-csv">⬇ CSV</button>
+      </div>
+      <div class="lienzo alto" id="c-lienzo"><canvas id="g-comp"></canvas></div>
+      <div class="leyenda-calor" id="c-leyenda"></div>
+      <div class="tabla" style="margin-top:10px"><table id="t-comp"></table></div>
+      <p class="nota" id="c-nota"></p>
+    </div>
+  </section>
+
+  <!-- FRECUENCIAS -->
+  <section class="vista" id="v-frecuencias">
+    <div class="rej2">
+      <div class="tarjeta"><h2>Atenciones por usuario, mes a mes y por sede</h2>
+        <p class="nota" id="fr-nota">Atenciones (registros AC, AP, AU, AH, AN, AM, AT) ÷ usuarios únicos del archivo US</p>
+        <div class="lienzo"><canvas id="g-frec"></canvas></div></div>
+      <div class="tarjeta"><h2>Cantidad de servicios por sede, mes a mes</h2><p class="nota">Usos registrados en los RIPS</p>
+        <div class="lienzo"><canvas id="g-frec-cant"></canvas></div></div>
+    </div>
+    <div class="tarjeta"><h2>Frecuencia de uso por sede y mes</h2><div id="tp-frecuencias"></div></div>
+    <div class="tarjeta"><h2>Cantidad por sede y mes (comparativo)</h2><div class="tabla"><table id="t-frec-sede"></table></div></div>
+    <div class="tarjeta"><h2>Cantidad por tipo de servicio y mes</h2><div class="tabla"><table id="t-frec-serv"></table></div></div>
+  </section>
+
+  <section class="vista" id="v-empresa">
+    <div class="tarjeta"><h2>RIPS por empresa (EPS) · 15 de mayor valor</h2><div class="lienzo alto"><canvas id="g-empresa"></canvas></div></div>
+    <div class="tarjeta"><h2>Detalle</h2><div class="barra-tabla"><label>Ver <select id="sel-empresa">
+      <option value="eps">Por empresa</option><option value="eps_sede">Empresa por sede</option>
+      <option value="contrato">Por contrato y modalidad</option><option value="modalidad">Por modalidad</option></select></label></div>
+      <div id="tp-empresa"></div></div>
+  </section>
+
+  <section class="vista" id="v-sede">
+    <div class="tarjeta"><h2>Resumen de sedes (de mayor a menor valor)</h2><div class="lienzo"><canvas id="g-sede2"></canvas></div></div>
+    <div class="tarjeta"><h2>Detalle</h2><div class="barra-tabla"><label>Ver <select id="sel-sede">
+      <option value="sedes">Resumen sedes</option><option value="sede_mes">Sede por mes</option><option value="indicadores">Indicadores de cargue</option></select></label></div>
+      <div id="tp-sede"></div></div>
+  </section>
+
+  <section class="vista" id="v-servicio">
+    <div class="rej2">
+      <div class="tarjeta"><h2>Valor por tipo de servicio</h2><div class="lienzo"><canvas id="g-serv-valor"></canvas></div></div>
+      <div class="tarjeta"><h2>Cantidad por tipo de servicio</h2><div class="lienzo"><canvas id="g-serv-cant"></canvas></div></div>
+    </div>
+    <div class="tarjeta"><h2>Detalle por tipo de servicio</h2><div id="tp-servicio"></div></div>
+  </section>
+
+  <section class="vista" id="v-cups">
+    <div class="rej2">
+      <div class="tarjeta"><h2>20 códigos de mayor valor</h2><div class="lienzo alto"><canvas id="g-cups-valor"></canvas></div></div>
+      <div class="tarjeta"><h2>20 códigos más frecuentes (cantidad)</h2><div class="lienzo alto"><canvas id="g-cups-cant"></canvas></div></div>
+    </div>
+    <div class="tarjeta"><h2>Detalle por CUPS / CUM</h2><div class="barra-tabla"><label>Ver <select id="sel-cups">
+      <option value="cups">Por código</option><option value="cups_sede">Código por sede</option><option value="cups_mes">Código por mes</option></select></label></div>
+      <div id="tp-cups"></div></div>
+  </section>
+
+  <section class="vista" id="v-consolidado">
+    <div class="tarjeta"><h2>Consolidado RIPS homologado</h2>
+      <p class="nota">Todas las filas, en el mismo formato que recibe el aplicativo de auditoría (pestaña «Cargas › RIPS»). Use la búsqueda y descargue el CSV completo.</p>
+      <div id="tp-consolidado"></div></div>
+  </section>
+
+  <section class="vista" id="v-alertas">
+    <div class="rej2">
+      <div class="tarjeta"><h2>Análisis de los datos</h2><ul class="hall" id="a-hallazgos"></ul></div>
+      <div class="tarjeta"><h2>Acciones recomendadas</h2><ol class="rec" id="a-recomendaciones"></ol></div>
+    </div>
+    <div class="tarjeta"><h2>Alertas</h2>
+      <div class="barra-tabla"><label>Nivel <select id="a-nivel"><option value="">Todos</option><option>CRÍTICA</option><option>ALTA</option><option>MEDIA</option><option>INFORMATIVA</option></select></label>
+        <label>Categoría <select id="a-cat"><option value="">Todas</option></select></label><span class="crece"></span><span id="a-cuenta"></span></div>
+      <div id="a-lista"></div></div>
+  </section>
+
+  <section class="vista" id="v-aplicativo">
+    <div class="tarjeta"><h2>Enviar meses al aplicativo de Auditoría de Facturación</h2>
+      <p class="nota">Se envía el acumulado homologado de cada mes con <b>todas las sedes</b> (el aplicativo reemplaza el mes completo). No se vuelven a procesar los TXT.</p>
+      <div id="ap-estado" class="nota"></div>
+      <div class="meses" id="ap-meses"></div>
+      <button class="pri" id="ap-enviar">Enviar meses seleccionados</button>
+      <div id="ap-avance" style="margin-top:12px"></div>
+    </div>
+    <div class="tarjeta"><h2>Validación del cruce en el aplicativo (RIPS ↔ Software 360)</h2><div id="ap-cruce" class="nota">Consultando…</div></div>
+  </section>
+
+  <!-- INFORME RIPS POR CUPS ENRIQUECIDO -->
+  <section class="vista" id="v-cupsenr">
+    <div class="rej2">
+      <div class="tarjeta"><h2>1. Archivo complementario por CUPS (Excel o CSV)</h2>
+        <p class="nota">Una fila por código (columna CODIGO_CUPS_CUMS o CUPS). Sus columnas se agregan al informe por código.
+          «promedio mes», las columnas de EPS (nueva eps, sanitas, coosalud, fomag…), «otras», «evento» y «capita» se calculan con los datos cargados.</p>
+        <div class="fila-form"><input type="file" id="cat-comp" accept=".xlsx,.xlsb,.xls,.csv"><button class="ver" data-cat="complemento">Cargar archivo</button></div>
+        <div id="cat-comp-estado" class="nota"></div></div>
+      <div class="tarjeta"><h2>2. Tarifario del Manual UVB</h2>
+        <p class="nota">Completa la descripción de los códigos que llegan sin ella y agrega la tarifa (p. ej. SOAT-2026-UVB). Columnas: MAPIISS, DESCRIPCION y la tarifa.</p>
+        <div class="fila-form"><input type="file" id="cat-tar" accept=".xlsb,.xlsx,.xls,.csv"><button class="ver" data-cat="tarifario">Cargar tarifario</button></div>
+        <div id="cat-tar-estado" class="nota"></div></div>
+    </div>
+    <div class="tarjeta"><h2>Informe RIPS por CUPS enriquecido</h2>
+      <p class="nota" id="cat-desc-estado">Las descripciones completadas quedan guardadas y se reutilizan en cada cargue.</p>
+      <div id="tp-cupsenr"></div></div>
+  </section>
+
+  <!-- DEPURACIÓN DE DATOS -->
+  <section class="vista" id="v-depuracion">
+    <div class="tarjeta"><h2>Limpiar datos cargados antes de una nueva carga</h2>
+      <p class="nota">Elimina lo cargado de un mes, de una sede o de ambos (por ejemplo, antes de volver a cargar un mes corregido). Primero se muestra
+        lo que se eliminaría; nada se borra sin su confirmación. Lo eliminado se guarda en la carpeta «papelera» del acumulado.</p>
+      <div class="fila-form"><label>Mes<select id="dp-mes"></select></label><label>Sede<select id="dp-sede"></select></label>
+        <button class="sec" id="dp-ver">Ver qué se eliminaría</button></div>
+      <div id="dp-vista"></div></div>
+    <div class="tarjeta"><h2>Depurar duplicados</h2>
+      <p class="nota">Busca filas idénticas y facturas repetidas en otro mes (misma sede, factura, código, cantidad y valor). Se conserva la primera
+        (la del mes más antiguo).</p>
+      <button class="sec" id="du-ver">Buscar duplicados</button>
+      <div id="du-vista"></div></div>
+    <div class="tarjeta"><h2>Cargar RIPS en JSON</h2>
+      <p class="nota">RIPS JSON de la Res. 2275 de 2023 (una factura por archivo) o filas homologadas. Se depuran con la misma lógica de los TXT
+        y sólo se agregan los registros que no estén ya cargados. También puede incluir los JSON en el cargue normal.</p>
+      <div class="fila-form"><input type="file" id="js-arch" accept=".json" multiple>
+        <label>Sede (si no está en la carpeta)<input type="text" id="js-sede" placeholder="Hospital San Antonio"></label>
+        <label>Mes AAAA-MM (opcional)<input type="text" id="js-mes" placeholder="2026-05" size="8"></label>
+        <button class="ver" id="js-cargar">Leer e integrar</button></div>
+      <div id="js-res"></div></div>
+  </section>
+</main>
+<footer>ESE Departamental de Primer Nivel Moreno y Clavijo · NIT 900034131 · Datos: <span id="carpeta"></span></footer>
+
+<script>
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const pesos = v => v == null ? "" : "$ " + Math.round(Number(v)).toLocaleString("es-CO");
+const ent = v => v == null ? "" : Number(v).toLocaleString("es-CO", {maximumFractionDigits: 0});
+const dec = (v, n = 2) => v == null ? "" : Number(v).toLocaleString("es-CO", {minimumFractionDigits: n, maximumFractionDigits: n});
+const corto = v => { const a = Math.abs(v); return a >= 1e9 ? dec(v / 1e9, 1) + " MM" : a >= 1e6 ? dec(v / 1e6, 1) + " M" : a >= 1e3 ? dec(v / 1e3, 0) + " mil" : ent(v); };
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const SERIES = ["--s1","--s2","--s3","--s4","--s5","--s6","--s7","--s8"].map(css);
+const RAMPA = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95"];   // secuencial azul (claro→oscuro)
+const ICONO = {"CRÍTICA": "⛔", "ALTA": "▲", "MEDIA": "●", "INFORMATIVA": "ℹ"};
+const ETQ = {MES:"Mes", SEDE:"Sede", EPS:"Empresa (EPS)", TIPO_SERVICIO:"Servicio", CODIGO_CUPS_CUMS:"CUPS / CUM", CONTRATO:"Contrato",
+  MODALIDAD:"Modalidad", ESTADO:"Validación", descripcion:"Descripción", registros:"Registros", cantidad:"Cantidad", valor:"Valor servicios",
+  facturas:"Facturas", valor_fev:"Valor facturado (FEV)", participacion_pct:"% part.", valor_unitario:"Valor unitario", posicion:"#",
+  usuarios:"Usuarios", atenciones:"Atenciones", frecuencia_uso:"Atenciones por usuario", valor_por_usuario:"Valor por usuario",
+  eps:"Empresas", meses:"Meses", sedes:"Sedes", variacion_valor_pct:"Var. % valor", remisiones:"Remisiones",
+  valor_neto_af:"Valor neto AF", valor_servicios_rips:"Valor servicios RIPS", facturas_con_diferencia:"Facturas con diferencia",
+  errores:"Errores", advertencias:"Advertencias", actualizado:"Actualizado", nivel:"Nivel", categoria:"Categoría", sede:"Sede",
+  mes:"Mes", mensaje:"Hallazgo", tipo_duplicado:"Tipo de duplicado", filas:"Filas", fuente_descripcion:"Fuente descripción",
+  FACTURA_FEV:"Factura", CANTIDAD:"Cantidad", VALOR_SERVICIO:"Valor servicio", accion:"Acción recomendada", TOTAL:"Total", PARTICIPACION_PCT:"% part.", VARIACION_PCT:"Var. % último mes"};
+const ES_PESOS = c => /^valor|VALOR_|^valor_/.test(c) && !/pct/i.test(c);
+const ES_NUM = (c, v) => typeof v === "number";
+
+const estado = {opc: null, datos: null, vista: "resumen", graficos: {}, tablas: {}};
+
+/* ---------- Gráficos (Chart.js) ---------- */
+Chart.defaults.font.family = '"Segoe UI",Calibri,Roboto,Arial,sans-serif';
+Chart.defaults.font.size = 12;
+Chart.defaults.color = css("--eje");
+Chart.defaults.plugins.tooltip.backgroundColor = "#1D2B22";
+Chart.defaults.plugins.tooltip.padding = 10;
+Chart.defaults.plugins.tooltip.cornerRadius = 8;
+const ejes = (horizontal, fmt) => {
+  const valor = {grid: {color: css("--rejilla"), drawTicks: false}, border: {display: false}, ticks: {callback: v => fmt === "$" ? "$ " + corto(v) : corto(v), padding: 6, maxRotation: 0, maxTicksLimit: horizontal ? 5 : 7}, beginAtZero: true};
+  const cat = {grid: {display: false}, border: {color: css("--rejilla")}, ticks: {autoSkip: !horizontal, font: {size: horizontal ? 11 : 12}, padding: 4, maxRotation: 0, callback(v){ const t = this.getLabelForValue(v); return t.length > 26 ? t.slice(0, 25) + "…" : t; }}};
+  return horizontal ? {x: valor, y: cat} : {x: cat, y: valor};
+};
+const fmtTip = fmt => ({callbacks: {label: c => " " + (c.dataset.label ? c.dataset.label + ": " : "") + (fmt === "$" ? pesos(c.raw) : fmt === "d" ? dec(c.raw) : ent(c.raw))}});
+function grafico(id, cfg){
+  if (estado.graficos[id]) estado.graficos[id].destroy();
+  const el = document.getElementById(id); if (!el) return;
+  estado.graficos[id] = new Chart(el, cfg);
+}
+// Una medida, un color (serie 1). Barras finas, extremo redondeado de 4px.
+function barras(id, etiquetas, valores, fmt = "$", horizontal = true, nombre = ""){
+  grafico(id, {type: "bar", data: {labels: etiquetas, datasets: [{label: nombre, data: valores, backgroundColor: SERIES[0],
+      borderRadius: 4, borderSkipped: "start", maxBarThickness: 18, categoryPercentage: .8, barPercentage: .9}]},
+    options: {indexAxis: horizontal ? "y" : "x", maintainAspectRatio: false, scales: ejes(horizontal, fmt),
+      plugins: {legend: {display: false}, tooltip: fmtTip(fmt)}, interaction: {mode: "nearest", axis: horizontal ? "y" : "x", intersect: false}}});
+}
+function lineas(id, etiquetas, series, fmt = "$"){
+  const varias = series.length > 1;
+  grafico(id, {type: "line", data: {labels: etiquetas, datasets: series.map(s => ({label: s.nombre, data: s.datos,
+      borderColor: s.color || SERIES[0], backgroundColor: s.color || SERIES[0], borderWidth: 2, pointRadius: 4, pointHoverRadius: 6,
+      pointBorderColor: "#fff", pointBorderWidth: 2, cubicInterpolationMode: "monotone", spanGaps: false}))},
+    options: {maintainAspectRatio: false, scales: ejes(false, fmt),
+      plugins: {legend: {display: varias, position: "bottom", labels: {usePointStyle: true, boxWidth: 8, boxHeight: 8}}, tooltip: {...fmtTip(fmt), mode: "index", intersect: false}},
+      interaction: {mode: "index", intersect: false}}});
+}
+// Color por entidad (orden alfabético de las mostradas), nunca por posición; el resto se agrupa en «Otras».
+function seriesPorEntidad(filas, campo, columnas, maximo = 7){
+  const top = filas.slice(0, maximo), resto = filas.slice(maximo);
+  const orden = [...top.map(f => f[campo])].sort((a, b) => String(a).localeCompare(String(b)));
+  const s = top.map(f => ({nombre: f[campo], datos: columnas.map(c => f[c] ?? null), color: SERIES[orden.indexOf(f[campo])]}));
+  if (resto.length) s.push({nombre: `Otras (${resto.length})`, color: "#9AA39C", datos: columnas.map(c => resto.reduce((a, f) => a + (Number(f[c]) || 0), 0))});
+  return s;
+}
+
+/* ---------- Filtros ---------- */
+function multi(el, nombre, valores){
+  el.innerHTML = `<label>${el.querySelector("label").textContent}</label><button type="button">Todas</button>
+    <div class="panel"><input type="search" placeholder="Buscar…"><div class="acc"><a data-a="t">Todas</a><a data-a="n">Ninguna</a></div>
+    <div class="ops">${valores.map(v => `<label><input type="checkbox" value="${esc(v)}">${esc(v)}</label>`).join("")}</div></div>`;
+  const btn = el.querySelector("button"), panel = el.querySelector(".panel");
+  const actualizar = () => { const m = [...panel.querySelectorAll(".ops input:checked")].map(i => i.value);
+    btn.textContent = !m.length ? "Todas" : m.length === 1 ? m[0] : `${m.length} seleccionadas`; btn.title = m.join(", "); };
+  btn.onclick = e => { e.stopPropagation(); $$(".multi.abierto").forEach(x => x !== el && x.classList.remove("abierto")); el.classList.toggle("abierto"); };
+  panel.onclick = e => e.stopPropagation();
+  panel.querySelector("input[type=search]").oninput = e => { const t = e.target.value.toUpperCase();
+    panel.querySelectorAll(".ops label").forEach(l => l.style.display = l.textContent.toUpperCase().includes(t) ? "" : "none"); };
+  panel.querySelectorAll(".acc a").forEach(a => a.onclick = () => { panel.querySelectorAll(".ops label").forEach(l => { if (l.style.display !== "none") l.querySelector("input").checked = a.dataset.a === "t"; }); actualizar(); });
+  panel.addEventListener("change", actualizar);
+  el.valores = () => [...panel.querySelectorAll(".ops input:checked")].map(i => i.value);
+  el.limpiar = () => { panel.querySelectorAll(".ops input").forEach(i => i.checked = false); actualizar(); };
+}
+document.addEventListener("click", () => $$(".multi.abierto").forEach(x => x.classList.remove("abierto")));
+function parametros(extra = {}){
+  const p = new URLSearchParams();
+  if ($("#f-desde").value) p.set("desde", $("#f-desde").value);
+  if ($("#f-hasta").value) p.set("hasta", $("#f-hasta").value);
+  $$(".multi").forEach(m => (m.valores ? m.valores() : []).forEach(v => p.append(m.dataset.f, v)));
+  if ($("#f-cups").value.trim()) p.set("cups", $("#f-cups").value.trim());
+  Object.entries(extra).forEach(([k, v]) => v !== undefined && v !== "" && p.set(k, v));
+  return p;
+}
+
+/* ---------- Tablas ---------- */
+function celda(c, v){
+  if (v == null) return `<td></td>`;
+  if (c === "nivel") return `<td><span class="chip n-${esc(v)}">${ICONO[v] || ""} ${esc(v)}</span></td>`;
+  if (/VARIACION|variacion/.test(c)) return `<td class="n ${v > 0 ? "sube" : v < 0 ? "baja" : ""}">${v > 0 ? "▲ " : v < 0 ? "▼ " : ""}${dec(v, 1)}%</td>`;
+  if (/pct|PCT/.test(c)) return `<td class="n">${dec(v, 1)}%</td>`;
+  if (typeof v === "number") return `<td class="n">${ES_PESOS(c) ? pesos(v) : c === "frecuencia_uso" ? dec(v) : ent(v)}</td>`;
+  return `<td>${esc(v)}</td>`;
+}
+// Tabla paginada del servidor: todas las filas, búsqueda, orden por columna y CSV completo.
+function tablaPaginada(contenedor, nombre){
+  const t = estado.tablas[contenedor] = estado.tablas[contenedor] || {pagina: 1, tam: 100, buscar: "", orden: "", desc: true};
+  t.nombre = nombre;
+  const el = document.getElementById(contenedor);
+  if (!el.dataset.listo){
+    el.innerHTML = `<div class="barra-tabla"><input type="search" placeholder="Buscar en la tabla…" class="crece">
+      <select class="tam"><option>50</option><option selected>100</option><option>500</option><option>1000</option></select>
+      <span class="info"></span><button class="sec ant">◀</button><button class="sec sig">▶</button><button class="sec csv">⬇ CSV completo</button></div>
+      <div class="tabla"><table></table></div>`;
+    el.dataset.listo = 1;
+    let pausa;
+    el.querySelector("input").oninput = e => { clearTimeout(pausa); pausa = setTimeout(() => { t.buscar = e.target.value; t.pagina = 1; cargarTabla(contenedor); }, 350); };
+    el.querySelector(".tam").onchange = e => { t.tam = +e.target.value; t.pagina = 1; cargarTabla(contenedor); };
+    el.querySelector(".ant").onclick = () => { if (t.pagina > 1){ t.pagina--; cargarTabla(contenedor); } };
+    el.querySelector(".sig").onclick = () => { if (t.pagina * t.tam < t.total){ t.pagina++; cargarTabla(contenedor); } };
+    el.querySelector(".csv").onclick = () => location.href = `/api/tablero/tabla/${t.nombre}?` + parametros({formato: "csv", buscar: t.buscar, orden: t.orden, desc: t.desc});
+  }
+  t.pagina = 1; cargarTabla(contenedor);
+}
+async function cargarTabla(contenedor){
+  const t = estado.tablas[contenedor], el = document.getElementById(contenedor);
+  el.classList.add("cargando");
+  const r = await (await fetch(`/api/tablero/tabla/${t.nombre}?` + parametros({pagina: t.pagina, tam: t.tam, buscar: t.buscar, orden: t.orden, desc: t.desc}))).json();
+  el.classList.remove("cargando");
+  t.total = r.total;
+  const cols = r.columnas.filter(c => c !== "posicion");
+  const num = c => r.filas.some(f => typeof f[c] === "number");
+  el.querySelector("table").innerHTML = "<thead><tr>" + cols.map(c => `<th data-c="${esc(c)}" class="${num(c) ? "n" : ""}">${esc(ETQ[c] || c)} <span class="flecha">${t.orden === c ? (t.desc ? "▼" : "▲") : ""}</span></th>`).join("") + "</tr></thead><tbody>" +
+    (r.filas.length ? r.filas.map(f => "<tr>" + cols.map(c => celda(c, f[c])).join("") + "</tr>").join("") : `<tr><td colspan="${cols.length}" class="vacio">Sin filas para este filtro</td></tr>`) + "</tbody>";
+  el.querySelectorAll("th").forEach(th => th.onclick = () => { const c = th.dataset.c; t.desc = t.orden === c ? !t.desc : true; t.orden = c; t.pagina = 1; cargarTabla(contenedor); });
+  const ini = r.total ? (t.pagina - 1) * t.tam + 1 : 0;
+  el.querySelector(".info").textContent = `${ent(ini)}–${ent(Math.min(t.pagina * t.tam, r.total))} de ${ent(r.total)} filas`;
+}
+// Comparativo con celdas sombreadas en una rampa secuencial de un solo tono.
+function tablaComparativa(sel, c, etiquetaFila){
+  const meses = c.cols.filter(x => !["TOTAL", "PARTICIPACION_PCT", "VARIACION_PCT"].includes(x));
+  const vals = c.datos.flatMap(f => meses.map(m => Number(f[m]) || 0)), max = Math.max(1, ...vals);
+  const fmt = v => c.medida.startsWith("valor") ? pesos(v) : ent(v);
+  const sombra = v => { if (!v) return ""; const i = Math.min(RAMPA.length - 1, Math.floor(v / max * RAMPA.length));
+    return `background:${RAMPA[i]};color:${i >= 3 ? "#fff" : "#1D2B22"}`; };
+  $(sel).innerHTML = `<thead><tr><th>${esc(etiquetaFila)}</th>` + c.cols.map(x => `<th class="n">${esc(ETQ[x] || x)}</th>`).join("") + "</tr></thead><tbody>" +
+    c.datos.map(f => `<tr><td>${esc(f.fila)}</td>` + c.cols.map(x => meses.includes(x) ? `<td class="n" style="${sombra(Number(f[x]))}" title="${esc(f.fila)} · ${esc(x)}: ${fmt(f[x])}">${fmt(f[x])}</td>` :
+      x === "TOTAL" ? `<td class="n"><b>${fmt(f[x])}</b></td>` : celda(x, f[x])).join("") + "</tr>").join("") +
+    `</tbody><tfoot><tr><td>Total</td>` + c.cols.map(x => `<td class="n">${x in c.totales ? fmt(c.totales[x]) : ""}</td>`).join("") + "</tr></tfoot>";
+  return max;
+}
+
+/* ---------- Carga del tablero ---------- */
+async function iniciar(){
+  const o = estado.opc = await (await fetch("/api/tablero/opciones")).json();
+  $("#carpeta").textContent = o.carpeta;
+  const sel = (id, lista, vacio) => $(id).innerHTML = `<option value="">${vacio}</option>` + lista.map(m => `<option>${esc(m)}</option>`).join("");
+  sel("#dp-mes", o.meses, "(todos los meses)"); sel("#dp-sede", o.sede, "(todas las sedes)");
+  if (!o.meses.length){ $("#sin-datos").style.display = "block";
+    $$(".vista").forEach(v => v.style.display = ["v-depuracion", "v-cupsenr"].includes(v.id) ? "" : "none"); return; }
+  const opciones = (sel, lista, vacio) => $(sel).innerHTML = `<option value="">${vacio}</option>` + lista.map(m => `<option>${esc(m)}</option>`).join("");
+  opciones("#f-desde", o.meses, "(primero)"); opciones("#f-hasta", o.meses, "(último)");
+  $$(".multi").forEach(m => multi(m, m.dataset.f, o[m.dataset.f] || []));
+  const dims = Object.entries(o.dimensiones).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
+  $("#c-filas").innerHTML = dims; $("#c-columnas").innerHTML = dims; $("#c-filas").value = "sede"; $("#c-columnas").value = "mes";
+  $("#c-medida").innerHTML = Object.entries(o.medidas).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
+  $("#ap-meses").innerHTML = o.meses.map(m => `<label><input type="checkbox" value="${m}">${m}</label>`).join("");
+  await actualizar();
+}
+async function actualizar(){
+  document.body.classList.add("cargando");
+  $("#btn-excel").href = "/api/tablero/excel?" + parametros();
+  try { estado.datos = await (await fetch("/api/tablero?" + parametros())).json(); }
+  finally { document.body.classList.remove("cargando"); }
+  Object.values(estado.tablas).forEach(t => t.pagina = 1);
+  pintarVista(true);
+}
+function pintarVista(todo){
+  const v = estado.vista, d = estado.datos;
+  if (v === "depuracion") return pintarDepuracion();
+  if (v === "cupsenr") return pintarCupsEnr();
+  if (!d) return;
+  ({resumen: pintarResumen, comparativos: pintarComparativo, frecuencias: pintarFrecuencias, empresa: pintarEmpresa, sede: pintarSede,
+    servicio: pintarServicio, cups: pintarCups, consolidado: () => tablaPaginada("tp-consolidado", "consolidado"),
+    alertas: pintarAlertas, aplicativo: pintarAplicativo})[v](d);
+}
+
+function kpi(t, v, sub = ""){ return `<div class="kpi"><small>${t}</small><b>${v}</b>${sub ? `<span>${sub}</span>` : ""}</div>`; }
+function pintarResumen(d){
+  const k = d.kpis;
+  const varTxt = k.variacion_valor_pct == null ? "" : `<span class="${k.variacion_valor_pct >= 0 ? "sube" : "baja"}">${k.variacion_valor_pct >= 0 ? "▲" : "▼"} ${dec(k.variacion_valor_pct, 1)}%</span> en ${k.ultimo_mes} vs. mes anterior`;
+  $("#kpis").innerHTML = [
+    kpi("Valor de servicios", pesos(k.valor_servicios), varTxt), kpi("Valor facturado (FEV)", pesos(k.valor_fev), `${ent(k.facturas)} facturas`),
+    kpi("Cantidad de servicios", ent(k.cantidad), `${ent(k.registros)} registros homologados`),
+    kpi("Usuarios atendidos", k.usuarios == null ? "—" : ent(k.usuarios), k.usuarios == null ? "sin indicadores de cargue" : "suma de usuarios únicos sede-mes"),
+    kpi("Atenciones por usuario", k.frecuencia_uso == null ? "—" : dec(k.frecuencia_uso), k.atenciones == null ? "" : `${ent(k.atenciones)} atenciones`),
+    kpi("Cobertura", `${k.sedes} sede(s)`, `${k.eps} empresas · ${ent(k.cups)} códigos · ${k.meses} meses`),
+    kpi("Facturas con diferencia", ent(k.facturas_diferencia), "AF vs. servicios"),
+    kpi("Alertas", `<span style="color:var(--critica)">${k.alertas_criticas}</span> / <span style="color:var(--alta)">${k.alertas_altas}</span> / ${k.alertas}`, "críticas / altas / total"),
+  ].join("");
+  const m = d.por_mes;
+  lineas("g-mes-valor", m.map(x => x.MES), [{nombre: "Valor servicios", datos: m.map(x => x.valor)}], "$");
+  lineas("g-mes-cant", m.map(x => x.MES), [{nombre: "Cantidad", datos: m.map(x => x.cantidad)}], "#");
+  barras("g-sede", d.por_sede.map(x => x.SEDE), d.por_sede.map(x => x.valor), "$", true, "Valor servicios");
+  const e = d.por_eps.slice(0, 10); barras("g-eps", e.map(x => x.EPS), e.map(x => x.valor), "$", true, "Valor servicios");
+  barras("g-servicio", d.por_servicio.map(x => x.TIPO_SERVICIO), d.por_servicio.map(x => x.valor), "$", true, "Valor servicios");
+  $("#r-hallazgos").innerHTML = d.analisis.hallazgos.map(h => `<li>${esc(h)}</li>`).join("");
+  $("#r-recomendaciones").innerHTML = d.analisis.recomendaciones.map(h => `<li>${esc(h)}</li>`).join("");
+  $("#r-alertas").innerHTML = alertasHtml(d.alertas.slice(0, 5)) || '<p class="nota">Sin alertas para este filtro.</p>';
+}
+function alertasHtml(lista){
+  return lista.map(a => `<div class="alerta"><span class="chip n-${a.nivel}">${ICONO[a.nivel]} ${a.nivel}</span><div><b>${esc(a.categoria)}</b> · ${esc(a.mensaje)}</div><div class="accion">${esc(a.accion)}</div></div>`).join("");
+}
+
+async function pintarComparativo(){
+  const p = parametros({filas: $("#c-filas").value, columnas: $("#c-columnas").value, medida: $("#c-medida").value});
+  const r = await fetch("/api/tablero/comparativo?" + p);
+  const c = await r.json();
+  if (!r.ok){ $("#t-comp").innerHTML = `<tr><td class="vacio">${esc(c.detail)}</td></tr>`; return; }
+  const max = tablaComparativa("#t-comp", c, c.etiqueta_filas);
+  const cols = c.cols.filter(x => !["TOTAL", "PARTICIPACION_PCT", "VARIACION_PCT"].includes(x));
+  const fmt = c.medida.startsWith("valor") ? "$" : "#";
+  if (c.columnas === "mes") lineas("g-comp", cols, seriesPorEntidad(c.datos, "fila", cols), fmt);
+  else barras("g-comp", c.datos.slice(0, 25).map(f => f.fila), c.datos.slice(0, 25).map(f => f.TOTAL), fmt, true, c.etiqueta_medida);
+  $("#c-leyenda").innerHTML = "Menor " + RAMPA.map(x => `<i style="background:${x}"></i>`).join("") + ` Mayor (hasta ${fmt === "$" ? pesos(max) : ent(max)} por celda)`;
+  $("#c-nota").textContent = `${ent(c.total_filas)} filas · medida: ${c.etiqueta_medida}` + (c.total_filas > c.datos.length ? ` · se muestran las ${c.datos.length} mayores; descargue el CSV para verlas todas` : "") +
+    (c.medida !== $("#c-medida").value ? " · el valor facturado se reparte sólo por sede, mes, empresa, contrato o modalidad: se muestra el valor de servicios" : "");
+  $("#c-csv").onclick = () => {
+    const filas = [[c.etiqueta_filas, ...c.cols.map(x => ETQ[x] || x)], ...c.datos.map(f => [f.fila, ...c.cols.map(x => f[x] ?? "")])];
+    const csv = "﻿" + filas.map(f => f.map(v => typeof v === "number" ? String(v).replace(".", ",") : `"${String(v).replace(/"/g, '""')}"`).join(";")).join("\r\n");
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], {type: "text/csv"})); a.download = `COMPARATIVO_${c.filas}_${c.columnas}.csv`; a.click();
+  };
+}
+
+function pintarFrecuencias(d){
+  const meses = d.por_mes.map(x => x.MES);
+  const porSede = {}; d.frecuencias.forEach(f => (porSede[f.SEDE] = porSede[f.SEDE] || {})[f.MES] = f);
+  const filas = Object.keys(porSede).map(s => ({fila: s, total: Object.values(porSede[s]).reduce((a, f) => a + (f.cantidad || 0), 0),
+    ...Object.fromEntries(meses.map(m => [m, porSede[s][m]?.frecuencia_uso ?? null])), ...Object.fromEntries(meses.map(m => ["c" + m, porSede[s][m]?.cantidad ?? null]))}))
+    .sort((a, b) => b.total - a.total);
+  $("#fr-nota").textContent = d.con_indicadores ? "Atenciones (registros AC, AP, AU, AH, AN, AM, AT) ÷ usuarios únicos del archivo US" :
+    "Sin indicadores de cargue para este período: vuelva a cargar los RIPS con esta versión para ver usuarios y atenciones.";
+  lineas("g-frec", meses, seriesPorEntidad(filas, "fila", meses), "d");
+  lineas("g-frec-cant", meses, seriesPorEntidad(filas, "fila", meses.map(m => "c" + m)).map(s => s), "#");
+  estado.graficos["g-frec-cant"].data.labels = meses; estado.graficos["g-frec-cant"].update();
+  tablaPaginada("tp-frecuencias", "frecuencias");
+  if (d.sede_mes_cantidad) tablaComparativa("#t-frec-sede", d.sede_mes_cantidad, "Sede");
+  if (d.servicio_mes) tablaComparativa("#t-frec-serv", d.servicio_mes, "Servicio");
+}
+function pintarEmpresa(d){
+  const e = d.por_eps.slice(0, 15); barras("g-empresa", e.map(x => x.EPS), e.map(x => x.valor), "$", true, "Valor servicios");
+  tablaPaginada("tp-empresa", $("#sel-empresa").value);
+}
+function pintarSede(d){
+  barras("g-sede2", d.por_sede.map(x => x.SEDE), d.por_sede.map(x => x.valor), "$", true, "Valor servicios");
+  tablaPaginada("tp-sede", $("#sel-sede").value);
+}
+function pintarServicio(d){
+  barras("g-serv-valor", d.por_servicio.map(x => x.TIPO_SERVICIO), d.por_servicio.map(x => x.valor), "$", true, "Valor servicios");
+  const c = [...d.por_servicio].sort((a, b) => b.cantidad - a.cantidad);
+  barras("g-serv-cant", c.map(x => x.TIPO_SERVICIO), c.map(x => x.cantidad), "#", true, "Cantidad");
+  tablaPaginada("tp-servicio", "servicio");
+}
+function pintarCups(d){
+  const et = x => x.CODIGO_CUPS_CUMS + (x.descripcion ? " · " + x.descripcion : "");
+  barras("g-cups-valor", d.cups_valor.map(et), d.cups_valor.map(x => x.valor), "$", true, "Valor servicios");
+  barras("g-cups-cant", d.cups_cantidad.map(et), d.cups_cantidad.map(x => x.cantidad), "#", true, "Cantidad");
+  tablaPaginada("tp-cups", $("#sel-cups").value);
+}
+function pintarAlertas(d){
+  $("#a-hallazgos").innerHTML = d.analisis.hallazgos.map(h => `<li>${esc(h)}</li>`).join("");
+  $("#a-recomendaciones").innerHTML = d.analisis.recomendaciones.map(h => `<li>${esc(h)}</li>`).join("");
+  const cats = [...new Set(d.alertas.map(a => a.categoria))].sort(), actual = $("#a-cat").value;
+  $("#a-cat").innerHTML = '<option value="">Todas</option>' + cats.map(c => `<option ${c === actual ? "selected" : ""}>${esc(c)}</option>`).join("");
+  const lista = d.alertas.filter(a => (!$("#a-nivel").value || a.nivel === $("#a-nivel").value) && (!$("#a-cat").value || a.categoria === $("#a-cat").value));
+  $("#a-cuenta").textContent = `${lista.length} de ${d.alertas.length} alertas`;
+  $("#a-lista").innerHTML = alertasHtml(lista) || '<p class="nota">Sin alertas para este filtro.</p>';
+}
+async function pintarAplicativo(){
+  const e = await (await fetch("/api/estado")).json();
+  $("#ap-estado").innerHTML = e.aplicativo ? `Aplicativo conectado en <a href="${esc(e.aplicativo)}" target="_blank">${esc(e.aplicativo)}</a>.` :
+    e.aplicativo_instalado ? "El aplicativo está instalado y cerrado: se abrirá al enviar." : "No se detectó el aplicativo de auditoría en este equipo.";
+  const c = await (await fetch("/api/tablero/cruce")).json();
+  $("#ap-cruce").innerHTML = !c.conectado ? "Abra el aplicativo de auditoría para ver su validación del cruce." :
+    !c.cruce.length ? esc(c.aviso || "El aplicativo no reporta validación de cruce todavía.") :
+    `<div class="tabla"><table><thead><tr><th>Llave</th><th>Origen</th><th>Destino</th><th class="n">% que cruza</th><th>Estado</th><th>Ejemplos sin cruce</th></tr></thead><tbody>` +
+    c.cruce.map(x => `<tr><td>${esc(x.llave)}</td><td>${esc(x.origen)}</td><td>${esc(x.destino)}</td><td class="n">${esc(x.pct_cruce)}</td><td><span class="chip n-${x.estado === "OK" || x.estado === "ALTO" ? "INFORMATIVA" : x.estado === "CRÍTICO" ? "CRÍTICA" : "MEDIA"}">${esc(x.estado)}</span></td><td>${esc(x.ejemplos_sin_cruce)}</td></tr>`).join("") + "</tbody></table></div>";
+}
+$("#ap-enviar").onclick = async () => {
+  const meses = $$("#ap-meses input:checked").map(i => i.value);
+  if (!meses.length){ alert("Seleccione al menos un mes."); return; }
+  $("#ap-enviar").disabled = true; $("#ap-avance").innerHTML = '<pre id="ap-log">Preparando…\n</pre>';
+  const r = await fetch("/api/tablero/enviar", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({meses})});
+  const d = await r.json();
+  if (!r.ok){ $("#ap-avance").innerHTML = `<div class="aviso">${esc(d.detail)}</div>`; $("#ap-enviar").disabled = false; return; }
+  let linea = 0;
+  const consultar = async () => {
+    const t = await (await fetch(`/api/cargues/${d.id}?desde=${linea}`)).json();
+    linea = t.lineas_log; if (t.log.length) $("#ap-log").textContent += t.log.join("\n") + "\n";
+    if (t.estado === "terminado" || t.estado === "error"){
+      $("#ap-enviar").disabled = false;
+      const res = t.resultado || {};
+      $("#ap-avance").insertAdjacentHTML("beforeend", t.error ? `<div class="aviso">${esc(t.error)}</div>` : res.aviso_envio ? `<div class="aviso">${esc(res.aviso_envio)}</div>` :
+        `<div class="tabla"><table><thead><tr><th>Mes</th><th>Estado</th><th>Resultado en el aplicativo</th></tr></thead><tbody>` +
+        (res.envio || []).map(x => `<tr><td>${esc(x.mes)}</td><td><span class="chip n-${x.estado === "ok" ? "INFORMATIVA" : "CRÍTICA"}">${esc(x.estado)}</span></td><td>${esc(x.mensaje)}</td></tr>`).join("") + "</tbody></table></div>");
+      pintarAplicativo(); return;
+    }
+    $("#ap-log").textContent.endsWith(t.fase + "\n") || ($("#ap-log").textContent += t.fase + "\n");
+    setTimeout(consultar, 1500);
+  };
+  consultar();
+};
+
+
+/* ---------- Informe enriquecido y catálogos ---------- */
+async function pintarCupsEnr(){
+  const e = await (await fetch("/api/catalogos/estado")).json();
+  const txt = (x, extra = "") => x ? `Guardado: ${ent(x.registros)} códigos · ${esc(x.actualizado.replace("T", " "))}${extra}` : "Sin cargar.";
+  $("#cat-comp-estado").innerHTML = txt(e.complemento, e.complemento ? `<br>Columnas: ${esc(e.complemento.columnas.join(", "))}` : "");
+  $("#cat-tar-estado").innerHTML = txt(e.tarifario);
+  const pf = e.descripciones && e.descripciones.por_fuente ? Object.entries(e.descripciones.por_fuente).map(([k, v]) => `${ent(v)} desde ${esc(k)}`).join(" · ") : "";
+  $("#cat-desc-estado").textContent = "Descripciones completadas y guardadas: " + (pf || "ninguna todavía") + ". La columna fuente_descripcion indica el origen.";
+  if (estado.opc && estado.opc.meses.length) tablaPaginada("tp-cupsenr", "cups_enriquecido");
+}
+$$("[data-cat]").forEach(b => b.onclick = async () => {
+  const tipo = b.dataset.cat, input = tipo === "complemento" ? $("#cat-comp") : $("#cat-tar"), destino = tipo === "complemento" ? "#cat-comp-estado" : "#cat-tar-estado";
+  if (!input.files.length){ alert("Seleccione el archivo."); return; }
+  const fd = new FormData(); fd.append("archivo", input.files[0]);
+  b.disabled = true; $(destino).textContent = "Leyendo…";
+  const r = await fetch(`/api/catalogos/${tipo}`, {method: "POST", body: fd}); const d = await r.json(); b.disabled = false;
+  if (!r.ok){ $(destino).innerHTML = `<div class="aviso">${esc(d.detail)}</div>`; return; }
+  const c = d.descripciones.completadas || {};
+  $(destino).innerHTML = `<div class="ok-caja">${ent(d.codigos)} códigos leídos${d.codigos_repetidos ? ` (${d.codigos_repetidos} repetidos ignorados)` : ""}.
+    Descripciones completadas: ${Object.entries(c).map(([k, v]) => `${v} desde ${esc(k)}`).join(", ") || "ninguna nueva"}; sin descripción: ${d.descripciones.sin_descripcion}.</div>`;
+  input.value = ""; await actualizar(); pintarCupsEnr();
+});
+
+/* ---------- Depuración de datos ---------- */
+function pintarDepuracion(){}
+function vistaBorrado(sel, v, extraCols, alConfirmar){
+  if (!v.total_filas){ $(sel).innerHTML = '<div class="ok-caja">No hay registros para eliminar.</div>'; return; }
+  const cols = ["MES", "SEDE", "EPS", "FACTURA_FEV", "TIPO_SERVICIO", "CODIGO_CUPS_CUMS", "CANTIDAD", "VALOR_SERVICIO", ...extraCols];
+  const res = Object.keys(v.resumen[0] || {});
+  $(sel).innerHTML = `<div class="aviso"><b>Se eliminarían ${ent(v.total_filas)} fila(s)</b> · ${ent(v.facturas)} factura(s) · ${pesos(v.valor)}` +
+    (v.indicadores ? ` · ${v.indicadores} registro(s) de indicadores` : "") + `</div>
+    <div class="tabla" style="max-height:220px"><table><thead><tr>${res.map(c => `<th>${esc(ETQ[c] || c)}</th>`).join("")}</tr></thead><tbody>` +
+    v.resumen.map(f => "<tr>" + res.map(c => celda(c, f[c])).join("") + "</tr>").join("") + `</tbody></table></div>
+    <p class="nota">Detalle (${v.filas.length < v.total_filas ? `primeras ${ent(v.filas.length)} de ${ent(v.total_filas)}` : "todas"}):</p>
+    <div class="tabla" style="max-height:320px"><table><thead><tr>${cols.map(c => `<th>${esc(ETQ[c] || c)}</th>`).join("")}</tr></thead><tbody>` +
+    v.filas.map(f => "<tr>" + cols.map(c => ["CANTIDAD", "VALOR_SERVICIO"].includes(c) ? celda(c, Number(f[c])) : `<td>${esc(f[c])}</td>`).join("") + "</tr>").join("") + `</tbody></table></div>
+    <label class="confirma"><input type="checkbox" class="ok"> Revisé la lista y confirmo que se eliminen estos ${ent(v.total_filas)} registros</label>
+    <button class="pri conf" disabled>Confirmar eliminación</button> <button class="sec canc">Cancelar</button>`;
+  const caja = $(sel);
+  caja.querySelector(".ok").onchange = e => caja.querySelector(".conf").disabled = !e.target.checked;
+  caja.querySelector(".canc").onclick = () => caja.innerHTML = '<p class="nota">Cancelado: no se eliminó nada.</p>';
+  caja.querySelector(".conf").onclick = async () => {
+    if (!confirm(`¿Eliminar definitivamente ${v.total_filas} registros? (quedan copiados en la papelera del acumulado)`)) return;
+    const r = await alConfirmar(v.ficha); const d = await r.json();
+    caja.innerHTML = r.ok ? `<div class="ok-caja">Eliminadas ${ent(d.eliminadas)} fila(s)${d.indicadores_eliminados ? ` y ${d.indicadores_eliminados} registro(s) de indicadores` : ""}.</div>`
+                          : `<div class="aviso">${esc(d.detail)}</div>`;
+    await iniciar();
+  };
+}
+const postJSON = (url, cuerpo) => fetch(url, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(cuerpo)});
+$("#dp-ver").onclick = async () => {
+  const crit = {mes: $("#dp-mes").value, sede: $("#dp-sede").value};
+  const r = await postJSON("/api/datos/limpieza/vista", crit); const v = await r.json();
+  if (!r.ok){ $("#dp-vista").innerHTML = `<div class="aviso">${esc(v.detail)}</div>`; return; }
+  vistaBorrado("#dp-vista", v, [], ficha => postJSON("/api/datos/limpieza/confirmar", {...crit, ficha, confirmar: true}));
+};
+$("#du-ver").onclick = async () => {
+  const r = await postJSON("/api/datos/duplicados/vista", {}); const v = await r.json();
+  if (!r.ok){ $("#du-vista").innerHTML = `<div class="aviso">${esc(v.detail)}</div>`; return; }
+  vistaBorrado("#du-vista", v, ["tipo_duplicado"], ficha => postJSON("/api/datos/duplicados/confirmar", {ficha, confirmar: true}));
+};
+$("#js-cargar").onclick = async () => {
+  const files = $("#js-arch").files;
+  if (!files.length){ alert("Seleccione uno o varios archivos JSON."); return; }
+  const fd = new FormData(); [...files].forEach(f => fd.append("archivos", f, f.name));
+  fd.append("hospital", $("#js-sede").value.trim()); fd.append("mes", $("#js-mes").value.trim());
+  $("#js-cargar").disabled = true; $("#js-res").innerHTML = '<p class="nota">Leyendo…</p>';
+  const r = await fetch("/api/datos/json", {method: "POST", body: fd}); const d = await r.json(); $("#js-cargar").disabled = false;
+  if (!r.ok){ $("#js-res").innerHTML = `<div class="aviso">${esc(d.detail)}</div>`; return; }
+  $("#js-res").innerHTML = `<div class="ok-caja">${ent(d.archivos_json)} archivo(s) · ${ent(d.registros_leidos)} registros leídos ·
+    ${ent(d.repetidos_en_json)} repetidos dentro del JSON · ${ent(d.ya_cargadas)} fila(s) ya cargadas (no se duplicaron) ·
+    <b>${ent(d.agregadas)} fila(s) agregadas</b>${d.meses.length ? " en " + esc(d.meses.join(", ")) : ""}.</div>` +
+    d.avisos.map(a => `<div class="aviso">${esc(a)}</div>`).join("");
+  $("#js-arch").value = ""; await iniciar();
+};
+/* ---------- Eventos ---------- */
+$$("#pestanas button").forEach(b => b.onclick = () => {
+  $$("#pestanas button").forEach(x => x.classList.toggle("activa", x === b));
+  estado.vista = b.dataset.v;
+  $$(".vista").forEach(v => v.classList.toggle("activa", v.id === "v-" + estado.vista));
+  pintarVista();
+});
+$("#btn-aplicar").onclick = actualizar;
+$("#f-cups").onkeydown = e => { if (e.key === "Enter") actualizar(); };
+$("#btn-limpiar").onclick = () => { $("#f-desde").value = ""; $("#f-hasta").value = ""; $("#f-cups").value = ""; $$(".multi").forEach(m => m.limpiar && m.limpiar()); actualizar(); };
+["#c-filas", "#c-columnas", "#c-medida"].forEach(s => $(s).onchange = pintarComparativo);
+$("#sel-empresa").onchange = () => tablaPaginada("tp-empresa", $("#sel-empresa").value);
+$("#sel-sede").onchange = () => tablaPaginada("tp-sede", $("#sel-sede").value);
+$("#sel-cups").onchange = () => tablaPaginada("tp-cups", $("#sel-cups").value);
+$("#a-nivel").onchange = () => pintarAlertas(estado.datos); $("#a-cat").onchange = () => pintarAlertas(estado.datos);
+// /tablero#depuracion abre directamente esa pestaña
+const inicial = location.hash.replace("#", "");
+if (inicial && document.querySelector(`#pestanas button[data-v="${CSS.escape(inicial)}"]`)) document.querySelector(`#pestanas button[data-v="${CSS.escape(inicial)}"]`).click();
+iniciar();
+</script>
+</body>
+</html>

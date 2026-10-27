@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cargue RIPS · ESE Moreno y Clavijo</title>
+<link rel="icon" href="/favicon.ico">
+<style>
+  :root{
+    --verde:#18A020; --verde-osc:#0E6B16; --verde-claro:#E8F6E9; --vino:#A01038; --vino-osc:#760A29;
+    --vino-claro:#FBEAEF; --tinta:#1D2B22; --gris:#5F6B63; --borde:#DCE3DD; --fondo:#F4F7F4; --blanco:#FFFFFF;
+    --ok:#18A020; --adv:#C98A00; --err:#B3261E; --radio:14px; --sombra:0 2px 10px rgba(16,40,20,.08);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",Calibri,Roboto,Arial,sans-serif;color:var(--tinta);background:var(--fondo)}
+  header{background:var(--blanco);border-bottom:4px solid var(--verde);box-shadow:var(--sombra)}
+  .franja{height:6px;background:linear-gradient(90deg,var(--verde) 0 62%,var(--vino) 62% 100%)}
+  .cab{max-width:1180px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+  .cab img{height:64px;width:auto}
+  .cab .titulo{flex:1;min-width:240px;border-left:3px solid var(--borde);padding-left:20px}
+  .cab h1{margin:0;font-size:22px;color:var(--verde-osc)}
+  .cab p{margin:3px 0 0;color:var(--gris);font-size:14px}
+  main{max-width:1180px;margin:20px auto;padding:0 20px 40px}
+  .estado-app{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--blanco);border:1px solid var(--borde);
+    border-radius:var(--radio);padding:12px 16px;margin-bottom:18px;box-shadow:var(--sombra)}
+  .pastilla{display:inline-flex;align-items:center;gap:8px;font-weight:600;padding:6px 12px;border-radius:999px;font-size:14px}
+  .pastilla::before{content:"";width:10px;height:10px;border-radius:50%;background:currentColor}
+  .conectado{background:var(--verde-claro);color:var(--verde-osc)} .cerrado{background:var(--vino-claro);color:var(--vino)}
+  .estado-app .texto{flex:1;color:var(--gris);font-size:14px;min-width:220px}
+  .rejilla{display:grid;grid-template-columns:1.25fr 1fr;gap:18px}
+  @media (max-width:900px){.rejilla{grid-template-columns:1fr}}
+  .tarjeta{background:var(--blanco);border:1px solid var(--borde);border-radius:var(--radio);padding:20px;box-shadow:var(--sombra)}
+  .tarjeta h2{margin:0 0 14px;font-size:17px;color:var(--verde-osc);display:flex;align-items:center;gap:10px}
+  .num{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--verde);color:#fff;font-size:15px}
+  .zona{border:2px dashed var(--verde);border-radius:12px;background:var(--verde-claro);padding:26px 16px;text-align:center;
+    transition:.15s;cursor:pointer}
+  .zona.encima{background:#d5efd8;border-color:var(--verde-osc)}
+  .zona strong{display:block;font-size:16px;color:var(--verde-osc);margin-bottom:6px}
+  .zona span{color:var(--gris);font-size:13px}
+  .botones{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  button,.boton{font:inherit;border:0;border-radius:10px;padding:10px 16px;cursor:pointer;font-weight:600;text-decoration:none;
+    display:inline-flex;align-items:center;gap:8px}
+  .sec{background:var(--blanco);color:var(--verde-osc);border:1.5px solid var(--verde)}
+  .sec:hover{background:var(--verde-claro)}
+  .pri{background:var(--vino);color:#fff;font-size:17px;padding:14px 22px;width:100%;justify-content:center;margin-top:8px}
+  .pri:hover{background:var(--vino-osc)} .pri:disabled{background:#c9a3ae;cursor:not-allowed}
+  .ver{background:var(--verde);color:#fff} .ver:hover{background:var(--verde-osc)}
+  .seleccion{margin-top:12px;font-size:14px;color:var(--gris)} .seleccion b{color:var(--tinta)}
+  .sep{display:flex;align-items:center;gap:10px;color:var(--gris);font-size:13px;margin:16px 0 10px}
+  .sep::before,.sep::after{content:"";flex:1;border-top:1px solid var(--borde)}
+  label{display:block;font-weight:600;font-size:14px;margin:12px 0 6px}
+  input[type=text]{width:100%;padding:11px 12px;border:1.5px solid var(--borde);border-radius:10px;font:inherit}
+  input[type=text]:focus{outline:none;border-color:var(--verde)}
+  .ayuda{font-size:12.5px;color:var(--gris);margin-top:4px}
+  .interruptor{display:flex;gap:12px;align-items:flex-start;padding:12px;border:1px solid var(--borde);border-radius:10px;margin-top:10px;cursor:pointer}
+  .interruptor input{width:20px;height:20px;accent-color:var(--verde);margin-top:2px}
+  .interruptor b{display:block;font-size:14px} .interruptor span{font-size:12.5px;color:var(--gris)}
+  #avance,#resultados{margin-top:18px;display:none}
+  .fases{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .fase{flex:1;min-width:120px;padding:10px;border-radius:10px;background:var(--fondo);color:var(--gris);font-size:13px;font-weight:600;
+    border:1px solid var(--borde);text-align:center}
+  .fase.activa{background:var(--vino-claro);color:var(--vino);border-color:var(--vino)}
+  .fase.hecha{background:var(--verde-claro);color:var(--verde-osc);border-color:var(--verde)}
+  .barra{height:8px;background:var(--borde);border-radius:999px;overflow:hidden;margin:6px 0 12px}
+  .barra div{height:100%;width:0;background:linear-gradient(90deg,var(--verde),var(--vino));transition:width .3s}
+  pre{background:#0f1a12;color:#cfe8d2;border-radius:10px;padding:12px;max-height:240px;overflow:auto;font-size:12.5px;margin:0;white-space:pre-wrap}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+  .kpi{border:1px solid var(--borde);border-left:5px solid var(--verde);border-radius:10px;padding:12px 14px;background:var(--blanco)}
+  .kpi.v{border-left-color:var(--vino)} .kpi small{color:var(--gris);font-size:12.5px;display:block}
+  .kpi b{font-size:22px;color:var(--tinta)}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin:6px 0 16px}
+  th{background:var(--verde);color:#fff;text-align:left;padding:8px;font-weight:600;position:sticky;top:0}
+  td{padding:7px 8px;border-bottom:1px solid var(--borde)} tr:nth-child(even) td{background:#f8fbf8}
+  td.n{text-align:right;font-variant-numeric:tabular-nums}
+  .tabla{max-height:340px;overflow:auto;border:1px solid var(--borde);border-radius:10px}
+  .chip{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700}
+  .chip.ok{background:var(--verde-claro);color:var(--verde-osc)} .chip.error,.chip.CRÍTICO{background:#fde7e5;color:var(--err)}
+  .chip.ADVERTENCIA,.chip.BAJO,.chip.MEDIO{background:#fff4d6;color:#8a5d00} .chip.ERROR{background:#fde7e5;color:var(--err)}
+  .chip.INFO,.chip.ALTO,.chip.OK{background:var(--verde-claro);color:var(--verde-osc)}
+  h3{color:var(--vino);font-size:15px;margin:18px 0 6px}
+  .aviso{background:var(--vino-claro);color:var(--vino-osc);border-radius:10px;padding:12px 14px;font-size:14px;margin:10px 0}
+  .archivos a{display:block;color:var(--verde-osc);font-size:13px;padding:3px 0}
+  footer{text-align:center;color:var(--gris);font-size:12.5px;padding:18px}
+  nav.app{display:flex;gap:6px} nav.app a{padding:9px 14px;border-radius:10px;text-decoration:none;font-weight:600;color:var(--verde-osc);border:1.5px solid var(--verde)}
+  nav.app a.activa{background:var(--verde);color:#fff}
+  .red{display:none;background:var(--verde-claro);border:1px solid var(--verde);border-radius:var(--radio);padding:10px 16px;margin-bottom:18px;font-size:14px}
+  .red code{background:#fff;border:1px solid var(--borde);border-radius:6px;padding:2px 6px;font-size:14px}
+</style>
+</head>
+<body>
+<header>
+  <div class="franja"></div>
+  <div class="cab">
+    <img src="/static/logo_ese.png" alt="ESE Moreno y Clavijo">
+    <div class="titulo">
+      <h1>Cargue de RIPS · Resolución 3374 de 2000</h1>
+      <p>Validación, organización por hospital y mes, y homologación para el aplicativo de Auditoría de Facturación</p>
+    </div>
+    <nav class="app"><a href="/" class="activa">Cargue de RIPS</a><a href="/tablero">Tablero de análisis</a></nav>
+  </div>
+</header>
+
+<main>
+  <div class="red" id="red"></div>
+  <div class="estado-app">
+    <span id="pastilla" class="pastilla cerrado">Aplicativo de auditoría: verificando…</span>
+    <span class="texto" id="texto-app">Los RIPS de cada mes se pueden enviar directamente a la pestaña «Cargas» del aplicativo.</span>
+    <button class="sec" id="btn-abrir-app">Abrir aplicativo de auditoría</button>
+  </div>
+
+  <div class="rejilla">
+    <section class="tarjeta">
+      <h2><span class="num">1</span> Archivos RIPS descargados</h2>
+      <div class="zona" id="zona">
+        <strong>Arrastre aquí el ZIP, la carpeta del hospital, los TXT o los JSON</strong>
+        <span>Estructura recomendada: Hospital / 05. Mayo / remisión / Rips / AF000123.txt …</span>
+      </div>
+      <div class="botones">
+        <button class="sec" id="btn-archivos">Elegir ZIP o TXT</button>
+        <button class="sec" id="btn-carpeta">Elegir carpeta</button>
+        <button class="sec" id="btn-limpiar" style="display:none">Quitar selección</button>
+      </div>
+      <input type="file" id="f-archivos" multiple accept=".zip,.txt,.json,.ZIP,.TXT,.JSON" hidden>
+      <input type="file" id="f-carpeta" webkitdirectory multiple hidden>
+      <div class="seleccion" id="seleccion">Ningún archivo seleccionado.</div>
+      <div class="sep" id="sep-ruta">o, para lotes grandes, escriba la ruta en este equipo</div>
+      <input type="text" id="ruta" placeholder="Ej.: E:\RIPS 2026\RIPS DESCARGADOS 2026\Hospital San Lorenzo">
+      <div class="ayuda">Con la ruta no se copia nada: se lee directamente la carpeta o el ZIP.</div>
+    </section>
+
+    <section class="tarjeta">
+      <h2><span class="num">2</span> Opciones del cargue</h2>
+      <label for="hospital">Hospital (opcional)</label>
+      <input type="text" id="hospital" placeholder="Se toma de la carpeta: Hospital San Antonio, San Lorenzo…">
+      <div class="ayuda">Escríbalo sólo si carga TXT sueltos o la carpeta de un mes.</div>
+      <label class="interruptor"><input type="checkbox" id="enviar">
+        <div><b>Enviar cada mes al aplicativo de auditoría</b>
+        <span>Genera RIPS_AUDITORIA_AAAA-MM.xlsx con todas las sedes acumuladas y lo carga en «Cargas › RIPS». Si el aplicativo está cerrado, se intenta abrir.</span></div></label>
+      <label class="interruptor"><input type="checkbox" id="consolidado">
+        <div><b>Generar consolidado anual</b>
+        <span>Un Excel y un JSON con todos los hospitales y meses (más lento en lotes grandes).</span></div></label>
+      <div class="ayuda" style="margin-top:10px">¿Va a volver a cargar un mes o una sede? Revise y limpie antes lo ya cargado en
+        <a href="/tablero#depuracion" style="color:var(--verde-osc)">Tablero › Depuración de datos</a>. Los RIPS en JSON (Res. 2275) se integran sin duplicar.</div>
+      <button class="pri" id="btn-iniciar">Iniciar cargue</button>
+    </section>
+  </div>
+
+  <section class="tarjeta" id="avance">
+    <h2><span class="num">3</span> Avance</h2>
+    <div class="fases">
+      <div class="fase" data-f="subir">Subiendo</div><div class="fase" data-f="validar">Validando</div>
+      <div class="fase" data-f="exportar">Exportando</div><div class="fase" data-f="enviar">Enviando al aplicativo</div>
+      <div class="fase" data-f="fin">Listo</div>
+    </div>
+    <div id="fase-texto" style="font-weight:600;color:var(--vino)">Preparando…</div>
+    <div class="barra"><div id="barra"></div></div>
+    <pre id="log"></pre>
+  </section>
+
+  <section class="tarjeta" id="resultados">
+    <h2><span class="num">4</span> Resultados</h2>
+    <div class="kpis" id="kpis"></div>
+    <div class="botones" style="margin:0 0 10px">
+      <button class="ver" id="btn-carpeta-res">Abrir carpeta de resultados</button>
+      <button class="sec" id="btn-ir-app">Ver en el aplicativo de auditoría</button>
+      <a class="boton sec" href="/tablero">Ver tablero de análisis</a>
+    </div>
+    <div id="aviso-envio"></div>
+    <div id="bloque-envio"></div>
+    <h3>Resumen por hospital y mes</h3>
+    <div class="tabla"><table id="t-unidades"></table></div>
+    <div id="bloque-cruce"></div>
+    <h3>Principales incidencias de validación</h3>
+    <div class="tabla"><table id="t-incidencias"></table></div>
+    <h3>Archivos generados</h3>
+    <div class="archivos" id="archivos"></div>
+  </section>
+</main>
+<footer>ESE Departamental de Primer Nivel Moreno y Clavijo · NIT 900034131 · Cargue RIPS v<span id="version"></span>
+ · <a href="/api/plantilla" style="color:var(--verde-osc)">Descargar plantilla del Anexo Técnico No. 1</a></footer>
+
+<script>
+const $ = s => document.querySelector(s);
+const estado = {archivos: [], app: null, trabajo: null, linea: 0};
+const peso = n => n > 1e9 ? (n/1e9).toFixed(1)+" GB" : n > 1e6 ? (n/1e6).toFixed(1)+" MB" : Math.max(1, Math.round(n/1e3))+" KB";
+const pesos = v => v == null ? "" : "$ " + Number(v).toLocaleString("es-CO", {maximumFractionDigits: 0});
+const ent = v => Number(v || 0).toLocaleString("es-CO");
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+async function verificarApp(){
+  try{
+    const r = await (await fetch("/api/estado")).json();
+    $("#version").textContent = r.version;
+    estado.app = r.aplicativo;
+    const p = $("#pastilla");
+    if (r.aplicativo){ p.className = "pastilla conectado"; p.textContent = "Aplicativo de auditoría: conectado";
+      $("#texto-app").textContent = "Disponible en " + r.aplicativo + ". Los meses se pueden enviar directamente.";
+      $("#btn-abrir-app").textContent = "Ir al aplicativo de auditoría";
+    } else { p.className = "pastilla cerrado"; p.textContent = "Aplicativo de auditoría: cerrado";
+      $("#texto-app").textContent = r.aplicativo_instalado ? "Está instalado en este equipo; se abrirá al enviar." :
+        "No se detectó instalado. Los archivos mensuales quedan listos para cargarlos manualmente en «Cargas › RIPS».";
+      $("#btn-abrir-app").textContent = "Abrir aplicativo de auditoría";
+    }
+    const red = r.red || {};
+    if (red.habilitada && r.equipo_local){
+      $("#red").style.display = "block";
+      $("#red").innerHTML = `<b>Acceso en red activo.</b> Otros computadores: ${red.urls.map(u => `<code>${esc(u)}</code>`).join(" ") || "(sin dirección de red)"}
+        · clave de acceso <code>${esc(red.clave)}</code> · el aplicativo de auditoría queda en el puerto 8000 de la misma dirección.`;
+    }
+    if (!r.equipo_local){
+      $("#sep-ruta").textContent = "o escriba la ruta de una carpeta en el equipo servidor";
+      $("#btn-carpeta-res").style.display = "none";
+    }
+    if (!verificarApp.marcado){ $("#enviar").checked = !!(r.aplicativo || r.aplicativo_instalado); verificarApp.marcado = true; }
+  }catch(e){}
+}
+async function abrirApp(){
+  if (estado.app){ window.open(estado.app, "_blank"); return; }
+  $("#btn-abrir-app").textContent = "Abriendo…";
+  const r = await fetch("/api/aplicativo/abrir", {method: "POST"});
+  const d = await r.json();
+  if (r.ok){ estado.app = d.url; window.open(d.url, "_blank"); } else alert(d.detail);
+  verificarApp();
+}
+
+function mostrarSeleccion(){
+  const n = estado.archivos.length, t = estado.archivos.reduce((a, f) => a + f.file.size, 0);
+  $("#seleccion").innerHTML = n ? `<b>${n} archivo(s)</b> · ${peso(t)} · ${esc(estado.archivos.slice(0, 3).map(f => f.ruta).join(", "))}${n > 3 ? "…" : ""}`
+                                : "Ningún archivo seleccionado.";
+  $("#btn-limpiar").style.display = n ? "" : "none";
+}
+function agregar(lista){ for (const f of lista) estado.archivos.push({file: f, ruta: f.webkitRelativePath || f.name}); mostrarSeleccion(); }
+$("#btn-archivos").onclick = () => $("#f-archivos").click();
+$("#btn-carpeta").onclick = () => $("#f-carpeta").click();
+$("#zona").onclick = () => $("#f-archivos").click();
+$("#f-archivos").onchange = e => { agregar(e.target.files); e.target.value = ""; };
+$("#f-carpeta").onchange = e => { agregar(e.target.files); e.target.value = ""; };
+$("#btn-limpiar").onclick = () => { estado.archivos = []; mostrarSeleccion(); };
+$("#btn-abrir-app").onclick = abrirApp; $("#btn-ir-app").onclick = abrirApp;
+
+const zona = $("#zona");
+["dragenter", "dragover"].forEach(ev => zona.addEventListener(ev, e => { e.preventDefault(); zona.classList.add("encima"); }));
+["dragleave", "drop"].forEach(ev => zona.addEventListener(ev, e => { e.preventDefault(); zona.classList.remove("encima"); }));
+zona.addEventListener("drop", async e => {
+  const entradas = [...e.dataTransfer.items].map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+  if (!entradas.length){ agregar(e.dataTransfer.files); return; }
+  const leer = (entrada) => new Promise(res => {
+    if (entrada.isFile) entrada.file(f => { estado.archivos.push({file: f, ruta: entrada.fullPath.replace(/^\//, "")}); res(); });
+    else { const lector = entrada.createReader(); const todas = [];
+      const lote = () => lector.readEntries(async es => { if (!es.length){ for (const x of todas) await leer(x); res(); } else { todas.push(...es); lote(); } });
+      lote(); }
+  });
+  $("#seleccion").textContent = "Leyendo carpeta…";
+  for (const x of entradas) await leer(x);
+  mostrarSeleccion();
+});
+
+function fase(f){
+  const orden = ["subir", "validar", "exportar", "enviar", "fin"], i = orden.indexOf(f);
+  document.querySelectorAll(".fase").forEach(el => { const j = orden.indexOf(el.dataset.f);
+    el.className = "fase" + (j < i ? " hecha" : j === i ? " activa" : ""); });
+}
+
+$("#btn-iniciar").onclick = () => {
+  const ruta = $("#ruta").value.trim();
+  if (!estado.archivos.length && !ruta){ alert("Seleccione o arrastre los RIPS, o escriba la ruta de la carpeta o el ZIP."); return; }
+  const fd = new FormData();
+  estado.archivos.forEach(f => fd.append("archivos", f.file, f.ruta));
+  fd.append("ruta_local", ruta); fd.append("hospital", $("#hospital").value.trim());
+  fd.append("enviar", $("#enviar").checked); fd.append("consolidado", $("#consolidado").checked);
+  $("#btn-iniciar").disabled = true; $("#avance").style.display = "block"; $("#resultados").style.display = "none";
+  $("#log").textContent = ""; estado.linea = 0; fase("subir");
+  $("#fase-texto").textContent = estado.archivos.length ? "Subiendo archivos…" : "Leyendo la ruta indicada…";
+  const xhr = new XMLHttpRequest();
+  xhr.open("POST", "/api/cargues");
+  xhr.upload.onprogress = e => { if (e.lengthComputable) $("#barra").style.width = (e.loaded / e.total * 30) + "%"; };
+  xhr.onload = () => {
+    const d = JSON.parse(xhr.responseText || "{}");
+    if (xhr.status !== 200){ $("#fase-texto").textContent = d.detail || "No se pudo iniciar el cargue"; $("#btn-iniciar").disabled = false; return; }
+    estado.trabajo = d.id; consultar();
+  };
+  xhr.onerror = () => { $("#fase-texto").textContent = "Se perdió la conexión con la ventana de cargue."; $("#btn-iniciar").disabled = false; };
+  xhr.send(fd);
+};
+
+async function consultar(){
+  let t;
+  try{
+    const r = await fetch(`/api/cargues/${estado.trabajo}?desde=${estado.linea}`);
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    t = await r.json();
+  }catch(e){ estado.fallos = (estado.fallos || 0) + 1;
+    if (estado.fallos > 20){ $("#fase-texto").textContent = "No se pudo consultar el avance: " + e.message; $("#btn-iniciar").disabled = false; return; }
+    setTimeout(consultar, 3000); return; }
+  estado.fallos = 0;
+  if (t.log.length){ $("#log").textContent += t.log.join("\n") + "\n"; $("#log").scrollTop = 1e9; }
+  estado.linea = t.lineas_log;
+  $("#fase-texto").textContent = t.fase + (t.error ? " — " + t.error : "");
+  const f = t.fase.startsWith("Leyendo") ? "validar" : t.fase.startsWith("Generando") ? "exportar" : t.fase.startsWith("Enviando") ? "enviar" : null;
+  if (f){ fase(f); $("#barra").style.width = {validar: "45%", exportar: "70%", enviar: "88%"}[f]; }
+  if (t.estado === "terminado"){ fase("fin"); document.querySelectorAll(".fase").forEach(el => el.className = "fase hecha"); $("#barra").style.width = "100%"; $("#btn-iniciar").disabled = false; mostrarResultados(t); return; }
+  if (t.estado === "error"){ $("#btn-iniciar").disabled = false; $("#barra").style.width = "100%"; $("#barra").style.background = "var(--err)"; return; }
+  setTimeout(consultar, 1500);
+}
+
+function tabla(sel, columnas, filas){
+  $(sel).innerHTML = "<tr>" + columnas.map(c => `<th>${c[1]}</th>`).join("") + "</tr>" +
+    filas.map(f => "<tr>" + columnas.map(c => { const v = f[c[0]], fmt = c[2];
+      return `<td class="${fmt && fmt !== "chip" ? "n" : ""}">${fmt === "$" ? pesos(v) : fmt === "#" ? ent(v) : fmt === "chip" ? `<span class="chip ${esc(v)}">${esc(v)}</span>` : esc(v)}</td>`; }).join("") + "</tr>").join("");
+}
+
+function mostrarResultados(t){
+  const r = t.resultado, u = r.unidades;
+  $("#resultados").style.display = "block";
+  const suma = k => u.reduce((a, x) => a + (Number(x[k]) || 0), 0);
+  $("#kpis").innerHTML = [
+    ["Hospital-mes procesados", ent(u.length), ""], ["Facturas (AF)", ent(suma("facturas")), ""],
+    ["Valor neto facturado", pesos(suma("valor_neto_facturado_af")), ""], ["Facturas con diferencia", ent(suma("facturas_con_diferencia")), "v"],
+    ["Errores de validación", ent(suma("inc_error")), "v"], ["Advertencias", ent(suma("inc_advertencia")), ""],
+  ].map(k => `<div class="kpi ${k[2]}"><small>${k[0]}</small><b>${k[1]}</b></div>`).join("");
+  tabla("#t-unidades", [["hospital", "Hospital"], ["periodo", "Mes"], ["remisiones", "Remisiones", "#"], ["facturas", "Facturas", "#"],
+    ["valor_neto_facturado_af", "Valor neto AF", "$"], ["valor_servicios_rips", "Valor servicios RIPS", "$"],
+    ["facturas_con_diferencia", "Facturas con diferencia", "#"], ["inc_error", "Errores", "#"], ["inc_advertencia", "Advertencias", "#"]], u);
+  tabla("#t-incidencias", [["severidad", "Severidad", "chip"], ["regla", "Regla"], ["descripcion", "Descripción"], ["cantidad", "Cantidad", "#"]], r.incidencias);
+  $("#aviso-envio").innerHTML = (r.aviso_envio ? `<div class="aviso">${esc(r.aviso_envio)}</div>` : "") + (r.json ?
+    `<div class="aviso" style="background:var(--verde-claro);color:var(--verde-osc)">RIPS JSON: ${ent(r.json.registros_leidos)} registros leídos ·
+     ${ent(r.json.repetidos_en_json)} repetidos en el JSON · ${ent(r.json.ya_cargadas)} ya cargados · <b>${ent(r.json.agregadas)} filas agregadas</b></div>` +
+     r.json.avisos.map(a => `<div class="aviso">${esc(a)}</div>`).join("") : "");
+  if (r.envio){
+    $("#bloque-envio").innerHTML = '<h3>Envío al aplicativo de auditoría</h3><div class="tabla"><table id="t-envio"></table></div>';
+    tabla("#t-envio", [["mes", "Mes"], ["estado", "Estado", "chip"], ["mensaje", "Resultado en el aplicativo"], ["carga_id", "Id carga", "#"]], r.envio);
+  } else $("#bloque-envio").innerHTML = "";
+  if (r.cruce && r.cruce.length){
+    $("#bloque-cruce").innerHTML = '<h3>Validación del cruce en el aplicativo (RIPS ↔ Software 360)</h3><div class="tabla"><table id="t-cruce"></table></div>';
+    tabla("#t-cruce", [["llave", "Llave"], ["origen", "Origen"], ["destino", "Destino"], ["pct_cruce", "% que cruza"], ["estado", "Estado", "chip"], ["ejemplos_sin_cruce", "Ejemplos sin cruce"]], r.cruce);
+  } else $("#bloque-cruce").innerHTML = "";
+  const prioridad = a => a.startsWith("APLICATIVO") ? 0 : a.includes("/") ? 1 : 2;
+  $("#archivos").innerHTML = [...r.archivos].sort((a, b) => prioridad(a) - prioridad(b) || a.localeCompare(b))
+    .map(a => `<a href="/api/cargues/${t.id}/archivo?ruta=${encodeURIComponent(a)}">⬇ ${esc(a)}</a>`).join("");
+  $("#btn-carpeta-res").onclick = () => fetch(`/api/cargues/${t.id}/abrir-carpeta`, {method: "POST"});
+  verificarApp();
+}
+
+verificarApp(); setInterval(verificarApp, 8000);
+</script>
+</body>
+</html>
