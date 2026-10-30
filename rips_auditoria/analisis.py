@@ -220,6 +220,7 @@ def analizar(lotes: list[Lote], solo_eps_objetivo: bool = True, mae: dict | None
               "cruce_facturacion": fac_x, "conciliacion_facturas": conc, "hallazgos": hall,
               "trazabilidad_clasificacion": traz, "sin_costo_nt": sin_costo,
               "comparacion_referencia": comparar_referencia(det),
+              "conciliacion_informe": pd.DataFrame((maestros.leer_resumen_informe() or {}).get("conciliacion", [])),
               "validacion": inc.groupby(["severidad", "regla"]).size().rename("cantidad").reset_index()}
     return Resultado(generado=datetime.now().isoformat(timespec="seconds"), alcance=alcance, indicadores=ind,
                      tablas=tablas, supuestos=SUPUESTOS, advertencias=adv)
@@ -235,7 +236,8 @@ def controles_referencia() -> dict:
     ev = ref.pgp["FACT_EV"]
     esc = capita.escenarios(k, ref.textos["migrables_esc2"], sum(ev) / len(ev), p)
     t = ref.totales()
-    return {"control": CONTROL, "referencia": {**t, "capita_total_html": ref.textos["total_capita_html"],
+    inf = maestros.leer_resumen_informe()
+    return {"conciliacion_informe": (inf or {}).get("conciliacion", []), "control": CONTROL, "referencia": {**t, "capita_total_html": ref.textos["total_capita_html"],
                                                "migrables_mes": ref.textos["migrables_mes_texto"],
                                                "migrables_mes_esc2": ref.textos["migrables_esc2"]},
             "kpi": asdict(k), "escenarios": esc.set_index("escenario")["valor_mes"].to_dict(),

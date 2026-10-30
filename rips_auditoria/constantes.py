@@ -61,9 +61,10 @@ CONTROL = {
     "migrables_mes": 105_750_000,
 }
 
-# Totales de control de la Nota Técnica (hoja "NOTA TECNICA CAPITA NEPS").
+# Totales de control de la Nota Técnica (hoja "NOTA TECNICA CAPITA NEPS", frecuencias mensuales).
+# En el libro el segundo municipio es ARAUQUITA (no Arauca).
 CONTROL_NT_MUNICIPIO = {
-    "TAME": 94_139.59, "ARAUCA": 107_359.72, "FORTUL": 55_767.15,
+    "TAME": 94_139.59, "ARAUQUITA": 107_359.72, "FORTUL": 55_767.15,
     "CRAVO NORTE": 2_111.63, "PUERTO RONDON": 3_388.34,
 }
 

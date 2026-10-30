@@ -2,7 +2,7 @@
 
 Aplicación para auditar y controlar los RIPS y la facturación de la E.S.E. Departamental de Primer
 Nivel Moreno y Clavijo (NIT 900034131) con Nueva EPS (EPS037/EPSS37), en los municipios de
-**Tame, Arauca, Fortul, Cravo Norte y Puerto Rondón**.
+**Tame, Arauquita, Fortul, Cravo Norte y Puerto Rondón** (municipios de la Nota Técnica Nueva EPS).
 
 * **Carga** RIPS en TXT (Res. 3374/2000), JSON (Res. 2275/2023 o consolidado), XLSX consolidado,
   ZIP, RAR o carpetas completas, organizados por hospital/municipio y mes.
@@ -15,7 +15,8 @@ Nivel Moreno y Clavijo (NIT 900034131) con Nueva EPS (EPS037/EPSS37), en los mun
   el PGP y el corredor de EVENTO, con el mismo modelo y los mismos nombres de grupo que los
   dashboards de referencia.
 * **Cruza** RIPS vs Nota Técnica, EVENTO vs tarifario pactado y RIPS vs facturación por ámbito.
-* **Informa** en Excel (26 hojas), PDF ejecutivo con recomendaciones y JSON para guardar/restaurar.
+* **Concilia** el libro INFORME DE SERVICIOS con los totales de control del dashboard FINAL.
+* **Informa** en Excel (27 hojas), PDF ejecutivo con recomendaciones y JSON para guardar/restaurar.
 
 Los datos de pacientes se procesan en el equipo local (`datos/`, excluido de git) y los informes
 agregados usan seudónimos (`PAC-xxxxxxxxxxxx`).
@@ -26,7 +27,7 @@ Las pruebas reproducen los valores del dashboard FINAL (enero–agosto 2026):
 
 | Indicador | Control |
 |---|---|
-| Costo CAPITA ene–ago | $8.053.016.408 |
+| Costo CAPITA ene–ago | $8.053.016.408 (el libro actual da $8.264.369.795: ver conciliación) |
 | CUPS | 748.058 |
 | Pacientes únicos (suma mensual) | 114.923 |
 | Asistencias | 213.814 |
@@ -62,7 +63,8 @@ Para leer **RAR** instale además una de estas herramientas: `unrar`, `unar`, `b
 | Facturación por ámbito | plantilla `config/plantillas/facturacion.csv` | `python -m rips_auditoria.cli maestro facturacion facturacion_agosto.xlsx` |
 | Despacho de medicamentos (opcional) | plantilla `config/plantillas/despacho_medicamentos.csv` | `python -m rips_auditoria.cli maestro despacho_medicamentos despacho.csv` |
 
-Mientras no se cargue el informe de servicios, la herramienta usa un **catálogo parcial** extraído
+Al cargar el libro se muestra la conciliación con los totales de control (también en la hoja
+`Conciliación Informe` y en la pestaña *Referencia*). Mientras no se cargue el informe de servicios, la herramienta usa un **catálogo parcial** extraído
 del dashboard CAPITA·EVENTO (346 códigos con marca OFERTADO/NO OFERTADO y 361 códigos de la NT,
 sin costos). Con ese catálogo se clasifica y se agrupa, pero el costo CAPITA queda en $0 y el
 informe lo advierte.
@@ -131,7 +133,7 @@ varias carpetas). Si un mismo mes se cargó dos veces, los registros repetidos s
 `Frecuencias Municipio` · `Frecuencias Mes` · `Servicios` · `Pareto Valor` · `Pareto Frecuencia` ·
 `Top Costo CAPITA` · `Costo Paciente` · `NT vs RIPS` · `EVENTO vs Tarifario` · `RIPS vs Facturación` ·
 `Conciliación Facturas` · `Hallazgos` · `Validación` · `Trazabilidad` · `Sin costo NT` ·
-`Comparación Referencia` · `Supuestos`.
+`Comparación Referencia` · `Conciliación Informe` · `Supuestos`.
 
 ## Estructura del proyecto
 
@@ -163,7 +165,7 @@ python -m pytest -q
 Pruebas opcionales con los archivos reales (no se versionan por contener datos de pacientes):
 
 ```bash
-RIPS_MUESTRA_ZIP=ruta/Centro_de_Salud_Jesus_Coronel.zip RIPS_CONSOLIDADO_JSON=ruta/RIPS_consolidado.json RIPS_CONSOLIDADO_XLSX=ruta/RIPS_consolidado.xlsx python -m pytest -q
+RIPS_INFORME_XLSX=ruta/INFORME_DE_SERVICIOS_2026_BASE_DE_DATOS_ANALISIS.xlsx RIPS_MUESTRA_ZIP=ruta/Centro_de_Salud_Jesus_Coronel.zip RIPS_CONSOLIDADO_JSON=ruta/RIPS_consolidado.json RIPS_CONSOLIDADO_XLSX=ruta/RIPS_consolidado.xlsx python -m pytest -q
 ```
 
 ## Documentación

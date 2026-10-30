@@ -30,6 +30,10 @@ def costear(servicios: pd.DataFrame, nota_tecnica: pd.DataFrame | None) -> pd.Da
     if nota_tecnica is not None and not nota_tecnica.empty and "costo_unitario" in nota_tecnica:
         nt = nota_tecnica.dropna(subset=["costo_unitario"]).copy()
         nt["codigo"] = nt["codigo"].astype(str)
+        if "homologo" in nt:   # el RIPS AM trae el CUM, que en la NT es el homólogo
+            h = nt[nt["homologo"].notna()].copy()
+            h["codigo"] = h["homologo"].astype(str)
+            nt = pd.concat([nt, h], ignore_index=True)
         nt["municipio"] = nt.get("municipio", "TODOS")
         nt["municipio"] = nt["municipio"].fillna("TODOS")
         por_mun = nt.groupby(["codigo", "municipio"])["costo_unitario"].mean().to_dict()
@@ -43,7 +47,8 @@ def costear(servicios: pd.DataFrame, nota_tecnica: pd.DataFrame | None) -> pd.Da
                 if v:
                     return v
             return None
-        s["costo_unitario_nt"] = [cu(c, m) for c, m in zip(s["codigo"], s["municipio"])]
+        claves = s["codigo_nt"].where(s["codigo_nt"].notna(), s["codigo"]) if "codigo_nt" in s else s["codigo"]
+        s["costo_unitario_nt"] = [cu(c, m) for c, m in zip(claves, s["municipio"])]
     s["costo_unitario_nt"] = pd.to_numeric(s["costo_unitario_nt"], errors="coerce")
     es_cap = s["modalidad"].eq("CAPITA") & ~s["es_episodio"]
     s["sin_costo_nt"] = es_cap & s["costo_unitario_nt"].isna()

@@ -7,7 +7,8 @@
 # Si el código no está, se intenta por el nombre de la carpeta (sedes) y por último
 # por la palabra del municipio en la ruta. Corrija aquí o desde la interfaz.
 municipios:
-  "81001": ARAUCA
+  "81065": ARAUQUITA   # municipio de la Nota Técnica Nueva EPS (hoja NOTA TECNICA CAPITA NEPS)
+  "81001": ARAUCA      # se conserva por si alguna sede reporta con código de Arauca capital
   "81794": TAME
   "81300": FORTUL
   "81220": CRAVO NORTE

@@ -154,6 +154,9 @@ async function cargarReferencia() {
   const filas = Object.keys(r.control).map(k => ({indicador: k, control: r.control[k],
     referencia: r.referencia[k] ?? r.escenarios[{capita_promedio_mes: 'ESC.1 – CAPITA ACTUAL', capita_ampliada_mes: 'ESC.2 – CAPITA AMPLIADA',
       capita_ajustada_mes: 'ESC.3 – CAPITA DEMANDA REAL', pgp2_mes: 'PGP-2 UPC + EVENTO'}[k]] ?? null}));
-  $('resRef').innerHTML = `<h3>Totales de control vs recálculo</h3>${tabla(filas)}<h3>Participación por grupo (FINAL)</h3>
+  $('resRef').innerHTML = (r.conciliacion_informe && r.conciliacion_informe.length
+      ? `<h3>Conciliación libro INFORME DE SERVICIOS vs dashboard FINAL</h3>${tabla(r.conciliacion_informe)}`
+      : '<p class="nota">Cargue el libro INFORME DE SERVICIOS en Maestros para ver su conciliación con los totales de control.</p>') +
+    `<h3>Totales de control vs recálculo</h3>${tabla(filas)}<h3>Participación por grupo (FINAL)</h3>
     ${tabla(Object.entries(r.grupos).map(([g, p]) => ({grupo: g, participacion_pct: p})))}`;
 }

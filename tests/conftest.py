@@ -100,3 +100,4 @@ def json_2275_equivalente() -> bytes:
 ARCHIVO_REAL_ZIP = os.environ.get("RIPS_MUESTRA_ZIP")
 ARCHIVO_REAL_JSON = os.environ.get("RIPS_CONSOLIDADO_JSON")
 ARCHIVO_REAL_XLSX = os.environ.get("RIPS_CONSOLIDADO_XLSX")
+ARCHIVO_REAL_INFORME = os.environ.get("RIPS_INFORME_XLSX")

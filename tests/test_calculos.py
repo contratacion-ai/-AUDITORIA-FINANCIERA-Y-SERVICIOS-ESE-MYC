@@ -121,27 +121,48 @@ def test_costo_por_municipio_tiene_prioridad():
 
 
 def test_maestro_informe_nt_costos_y_marcacion():
-    """Libro mínimo con el diseño que lee el PARSER del dashboard (hojas MARCACION y NT COSTOS)."""
+    """Libro mínimo con el diseño real del INFORME DE SERVICIOS 2026 (hojas MARCACION, NT COSTOS y
+    NOTA TECNICA CAPITA NEPS)."""
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "MARCACION CUPS CAPITA"
-    ws.append(["N", "CODIGO CUPS", "HOMOLOGO", "DESCRIPCION", "GRUPO", "SUBGRUPO", "TARIFA 03/09/2026", "ESTADO", "UVB"])
-    ws.append([1, "902207", "902207", "HEMOGRAMA I", "LABORATORIO", "HEMATOLOGIA", 43600, "OFERTADO", 3.1])
-    ws.append([2, "S31307", None, "TRASLADO", "TRASLADOS", None, 1400000, "NO OFERTADO", None])
-    nt = wb.create_sheet("NT COSTOS")
-    nt.append(["titulo"])
-    nt.append(["CODIGOCUPS", "DESCRIPCION CUPS", "GRUPO", "ENERO", "FEBRERO", "ENERO", "FEBRERO"])
-    nt.append(["902207", "HEMOGRAMA I", "LABORATORIO", 10, 30, 100000, 300000])
-    nt.append(["990201", "EDUCACION", "PROMOCION Y MANTENIMIENTO DE LA SALUD", 4, 0, 2000, 0])
+    ws.append([None, "CodigoCUP", "Homologo", "DescripcionCUP", "Grupo", "Subgrupo", "Ruta", "OFERTA 03/09/2026",
+               "MARCACION", "UVB"])
+    ws.append([None, 902207, 902207, "HEMOGRAMA I", "LABORATORIO", "HEMATOLOGIA", "MORBILIDAD", "OFERTADO", "X", 43600])
+    ws.append([None, "MD000013", "225064-7", "HIOSCINA", "MEDICAMENTOS", "MEDICAMENTOS", "MORBILIDAD", "OFERTADO", "X", None])
+    ws.append([None, "S31307", None, "TRASLADO", "TRASLADOS", None, None, "NO OFERTADO", None, None])
+    nt = wb.create_sheet("NOTA TECNICA CAPITA NEPS")
+    nt.append([None, "SERVICIOS CONTRATO CAPITA", None, None, None, "FRECUENCIAS MENSUALES"])
+    nt.append([None, "Homologo", "CodigoCUPS", "DescripcionCUPS", "Grupo", "TAME", "ARAUQUITA", "FORTUL",
+               "CRAVO NORTE", "PUERTO RONDON"])
+    nt.append([None, 902207, "902207", "HEMOGRAMA I", "LABORATORIO", 10, 12, 6, 0.5, 0.5])
+    nt.append([None, "225064-7", "MD000013", "HIOSCINA", "MEDICAMENTOS", 3, 3, 1, 0, 0])
+    nt.append([None, None, None, None, "", 13, 15, 7, 0.5, 0.5])
+    co = wb.create_sheet("NT COSTOS")
+    co.append(["titulo"])
+    co.append([None, "Homologo", "CodigoCUPS", "DescripcionCUPS", "Grupo", "TOTAL SERVICIOS NOTA TECNICA", "ENERO",
+               "FEBRERO", "TOTAL", "COSTO CUPS ", "COSTO ENERO A AGOSTO", "ENERO", "FEBRERO", "TOTAL"])
+    co.append([None, 902207, 902207, "HEMOGRAMA I", "LABORATORIO", 29, 10, 30, 40, 10000, 400000, 100000, 300000, 400000])
+    co.append([None, "225064-7", "MD000013", "HIOSCINA", "MEDICAMENTOS", 7, 4, 0, 4, 1255, 5020, 5020, 0, 5020])
+    co.append([None, None, None, None, "", 36, 14, 30, 44, None, 405020, 105020, 300000, 405020])
     buf = io.BytesIO()
     wb.save(buf)
     res = maestros.cargar("informe", buf.getvalue(), "INFORME.xlsx")
-    assert res["catalogo"]["filas"] == 2
-    cat = maestros.leer("catalogo")
-    assert cat.set_index("codigo").loc["902207", "estado"] == "OFERTADO"
-    ntd = maestros.leer("nota_tecnica").set_index("codigo")
-    assert ntd.loc["902207", "costo_unitario"] == 10000
-    assert ntd.loc["990201", "costo_unitario"] == 500
+    assert res["catalogo"]["filas"] == 3
+    cat = maestros.leer("catalogo").set_index("codigo")
+    assert cat.loc["902207", "estado"] == "OFERTADO" and cat.loc["S31307", "estado"] == "NO OFERTADO"
+    assert cat.loc["MD000013", "homologo"] == "225064-7"
+    ntd = maestros.leer("nota_tecnica")
+    assert set(ntd["municipio"]) == {"TAME", "ARAUQUITA", "FORTUL", "CRAVO NORTE", "PUERTO RONDON"}
+    assert (ntd.set_index("codigo").loc["902207", "costo_unitario"] == 10000).all()
+    # El RIPS AM trae el CUM (homólogo): se clasifica y costea con la NT
+    s = pd.DataFrame([{"tipo_archivo": "AM", "codigo": "225064-7", "cantidad": 2.0, "mes": "2026-01",
+                       "municipio": "TAME", "descripcion": None, "finalidad": None, "tipo_servicio_at": None,
+                       "es_episodio": False, "modalidad_declarada": None}])
+    c = capita.costear(clasificar(s, maestros.leer("catalogo"), ntd), ntd)
+    assert c.loc[0, "modalidad"] == "CAPITA" and c.loc[0, "codigo_nt"] == "MD000013"
+    assert c.loc[0, "costo_capita"] == 2510
+    assert maestros.leer_resumen_informe()["capita_mensual"] == [105020, 300000]
 
 
 def test_maestro_tarifario_plantilla_y_pendiente():

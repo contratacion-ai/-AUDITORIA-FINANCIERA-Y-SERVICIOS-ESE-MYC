@@ -98,8 +98,8 @@ Plantillas en `config/plantillas/` (CSV con `,` o `;`, o XLSX con los mismos enc
 
 | Maestro | Columnas | Estado |
 |---|---|---|
-| `catalogo` | codigo, homologo, descripcion, grupo, subgrupo, estado (OFERTADO/NO OFERTADO), tarifa, uvb | Hoja "MARCACION CUPS CAPITA" del informe |
-| `nota_tecnica` | codigo, descripcion, grupo, tipo_codigo (CUPS/CUMS), municipio (o TODOS), mes, frecuencia_prevista (mensual), costo_unitario | Hojas "NT COSTOS" + "NOTA TECNICA CAPITA NEPS" |
+| `catalogo` | codigo, homologo, descripcion, grupo, subgrupo, estado (OFERTADO/NO OFERTADO), tarifa, uvb | Hoja "MARCACION CUPS CAPITA" (CodigoCUP, Homologo, DescripcionCUP, Grupo, Subgrupo, Ruta, OFERTA 03/09/2026, MARCACION, UVB) |
+| `nota_tecnica` | codigo, homologo (CUM para medicamentos), descripcion, grupo, tipo_codigo (CUPS/CUMS), municipio (o TODOS), mes, frecuencia_prevista (mensual), costo_unitario | Hojas "NT COSTOS" + "NOTA TECNICA CAPITA NEPS" |
 | `tarifario` | codigo, descripcion, tarifa, vigencia_desde, vigencia_hasta, manual_referencia, observacion | **Pendiente de confirmación** |
 | `facturacion` | periodo, hospital, municipio, ambito, modalidad, num_factura, codigo, descripcion, cantidad, valor | **Pendiente de confirmación** |
 | `despacho_medicamentos` | periodo, unidades, valor | Opcional (regla de medicamentos del dashboard CAPITA·EVENTO) |

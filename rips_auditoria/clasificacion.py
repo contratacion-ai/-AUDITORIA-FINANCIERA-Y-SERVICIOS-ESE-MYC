@@ -105,7 +105,7 @@ def clasificar(servicios: pd.DataFrame, catalogo: pd.DataFrame | None, nota_tecn
     s = servicios.copy()
     cat = _indice(catalogo)
     nt = _indice(nota_tecnica)
-    mods, reglas, grupos, subgrupos, rgrupo, estados, en_nt, descs = [], [], [], [], [], [], [], []
+    mods, reglas, grupos, subgrupos, rgrupo, estados, en_nt, descs, cod_nt = [], [], [], [], [], [], [], [], []
     for r in s.itertuples(index=False):
         cod = r.codigo if isinstance(r.codigo, str) else None
         # Medicamentos del catálogo NT pueden venir con sufijo '-n' del CUM: se prueba sin él.
@@ -151,6 +151,7 @@ def clasificar(servicios: pd.DataFrame, catalogo: pd.DataFrame | None, nota_tecn
         rgrupo.append(rg)
         estados.append(estado or "SIN MARCA")
         en_nt.append(bool(k_nt))
+        cod_nt.append(str(k_nt.get("codigo")) if k_nt else None)
         descs.append(desc)
     s["modalidad_catalogo"] = mods
     s["regla_modalidad"] = reglas
@@ -159,6 +160,7 @@ def clasificar(servicios: pd.DataFrame, catalogo: pd.DataFrame | None, nota_tecn
     s["fuente_modalidad"] = dec.notna().map({True: "DECLARADA", False: "CLASIFICADA"})
     s["estado_catalogo"] = estados
     s["en_nota_tecnica"] = en_nt
+    s["codigo_nt"] = cod_nt          # código de la NT (para AM: el CUM del RIPS se cruza por el homólogo)
     s["grupo"] = grupos
     s["subgrupo"] = subgrupos
     s["regla_grupo"] = rgrupo

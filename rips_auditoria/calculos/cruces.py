@@ -22,7 +22,9 @@ def rips_vs_nota_tecnica(servicios: pd.DataFrame, nota_tecnica: pd.DataFrame | N
     """
     if nota_tecnica is None or nota_tecnica.empty or nota_tecnica["frecuencia_prevista"].isna().all():
         return pd.DataFrame()
-    cap = servicios[servicios["modalidad"].eq("CAPITA") & ~servicios["es_episodio"]]
+    cap = servicios[servicios["modalidad"].eq("CAPITA") & ~servicios["es_episodio"]].copy()
+    if "codigo_nt" in cap:
+        cap["codigo"] = cap["codigo_nt"].where(cap["codigo_nt"].notna(), cap["codigo"])
     nt = nota_tecnica.dropna(subset=["frecuencia_prevista"]).copy()
     nt["municipio"] = nt["municipio"].fillna("TODOS")
     meses = sorted(cap["mes"].dropna().unique())
@@ -37,14 +39,22 @@ def rips_vs_nota_tecnica(servicios: pd.DataFrame, nota_tecnica: pd.DataFrame | N
         prev = nt.drop(columns=["mes"]).merge(pd.DataFrame({"mes": meses}), how="cross")
     if not por_mun:
         prev = prev.drop(columns=["municipio"])
+    else:
+        # Solo municipios con RIPS de cápita cargados: un municipio no cargado no es subejecución.
+        prev = prev[prev["municipio"].isin(cap["municipio"].dropna().unique())]
     prev["mes"] = prev["mes"].astype(str)
+    if "costo_unitario" not in prev:
+        prev["costo_unitario"] = None
     prev = prev.groupby(obs_keys).agg(descripcion=("descripcion", "first"), grupo=("grupo", "first"),
+                                      costo_unitario=("costo_unitario", "first"),
                                       frecuencia_prevista=("frecuencia_prevista", "sum")).reset_index()
     x = prev.merge(obs, on=obs_keys, how="outer")
     x["frecuencia_prevista"] = x["frecuencia_prevista"].fillna(0)
     x["frecuencia_rips"] = x["frecuencia_rips"].fillna(0)
     x["desviacion"] = x["frecuencia_rips"] - x["frecuencia_prevista"]
     x["desviacion_pct"] = (x["desviacion"] / x["frecuencia_prevista"].where(x["frecuencia_prevista"] > 0)) * 100
+    # Valor del exceso sobre la NT a costo unitario NT (lo que la cápita absorbe sin estar previsto).
+    x["valor_exceso"] = (x["desviacion"].clip(lower=0) * pd.to_numeric(x["costo_unitario"], errors="coerce")).fillna(0)
 
     def estado(r):
         if r.frecuencia_prevista == 0:

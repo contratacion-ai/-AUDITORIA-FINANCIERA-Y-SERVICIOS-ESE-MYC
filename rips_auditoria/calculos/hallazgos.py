@@ -19,7 +19,7 @@ def consolidar(servicios: pd.DataFrame, nt_cruce: pd.DataFrame, tarifas: pd.Data
         for r in nt_cruce[nt_cruce.estado == "SOBREPASO"].itertuples():
             h.append(_f(tipo="SOBREPASO_FRECUENCIA_NT", severidad="ALTA", periodo=r.mes,
                         municipio=getattr(r, "municipio", None), codigo=r.codigo, descripcion=r.descripcion,
-                        cantidad=r.desviacion,
+                        cantidad=r.desviacion, valor_en_riesgo=getattr(r, "valor_exceso", None),
                         detalle=f"RIPS {r.frecuencia_rips:,.0f} vs NT {r.frecuencia_prevista:,.2f} (+{r.desviacion_pct:.1f} %)",
                         accion_recomendada="Revisar pertinencia y demanda inducida; soporte para ajuste de la NT"))
     s = servicios[~servicios["es_episodio"] & servicios["eps_objetivo"]]
