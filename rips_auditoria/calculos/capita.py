@@ -164,3 +164,26 @@ def kpis(costos: list[float], pacientes: list[float], asistencias: list[float],
                      costo_paciente_global=total / sum(pacientes) if sum(pacientes) else 0.0,
                      costo_asistencia_global=total / sum(asistencias) if sum(asistencias) else 0.0,
                      tendencia_mes=pend)
+
+
+def capita_pactada_vs_rips(costeado: pd.DataFrame, pactada: dict | None) -> pd.DataFrame:
+    """Valor mensual pactado (afiliados × valor usuario, actas de negociación) frente al costo NT × RIPS
+    de cada municipio y mes. Uso % = costo RIPS / valor pactado."""
+    if not pactada:
+        return pd.DataFrame()
+    filas = []
+    for reg in ("subsidiado", "contributivo"):
+        for mun, d in (pactada.get(reg) or {}).items():
+            filas.append({"municipio": mun, "regimen": reg, "afiliados": d["afiliados"],
+                          "valor_usuario": d["valor_usuario"], "valor_mes": d["afiliados"] * d["valor_usuario"]})
+    p = pd.DataFrame(filas)
+    if p.empty:
+        return p
+    pm = p.groupby("municipio").agg(afiliados=("afiliados", "sum"), valor_pactado_mes=("valor_mes", "sum")).reset_index()
+    cap = costeado[costeado["modalidad"].eq("CAPITA") & ~costeado["es_episodio"]]
+    c = cap.groupby(["municipio", "mes"]).agg(costo_rips=("costo_capita", "sum"),
+                                              pacientes=("paciente", "nunique")).reset_index()
+    x = pm.merge(c, on="municipio", how="left")
+    x["uso_pct"] = x["costo_rips"] / x["valor_pactado_mes"] * 100
+    x["cobertura_pacientes_pct"] = x["pacientes"] / x["afiliados"] * 100
+    return x.sort_values(["municipio", "mes"]).reset_index(drop=True)

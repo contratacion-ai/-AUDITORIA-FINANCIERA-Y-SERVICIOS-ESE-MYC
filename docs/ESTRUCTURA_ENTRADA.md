@@ -137,14 +137,28 @@ Cada carga se asigna a una sede de la red con este orden:
    tenga otro nombre.
 4. Nombre de la carpeta tal como viene, o `Prestador <código>` si no hay carpeta.
 
-| Sede | Municipio | Código de habilitación | Estado |
-|---|---|---|---|
-| Hospital San José de Cravo Norte | CRAVO NORTE | 812200020604 | Verificada |
-| Centro de Salud Jesús Coronel | TAME | 817940020607 | Verificada |
-| Hospital San Antonio de Tame | TAME | por confirmar | Sin verificar |
-| Hospital San Lorenzo de Arauquita | ARAUQUITA | por confirmar | Sin verificar |
-| Hospital San Francisco de Fortul | FORTUL | por confirmar | Sin verificar |
-| Hospital San Juan de Dios de Puerto Rondón | PUERTO RONDON | por confirmar | Sin verificar |
+Las 29 sedes habilitadas en el REPS según el **Acta de negociación No. 4131** (Nueva EPS, marzo 2026) están
+cargadas con su código (código de sede del prestador + número de sede = `cod_prestador` del RIPS):
+
+| Municipio | Código de sede | Sedes |
+|---|---|---|
+| Arauquita | 8106500206 | 02 Hospital San Lorenzo · 17 C.S. Panamá de Arauca · 19 La Reinera · 20 El Oasis · 21 La Paz · 22 La Pesquera · 24 Aguachica · 25 El Paraíso · 40 Hospital San Ricardo Pampuri de La Esmeralda |
+| Cravo Norte | 8122000206 | 04 Hospital San José de Cravo Norte |
+| Fortul | 8130000206 | 06 Hospital San Francisco de Fortul · 26 El Salem · 27 Caranal · 30 Indígena Cusay-La Colorada · 44 Caracoles · 45 La 20 |
+| Puerto Rondón | 8159100206 | 05 Hospital San Juan de Dios de Rondón |
+| Tame | 8179400206 | 03 Hospital San Antonio de Tame · 07 C.S. Juan Jesús Coronel de Pueblo Nuevo · 31 Puerto Gaitán · 32 La Horqueta · 33 Betoyes · 34 Las Malvinas · 35 Puerto Miranda · 36 Puerto Nidia-Juan Carlos Chamat · 37 Mapoy · 38 Alto Cauca · 39 Filipinas · 41 Camame |
 
 Se agregan o corrigen sedes, alias y códigos en *Maestros → Red de sedes* (o en
 `config/red_prestadores.yaml`). Para renombrar lo ya cargado, use *Reprocesar todo* en la sincronización.
+
+## 10. Modalidad Nueva EPS (regla de la E.S.E.)
+
+* Para Nueva EPS (EPS037/EPSS37) es **CÁPITA todo lo que NO dice EVENTO** en la carpeta o en el número de
+  contrato, tanto subsidiado como contributivo. Lo de evento siempre lo dice (p. ej. "NUEVA EPS SUB EVENTO").
+* Excepciones por número de contrato en *Maestros → Contratos Nueva EPS y modalidad* (prioridad máxima).
+  Registrado: 02-02-06-00227-2016 = CÁPITA (contrato cápita subsidiado, acta de terminación 0227).
+* Alerta automática: si un contrato queda como CÁPITA pero menos del 30 % de sus servicios está en la Nota
+  Técnica cápita (por ejemplo traslados, insumos o especialistas), el análisis lo advierte para revisarlo.
+* Cápita pactada (actas 4131): afiliados × valor usuario por municipio (subsidiado $40.000 en Arauquita, Fortul y
+  Tame; $45.000 en Cravo Norte y Puerto Rondón; contributivo $45.000). Se compara con el costo NT × RIPS en la
+  hoja `CAPITA Pactada vs RIPS` y en la pestaña *Cruce Nueva EPS* del dashboard.

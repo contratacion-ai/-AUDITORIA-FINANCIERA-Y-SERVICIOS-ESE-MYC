@@ -13,53 +13,184 @@ municipios:
   "81300": FORTUL
   "81220": CRAVO NORTE
   "81591": PUERTO RONDON
+# Códigos de sede del prestador (REPS) usados por la E.S.E.: Arauquita 8106500206, Cravo Norte 8122000206,
+# Fortul 8130000206, Puerto Rondón 8159100206, Tame 8179400206.
 
-# Sedes de la red. Cada sede tiene:
-#   nombre:           nombre oficial con el que se guarda en la base (unifica las variantes de las carpetas)
-#   municipio:        municipio de la Nota Técnica
-#   alias:            textos que identifican la sede en el nombre de la carpeta de Drive (sin tildes,
-#                     mayúsculas o minúsculas da igual). Agregue aquí cómo nombra cada hospital su carpeta.
-#   cod_habilitacion: códigos de habilitación (cod_prestador del RIPS, 12 dígitos) de la sede, si se conocen.
-#   verificado:       true cuando el nombre y el código se confirmaron con RIPS reales.
-# Se puede editar también desde la aplicación: pestaña Maestros → Red de sedes.
+# Sedes habilitadas en el REPS según el ACTA DE NEGOCIACIÓN No. 4131 (Nueva EPS, marzo 2026).
+# cod_habilitacion = código de sede del prestador (10 dígitos) + número de sede (2 dígitos) = cod_prestador del RIPS.
+# alias = textos con que la sede aparece en las carpetas de Drive (sin tildes; mayúsculas o minúsculas da igual).
+# Editable en la aplicación: Maestros → Red de sedes.
 sedes:
+  - nombre: Hospital San Lorenzo
+    municipio: ARAUQUITA
+    alias: [HOSPITAL SAN LORENZO, HOSPITAL ARAUQUITA, SEDE ARAUQUITA]
+    cod_habilitacion: ["810650020602"]
+    verificado: true        # Acta 4131 REPS, sede 02
+  - nombre: Centro de Salud Panamá de Arauca
+    municipio: ARAUQUITA
+    alias: [CENTRO DE SALUD PANAMA, PANAMA DE ARAUCA]
+    cod_habilitacion: ["810650020617"]
+    verificado: true        # Acta 4131 REPS, sede 17
+  - nombre: Puesto de Salud La Reinera
+    municipio: ARAUQUITA
+    alias: [LA REINERA]
+    cod_habilitacion: ["810650020619"]
+    verificado: true        # Acta 4131 REPS, sede 19
+  - nombre: Puesto de Salud El Oasis
+    municipio: ARAUQUITA
+    alias: [PUESTO DE SALUD EL OASIS]
+    cod_habilitacion: ["810650020620"]
+    verificado: true        # Acta 4131 REPS, sede 20
+  - nombre: Puesto de Salud La Paz
+    municipio: ARAUQUITA
+    alias: [PUESTO DE SALUD LA PAZ]
+    cod_habilitacion: ["810650020621"]
+    verificado: true        # Acta 4131 REPS, sede 21
+  - nombre: Puesto de Salud La Pesquera
+    municipio: ARAUQUITA
+    alias: [LA PESQUERA]
+    cod_habilitacion: ["810650020622"]
+    verificado: true        # Acta 4131 REPS, sede 22
+  - nombre: Puesto de Salud Aguachica
+    municipio: ARAUQUITA
+    alias: [PUESTO DE SALUD AGUACHICA]
+    cod_habilitacion: ["810650020624"]
+    verificado: true        # Acta 4131 REPS, sede 24
+  - nombre: Puesto de Salud El Paraíso
+    municipio: ARAUQUITA
+    alias: [PUESTO DE SALUD EL PARAISO]
+    cod_habilitacion: ["810650020625"]
+    verificado: true        # Acta 4131 REPS, sede 25
+  - nombre: Hospital San Ricardo Pampuri de La Esmeralda
+    municipio: ARAUQUITA
+    alias: [SAN RICARDO PAMPURI, LA ESMERALDA]
+    cod_habilitacion: ["810650020640"]
+    verificado: true        # Acta 4131 REPS, sede 40
   - nombre: Hospital San José de Cravo Norte
     municipio: CRAVO NORTE
     alias: [HOSPITAL SAN JOSE DE CRAVO NORTE, HOSPITAL CRAVO NORTE, SEDE CRAVO NORTE]
     cod_habilitacion: ["812200020604"]
-    verificado: true        # RIPS_consolidado (cod. 812200020604)
-  - nombre: Centro de Salud Jesús Coronel
-    municipio: TAME
-    alias: [CENTRO DE SALUD JESUS CORONEL, JESUS CORONEL]
-    cod_habilitacion: ["817940020607"]
-    verificado: true        # ZIP de muestra (cod. 817940020607)
-  - nombre: Hospital San Antonio de Tame
-    municipio: TAME
-    alias: [HOSPITAL SAN ANTONIO DE TAME, HOSPITAL SAN ANTONIO, HOSPITAL TAME, SEDE TAME]
-    cod_habilitacion: []
-    verificado: false       # PENDIENTE: confirmar nombre de carpeta y código de habilitación
-  - nombre: Hospital San Lorenzo de Arauquita
-    municipio: ARAUQUITA
-    alias: [HOSPITAL SAN LORENZO DE ARAUQUITA, HOSPITAL SAN LORENZO, HOSPITAL ARAUQUITA, SEDE ARAUQUITA]
-    cod_habilitacion: []
-    verificado: false       # PENDIENTE: confirmar nombre de carpeta y código de habilitación
+    verificado: true        # Acta 4131 REPS, sede 04
   - nombre: Hospital San Francisco de Fortul
     municipio: FORTUL
-    alias: [HOSPITAL SAN FRANCISCO DE FORTUL, HOSPITAL SAN FRANCISCO, HOSPITAL FORTUL, SEDE FORTUL]
-    cod_habilitacion: []
-    verificado: false       # PENDIENTE: confirmar nombre de carpeta y código de habilitación
-  - nombre: Hospital San Juan de Dios de Puerto Rondón
+    alias: [HOSPITAL SAN FRANCISCO, HOSPITAL FORTUL, SEDE FORTUL]
+    cod_habilitacion: ["813000020606"]
+    verificado: true        # Acta 4131 REPS, sede 06
+  - nombre: Puesto de Salud El Salem
+    municipio: FORTUL
+    alias: [EL SALEM]
+    cod_habilitacion: ["813000020626"]
+    verificado: true        # Acta 4131 REPS, sede 26
+  - nombre: Puesto de Salud Caranal
+    municipio: FORTUL
+    alias: [CARANAL]
+    cod_habilitacion: ["813000020627"]
+    verificado: true        # Acta 4131 REPS, sede 27
+  - nombre: Puesto de Salud Indígena Cusay - La Colorada
+    municipio: FORTUL
+    alias: [CUSAY, LA COLORADA]
+    cod_habilitacion: ["813000020630"]
+    verificado: true        # Acta 4131 REPS, sede 30
+  - nombre: Puesto de Salud Caracoles
+    municipio: FORTUL
+    alias: [PUESTO DE SALUD CARACOLES]
+    cod_habilitacion: ["813000020644"]
+    verificado: true        # Acta 4131 REPS, sede 44
+  - nombre: Puesto de Salud La 20
+    municipio: FORTUL
+    alias: [PUESTO DE SALUD LA 20]
+    cod_habilitacion: ["813000020645"]
+    verificado: true        # Acta 4131 REPS, sede 45
+  - nombre: Hospital San Juan de Dios de Rondón
     municipio: PUERTO RONDON
-    alias: [HOSPITAL SAN JUAN DE DIOS DE PUERTO RONDON, HOSPITAL SAN JUAN DE DIOS, HOSPITAL PUERTO RONDON,
-            SEDE PUERTO RONDON]
-    cod_habilitacion: []
-    verificado: false       # PENDIENTE: confirmar nombre de carpeta y código de habilitación
+    alias: [HOSPITAL SAN JUAN DE DIOS, HOSPITAL PUERTO RONDON, SEDE PUERTO RONDON]
+    cod_habilitacion: ["815910020605"]
+    verificado: true        # Acta 4131 REPS, sede 05
+  - nombre: Hospital San Antonio de Tame
+    municipio: TAME
+    alias: [HOSPITAL SAN ANTONIO, HOSPITAL TAME, SEDE TAME]
+    cod_habilitacion: ["817940020603"]
+    verificado: true        # Acta 4131 REPS, sede 03
+  - nombre: Centro de Salud Juan Jesús Coronel de Pueblo Nuevo
+    municipio: TAME
+    alias: [JESUS CORONEL, PUEBLO NUEVO]
+    cod_habilitacion: ["817940020607"]
+    verificado: true        # Acta 4131 REPS, sede 07
+  - nombre: Puesto de Salud Puerto Gaitán
+    municipio: TAME
+    alias: [PUERTO GAITAN]
+    cod_habilitacion: ["817940020631"]
+    verificado: true        # Acta 4131 REPS, sede 31
+  - nombre: Puesto de Salud La Horqueta
+    municipio: TAME
+    alias: [LA HORQUETA]
+    cod_habilitacion: ["817940020632"]
+    verificado: true        # Acta 4131 REPS, sede 32
+  - nombre: Puesto de Salud Betoyes
+    municipio: TAME
+    alias: [BETOYES]
+    cod_habilitacion: ["817940020633"]
+    verificado: true        # Acta 4131 REPS, sede 33
+  - nombre: Puesto de Salud Las Malvinas
+    municipio: TAME
+    alias: [LAS MALVINAS]
+    cod_habilitacion: ["817940020634"]
+    verificado: true        # Acta 4131 REPS, sede 34
+  - nombre: Puesto de Salud Puerto Miranda
+    municipio: TAME
+    alias: [PUERTO MIRANDA]
+    cod_habilitacion: ["817940020635"]
+    verificado: true        # Acta 4131 REPS, sede 35
+  - nombre: Puesto de Salud Puerto Nidia - Juan Carlos Chamat
+    municipio: TAME
+    alias: [PUERTO NIDIA, JUAN CARLOS CHAMAT]
+    cod_habilitacion: ["817940020636"]
+    verificado: true        # Acta 4131 REPS, sede 36
+  - nombre: Puesto de Salud Mapoy
+    municipio: TAME
+    alias: [MAPOY]
+    cod_habilitacion: ["817940020637"]
+    verificado: true        # Acta 4131 REPS, sede 37
+  - nombre: Puesto de Salud Alto Cauca
+    municipio: TAME
+    alias: [ALTO CAUCA]
+    cod_habilitacion: ["817940020638"]
+    verificado: true        # Acta 4131 REPS, sede 38
+  - nombre: Puesto de Salud Filipinas
+    municipio: TAME
+    alias: [PUESTO DE SALUD FILIPINAS]
+    cod_habilitacion: ["817940020639"]
+    verificado: true        # Acta 4131 REPS, sede 39
+  - nombre: Puesto de Salud Camame
+    municipio: TAME
+    alias: [CAMAME]
+    cod_habilitacion: ["817940020641"]
+    verificado: true        # Acta 4131 REPS, sede 41
 
-# Número de contrato (campo num_contrato del AF) -> modalidad. Tiene prioridad sobre el nombre de la
-# carpeta: muchas carpetas de Drive ("NUEVA SUBS", "NUEVA CONTRIB") no dicen si son CÁPITA o EVENTO.
-# PENDIENTE DE CONFIRMAR con contratación (editable en Maestros → Contratos y modalidad). Ejemplo:
-#   "02-01-09-00457-2023": EVENTO
-contratos_modalidad: {}
+# REGLA NUEVA EPS (confirmada por la E.S.E., 30/10/2026): la contratación de CÁPITA es todo lo que NO dice
+# EVENTO (subsidiado y contributivo); lo de evento siempre lo dice en la carpeta o en el contrato.
+nueva_eps_sin_evento_es_capita: true
+
+# Excepciones por número de contrato (campo num_contrato del AF) -> modalidad. Tienen prioridad sobre la regla
+# anterior. Editable en Maestros → Contratos y modalidad.
+contratos_modalidad:
+  "02-02-06-00227-2016": CAPITA   # contrato cápita subsidiado (acta de terminación No. 0227)
+
+# Contratación CÁPITA Nueva EPS (actas de negociación No. 4131 RS y RC, precontractuales, marzo 2026, sujetas a
+# aprobación del Comité Nacional de Contratación). Contrato cápita subsidiado anterior: 02-02-06-00227-2016
+# (acta de terminación No. 0227, mutuo acuerdo). Valor mensual = afiliados × valor costo usuario.
+capita_pactada:
+  acta: "Acta de negociación No. 4131 (RS 10/03/2026, RC 09/03/2026)"
+  subsidiado:
+    ARAUQUITA: {afiliados: 28675, valor_usuario: 40000}
+    CRAVO NORTE: {afiliados: 564, valor_usuario: 45000}
+    FORTUL: {afiliados: 14895, valor_usuario: 40000}
+    PUERTO RONDON: {afiliados: 905, valor_usuario: 45000}
+    TAME: {afiliados: 25144, valor_usuario: 40000}
+  contributivo:
+    CRAVO NORTE: {afiliados: 197, valor_usuario: 45000}
+    FORTUL: {afiliados: 1255, valor_usuario: 45000}
+    PUERTO RONDON: {afiliados: 221, valor_usuario: 45000}
 
 # Códigos de la EPS en alcance (Nueva EPS). EPS037 = contributivo, EPSS37 = subsidiado.
 # SUPUESTO: ambos se tratan como Nueva EPS (EPS037) para el análisis de cápita/evento.

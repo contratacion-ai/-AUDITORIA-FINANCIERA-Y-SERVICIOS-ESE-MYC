@@ -10,14 +10,16 @@ from tests.conftest import TXT, zip_bytes
 
 
 @pytest.mark.parametrize("carpeta,sede,municipio", [
-    ("HOSPITAL SAN LORENZO DE ARAUQUITA", "Hospital San Lorenzo de Arauquita", "ARAUQUITA"),
-    ("Hospital San Juan de Dios de Puerto Rondón-20261027T135319Z-1-001", "Hospital San Juan de Dios de Puerto Rondón",
+    ("HOSPITAL SAN LORENZO DE ARAUQUITA", "Hospital San Lorenzo", "ARAUQUITA"),
+    ("Hospital San Juan de Dios de Puerto Rondón-20261027T135319Z-1-001", "Hospital San Juan de Dios de Rondón",
      "PUERTO RONDON"),
+    ("PUESTO DE SALUD BETOYES", "Puesto de Salud Betoyes", "TAME"),
+    ("Hospital San Ricardo Pampuri", "Hospital San Ricardo Pampuri de La Esmeralda", "ARAUQUITA"),
     ("hospital san francisco de fortul", "Hospital San Francisco de Fortul", "FORTUL"),
     ("Hospital San Jose de Cravo Norte", "Hospital San José de Cravo Norte", "CRAVO NORTE"),
     ("Hospital San Antonio de Tame", "Hospital San Antonio de Tame", "TAME"),
-    ("Centro de Salud Jesus Coronel", "Centro de Salud Jesús Coronel", "TAME"),
-    ("RIPS SEDE ARAUQUITA", "Hospital San Lorenzo de Arauquita", "ARAUQUITA"),
+    ("Centro de Salud Jesus Coronel", "Centro de Salud Juan Jesús Coronel de Pueblo Nuevo", "TAME"),
+    ("RIPS SEDE ARAUQUITA", "Hospital San Lorenzo", "ARAUQUITA"),
 ])
 def test_sede_por_carpeta(carpeta, sede, municipio):
     c = contexto.desde_ruta(f"{carpeta}/08. Agosto/NUEVA EPS CAPITA/AF000123.txt", 2026)
@@ -25,7 +27,11 @@ def test_sede_por_carpeta(carpeta, sede, municipio):
 
 
 def test_cinco_municipios_tienen_sede():
-    assert {s["municipio"] for s in config.sedes()} >= {"TAME", "ARAUQUITA", "FORTUL", "CRAVO NORTE", "PUERTO RONDON"}
+    s = config.sedes()
+    assert {x["municipio"] for x in s} >= {"TAME", "ARAUQUITA", "FORTUL", "CRAVO NORTE", "PUERTO RONDON"}
+    assert len(s) == 29 and all(x["verificado"] and len(x["cod_habilitacion"][0]) == 12 for x in s)   # acta 4131
+    from rips_auditoria.ingesta import contexto
+    assert contexto.sede_por_codigo("815910020605")["municipio"] == "PUERTO RONDON"
 
 
 def test_codigo_de_habilitacion_identifica_la_sede():
@@ -33,7 +39,7 @@ def test_codigo_de_habilitacion_identifica_la_sede():
     txt = {t: v.replace("817940099901", "817940020607") for t, v in TXT.items()}
     l = procesar([("Carpeta de Pedro/08. Agosto/NUEVA EPS/" + f"{t}000123.txt", v.encode()) for t, v in txt.items()])
     r = l.remisiones.iloc[0]
-    assert r.hospital == "Centro de Salud Jesús Coronel" and r.fuente_hospital == "contenido (sede)"
+    assert r.hospital == "Centro de Salud Juan Jesús Coronel de Pueblo Nuevo" and r.fuente_hospital == "contenido (sede)"
     assert not (l.incidencias.regla == "HOSPITAL_NO_DETERMINADO").any()
 
 

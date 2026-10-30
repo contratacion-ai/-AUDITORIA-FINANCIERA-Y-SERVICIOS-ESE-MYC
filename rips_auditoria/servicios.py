@@ -104,16 +104,22 @@ def construir(lote: Lote) -> pd.DataFrame:
         s = s.drop(columns=["cod_entidad_envio"])
     else:
         s["cod_entidad"], s["num_contrato"] = None, None
+    eps = {e.upper() for e in red_prestadores().get("eps_objetivo", [])}
+    s["eps_objetivo"] = s["cod_entidad"].astype(str).str.upper().isin(eps)
     mapa = contratos_modalidad()
-    if mapa:   # el contrato de la factura define la modalidad aunque la carpeta no la diga
-        por_contrato = s["num_contrato"].astype(str).str.strip().str.upper().map(mapa)
-        s["modalidad_declarada"] = por_contrato.where(por_contrato.notna(), s["modalidad_declarada"])
+    por_contrato = s["num_contrato"].astype(str).str.strip().str.upper().map(mapa) if mapa else \
+        pd.Series([None] * len(s), index=s.index, dtype=object)
+    if red_prestadores().get("nueva_eps_sin_evento_es_capita"):
+        # Regla Nueva EPS: la cápita (subsidiado y contributivo) es todo lo que NO dice EVENTO en la carpeta o
+        # en el contrato; el evento siempre lo dice.
+        sin_evento = s["eps_objetivo"] & s["modalidad_declarada"].ne("EVENTO") & por_contrato.isna()
+        s.loc[sin_evento, "modalidad_declarada"] = "CAPITA"
+    # excepciones explícitas por número de contrato (prioridad máxima)
+    s["modalidad_declarada"] = por_contrato.where(por_contrato.notna(), s["modalidad_declarada"])
     s["codigo"] = s["codigo"].map(lambda v: None if v is None or (isinstance(v, float) and pd.isna(v)) else str(v).strip())
     s["fecha"] = s["fecha"].astype(object)
     # Sin fecha propia (AM/AT en TXT): se usa el periodo como mes de atención.
     s["mes"] = s["periodo"]
-    eps = {e.upper() for e in red_prestadores().get("eps_objetivo", [])}
-    s["eps_objetivo"] = s["cod_entidad"].astype(str).str.upper().isin(eps)
     for c in ("cantidad", "valor_unitario", "valor_total"):
         s[c] = pd.to_numeric(s[c], errors="coerce").fillna(0.0)
     return s[COLUMNAS + ["mes", "eps_objetivo"]]

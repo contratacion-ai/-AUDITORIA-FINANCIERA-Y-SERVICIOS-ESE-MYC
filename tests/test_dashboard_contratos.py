@@ -12,7 +12,8 @@ from tests.conftest import TXT, zip_bytes
 
 
 def _lote_sin_modalidad():
-    z = zip_bytes({f"Hospital San Jose de Cravo Norte/08. Agosto/NUEVA SUBS/{t}000123.txt": v for t, v in TXT.items()})
+    z = zip_bytes({f"Hospital San Jose de Cravo Norte/08. Agosto/NUEVA SUBS/{t}000123.txt": v.replace("CTO-EVENTO-1", "02-01-09-00457-2023")
+                   for t, v in TXT.items()})
     return procesar([("c.zip", z)])
 
 
@@ -37,13 +38,15 @@ def cfg_tmp(tmp_path, monkeypatch):
     config.red_prestadores.cache_clear()
 
 
-def test_contrato_define_modalidad(cfg_tmp):
-    l = _lote_sin_modalidad()
-    antes = analizar([l]).indicadores["evento_total"]
-    config.guardar_contratos({"CTO-EVENTO-1": "CAPITA"})
+def test_regla_nueva_eps_sin_evento_es_capita_y_excepcion_por_contrato(cfg_tmp):
+    l = _lote_sin_modalidad()                                    # carpeta "NUEVA SUBS": no dice EVENTO
     r = analizar([l])
-    assert r.indicadores["evento_total"] == 0 and antes > 0          # todo el contrato pasa a CÁPITA
+    assert r.indicadores["evento_total"] == 0
     assert set(r.tablas["trazabilidad_clasificacion"]["modalidad"]) == {"CAPITA"}
+    z = zip_bytes({f"Hospital Prueba/08. Agosto/NUEVA EPS SUB EVENTO/{t}000123.txt": v for t, v in TXT.items()})
+    assert analizar([procesar([("c.zip", z)])]).indicadores["evento_total"] > 0     # dice EVENTO
+    config.guardar_contratos({"02-01-09-00457-2023": "EVENTO"})                    # excepción por contrato
+    assert analizar([l]).indicadores["evento_total"] > 0
 
 
 def test_api_contratos_y_errores_legibles(cfg_tmp, tmp_path, monkeypatch):

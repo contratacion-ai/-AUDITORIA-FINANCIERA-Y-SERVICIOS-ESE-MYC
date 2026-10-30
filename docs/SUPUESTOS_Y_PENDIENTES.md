@@ -88,10 +88,11 @@ Otros hallazgos del libro:
 * "FRE MES SUB CAPITA" suma 678.146 RIPS, distinto de los 910.925 de "FRECUEN NT SUB CAPITA": no se usa
   como fuente de frecuencias.
 * **Tope contractual de traslados** (`traslados.tope_mensual`): no aparece en los artefactos.
-* **Sedes de la red** (`config/red_prestadores.yaml`, editable en Maestros → Red de sedes): Cravo Norte
-  (Hospital San José, cód. 812200020604) y Tame (Centro de Salud Jesús Coronel, cód. 817940020607) están
-  verificadas con RIPS reales. Hospital San Antonio de Tame, Hospital San Lorenzo de Arauquita, Hospital San
-  Francisco de Fortul y Hospital San Juan de Dios de Puerto Rondón quedaron registradas **sin verificar**:
-  confirmar el nombre exacto de la carpeta en Drive y el código de habilitación con el primer RIPS de cada una.
+* **Sedes de la red**: cargadas las 29 sedes del Acta 4131 con sus códigos REPS (verificadas). Confirmar con
+  la E.S.E. el nombre con que cada sede nombra su carpeta en Drive para ajustar alias si hace falta.
+* **Contratos de las carpetas "NUEVA SUBS"/"NUEVA CONTRIB" de Cravo Norte** (02-01-09-00457-2023,
+  01.01-06-00317-2014 y dos códigos largos): por la regla quedan como CÁPITA, pero solo 2–6 % de sus servicios
+  está en la Nota Técnica (predominan traslados 601T02/601T01, oxígeno, insumos y especialistas) y no
+  coinciden con el contrato cápita 02-02-06-00227-2016. Confirmar con contratación si son de evento.
 * `RIPS_consolidado.json` se describió como truncado, pero se leyó completo (9 meses, índice coincidente
   con el XLSX). Se usa como modelo y para pruebas opcionales.

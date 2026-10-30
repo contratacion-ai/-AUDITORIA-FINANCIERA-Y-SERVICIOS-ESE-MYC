@@ -12,6 +12,7 @@ from .recomendaciones import generar
 # (clave de tabla, nombre de hoja ≤31 caracteres, título)
 HOJAS = [
     ("detalle_mensual", "Detalle Mensual CAPITA", "Detalle mensual CAPITA – RIPS"),
+    ("capita_pactada", "CAPITA Pactada vs RIPS", "Cápita pactada (actas 4131: afiliados × valor usuario) vs costo NT × RIPS por municipio y mes"),
     ("capita_grupos", "CAPITA Grupos", "Servicios bajo CAPITA · costos por grupo (costo unitario NT × frecuencia RIPS)"),
     ("frecuencias_nt_municipio_mes", "Frecuencias NT Municipio", "Nota Técnica Nueva EPS vs RIPS: ejecución por municipio y mes"),
     ("frecuencias_nt_grupo", "Frecuencias NT Grupo", "Nota Técnica Nueva EPS vs RIPS: ejecución acumulada por grupo"),

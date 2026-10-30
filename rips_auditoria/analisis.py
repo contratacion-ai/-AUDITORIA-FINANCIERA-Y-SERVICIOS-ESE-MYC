@@ -16,7 +16,7 @@ import yaml
 from . import maestros
 from .calculos import capita, cruces, evento, frecuencias, hallazgos
 from .clasificacion import clasificar
-from .config import DIR_CONFIG, red_prestadores
+from .config import DIR_CONFIG, contratos_modalidad, red_prestadores
 from .constantes import CONTROL, CONTROL_FINAL_HISTORICO, MESES_AB, nombre_grupo
 from .ingesta.lote import Lote, combinar
 from .referencias import oficial
@@ -36,6 +36,8 @@ SUPUESTOS = [
     "sin marca: carpeta/contrato; si no hay, EVENTO (SIN MARCA).",
     "Modalidad efectiva para costos y facturación = la declarada por la remisión (carpeta/contrato) cuando existe; "
     "las diferencias con la modalidad contractual se reportan como hallazgos.",
+    "Nueva EPS: es CÁPITA (subsidiado y contributivo) todo lo que NO dice EVENTO en la carpeta o el contrato; las "
+    "excepciones por número de contrato se definen en Maestros.",
     "Frecuencia prevista Nueva EPS = frecuencia MENSUAL de la hoja NOTA TECNICA CAPITA NEPS por municipio; "
     "se compara con la frecuencia RIPS de cápita del mismo municipio y mes (solo municipios con RIPS cargados).",
 ]
@@ -186,6 +188,19 @@ def analizar(lotes: list[Lote], solo_eps_objetivo: bool = True, mae: dict | None
                        "grupo", "subgrupo", "regla_grupo"], dropna=False)
             .agg(descripcion=("descripcion", "first"), cantidad=("cantidad", "sum"), registros=("codigo", "size"),
                  discrepancias=("discrepancia_modalidad", "sum")).reset_index())
+    # Alerta: contratos que la regla deja en CÁPITA pero cuyos servicios casi no están en la Nota Técnica
+    capd = s[(s["modalidad"] == "CAPITA") & ~s["es_episodio"]]
+    if not capd.empty:
+        g = capd.groupby(capd["num_contrato"].fillna("(sin contrato)").astype(str)).agg(
+            total=("cantidad", "sum"), en_nt=("cantidad", lambda x: x[capd.loc[x.index, "en_nota_tecnica"]].sum()),
+            carpetas=("carpeta_envio", lambda x: ", ".join(sorted(set(map(str, x)))[:3])))
+        for contrato, fila in g.iterrows():
+            if fila.total >= 50 and fila.en_nt / fila.total < 0.3 and \
+                    contratos_modalidad().get(contrato.strip().upper()) != "CAPITA":
+                adv.append(f"El contrato {contrato} (carpetas {fila.carpetas}) quedó como CÁPITA por la regla 'lo que no dice "
+                           f"EVENTO es cápita', pero solo el {fila.en_nt / fila.total * 100:.0f} % de sus servicios está en la "
+                           "Nota Técnica cápita (predominan traslados, insumos o especialistas). Si es un contrato de evento, "
+                           "márquelo como EVENTO en Maestros → Contratos Nueva EPS y modalidad.")
     sin_costo = s[s["sin_costo_nt"]].groupby("codigo").agg(descripcion=("descripcion", "first"),
                                                            frecuencia=("cantidad", "sum")).reset_index()
     if not sin_costo.empty and nt is not None and nt["costo_unitario"].notna().any():
@@ -210,6 +225,7 @@ def analizar(lotes: list[Lote], solo_eps_objetivo: bool = True, mae: dict | None
                "hospitales": sorted(s["hospital"].dropna().unique().tolist()), "meses": meses,
                "servicios_otras_eps_excluidos": int((~todos["eps_objetivo"]).sum()) if solo_eps_objetivo else 0}
     tablas = {"detalle_mensual": det_out, "capita_grupos": grupos_out,
+              "capita_pactada": capita.capita_pactada_vs_rips(s, red_prestadores().get("capita_pactada")),
               "frecuencias_nt_municipio_mes": fr["por_municipio_mes"], "frecuencias_nt_grupo": fr["por_grupo"],
               "frecuencias_nt_codigo": fr["por_codigo"], "frecuencias_fuera_nt": fr["fuera_nt"],
               "evento_mensual": ev_tab, "top20_evento": top20, "riesgo": rie,

@@ -232,13 +232,20 @@ def generar_html(r: Resultado, chart_js_inline: bool = True) -> str:
     conc = t.get("conciliacion_informe", pd.DataFrame())
     cols_k = [("indicador", "Indicador", "L"), ("informe", "Libro", "N2"), ("control_oficial", "Control oficial", "N2"),
               ("diferencia_vs_oficial", "Diferencia", "N2"), ("estado", "Estado", "X"), ("explicacion", "Explicación", "L")]
+    cp = t.get("capita_pactada", pd.DataFrame())
+    cols_cp = [("municipio", "Municipio", "L"), ("afiliados", "Afiliados", "N"), ("valor_pactado_mes", "Cápita pactada/mes", "$"),
+               ("mes", "Mes", "MES"), ("costo_rips", "Costo NT × RIPS", "$"), ("uso_pct", "Uso %", "P"),
+               ("pacientes", "Pacientes", "N"), ("cobertura_pacientes_pct", "Pacientes/afiliados", "P")]
+    cru_cp = _card("📑 Cápita pactada (Actas 4131 RS y RC) vs costo de los RIPS por municipio", _tabla(cp, cols_cp),
+                   "Valor mensual pactado = afiliados × valor costo usuario (Arauquita, Fortul, Tame $40.000 RS; Cravo Norte "
+                   "y Puerto Rondón $45.000; contributivo $45.000). Actas precontractuales sujetas a aprobación del CNC.")
     cru = (f'<div class="stit">🔁 Cruce con Nueva EPS · RIPS cargados vs cifras Nueva EPS (libro INFORME DE SERVICIOS)</div>'
            '<div class="al ai"><span class="ai_">ℹ️</span><div>Compara, mes a mes, lo que traen los RIPS cargados en la base '
            'con las cifras de Nueva EPS del libro vigente (costo CAPITA, CUPS, CUMS, pacientes y asistencias). Una diferencia '
            'negativa indica RIPS aún no cargados o no reportados; positiva, servicios adicionales frente al libro.</div></div>'
            + '<div class="g2">' + _card("💰 Costo CAPITA mensual · Nueva EPS vs RIPS", _canvas("cCruCosto"))
            + _card("🧾 CUPS mensuales · Nueva EPS vs RIPS", _canvas("cCruCups")) + "</div>"
-           + _card("📋 Comparación mensual por indicador", _tabla(comp, cols_c))
+           + cru_cp + _card("📋 Comparación mensual por indicador", _tabla(comp, cols_c))
            + _card("🧮 Conciliación del libro con el control oficial", _tabla(conc, cols_k)))
 
     # ------------------------------------------------------------------ Frecuencias NT
