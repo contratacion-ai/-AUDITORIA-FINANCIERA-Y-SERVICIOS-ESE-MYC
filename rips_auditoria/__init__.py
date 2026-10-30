@@ -3,4 +3,4 @@
 La lógica de cálculo vive en este paquete y no depende de la interfaz (``api/``) ni de los
 scripts de escritorio (``scripts/``).
 """
-__version__ = "1.1.1"
+__version__ = "1.2.0"

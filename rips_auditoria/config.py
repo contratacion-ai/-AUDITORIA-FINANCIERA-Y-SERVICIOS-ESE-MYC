@@ -64,6 +64,22 @@ def guardar_sedes(lista: list[dict]) -> None:
     red_prestadores.cache_clear()
 
 
+def contratos_modalidad() -> dict[str, str]:
+    """Número de contrato (AF) -> modalidad CAPITA / EVENTO, definido por el usuario."""
+    return {str(k).strip().upper(): str(v).strip().upper()
+            for k, v in (red_prestadores().get("contratos_modalidad") or {}).items() if v}
+
+
+def guardar_contratos(mapa: dict[str, str]) -> None:
+    datos = dict(red_prestadores())
+    datos["contratos_modalidad"] = {str(k).strip(): str(v).strip().upper() for k, v in mapa.items()
+                                    if str(k).strip() and str(v).strip().upper() in ("CAPITA", "EVENTO")}
+    with open(DIR_CONFIG / "red_prestadores.yaml", "w", encoding="utf-8") as fh:
+        fh.write("# Red de prestadores de la E.S.E. Moreno y Clavijo (editado desde la aplicación).\n")
+        yaml.safe_dump(datos, fh, allow_unicode=True, sort_keys=False, width=200)
+    red_prestadores.cache_clear()
+
+
 @lru_cache(maxsize=1)
 def diccionario_rips() -> dict[str, list[CampoRips]]:
     """Estructura de cada archivo RIPS según el Anexo Técnico No. 1 (orden de campos)."""

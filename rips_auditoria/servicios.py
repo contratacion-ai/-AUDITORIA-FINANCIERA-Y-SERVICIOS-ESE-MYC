@@ -10,7 +10,7 @@ from __future__ import annotations
 import pandas as pd
 
 from .anonimizacion import columna_paciente
-from .config import red_prestadores
+from .config import contratos_modalidad, red_prestadores
 from .ingesta.lote import Lote
 
 AMBITO_TXT = {"1": "AMBULATORIO", "2": "HOSPITALARIO", "3": "URGENCIAS"}
@@ -104,6 +104,10 @@ def construir(lote: Lote) -> pd.DataFrame:
         s = s.drop(columns=["cod_entidad_envio"])
     else:
         s["cod_entidad"], s["num_contrato"] = None, None
+    mapa = contratos_modalidad()
+    if mapa:   # el contrato de la factura define la modalidad aunque la carpeta no la diga
+        por_contrato = s["num_contrato"].astype(str).str.strip().str.upper().map(mapa)
+        s["modalidad_declarada"] = por_contrato.where(por_contrato.notna(), s["modalidad_declarada"])
     s["codigo"] = s["codigo"].map(lambda v: None if v is None or (isinstance(v, float) and pd.isna(v)) else str(v).strip())
     s["fecha"] = s["fecha"].astype(object)
     # Sin fecha propia (AM/AT en TXT): se usa el periodo como mes de atención.

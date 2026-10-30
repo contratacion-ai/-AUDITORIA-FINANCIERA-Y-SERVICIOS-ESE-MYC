@@ -16,7 +16,11 @@ function tabla(rows, cols) {
 }
 async function api(url, opt) {
   const r = await fetch(url, opt);
-  if (!r.ok) { const t = await r.text(); throw new Error(t || r.statusText); }
+  if (!r.ok) {
+    const t = await r.text(); let m = t;
+    try { const j = JSON.parse(t); m = j.detail || t; if (j.traza) m += '\n' + j.traza.join('\n'); } catch (_) {}
+    throw new Error(m || r.statusText);
+  }
   return r.json();
 }
 const JSONB = b => ({method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(b)});
@@ -67,13 +71,19 @@ $('bCargar').onclick = async () => {
   $('msgCarga').innerHTML = '⏳ Procesando y depurando…';
   try {
     const r = await api('/api/lotes', {method: 'POST', body: fd});
+    if (r.aviso) alert(r.aviso);
     seleccion = []; $('nSel').textContent = '0 archivos seleccionados';
     const b = r.base || {nuevas: [], reemplazadas: [], omitidas: []};
     $('msgCarga').innerHTML = `<span class="ok">✔ Carga ${esc(r.id)} procesada. Base actualizada: ${b.nuevas.length} hospital-mes nuevos,
       ${b.reemplazadas.length} reemplazados. ${r.duplicados_eliminados} registros repetidos depurados.</span>`;
     $('resCarga').innerHTML = detalleLote(r);
-  } catch (e) { $('msgCarga').innerHTML = `<span class="err">✖ ${esc(e.message)}</span>`; }
+  } catch (e) { $('msgCarga').innerHTML = `<span class="err">✖ ${esc(e.message)}</span>
+      <button class="sec2" onclick="verRegistro()">Ver detalle técnico</button><pre id="preReg" class="nota"></pre>`; }
 };
+async function verRegistro() {
+  const r = await api('/api/registro');
+  $('preReg').textContent = `Archivo: ${r.archivo}\n\n` + (r.lineas.join('\n') || '(sin errores registrados)');
+}
 function detalleLote(r) {
   return `<h3>Índice hospital-mes</h3>${tabla(r.indice)}
     <h3>Remisiones (corrija hospital, municipio, mes o EPS y guarde: la base se actualiza)</h3>${tablaRemisiones(r)}
@@ -181,8 +191,25 @@ $('bSedesGuardar').onclick = async () => {
   } catch (e) { $('msgSedes').innerHTML = `<span class="err">✖ ${esc(e.message)}</span>`; }
 };
 
+async function cargarContratos() {
+  const r = await api('/api/contratos');
+  $('tbContratos').innerHTML = r.contratos.length ? `<div class="scroll"><table id="tContratos"><thead><tr><th>Contrato</th><th>EPS</th>
+    <th>Facturas</th><th>Valor</th><th>Carpetas</th><th>Sedes</th><th>Modalidad</th></tr></thead><tbody>${r.contratos.map(c =>
+    `<tr><td>${esc(c.contrato)}</td><td>${esc(c.cod_entidad)}</td><td class="n">${nf(c.facturas)}</td><td class="n">${F(c.valor)}</td>
+     <td>${esc(c.carpetas)}</td><td>${esc(c.hospitales)}</td><td><select data-c="${esc(c.contrato)}">
+     ${['', 'CAPITA', 'EVENTO'].map(m => `<option ${m === c.modalidad ? 'selected' : ''} value="${m}">${m || '(sin definir)'}</option>`).join('')}
+     </select></td></tr>`).join('')}</tbody></table></div>` : '<p class="nota">Cargue RIPS para ver los contratos.</p>';
+}
+$('bContratosGuardar').onclick = async () => {
+  const mapa = {};
+  document.querySelectorAll('#tContratos select').forEach(s => { if (s.value) mapa[s.dataset.c] = s.value; });
+  try { await api('/api/contratos', {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({mapa})});
+    $('msgContratos').innerHTML = '<span class="ok">✔ Modalidades guardadas. Vuelva a ejecutar el análisis.</span>'; cargarContratos();
+  } catch (e) { $('msgContratos').innerHTML = `<span class="err">✖ ${esc(e.message)}</span>`; }
+};
+
 async function cargarMaestros() {
-  cargarSedes();
+  cargarSedes(); cargarContratos();
   const m = await api('/api/maestros');
   const filas = [{nombre: 'informe', fuente: 'INFORME DE SERVICIOS (catálogo + NT COSTOS + NT por municipio)'}, ...m];
   $('tbMae').querySelector('tbody').innerHTML = filas.map(x => `<tr><td><b>${esc(x.nombre)}</b></td><td>${esc(x.fuente || '—')}</td>
@@ -216,7 +243,9 @@ function mostrarResultado(r) {
     ['Hallazgos ALTA', nf(i.hallazgos_alta)], ['Valor en riesgo', FM(i.valor_en_riesgo)]];
   $('resAn').innerHTML = `<div class="kpis">${kp.map(x => `<div class="kc"><div class="lb">${x[0]}</div><div class="vl">${x[1]}</div></div>`).join('')}</div>
     ${r.advertencias.map(a => `<p class="nota err">⚠ ${esc(a)}</p>`).join('')}
-    <p><a href="/api/analisis/${esc(r.id)}/informe.xlsx">⬇ Informe Excel</a> · <a href="/api/analisis/${esc(r.id)}/informe.pdf">⬇ Informe PDF</a> ·
+    <p><a class="btn-dash" href="/api/analisis/${esc(r.id)}/dashboard.html" target="_blank">📊 Abrir dashboard CAPITA · EVENTO</a> ·
+       <a href="/api/analisis/${esc(r.id)}/dashboard.html?descargar=true">⬇ Descargar dashboard (HTML)</a> ·
+       <a href="/api/analisis/${esc(r.id)}/informe.xlsx">⬇ Informe Excel</a> · <a href="/api/analisis/${esc(r.id)}/informe.pdf">⬇ Informe PDF</a> ·
        <a href="/api/analisis/${esc(r.id)}/estado.json">⬇ Guardar estado (JSON)</a></p>
     <h3>Frecuencias Nota Técnica Nueva EPS vs RIPS · por municipio y mes</h3>${tabla(r.frecuencias_nt_municipio_mes)}
     <h3>Frecuencias por grupo (acumulado)</h3>${tabla(r.frecuencias_nt_grupo)}

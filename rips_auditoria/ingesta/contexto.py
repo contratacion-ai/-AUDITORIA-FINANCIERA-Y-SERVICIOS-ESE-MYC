@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import PurePosixPath
 
-from ..config import red_prestadores, sedes
+from ..config import contratos_modalidad, red_prestadores, sedes
 from ..constantes import MESES, mes_desde_texto, norm
 
 RE_DRIVE = re.compile(r"-\d{8}T\d{6}Z-\d+-\d+$")          # sufijo que agrega Google Drive al ZIP
@@ -173,6 +173,9 @@ def completar(ctx: Contexto, registros_af: list[dict], cod_prestador: str | None
         ctx.hospital, ctx.fuente_hospital = sede["nombre"], "contenido (sede)"
     if not ctx.hospital and cod_prestador:
         ctx.hospital, ctx.fuente_hospital = f"Prestador {cod_prestador}", "contenido"
+    mod_contrato = contratos_modalidad().get(str(num_contrato or "").strip().upper())
+    if mod_contrato:
+        ctx.modalidad_declarada = mod_contrato
     if not ctx.modalidad_declarada:
         ctx.modalidad_declarada = modalidad_por_texto(num_contrato)
     for k, v in (manual or {}).items():

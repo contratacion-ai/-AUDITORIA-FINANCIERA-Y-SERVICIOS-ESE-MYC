@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import io
 import json
+import logging
+import traceback
 from datetime import datetime
 from pathlib import Path
 
@@ -18,8 +20,9 @@ from fastapi.staticfiles import StaticFiles
 
 from rips_auditoria import __version__, base, fuentes, maestros
 from rips_auditoria.analisis import Resultado, analizar, controles_referencia
-from rips_auditoria.config import DIR_DATOS, DIR_REFERENCIAS, guardar_sedes, red_prestadores
-from rips_auditoria.informes import excel, pdf
+from rips_auditoria.config import (DIR_DATOS, DIR_REFERENCIAS, contratos_modalidad, guardar_contratos,
+                                   guardar_sedes, red_prestadores)
+from rips_auditoria.informes import dashboard, excel, pdf
 from rips_auditoria.ingesta.lote import Lote, corregir, procesar
 
 AQUI = Path(__file__).resolve().parent
@@ -27,6 +30,31 @@ DIR_LOTES = DIR_DATOS / "lotes"
 DIR_RES = DIR_DATOS / "resultados"
 
 app = FastAPI(title="Auditoría RIPS – E.S.E. Moreno y Clavijo", version=__version__)
+log = logging.getLogger("auditoria_rips")
+if not log.handlers:
+    DIR_DATOS.mkdir(parents=True, exist_ok=True)
+    _h = logging.FileHandler(DIR_DATOS / "errores.log", encoding="utf-8")
+    _h.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    log.addHandler(_h)
+    log.setLevel(logging.INFO)
+
+
+@app.exception_handler(Exception)
+async def error_no_controlado(request: Request, exc: Exception):
+    """Cualquier error inesperado queda en datos/errores.log y se devuelve con un mensaje legible."""
+    detalle = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    log.error("%s %s\n%s", request.method, request.url.path, detalle)
+    return JSONResponse(status_code=500, content={
+        "detail": f"Error interno al procesar ({type(exc).__name__}: {exc}). El detalle técnico quedó en "
+                  f"{DIR_DATOS / 'errores.log'}; use 'Ver detalle técnico' y envíelo a soporte.",
+        "tipo": type(exc).__name__, "traza": detalle.splitlines()[-12:]})
+
+
+@app.get("/api/registro")
+def ver_registro(lineas: int = 120):
+    p = DIR_DATOS / "errores.log"
+    txt = p.read_text(encoding="utf-8", errors="replace").splitlines()[-lineas:] if p.exists() else []
+    return {"archivo": str(p), "lineas": txt}
 app.mount("/static", StaticFiles(directory=AQUI / "static"), name="static")
 app.mount("/referencias", StaticFiles(directory=DIR_REFERENCIAS, html=True), name="referencias")
 
@@ -95,10 +123,17 @@ async def crear_lote(archivos: list[UploadFile] = File(...), rutas: list[str] = 
         entradas.append((ruta, await a.read()))
     manual = {k: v for k, v in {"hospital": hospital, "municipio": municipio.upper(), "periodo": periodo,
                                 "cod_entidad": cod_entidad}.items() if v}
+    log.info("Carga web: %d archivo(s) %s", len(entradas), [e[0] for e in entradas][:10])
     lote = procesar(entradas, anio_defecto=anio, manual_global=manual)
     lote.guardar(DIR_LOTES)
-    act = base.actualizar(lote, origen="carga web", modo=modo) if actualizar_base else None
-    return {**_resumen_lote(lote), "base": act}
+    act, aviso = None, None
+    if actualizar_base:
+        try:
+            act = base.actualizar(lote, origen="carga web", modo=modo)
+        except Exception as e:  # la validación se devuelve aunque falle la actualización de la base
+            log.error("Actualizando base con %s\n%s", lote.id, traceback.format_exc())
+            aviso = f"Los archivos se validaron, pero no se pudo actualizar la base: {type(e).__name__}: {e}"
+    return {**_resumen_lote(lote), "base": act, "aviso": aviso}
 
 
 @app.get("/api/lotes")
@@ -172,6 +207,36 @@ def guardar_sedes_api(sedes: list[dict] = Body(..., embed=True)):
             raise HTTPException(400, "Cada sede necesita nombre y municipio")
     guardar_sedes(sedes)
     return ver_sedes()
+
+
+@app.get("/api/contratos")
+def ver_contratos():
+    """Contratos encontrados en la base (Nueva EPS) y la modalidad asignada a cada uno."""
+    mapa = contratos_modalidad()
+    det = []
+    try:
+        af = base.lote().tablas["AF"]
+        af = af[af["cod_entidad"].astype(str).str.upper().isin(["EPS037", "EPSS37"])]
+        g = (af.assign(c=af["num_contrato"].fillna("(sin contrato)").astype(str))
+             .groupby(["c", "cod_entidad"]).agg(facturas=("num_factura", "nunique"), valor=("valor_neto", "sum"),
+                                                 carpetas=("carpeta_envio", lambda x: ", ".join(sorted(set(map(str, x)))[:4])),
+                                                 hospitales=("hospital", lambda x: ", ".join(sorted(set(map(str, x))))))
+             .reset_index())
+        det = [{"contrato": r.c, "cod_entidad": r.cod_entidad, "facturas": int(r.facturas), "valor": float(r.valor or 0),
+                "carpetas": r.carpetas, "hospitales": r.hospitales, "modalidad": mapa.get(r.c.strip().upper(), "")}
+               for r in g.itertuples()]
+    except ValueError:
+        pass
+    vistos = {d["contrato"].strip().upper() for d in det}
+    det += [{"contrato": k, "cod_entidad": "", "facturas": 0, "valor": 0, "carpetas": "", "hospitales": "",
+             "modalidad": v} for k, v in mapa.items() if k not in vistos]
+    return {"contratos": det}
+
+
+@app.put("/api/contratos")
+def guardar_contratos_api(mapa: dict[str, str] = Body(..., embed=True)):
+    guardar_contratos(mapa)
+    return ver_contratos()
 
 
 # ------------------------------------------------------------------------- maestros
@@ -296,6 +361,14 @@ def informe_xlsx(rid: str):
     buf.seek(0)
     return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                              headers={"Content-Disposition": f'attachment; filename="informe_RIPS_{rid}.xlsx"'})
+
+
+@app.get("/api/analisis/{rid}/dashboard.html", response_class=HTMLResponse)
+def ver_dashboard(rid: str, descargar: bool = False):
+    """Dashboard con la estructura de los dashboards de referencia, alimentado con los RIPS cargados."""
+    h = dashboard.generar_html(_resultado(rid))
+    cab = {"Content-Disposition": f'attachment; filename="dashboard_RIPS_{rid}.html"'} if descargar else {}
+    return HTMLResponse(h, headers=cab)
 
 
 @app.get("/api/analisis/{rid}/informe.pdf")

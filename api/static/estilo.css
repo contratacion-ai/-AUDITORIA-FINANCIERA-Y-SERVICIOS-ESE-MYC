@@ -31,3 +31,5 @@ td{border-bottom:1px solid #e6ebf1;padding:4px 5px}td.n{text-align:right;font-va
 button.peligro{color:var(--r1);border-color:var(--r1)}
 select[multiple]{min-width:220px}
 .tb.cerrar{margin-left:auto;background:rgba(192,0,0,.55)}
+a.btn-dash{background:var(--a1);color:#fff;padding:7px 12px;border-radius:6px;text-decoration:none;font-weight:700}
+pre.nota{white-space:pre-wrap;max-height:300px;overflow:auto}

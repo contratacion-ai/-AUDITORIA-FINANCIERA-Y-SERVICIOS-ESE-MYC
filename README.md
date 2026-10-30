@@ -16,6 +16,9 @@ Cravo Norte y Puerto Rondón**. Se concentra en dos modalidades: **CÁPITA** y *
 * **CÁPITA**: costo = costo unitario de la Nota Técnica × frecuencia RIPS, por grupo y mes; pacientes,
   asistencias, costo por usuario y por atención.
 * **EVENTO**: facturación mensual, Top 20, Pareto, traslados y cruce con el tarifario pactado.
+* **Dashboard CAPITA · EVENTO** con la misma estructura y estilo de los dashboards de referencia (Resumen,
+  CAPITA Actual, Cruce Nueva EPS, Frecuencias NT, TOP 20 EVENTO, Riesgo, Hallazgos, Recomendaciones),
+  alimentado con los RIPS cargados y cruzado mes a mes con las cifras de Nueva EPS. Funciona sin internet.
 * **Hallazgos** de auditoría e informes en Excel, PDF y JSON. Pacientes seudonimizados (`PAC-…`).
 
 ## Instalación en Windows (sin permisos de administrador)
@@ -53,8 +56,13 @@ Para construir el instalador (desde Linux/macOS con NSIS): `bash instalador/cons
    servicios, valor, errores, fecha y origen). *Eliminar* quita un hospital-mes y *Vaciar toda la base*
    empieza de cero. En *Cargar RIPS* puede corregir hospital, municipio, mes o EPS de una remisión; la
    base se actualiza con la corrección.
-5. **Analizar.** Pestaña *Análisis CÁPITA · EVENTO*: elija municipios, hospitales y meses (o nada para
-   toda la base) y descargue el informe Excel o PDF.
+5. **Contratos.** En *Maestros → Contratos Nueva EPS y modalidad* asigne CÁPITA o EVENTO a cada número de
+   contrato encontrado en los RIPS (las carpetas "NUEVA SUBS" / "NUEVA CONTRIB" no lo indican).
+6. **Analizar.** Pestaña *Análisis CÁPITA · EVENTO*: elija municipios, hospitales y meses (o nada para
+   toda la base), abra el **dashboard** o descargue el informe Excel, PDF o el dashboard HTML.
+
+Si una carga falla, la pantalla muestra el error y el botón *Ver detalle técnico*; el detalle completo
+queda en `%LOCALAPPDATA%\AuditoriaRIPS\datos\errores.log`.
 
 Estructura de carpetas esperada (la misma de Drive):
 

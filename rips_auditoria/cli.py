@@ -23,7 +23,7 @@ from pathlib import Path
 from . import base, fuentes, maestros
 from .analisis import analizar, controles_referencia
 from .config import DIR_DATOS
-from .informes import excel, pdf
+from .informes import dashboard, excel, pdf
 from .ingesta.lote import procesar
 
 
@@ -62,6 +62,7 @@ def _informes(a, lotes, nombre: str) -> int:
     for adv in r.advertencias:
         print("⚠", adv)
     x = excel.escribir(r, sal / f"informe_{nombre}.xlsx")
+    print(f"✔ Dashboard: {dashboard.escribir(r, sal / f'dashboard_{nombre}.html')}")
     r.guardar(sal / f"estado_{nombre}.json")
     print(f"✔ Informe Excel: {x}")
     if a.pdf:

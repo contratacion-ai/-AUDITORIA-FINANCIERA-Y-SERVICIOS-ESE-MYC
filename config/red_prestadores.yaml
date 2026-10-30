@@ -55,6 +55,12 @@ sedes:
     cod_habilitacion: []
     verificado: false       # PENDIENTE: confirmar nombre de carpeta y código de habilitación
 
+# Número de contrato (campo num_contrato del AF) -> modalidad. Tiene prioridad sobre el nombre de la
+# carpeta: muchas carpetas de Drive ("NUEVA SUBS", "NUEVA CONTRIB") no dicen si son CÁPITA o EVENTO.
+# PENDIENTE DE CONFIRMAR con contratación (editable en Maestros → Contratos y modalidad). Ejemplo:
+#   "02-01-09-00457-2023": EVENTO
+contratos_modalidad: {}
+
 # Códigos de la EPS en alcance (Nueva EPS). EPS037 = contributivo, EPSS37 = subsidiado.
 # SUPUESTO: ambos se tratan como Nueva EPS (EPS037) para el análisis de cápita/evento.
 eps_objetivo:
