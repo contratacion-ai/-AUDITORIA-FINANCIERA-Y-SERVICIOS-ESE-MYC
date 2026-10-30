@@ -50,3 +50,26 @@ def test_referencia_y_maestros(cliente):
     assert cliente.get("/api/maestros").status_code == 200
     assert cliente.get("/api/maestros/plantillas/tarifario.csv").text.startswith("codigo")
     assert cliente.get("/referencias/DASHBOARD_CAPITA_PGP_ESE_MYC_2026_FINAL.html").status_code == 200
+
+
+def test_base_y_drive_por_api(cliente, tmp_path):
+    z = zip_bytes({f"Hospital Prueba/08. Agosto/NUEVA EPS EVENTO/{t}000123.txt": v for t, v in TXT.items()})
+    r = cliente.post("/api/lotes", files=[("archivos", ("carga.zip", z, "application/zip"))]).json()
+    assert len(r["base"]["nuevas"]) == 1
+    r = cliente.post("/api/lotes", files=[("archivos", ("carga.zip", z, "application/zip"))]).json()
+    assert len(r["base"]["reemplazadas"]) == 1                    # recargar no duplica
+    b = cliente.get("/api/base").json()
+    assert b["resumen"]["particiones"] == 1 and b["filtros"]["periodos"] == ["2026-08"]
+    an = cliente.post("/api/analisis", json={"periodos": ["2026-08"]})
+    assert an.status_code == 200 and "frecuencias_nt_municipio_mes" in an.json()
+    drive = tmp_path / "Drive" / "Hospital Dos" / "07. Julio" / "NUEVA EPS"
+    drive.mkdir(parents=True)
+    for t, v in TXT.items():
+        (drive / f"{t}000123.txt").write_text(v.replace("FT000", "FT070").replace("/08/2026", "/07/2026"), encoding="utf-8")
+    assert cliente.post("/api/fuentes", json={"ruta": str(tmp_path / "Drive" / "Hospital Dos")}).status_code == 200
+    s = cliente.post("/api/fuentes/sincronizar", json={"forzar": False}).json()
+    assert len(s["procesadas"]) == 1
+    assert cliente.get("/api/base").json()["resumen"]["particiones"] == 2
+    clave = cliente.get("/api/base").json()["particiones"][0]["clave"]
+    assert cliente.delete(f"/api/base?clave={clave}").json()["particiones_eliminadas"] == 1
+    assert cliente.post("/api/base/vaciar", json={"confirmar": True}).json()["particiones_eliminadas"] == 1

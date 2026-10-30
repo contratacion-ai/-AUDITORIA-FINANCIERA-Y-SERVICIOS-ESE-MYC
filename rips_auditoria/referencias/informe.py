@@ -195,14 +195,6 @@ def conciliar(r: dict) -> list[dict]:
             sum(fin.pgp["FACT_EV"]),
             "Inconsistencia interna del libro: marzo, junio y julio difieren de la hoja FACTURACION EVENTO, "
             "que es la que se usa como oficial.")
-    if r.get("pgp2_modelo_promedio"):
-        add("PGP-2 promedio/mes (ESCENARIO MODELO PGP)", r["pgp2_modelo_promedio"], CONTROL["pgp2_mes"], H["pgp2_mes"],
-            "Usa la facturación EVENTO de ESCENARIO MODELO PGP; con la hoja FACTURACION EVENTO coincide.")
-    if "giro" in r and r["giro"]:
-        add("Giro directo sin UPC", r["giro"].get("giro_sin_upc"), fin.escenarios_mes.get("giro_sin_upc"),
-            fin.escenarios_mes.get("giro_sin_upc"))
-        add("Giro + UPC 2026", r["giro"].get("giro_upc"), fin.escenarios_mes.get("giro_upc"),
-            fin.escenarios_mes.get("giro_upc"))
     for m, ctrl in CONTROL_NT_MUNICIPIO.items():
         if "nt_municipio_total" in r:
             add(f"NT mensual {m}", r["nt_municipio_total"].get(m, 0.0), ctrl, None, "", tol=0.01)

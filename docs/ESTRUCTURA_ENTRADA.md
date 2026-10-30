@@ -105,3 +105,23 @@ Plantillas en `config/plantillas/` (CSV con `,` o `;`, o XLSX con los mismos enc
 | `despacho_medicamentos` | periodo, unidades, valor | Opcional (regla de medicamentos del dashboard CAPITA·EVENTO) |
 
 Los montos aceptan `1234567.89` o `1.234.567,89`.
+
+## 7. Base consolidada y actualización mes a mes
+
+* Cada carga (web, escritorio o sincronización de Drive) se valida, se depura y luego **actualiza la
+  base** en `datos/base/` por partición **(hospital, mes)**.
+* Modo *mes* (por defecto): el hospital-mes cargado reemplaza completo al anterior.
+  Modo *carpeta*: reemplaza solo las carpetas EPS cargadas y conserva las demás del mismo mes.
+* El análisis une las particiones y vuelve a deduplicar (por ejemplo, una remisión guardada en dos
+  meses se cuenta una vez).
+* Limpieza: eliminar un hospital-mes, un hospital, un municipio, un mes o vaciar la base (interfaz o
+  `cli base eliminar|vaciar`). Los maestros no se borran.
+
+## 8. Carpetas de Google Drive
+
+* Se registran las rutas locales de Google Drive para escritorio (una por hospital o una carpeta que
+  contenga varios hospitales).
+* La unidad de actualización es la carpeta de mes (`NN. Mes`); su huella combina ruta, tamaño y fecha de
+  modificación de cada archivo. **Sincronizar** solo reprocesa las unidades nuevas o con cambios.
+* Las carpetas de mes que ya no están en Drive se informan como *ausentes* para que se decida si se
+  limpian de la base.

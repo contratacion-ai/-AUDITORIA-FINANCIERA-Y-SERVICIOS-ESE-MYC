@@ -13,11 +13,12 @@ from .recomendaciones import generar
 HOJAS = [
     ("detalle_mensual", "Detalle Mensual CAPITA", "Detalle mensual CAPITA – RIPS"),
     ("capita_grupos", "CAPITA Grupos", "Servicios bajo CAPITA · costos por grupo (costo unitario NT × frecuencia RIPS)"),
-    ("escenarios", "Escenarios", "3 escenarios CAPITA, giros y PGP (valor mensual)"),
-    ("pgp_mensual", "PGP Mensual", "Modelo PGP mes a mes"),
-    ("corredor_evento", "Corredor EVENTO", "PGP-EVENTO: run-rate y corredor estadístico"),
+    ("frecuencias_nt_municipio_mes", "Frecuencias NT Municipio", "Nota Técnica Nueva EPS vs RIPS: ejecución por municipio y mes"),
+    ("frecuencias_nt_grupo", "Frecuencias NT Grupo", "Nota Técnica Nueva EPS vs RIPS: ejecución acumulada por grupo"),
+    ("frecuencias_nt_codigo", "Frecuencias NT Código", "Nota Técnica Nueva EPS vs RIPS: ejecución acumulada por servicio"),
+    ("frecuencias_fuera_nt", "Frecuencias Fuera NT", "Servicios CAPITA en RIPS que no están en la Nota Técnica"),
+    ("evento_mensual", "EVENTO Mensual", "Facturación EVENTO Nueva EPS por mes (RIPS)"),
     ("top20_evento", "TOP 20 EVENTO", "Top 20 servicios EVENTO · aplicabilidad CAPITA"),
-    ("migrables", "Simulación E→C", "Simulación económica EVENTO → CAPITA"),
     ("riesgo", "Riesgo", "Servicios de riesgo (traslados con tope contractual)"),
     ("frecuencias_municipio", "Frecuencias Municipio", "Frecuencias RIPS por municipio/hospital y mes"),
     ("frecuencias_mes", "Frecuencias Mes", "Frecuencias, CUPS, pacientes y valor por mes y modalidad"),
@@ -37,7 +38,7 @@ HOJAS = [
     ("comparacion_referencia", "Comparación Referencia", "RIPS cargados vs control oficial (libro vigente)"),
     ("conciliacion_informe", "Conciliación Informe", "Libro INFORME DE SERVICIOS vs control oficial y dashboard FINAL (histórico)"),
 ]
-MONEDA = ("valor", "costo", "giro", "glosa", "tarifa", "pgp", "evento", "run_rate", "limite", "dif_valor",
+MONEDA = ("valor", "costo", "glosa", "tarifa", "dif_valor",
           "acumulado", "promedio_mes", "2026-")
 
 
@@ -52,7 +53,7 @@ def escribir(r: Resultado, destino: Path | BytesIO) -> Path | BytesIO:
         f_txt = wb.add_format({"text_wrap": True, "valign": "top"})
         # Resumen
         ws = wb.add_worksheet("Resumen")
-        ws.write(0, 0, "E.S.E. Moreno y Clavijo · Auditoría RIPS CAPITA · EVENTO · PGP (Nueva EPS EPS037)", f_tit)
+        ws.write(0, 0, "E.S.E. Moreno y Clavijo · Auditoría RIPS CAPITA · EVENTO (Nueva EPS EPS037)", f_tit)
         ws.write(1, 0, f"Generado {r.generado} · Meses: {', '.join(r.alcance['meses'])} · Municipios: "
                        f"{', '.join(r.alcance['municipios'])}")
         k = r.indicadores["capita"]
@@ -64,7 +65,7 @@ def escribir(r: Resultado, destino: Path | BytesIO) -> Path | BytesIO:
                  ("Costo/atención (prom. mensual)", k["costo_atencion_prom"]),
                  ("Facturación EVENTO total", r.indicadores["evento_total"]),
                  ("EVENTO promedio/mes", r.indicadores["evento_promedio_mes"]),
-                 ("Migrables EVENTO→CAPITA (valor/mes)", r.indicadores["migrables_mes"]),
+                 ("Ejecución frecuencias NT Nueva EPS (%)", r.indicadores.get("ejecucion_nt_pct") or 0),
                  ("Hallazgos de severidad ALTA", r.indicadores["hallazgos_alta"]),
                  ("Valor en riesgo (hallazgos)", r.indicadores["valor_en_riesgo"])]
         ws.write_row(3, 0, ["Indicador", "Valor"], f_cab)

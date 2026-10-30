@@ -11,7 +11,7 @@ Cada línea de servicio recibe dos modalidades.
 | 1 | `CATALOGO_OFERTADO` | Código (o su homólogo) en MARCACION CUPS CAPITA con estado OFERTADO | CAPITA |
 | 2 | `CATALOGO_NO_OFERTADO` | En el catálogo con estado NO OFERTADO | EVENTO |
 | 3 | `NOTA_TECNICA` | No está en el catálogo pero sí en la Nota Técnica CAPITA | CAPITA |
-| 4 | `MODALIDAD_DECLARADA` | Sin marca; la carpeta o el contrato de la remisión dicen CAPITA, EVENTO o PGP | la declarada |
+| 4 | `MODALIDAD_DECLARADA` | Sin marca; la carpeta o el contrato de la remisión dicen CAPITA o EVENTO | la declarada |
 | 5 | `POR_DEFECTO` | Sin ningún dato | EVENTO (SIN MARCA), como el dashboard |
 | — | `EPISODIO` | AU, AH, AN (sin valor propio) | modalidad de la remisión |
 
@@ -76,30 +76,26 @@ Indicadores (mismas fórmulas del dashboard FINAL y del libro):
 | Pacientes únicos | suma de pacientes distintos de cada mes |
 | Asistencias | pares distintos (paciente, fecha de atención) por mes |
 
-## 4. Escenarios, giro y PGP
+## 4. Frecuencias Nota Técnica Nueva EPS vs RIPS
 
-| Escenario | Fórmula |
-|---|---|
-| Esc.1 CAPITA actual | promedio mensual del costo |
-| Esc.2 CAPITA ampliada | Esc.1 + migrables EVENTO→CAPITA por mes |
-| Esc.3 CAPITA demanda real | promedio últimos 4 meses × (1 + 3 %) + $60.000.000 nuevos servicios |
-| Giro sin UPC | usuarios × $25.909 |
-| Giro + UPC 2026 | giro × (1 + 16,49 %) |
-| Actas Bogotá | usuarios × $40.000 |
-| PGP-1 | giro sin UPC + EVENTO promedio |
-| PGP-2 | giro con UPC + EVENTO promedio |
-| PGP-EVENTO | run-rate (promedio últimos 4 meses de EVENTO) ± 1 desviación estándar; traslados fuera del PGP con tope |
+* **Previsto**: frecuencia MENSUAL de la hoja "NOTA TECNICA CAPITA NEPS" por código y municipio
+  (Tame, Arauquita, Fortul, Cravo Norte, Puerto Rondón).
+* **Observado**: frecuencia RIPS de los servicios con modalidad efectiva CÁPITA de Nueva EPS, del mismo
+  municipio y mes (los CUM de medicamentos se cruzan por el homólogo de la NT).
+* Solo se comparan municipios con RIPS de cápita cargados (un municipio sin cargar no es subejecución).
+* **% de ejecución** = RIPS / previsto × 100. Estados: DENTRO (±10 %), SOBREEJECUCION, SUBEJECUCION,
+  SIN_NT (servicio en RIPS que no está en la Nota Técnica).
+* **Valor del exceso** = (RIPS − previsto) × costo unitario NT, cuando RIPS supera lo previsto.
+* Hojas: `Frecuencias NT Municipio` (municipio × mes), `Frecuencias NT Grupo` (acumulado por grupo),
+  `Frecuencias NT Código` (acumulado por servicio, ordenado por desviación) y `Frecuencias Fuera NT`.
 
-Parámetros en `config/parametros_contrato.yaml`.
+## 5. EVENTO: facturación, Top 20 y riesgo
 
-## 5. EVENTO: Top 20, migrables y riesgo
-
+* Facturación mensual EVENTO Nueva EPS desde los RIPS (facturas, servicios, pacientes y valor).
 * Top 20 por frecuencia y Pareto (clase A = 80 % del valor, B = hasta 95 %, C = resto).
-* Aplicabilidad CAPITA (SÍ/NO/PARCIAL), lista de migrables y niveles de riesgo: catálogos `OBS`, `MIG`
-  y `RIE` del dashboard CAPITA·EVENTO, ampliables en `config/criterios_evento.yaml`.
-* Migrables: valor a tarifa EVENTO / meses del periodo (método del dashboard CAPITA·EVENTO).
-* Riesgo: traslados (S31307, 601T02, 601T01), parto, colposcopia, etc. Si se define `tope_mensual`,
-  el exceso genera el hallazgo `TRASLADOS_SOBRE_TOPE`.
+* Riesgo: traslados (S31307, 601T02, 601T01), parto, colposcopia, etc. (catálogo `RIE` del dashboard,
+  ampliable en `config/criterios_evento.yaml`). Si se define `tope_mensual` de traslados en
+  `config/parametros_contrato.yaml`, el exceso genera el hallazgo `TRASLADOS_SOBRE_TOPE`.
 
 ## 6. Cruces
 

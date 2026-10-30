@@ -1,7 +1,7 @@
 """Reproduce los totales de control de los artefactos de referencia con la lógica del paquete."""
 import pytest
 
-from rips_auditoria.analisis import controles_referencia, parametros
+from rips_auditoria.analisis import controles_referencia
 from rips_auditoria.calculos import capita
 from rips_auditoria.constantes import CONTROL, CONTROL_FINAL_HISTORICO
 from rips_auditoria.referencias import oficial
@@ -36,32 +36,6 @@ def test_historico_kpis_capita_reproducen_dashboard_final():
         assert round(r["costo"] / rc) == r["costo_atencion"]
 
 
-def test_historico_escenarios_y_pgp_dashboard_final():
-    ref_f = cargar_final()
-    d = ref_f.detalle_mensual
-    k = capita.kpis([r["costo"] for r in d], [r["pacientes"] for r in d], [r["asistencias"] for r in d],
-                    ref_f.pgp["RIPS_CAP"], 4)
-    ev = ref_f.pgp["FACT_EV"]
-    esc = capita.escenarios(k, ref_f.textos["migrables_esc2"], sum(ev) / len(ev), parametros())
-    e = esc.set_index("escenario")["valor_mes"].to_dict()
-    assert round(e["ESC.1 – CAPITA ACTUAL"]) == CONTROL_FINAL_HISTORICO["capita_promedio_mes"]
-    assert round(e["ESC.2 – CAPITA AMPLIADA"]) == CONTROL_FINAL_HISTORICO["capita_ampliada_mes"] == 1_112_074_196
-    assert round(e["ESC.3 – CAPITA DEMANDA REAL"]) == CONTROL_FINAL_HISTORICO["capita_ajustada_mes"] == 1_253_045_148
-    assert round(e["PGP-2 UPC + EVENTO"]) == CONTROL_FINAL_HISTORICO["pgp2_mes"] == 3_045_623_529
-    ref = cargar_final().escenarios_mes
-    for clave, nombre in [("giro_sin_upc", "Giro directo sin UPC (vigente)"), ("giro_upc", "Giro + UPC 2026"),
-                          ("actas_bogota", "Actas firmadas Bogotá"), ("pgp1_cap_evento", "PGP-1 Cápita vigente + EVENTO")]:
-        assert round(e[nombre]) == ref[clave]
-
-
-def test_pgp_mensual_igual_a_tabla_del_dashboard():
-    ref = cargar_final()
-    df = capita.pgp_mensual(ref.pgp["COSTO_FIJ"], ref.pgp["FACT_EV"], parametros())
-    # El libro de origen redondea el giro por celda: se admite ±1 peso.
-    for col, clave in (("pgp1_cap_vigente_evento", "P1"), ("pgp2_upc_evento", "P2"), ("pgp3_actas_evento", "P3")):
-        assert all(abs(a - b) <= 1 for a, b in zip(df[col], ref.pgp[clave])), col
-
-
 def test_regla_medicamentos_por_despacho_dashboard_evento():
     """adj = costNT − medC + despacho general (dashboard CAPITA·EVENTO)."""
     d = cargar_evento().datos
@@ -93,12 +67,13 @@ def test_control_oficial_totales_libro_vigente():
     assert sum(r["asistencias"] for r in det) == CONTROL["asistencias"] == 213_814
 
 
-def test_control_oficial_kpis_escenarios_y_pgp():
+def test_control_oficial_kpis():
     c = controles_referencia()
     calc = c["calculado"]
     for clave, v in CONTROL.items():
         assert abs(calc[clave] - v) <= 1, (clave, calc[clave], v)
     assert round(c["kpi"]["crecimiento_pct"], 1) == 33.0
+    assert "escenarios" not in c        # PGP y escenarios retirados
     # Sin medicamentos, el control oficial y el dashboard FINAL son el mismo valor
     assert abs(CONTROL["capita_sin_medicamentos"]
                - (CONTROL_FINAL_HISTORICO["capita_total"] - CONTROL_FINAL_HISTORICO["medicamentos"])) <= 1

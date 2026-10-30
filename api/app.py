@@ -12,11 +12,11 @@ from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
-from fastapi import Body, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Body, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from rips_auditoria import __version__, maestros
+from rips_auditoria import __version__, base, fuentes, maestros
 from rips_auditoria.analisis import Resultado, analizar, controles_referencia
 from rips_auditoria.config import DIR_DATOS, DIR_REFERENCIAS
 from rips_auditoria.informes import excel, pdf
@@ -69,13 +69,26 @@ def salud():
     return {"ok": True, "version": __version__, "datos": str(DIR_DATOS)}
 
 
+@app.post("/api/apagar")
+def apagar(request: Request):
+    """Cierra la aplicación de escritorio (solo desde el mismo equipo)."""
+    if request.client and request.client.host not in ("127.0.0.1", "::1", "localhost", "testclient"):
+        raise HTTPException(403)
+    import os
+    import threading
+    threading.Timer(0.5, lambda: os._exit(0)).start()
+    return {"cerrando": True}
+
+
 # ------------------------------------------------------------------------- lotes RIPS
 @app.post("/api/lotes")
 async def crear_lote(archivos: list[UploadFile] = File(...), rutas: list[str] = Form(default=[]),
                      hospital: str = Form(default=""), municipio: str = Form(default=""),
                      periodo: str = Form(default=""), cod_entidad: str = Form(default=""),
-                     anio: int = Form(default=2026)):
-    """Carga archivos sueltos, ZIP/RAR o una carpeta (``rutas`` = webkitRelativePath de cada archivo)."""
+                     anio: int = Form(default=2026), actualizar_base: bool = Form(default=True),
+                     modo: str = Form(default="mes")):
+    """Carga archivos sueltos, ZIP/RAR o una carpeta (``rutas`` = webkitRelativePath de cada archivo) y
+    actualiza la base consolidada: cada (hospital, mes) cargado reemplaza al anterior."""
     entradas = []
     for i, a in enumerate(archivos):
         ruta = rutas[i] if i < len(rutas) and rutas[i] else a.filename
@@ -84,7 +97,8 @@ async def crear_lote(archivos: list[UploadFile] = File(...), rutas: list[str] = 
                                 "cod_entidad": cod_entidad}.items() if v}
     lote = procesar(entradas, anio_defecto=anio, manual_global=manual)
     lote.guardar(DIR_LOTES)
-    return _resumen_lote(lote)
+    act = base.actualizar(lote, origen="carga web", modo=modo) if actualizar_base else None
+    return {**_resumen_lote(lote), "base": act}
 
 
 @app.get("/api/lotes")
@@ -110,6 +124,8 @@ def corregir_remisiones(lid: str, cambios: list[dict] = Body(...)):
     l = _lote(lid)
     total = sum(corregir(l, c["envio_id"], **{k: v for k, v in c.items() if k != "envio_id"}) for c in cambios)
     l.guardar(DIR_LOTES)
+    if base.eliminar_lote(l.id):           # la base se actualiza con la corrección
+        base.actualizar(l, origen="corrección manual")
     return {"registros_actualizados": total, **_resumen_lote(l)}
 
 
@@ -178,19 +194,75 @@ def _resultado(rid: str) -> Resultado:
 
 def _resumen_resultado(rid: str, r: Resultado) -> dict:
     return {"id": rid, "alcance": r.alcance, "indicadores": r.indicadores, "advertencias": r.advertencias,
-            "detalle_mensual": _tabla(r.tablas["detalle_mensual"]), "escenarios": _tabla(r.tablas["escenarios"]),
-            "capita_grupos": _tabla(r.tablas["capita_grupos"]), "top20_evento": _tabla(r.tablas["top20_evento"]),
-            "hallazgos": _tabla(r.tablas["hallazgos"], 50)}
+            "detalle_mensual": _tabla(r.tablas["detalle_mensual"]), "capita_grupos": _tabla(r.tablas["capita_grupos"]),
+            "frecuencias_nt_municipio_mes": _tabla(r.tablas.get("frecuencias_nt_municipio_mes")),
+            "frecuencias_nt_grupo": _tabla(r.tablas.get("frecuencias_nt_grupo")),
+            "frecuencias_nt_codigo": _tabla(r.tablas.get("frecuencias_nt_codigo"), 60),
+            "evento_mensual": _tabla(r.tablas.get("evento_mensual")),
+            "top20_evento": _tabla(r.tablas["top20_evento"]), "hallazgos": _tabla(r.tablas["hallazgos"], 50)}
 
 
 @app.post("/api/analisis")
-def ejecutar_analisis(lotes: list[str] = Body(..., embed=True), solo_eps_objetivo: bool = Body(True, embed=True)):
+def ejecutar_analisis(lotes: list[str] = Body(default=[], embed=True), hospitales: list[str] = Body(default=[], embed=True),
+                      municipios: list[str] = Body(default=[], embed=True), periodos: list[str] = Body(default=[], embed=True),
+                      solo_eps_objetivo: bool = Body(True, embed=True)):
+    """Analiza la base consolidada (con filtros) o, si se indican, lotes puntuales."""
     try:
-        r = analizar([_lote(x) for x in lotes], solo_eps_objetivo=solo_eps_objetivo)
+        fuente = [_lote(x) for x in lotes] if lotes else [base.lote(hospitales or None, municipios or None,
+                                                                     periodos or None)]
+        r = analizar(fuente, solo_eps_objetivo=solo_eps_objetivo)
     except ValueError as e:
         raise HTTPException(400, str(e))
     rid = _guardar_resultado(r)
     return _resumen_resultado(rid, r)
+
+
+# ------------------------------------------------------------------------- base consolidada y Drive
+@app.get("/api/base")
+def ver_base():
+    df = base.listar()
+    return {"resumen": base.resumen_tablas(), "particiones": _tabla(df),
+            "filtros": {"hospitales": sorted(df["hospital"].dropna().unique().tolist()) if not df.empty else [],
+                        "municipios": sorted(df["municipio"].dropna().unique().tolist()) if not df.empty else [],
+                        "periodos": sorted(df["periodo"].dropna().unique().tolist()) if not df.empty else []}}
+
+
+@app.delete("/api/base")
+def limpiar_base(hospital: str | None = None, periodo: str | None = None, municipio: str | None = None,
+                 clave: str | None = None):
+    return {"particiones_eliminadas": base.eliminar(hospital, periodo, municipio, clave)}
+
+
+@app.post("/api/base/vaciar")
+def vaciar_base(confirmar: bool = Body(False, embed=True)):
+    if not confirmar:
+        raise HTTPException(400, "Confirme el vaciado de la base")
+    return {"particiones_eliminadas": base.vaciar()}
+
+
+@app.get("/api/fuentes")
+def ver_fuentes():
+    d = fuentes.leer()
+    return {"carpetas": d["carpetas"], "ultima_sincronizacion": d.get("ultima_sincronizacion"),
+            "unidades_registradas": len(d.get("huellas", {}))}
+
+
+@app.post("/api/fuentes")
+def agregar_fuente(ruta: str = Body(..., embed=True)):
+    try:
+        return fuentes.agregar(ruta)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.delete("/api/fuentes")
+def quitar_fuente(ruta: str):
+    return fuentes.quitar(ruta)
+
+
+@app.post("/api/fuentes/sincronizar")
+def sincronizar(forzar: bool = Body(False, embed=True)):
+    return fuentes.sincronizar(forzar=forzar)
 
 
 @app.get("/api/analisis/{rid}")

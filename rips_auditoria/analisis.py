@@ -14,7 +14,7 @@ import pandas as pd
 import yaml
 
 from . import maestros
-from .calculos import capita, cruces, evento, hallazgos
+from .calculos import capita, cruces, evento, frecuencias, hallazgos
 from .clasificacion import clasificar
 from .config import DIR_CONFIG, red_prestadores
 from .constantes import CONTROL, CONTROL_FINAL_HISTORICO, MESES_AB, nombre_grupo
@@ -36,7 +36,8 @@ SUPUESTOS = [
     "sin marca: carpeta/contrato; si no hay, EVENTO (SIN MARCA).",
     "Modalidad efectiva para costos y facturación = la declarada por la remisión (carpeta/contrato) cuando existe; "
     "las diferencias con la modalidad contractual se reportan como hallazgos.",
-    "Migrables EVENTO→CAPITA valorados a tarifa EVENTO / meses (método del dashboard CAPITA·EVENTO).",
+    "Frecuencia prevista Nueva EPS = frecuencia MENSUAL de la hoja NOTA TECNICA CAPITA NEPS por municipio; "
+    "se compara con la frecuencia RIPS de cápita del mismo municipio y mes (solo municipios con RIPS cargados).",
 ]
 
 
@@ -134,28 +135,19 @@ def analizar(lotes: list[Lote], solo_eps_objetivo: bool = True, mae: dict | None
     grupos = capita.costos_grupo_mes(s, meses, desp)
     costos_mes = grupos[meses].sum(axis=0)
     det = capita.detalle_mensual(s, costos_mes, meses)
-    w = params["escenarios"]["meses_ventana"]
+    w = params["capita"]["meses_ventana"]
     k = capita.kpis(det["costo"].tolist(), det["pacientes"].tolist(), det["asistencias"].tolist(),
                     det["frecuencia_costeada"].tolist(), w)
     # EVENTO
     ev = s[s["modalidad"].isin(["EVENTO", "PGP"]) & ~s["es_episodio"]]
     ev_mes = ev.groupby("mes")["valor_total"].sum().reindex(meses, fill_value=0.0)
+    ev_tab = (ev.groupby("mes").agg(facturas=("num_factura", "nunique"), servicios=("cantidad", "sum"),
+                                    pacientes=("paciente", "nunique"), valor=("valor_total", "sum"))
+              .reindex(meses, fill_value=0).reset_index())
     cons_ev = evento.por_codigo(ev)
-    tras = cons_ev[cons_ev["grupo"] == "TRASLADOS"]["valor"].sum()
-    part_tr = tras / cons_ev["valor"].sum() if cons_ev["valor"].sum() else 0.0
-    mig = evento.migrables(cons_ev, max(nm, 1), k.promedio_reciente)
-    mig_mes = float(mig["valor_evento_mes"].sum()) if not mig.empty else 0.0
+    tras = cons_ev[cons_ev["grupo"] == "TRASLADOS"]["valor"].sum() if not cons_ev.empty else 0.0
+    part_tr = tras / cons_ev["valor"].sum() if not cons_ev.empty and cons_ev["valor"].sum() else 0.0
     rie = evento.riesgo(cons_ev, max(nm, 1), params["traslados"].get("tope_mensual"), params["traslados"]["codigos"])
-    corr = capita.corredor_evento(ev_mes.tolist(), part_tr, w, params["corredor"]["k_desviaciones"])
-    gv = capita.giro(params)
-    esc = capita.escenarios(k, mig_mes, float(ev_mes.mean()) if nm else 0.0, params, gv)
-    pgp = capita.pgp_mensual(det["costo"].tolist(), ev_mes.tolist(), params)
-    pgp["mes"] = meses
-    corr_tab = pd.DataFrame({"mes": meses, "evento": ev_mes.values})
-    corr_tab["run_rate"], corr_tab["limite_inferior"], corr_tab["limite_superior"] = (
-        corr["run_rate"], corr["limite_inferior"], corr["limite_superior"])
-    corr_tab["posicion"] = corr_tab["evento"].map(
-        lambda v: "Por debajo" if v < corr["limite_inferior"] else "Por encima" if v > corr["limite_superior"] else "Dentro")
     # Frecuencias y servicios
     base = s[~s["es_episodio"]]
     frec = (base.groupby(["municipio", "hospital", "mes", "modalidad"], dropna=False)
@@ -180,6 +172,7 @@ def analizar(lotes: list[Lote], solo_eps_objetivo: bool = True, mae: dict | None
     # Cruces
     tol = params["cruces"]
     nt_x = cruces.rips_vs_nota_tecnica(s, nt, tol["tolerancia_frecuencia_pct"])
+    fr = frecuencias.resumenes(nt_x, tol["tolerancia_frecuencia_pct"])
     tar_x = cruces.evento_vs_tarifario(s, mae.get("tarifario"), tol["tolerancia_tarifa_pct"])
     fac_x = cruces.rips_vs_facturacion(s, mae.get("facturacion"), tol["tolerancia_valor_pesos"])
     conc = cruces.conciliacion_facturas(lotes[0].tablas)
@@ -201,8 +194,12 @@ def analizar(lotes: list[Lote], solo_eps_objetivo: bool = True, mae: dict | None
     det_out = det.copy()
     det_out.insert(1, "mes_nombre", [MESES_AB[int(m[5:7]) - 1] if isinstance(m, str) and len(m) == 7 else m
                                      for m in det_out["mes"]])
-    ind = {"capita": asdict(k), "giro": gv, "corredor_evento": corr, "migrables_mes": mig_mes,
-           "participacion_traslados": part_tr, "evento_total": float(ev_mes.sum()),
+    mm = fr["por_municipio_mes"]
+    ejec = (float(mm["frecuencia_rips"].sum() / mm["frecuencia_prevista"].sum() * 100)
+            if not mm.empty and mm["frecuencia_prevista"].sum() else None)
+    ind = {"capita": asdict(k), "participacion_traslados": part_tr, "ejecucion_nt_pct": ejec,
+           "codigos_sobreejecucion": int((fr["por_codigo"]["estado"] == "SOBREEJECUCION").sum())
+           if not fr["por_codigo"].empty else 0, "evento_total": float(ev_mes.sum()),
            "evento_promedio_mes": float(ev_mes.mean()) if nm else 0.0, "meses": meses,
            "servicios": int(len(base)), "pacientes_distintos_periodo": int(s["paciente"].nunique()),
            "riesgo_traslados_mes": rie.attrs.get("traslados_mes") if not rie.empty else 0.0,
@@ -212,8 +209,10 @@ def analizar(lotes: list[Lote], solo_eps_objetivo: bool = True, mae: dict | None
                "municipios": sorted(s["municipio"].dropna().unique().tolist()),
                "hospitales": sorted(s["hospital"].dropna().unique().tolist()), "meses": meses,
                "servicios_otras_eps_excluidos": int((~todos["eps_objetivo"]).sum()) if solo_eps_objetivo else 0}
-    tablas = {"detalle_mensual": det_out, "capita_grupos": grupos_out, "escenarios": esc, "pgp_mensual": pgp,
-              "corredor_evento": corr_tab, "top20_evento": top20, "migrables": mig, "riesgo": rie,
+    tablas = {"detalle_mensual": det_out, "capita_grupos": grupos_out,
+              "frecuencias_nt_municipio_mes": fr["por_municipio_mes"], "frecuencias_nt_grupo": fr["por_grupo"],
+              "frecuencias_nt_codigo": fr["por_codigo"], "frecuencias_fuera_nt": fr["fuera_nt"],
+              "evento_mensual": ev_tab, "top20_evento": top20, "riesgo": rie,
               "frecuencias_mes": frec, "frecuencias_municipio": frec_piv.reset_index(),
               "servicios": serv, "pareto_valor": par_val, "pareto_frecuencia": par_frec, "top_costo_capita": top_costo,
               "costo_paciente": cpa, "cruce_nota_tecnica": nt_x, "cruce_tarifario": tar_x,
@@ -233,20 +232,17 @@ def controles_referencia() -> dict:
     det = oficial.detalle_mensual()
     ev = oficial.cargar()["evento_mensual"]
     k = capita.kpis([r["costo"] for r in det], [r["pacientes"] for r in det], [r["asistencias"] for r in det],
-                    [r["rips_nt"] for r in det], p["escenarios"]["meses_ventana"])
-    esc = capita.escenarios(k, p["escenarios"]["migrables_mes_referencia"], sum(ev) / len(ev), p)
+                    [r["rips_nt"] for r in det], p["capita"]["meses_ventana"])
     calc = {"capita_total": k.total, "medicamentos": sum(r["medicamentos"] for r in det),
             "capita_sin_medicamentos": k.total - sum(r["medicamentos"] for r in det),
             "cups": sum(r["cups"] for r in det), "cums": sum(r["cums"] for r in det),
             "pacientes_unicos": k.pacientes_suma, "asistencias": k.asistencias, "capita_promedio_mes": k.promedio_mes,
             "capita_cuatrimestre_1": k.periodo_temprano, "capita_cuatrimestre_2": k.periodo_reciente,
             "costo_usuario_mes": k.costo_usuario_prom, "costo_atencion_mes": k.costo_atencion_prom,
-            "capita_ampliada_mes": esc.iloc[1]["valor_mes"], "capita_ajustada_mes": esc.iloc[2]["valor_mes"],
-            "evento_total": sum(ev), "pgp2_mes": esc.iloc[7]["valor_mes"]}
+            "evento_total": sum(ev)}
     ref = cargar_final()
     inf = maestros.leer_resumen_informe()
     return {"control": CONTROL, "calculado": calc, "kpi": asdict(k),
-            "escenarios": esc.set_index("escenario")["valor_mes"].to_dict(),
             "historico_dashboard_final": {**CONTROL_FINAL_HISTORICO, "capita_total_html": ref.textos["total_capita_html"]},
             "conciliacion_informe": (inf or {}).get("conciliacion", []),
             "grupos": {nombre_grupo(g): v / k.total * 100 for g, v in oficial.cargar()["costo_grupo_total"].items()}}

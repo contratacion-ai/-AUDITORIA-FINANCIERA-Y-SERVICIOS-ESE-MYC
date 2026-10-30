@@ -1,12 +1,12 @@
-"""Costo CAPITA y escenarios de negociación (réplica de los dashboards de referencia).
+"""Costo CAPITA (réplica de la lógica de los dashboards de referencia y del libro INFORME DE SERVICIOS).
 
 Modelo de cálculo (dashboard CAPITA·EVENTO, hoja NT COSTOS):
 
     costo CAPITA (mes, grupo) = Σ_servicios costo_unitario_NT(código[, municipio]) × frecuencia_RIPS
 
 Opcionalmente el grupo MEDICAMENTOS se reemplaza por el despacho general de la institución
-(``adj = costNT − medC + despacho``). Los KPI, cuatrimestres, escenarios y PGP siguen las
-fórmulas del dashboard FINAL, que es el que fija los totales de control.
+(``adj = costNT − medC + despacho``). Los KPI y cuatrimestres siguen las fórmulas del dashboard
+FINAL y del libro.
 """
 from __future__ import annotations
 
@@ -164,67 +164,3 @@ def kpis(costos: list[float], pacientes: list[float], asistencias: list[float],
                      costo_paciente_global=total / sum(pacientes) if sum(pacientes) else 0.0,
                      costo_asistencia_global=total / sum(asistencias) if sum(asistencias) else 0.0,
                      tendencia_mes=pend)
-
-
-def giro(params: dict) -> dict[str, float]:
-    g = params["giro"]
-    u = g["usuarios"]
-    v0 = g["valor_usuario_mes"]
-    v1 = round(v0 * (1 + g["incremento_upc"]))
-    return {"usuarios": u, "valor_usuario": v0, "valor_usuario_upc": v1, "valor_usuario_actas": g["valor_usuario_actas"],
-            "giro_sin_upc": u * v0, "giro_upc": u * v0 * (1 + g["incremento_upc"]),
-            "giro_actas": u * g["valor_usuario_actas"]}
-
-
-def escenarios(k: KpiCapita, migrables_mes: float, evento_promedio_mes: float, params: dict,
-               giro_vals: dict | None = None) -> pd.DataFrame:
-    """Los 3 escenarios CAPITA + referencias de pago + PGP (dashboard FINAL).
-
-    * Esc.1 CAPITA ACTUAL      = promedio mensual del costo real.
-    * Esc.2 CAPITA AMPLIADA    = Esc.1 + servicios migrables EVENTO→CAPITA (valor/mes).
-    * Esc.3 CAPITA DEMANDA REAL= promedio del 2º cuatrimestre × (1 + ajuste poblacional) + nuevos servicios.
-    * PGP-1 = giro vigente + EVENTO promedio; PGP-2 = giro con UPC + EVENTO promedio.
-    """
-    e = params["escenarios"]
-    gv = giro_vals or giro(params)
-    e1 = k.promedio_mes
-    e2 = e1 + migrables_mes
-    e3 = k.promedio_reciente * (1 + e["ajuste_poblacional"]) + e["nuevos_servicios_mes"]
-    filas = [
-        ("ESC.1 – CAPITA ACTUAL", e1, "Base contractual vigente"),
-        ("ESC.2 – CAPITA AMPLIADA", e2, "Base + servicios migrables"),
-        ("ESC.3 – CAPITA DEMANDA REAL", e3, "2º cuatrimestre + ajuste poblacional + nuevos servicios"),
-        ("Giro directo sin UPC (vigente)", gv["giro_sin_upc"], f"{gv['usuarios']:,} × {gv['valor_usuario']:,}"),
-        ("Giro + UPC 2026", gv["giro_upc"], f"+{params['giro']['incremento_upc'] * 100:.2f} %"),
-        ("Actas firmadas Bogotá", gv["giro_actas"], f"{gv['usuarios']:,} × {gv['valor_usuario_actas']:,}"),
-        ("PGP-1 Cápita vigente + EVENTO", gv["giro_sin_upc"] + evento_promedio_mes, "Piso PGP"),
-        ("PGP-2 UPC + EVENTO", gv["giro_upc"] + evento_promedio_mes, "PGP óptimo"),
-    ]
-    df = pd.DataFrame(filas, columns=["escenario", "valor_mes", "detalle"])
-    df["valor_anual"] = df["valor_mes"] * 12
-    df["incremento_vs_esc1_pct"] = (df["valor_mes"] / e1 - 1) * 100 if e1 else 0.0
-    df["valor_usuario_mes"] = df["valor_mes"] / gv["usuarios"]
-    return df
-
-
-def pgp_mensual(costos: list[float], evento: list[float], params: dict) -> pd.DataFrame:
-    gv = giro(params)
-    n = len(costos)
-    return pd.DataFrame({
-        "mes": MESES_AB[:n], "costo_fijo_capita": costos, "facturacion_evento": evento,
-        "pgp1_cap_vigente_evento": [gv["giro_sin_upc"] + v for v in evento],
-        "pgp2_upc_evento": [gv["giro_upc"] + v for v in evento],
-        "pgp3_actas_evento": [gv["giro_actas"] + v for v in evento]})
-
-
-def corredor_evento(evento: list[float], participacion_traslados: float, ventana: int = 4, k: float = 1.0) -> dict:
-    """PGP-EVENTO del dashboard CAPITA·EVENTO: run-rate de los últimos meses ± k·desviación."""
-    n = len(evento)
-    w = min(ventana, n)
-    rr_vals = evento[n - w:]
-    rr = statistics.fmean(rr_vals) if rr_vals else 0.0
-    sd = statistics.stdev(rr_vals) if len(rr_vals) > 1 else 0.0
-    tr = rr * participacion_traslados
-    return {"promedio": statistics.fmean(evento) if evento else 0.0, "run_rate": rr, "desviacion": sd,
-            "cv_pct": sd / rr * 100 if rr else 0.0, "limite_inferior": rr - k * sd, "limite_superior": rr + k * sd,
-            "traslados_fuera_pgp": tr, "nucleo_pgp": rr - tr}

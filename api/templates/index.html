@@ -8,26 +8,30 @@
 </head>
 <body>
 <header>
-  <h1>🏥 Auditoría RIPS · CAPITA · EVENTO · PGP</h1>
+  <h1>🏥 Auditoría RIPS · CÁPITA · EVENTO</h1>
   <p>E.S.E. Moreno y Clavijo (NIT 900034131) · Nueva EPS (EPS037) · Tame · Arauquita · Fortul · Cravo Norte · Puerto Rondón</p>
   <nav>
     <button class="tb on" data-s="cargar">1. Cargar RIPS</button>
-    <button class="tb" data-s="lotes">2. Lotes y validación</button>
+    <button class="tb" data-s="base">2. Base de datos y Drive</button>
     <button class="tb" data-s="maestros">3. Maestros</button>
-    <button class="tb" data-s="analisis">4. Análisis e informes</button>
+    <button class="tb" data-s="analisis">4. Análisis CÁPITA · EVENTO</button>
     <button class="tb" data-s="referencia">5. Referencia</button>
+    <button class="tb cerrar" id="bCerrar" title="Cerrar la aplicación de escritorio">⏻ Cerrar</button>
   </nav>
 </header>
 <main>
 <section id="s-cargar" class="sec on">
-  <h2>Cargar archivos RIPS del mes</h2>
-  <p class="nota">Acepta TXT (Res. 3374), JSON (Res. 2275/2023 o consolidado), XLSX consolidado, ZIP, RAR o una carpeta completa
-  organizada como <code>Hospital / NN. Mes / EPS y modalidad / archivos</code>. Hospital, municipio y mes se detectan del contenido
-  (código de habilitación) y de las carpetas; puede forzarlos abajo. Los datos se procesan solo en este equipo.</p>
-  <div id="drop" class="drop">Arrastre aquí archivos o carpetas</div>
+  <h2>Cargar carpetas RIPS del mes</h2>
+  <p class="nota">Cargue la carpeta de cada hospital tal como está en Drive (<code>Hospital / NN. Mes / EPS / archivos</code>), o archivos
+  TXT, JSON, XLSX, ZIP o RAR. Cada carga <b>actualiza la base</b>: el hospital y mes cargados reemplazan la versión anterior,
+  sin sumar dos veces. Los datos se procesan solo en este equipo.</p>
+  <div id="drop" class="drop">Arrastre aquí carpetas o archivos</div>
   <div class="fila">
-    <label>Archivos (TXT, JSON, XLSX, ZIP, RAR) <input type="file" id="fArch" multiple></label>
     <label>Carpeta completa <input type="file" id="fCarp" webkitdirectory directory multiple></label>
+    <label>Archivos (TXT, JSON, XLSX, ZIP, RAR) <input type="file" id="fArch" multiple></label>
+    <label>Al actualizar la base
+      <select id="mModo"><option value="mes">Reemplazar el mes completo de cada hospital</option>
+        <option value="carpeta">Reemplazar solo las carpetas EPS cargadas</option></select></label>
   </div>
   <details><summary>Corrección manual (opcional, aplica a toda la carga)</summary>
     <div class="fila">
@@ -39,13 +43,26 @@
       <label>Año por defecto <input id="mAnio" type="number" value="2026"></label>
     </div>
   </details>
-  <p><span id="nSel">0 archivos seleccionados</span> <button id="bCargar" class="pri">Procesar carga</button></p>
+  <p><span id="nSel">0 archivos seleccionados</span> <button id="bCargar" class="pri">Procesar y actualizar base</button>
+     <button id="bLimpiarSel" class="sec2">Quitar selección</button></p>
   <div id="msgCarga"></div>
   <div id="resCarga"></div>
 </section>
 
-<section id="s-lotes" class="sec">
-  <h2>Lotes cargados</h2>
+<section id="s-base" class="sec">
+  <h2>Carpetas de Google Drive (sincronización)</h2>
+  <p class="nota">Registre la ruta local de la carpeta de Drive de cada hospital (Google Drive para escritorio, por ejemplo
+  <code>G:\Mi unidad\RIPS\Hospital San José de Cravo Norte</code>). <b>Sincronizar</b> vuelve a procesar solo las carpetas de mes
+  que cambiaron y actualiza la base.</p>
+  <div class="fila"><label>Ruta de la carpeta <input id="fRuta" size="70" placeholder="G:\Mi unidad\RIPS\Hospital ..."></label>
+    <button id="bAddFuente" class="sec2">Agregar carpeta</button></div>
+  <div id="lstFuentes"></div>
+  <p><button id="bSync" class="pri">Sincronizar cambios</button> <button id="bSyncF" class="sec2">Reprocesar todo</button></p>
+  <div id="msgSync"></div>
+  <h2>Base consolidada</h2>
+  <div id="resBase"></div>
+  <p><button id="bVaciar" class="sec2 peligro">Vaciar toda la base</button></p>
+  <h3>Validación de las últimas cargas</h3>
   <div id="listaLotes"></div>
   <div id="detLote"></div>
 </section>
@@ -53,14 +70,19 @@
 <section id="s-maestros" class="sec">
   <h2>Maestros (se guardan localmente)</h2>
   <p class="nota">El libro <b>INFORME DE SERVICIOS 2026 BASE DE DATOS ANALISIS.xlsx</b> carga a la vez el catálogo de marcación,
-  NT COSTOS y la Nota Técnica por municipio. Los demás maestros usan plantillas CSV/XLSX.</p>
+  los costos de la Nota Técnica (NT COSTOS) y las frecuencias mensuales de la Nota Técnica Nueva EPS por municipio.</p>
   <table id="tbMae"><thead><tr><th>Maestro</th><th>Fuente</th><th>Filas</th><th>Cargado</th><th>Pendiente</th><th>Cargar</th><th>Plantilla</th></tr></thead><tbody></tbody></table>
   <div id="msgMae"></div>
 </section>
 
 <section id="s-analisis" class="sec">
-  <h2>Análisis</h2>
-  <div id="selLotes"></div>
+  <h2>Análisis CÁPITA · EVENTO sobre la base consolidada</h2>
+  <div class="fila">
+    <label>Municipios <select id="fMun" multiple size="5"></select></label>
+    <label>Hospitales <select id="fHosp" multiple size="5"></select></label>
+    <label>Meses <select id="fPer" multiple size="5"></select></label>
+  </div>
+  <p class="nota">Sin selección se analiza toda la base. Use Ctrl+clic para elegir varios.</p>
   <label class="inline"><input type="checkbox" id="soloNeps" checked> Solo Nueva EPS (EPS037 / EPSS37)</label>
   <p><button id="bAnalizar" class="pri">Ejecutar análisis</button>
      <label class="inline">Restaurar desde JSON <input type="file" id="fRest" accept=".json"></label></p>
@@ -69,10 +91,10 @@
 </section>
 
 <section id="s-referencia" class="sec">
-  <h2>Artefactos de referencia</h2>
-  <p>Los dashboards originales se conservan sin cambios y se abren aquí:
+  <h2>Totales de control y artefactos de referencia</h2>
+  <p>Dashboards originales (sin cambios):
     <a href="/referencias/DASHBOARD_CAPITA_PGP_ESE_MYC_2026_FINAL.html" target="_blank">Dashboard FINAL</a> ·
-    <a href="/referencias/DASHBOARD_CAPITA_EVENTO_PGP_ESE_MYC_2026.html" target="_blank">Dashboard CAPITA·EVENTO·PGP</a></p>
+    <a href="/referencias/DASHBOARD_CAPITA_EVENTO_PGP_ESE_MYC_2026.html" target="_blank">Dashboard CAPITA·EVENTO</a></p>
   <div id="resRef"></div>
 </section>
 </main>

@@ -28,3 +28,6 @@ td{border-bottom:1px solid #e6ebf1;padding:4px 5px}td.n{text-align:right;font-va
 .ok{color:var(--v1)}.err{color:var(--r1)}
 .ALTA{color:var(--r1);font-weight:700}.MEDIA{color:#C55A11}
 @media (max-width:600px){main{padding:10px}.tb{font-size:12px;padding:6px 8px}}
+button.peligro{color:var(--r1);border-color:var(--r1)}
+select[multiple]{min-width:220px}
+.tb.cerrar{margin-left:auto;background:rgba(192,0,0,.55)}

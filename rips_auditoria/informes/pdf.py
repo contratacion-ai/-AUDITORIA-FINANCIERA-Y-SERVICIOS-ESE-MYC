@@ -43,7 +43,7 @@ def escribir(r: Resultado, destino: Path | BytesIO) -> Path | BytesIO:
     h1 = ParagraphStyle("h1", parent=st["Heading1"], textColor=AZUL, fontSize=15)
     h2 = ParagraphStyle("h2", parent=st["Heading2"], textColor=AZUL, fontSize=11.5)
     tx = ParagraphStyle("tx", parent=st["BodyText"], fontSize=8.5, leading=11)
-    el = [Paragraph("E.S.E. Moreno y Clavijo · Informe ejecutivo CAPITA · EVENTO · PGP (Nueva EPS)", h1),
+    el = [Paragraph("E.S.E. Moreno y Clavijo · Informe ejecutivo CAPITA · EVENTO (Nueva EPS)", h1),
           Paragraph(f"Generado {r.generado} · Meses {', '.join(r.alcance['meses'])} · Municipios "
                     f"{', '.join(r.alcance['municipios'])} · Hospitales {', '.join(r.alcance['hospitales'])}", tx),
           Spacer(1, 6)]
@@ -64,11 +64,13 @@ def escribir(r: Resultado, destino: Path | BytesIO) -> Path | BytesIO:
         bc.valueAxis.labelTextFormat = "%0.0f M"
         d.add(bc)
         el += [Paragraph("Evolución mensual del costo CAPITA (millones)", h2), d]
-    el.append(Paragraph("Escenarios de negociación (valor mensual)", h2))
-    esc = r.tablas["escenarios"]
-    el.append(_tabla([["Escenario", "Valor/mes", "Valor/año", "Valor usuario/mes", "Detalle"]] +
-                     [[e.escenario, _p(e.valor_mes), _p(e.valor_anual), _p(e.valor_usuario_mes), e.detalle]
-                      for e in esc.itertuples()], [6 * cm, 3.5 * cm, 3.8 * cm, 3.2 * cm, 8.5 * cm]))
+    fm = r.tablas.get("frecuencias_nt_municipio_mes")
+    if fm is not None and not fm.empty:
+        el.append(Paragraph("Frecuencias Nota Técnica Nueva EPS vs RIPS (por municipio y mes)", h2))
+        el.append(_tabla([["Municipio", "Mes", "Códigos NT", "Con RIPS", "Previsto", "RIPS", "Ejecución", "Estado"]] +
+                         [[x.municipio, x.mes, _n(x.codigos_nt), _n(x.codigos_con_rips), _n(x.frecuencia_prevista),
+                           _n(x.frecuencia_rips), f"{x.ejecucion_pct:.1f} %" if x.ejecucion_pct == x.ejecucion_pct else "—",
+                           x.estado] for x in fm.itertuples()]))
     el.append(Paragraph("Recomendaciones", h2))
     for i, (t, txt) in enumerate(generar(r), start=1):
         el.append(Paragraph(f"<b>{i}. {t}.</b> {txt}", tx))
@@ -82,8 +84,8 @@ def escribir(r: Resultado, destino: Path | BytesIO) -> Path | BytesIO:
     t20 = r.tablas["top20_evento"]
     if not t20.empty:
         el.append(Paragraph("Top 10 EVENTO por frecuencia", h2))
-        el.append(_tabla([["#", "Código", "Servicio", "Frecuencia", "Valor", "¿CAPITA?"]] +
-                         [[x.n, x.codigo, str(x.descripcion or "")[:55], _n(x.frecuencia), _p(x.valor), x.aplica_capita]
+        el.append(_tabla([["#", "Código", "Servicio", "Frecuencia", "Valor", "Marca catálogo"]] +
+                         [[x.n, x.codigo, str(x.descripcion or "")[:55], _n(x.frecuencia), _p(x.valor), x.estado]
                           for x in t20.head(10).itertuples()]))
     el.append(Paragraph("Supuestos", h2))
     for s in r.supuestos + r.advertencias:

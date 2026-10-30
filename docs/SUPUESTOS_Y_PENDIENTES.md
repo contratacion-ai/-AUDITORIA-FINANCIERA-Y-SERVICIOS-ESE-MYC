@@ -19,8 +19,8 @@
    Y CUPS 2026" del libro (costo mes / RIPS NT; promedio $8.626).
 7. **Modalidad efectiva = la declarada por la remisión** (carpeta/contrato) cuando existe; la del
    catálogo se usa para auditar diferencias.
-8. **Migrables valorados a tarifa EVENTO / meses** (dashboard CAPITA·EVENTO). El "costo estimado
-   CAPITA" del dashboard FINAL no tiene fórmula derivable en el HTML.
+8. **Alcance CÁPITA y EVENTO.** Por decisión del usuario (30/10/2026) se retiraron los módulos de PGP,
+   escenarios de negociación, giro y simulación EVENTO→CÁPITA.
 9. **Ámbito JSON 2275 → 3374**: `grupoServicios` 03/04 → hospitalario, 05 → urgencias, resto → ambulatorio.
 10. **Usuarios contratados = 70.003,77** (el dashboard rotula 70.004, pero el giro de $1.813.727.591 sale
     del promedio). Editable en `config/parametros_contrato.yaml`.
@@ -73,11 +73,11 @@ Otros hallazgos del libro:
 | # | Artefacto | Hallazgo | Tratamiento |
 |---|---|---|---|
 | 1 | FINAL, constante `GMON` | La matriz grupo × mes suma $1.006.627.054 (el promedio mensual), no $8.053 M; la columna "Acumulado" por grupo queda a 1/8 del valor real | Se toman como control el total publicado, el detalle mensual `DM` y la participación `GPCT`; los grupos se recalculan desde RIPS |
-| 2 | FINAL | Migrables: Esc.2 suma $105.447.145/mes; el texto dice $105.750.000/mes; la tabla SIM suma $105.856.087 | Esc.2 de control usa $105.447.145 (`migrables_mes_referencia`); el análisis con RIPS usa el valor calculado. **Confirmar la cifra oficial** |
+| 2 | FINAL | Migrables: Esc.2 suma $105.447.145/mes; el texto dice $105.750.000/mes; la tabla SIM suma $105.856.087 | Sin efecto: el módulo de escenarios/simulación fue retirado |
 | 3 | FINAL | Suma de los 8 costos mensuales = $8.053.016.409 vs total publicado $8.053.016.408 | Redondeo; las pruebas admiten ±$1 |
 | 4 | FINAL vs CAPITA·EVENTO | El dashboard CAPITA·EVENTO calcula $8.548.188.101 (base NT $8.264.369.795 con medicamentos por despacho general) frente a $8.053.016.408 del FINAL (diferencia $495,2 M) | El control es el FINAL, como se pidió; la regla de despacho queda como opción. **Confirmar cuál es el valor oficial** |
 | 5 | FINAL | Tres conteos distintos de RIPS CAPITA: 676.111 ("RIPS CAPS procesados"), 720.359 (hoja PGP) y 748.058 CUPS (detalle mensual) | Control = 748.058 CUPS; 720.359 se usa como frecuencia costeada para costo/atención |
-| 6 | FINAL, tabla PGP | PGP-2 de marzo difiere en $1 del giro UPC + EVENTO | Redondeo por celda; pruebas con ±$1 |
+| 6 | FINAL, tabla PGP | PGP-2 de marzo difiere en $1 del giro UPC + EVENTO | Sin efecto: el módulo PGP fue retirado |
 | 7 | FINAL, Top 20 | Incluye insumos y medicamentos (D-0082, G-0105) junto a CUPS | Se replica: el Top 20 no filtra por tipo de código |
 
 ## Pendientes de confirmación (estructura configurable ya implementada)

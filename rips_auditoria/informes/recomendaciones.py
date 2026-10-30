@@ -34,23 +34,19 @@ def generar(r: Resultado) -> list[tuple[str, str]]:
             rec.append(("Ajustar tarifas al tarifario pactado",
                         f"{len(tar)} combinaciones código-mes facturadas sobre tarifa; valor en riesgo {_m(tar['valor_en_riesgo'].fillna(0).sum())}."))
     if k["crecimiento_pct"] > 10 and k["promedio_reciente"] > 0:
-        rec.append(("Renegociar la cápita con el run-rate reciente",
+        rec.append(("Revisar el crecimiento del costo CAPITA",
                     f"El costo CAPITA del periodo reciente ({_m(k['promedio_reciente'])}/mes) creció "
-                    f"{k['crecimiento_pct']:.1f} % frente al inicial. El escenario 3 (demanda real) es la base técnica."))
-    mig = t.get("migrables")
-    if mig is not None and not mig.empty:
-        rec.append(("Migrar servicios predecibles de EVENTO a CÁPITA",
-                    f"{len(mig)} servicios con frecuencia estable suman {_m(ind['migrables_mes'])}/mes a tarifa evento "
-                    "(escenario 2: cápita ampliada)."))
+                    f"{k['crecimiento_pct']:.1f} % frente al inicial."))
+    ej = ind.get("ejecucion_nt_pct")
+    if ej is not None:
+        rec.append(("Seguimiento de frecuencias Nota Técnica Nueva EPS",
+                    f"Los RIPS de cápita cargados ejecutan el {ej:.1f} % de la frecuencia prevista; "
+                    f"{ind.get('codigos_sobreejecucion', 0)} servicio(s) por municipio superan lo previsto "
+                    "(hojas Frecuencias NT)."))
     if ind.get("participacion_traslados", 0) > 0.05:
-        rec.append(("Traslados fuera del PGP con tope contractual",
+        rec.append(("Traslados por evento con tope contractual",
                     f"Los traslados son {ind['participacion_traslados'] * 100:.1f} % del EVENTO. Mantenerlos por evento con "
                     "tope mensual y auditoría de pertinencia (dato de tope pendiente de confirmar)."))
-    c = ind.get("corredor_evento") or {}
-    if c.get("run_rate"):
-        rec.append(("Proponer PGP-EVENTO con corredor de ajuste",
-                    f"Run-rate EVENTO {_m(c['run_rate'])}/mes con corredor ±{c['cv_pct']:.1f} % "
-                    f"({_m(c['limite_inferior'])} – {_m(c['limite_superior'])})."))
     if r.advertencias:
         rec.append(("Completar maestros pendientes", " ".join(r.advertencias)))
     return rec

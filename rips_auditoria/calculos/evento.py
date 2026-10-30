@@ -1,7 +1,6 @@
-"""Análisis EVENTO: Top 20, Pareto, aplicabilidad CAPITA, migrables y servicios de riesgo.
+"""Análisis EVENTO: consolidado por código, Top 20, Pareto y servicios de riesgo (traslados).
 
-Los criterios de aplicabilidad (SÍ/NO/PARCIAL), la lista de 13+ migrables y la clasificación de
-riesgo se toman de los dashboards de referencia (``OBS``, ``MIG``, ``RIE``) y se pueden ampliar en
+La clasificación de riesgo se toma del dashboard de referencia (``RIE``) y se puede ampliar en
 ``config/criterios_evento.yaml``.
 """
 from __future__ import annotations
@@ -19,10 +18,7 @@ from ..referencias.dashboards import cargar_evento
 @lru_cache(maxsize=1)
 def criterios() -> dict:
     ref = cargar_evento()
-    out = {"aplicabilidad": {k: list(v) for k, v in ref.aplicabilidad.items()},
-           "migrables": dict(ref.migrables),
-           "riesgo": {c: {"servicio": n, "nivel": r} for c, n, r in ref.riesgo},
-           "tratamiento": {k: list(v) for k, v in ref.tratamiento.items()}}
+    out = {"riesgo": {c: {"servicio": n, "nivel": r} for c, n, r in ref.riesgo}}
     extra = DIR_CONFIG / "criterios_evento.yaml"
     if extra.exists():
         with open(extra, encoding="utf-8") as fh:
@@ -56,31 +52,9 @@ def pareto(df: pd.DataFrame, col: str = "valor") -> pd.DataFrame:
 
 
 def top20(cons: pd.DataFrame, por: str = "frecuencia") -> pd.DataFrame:
-    c = criterios()["aplicabilidad"]
     t = cons.sort_values(por, ascending=False).head(20).reset_index(drop=True)
     t.insert(0, "n", range(1, len(t) + 1))
-    t["aplica_capita"] = t["codigo"].map(lambda k: (c.get(k) or ["SIN CLASIFICAR"])[0])
-    t["observacion"] = t["codigo"].map(lambda k: (c.get(k) or [None, "Revisar con contratación."])[1])
     return t
-
-
-def migrables(cons: pd.DataFrame, n_meses: int, run_rate_capita: float) -> pd.DataFrame:
-    """Simulación EVENTO→CAPITA: valor a tarifa EVENTO por mes (método del dashboard CAPITA·EVENTO)."""
-    mig = criterios()["migrables"]
-    idx = cons.set_index("codigo")
-    filas = []
-    for cod, nombre in mig.items():
-        r = idx.loc[cod] if cod in idx.index else (idx.loc[cod + "."] if cod + "." in idx.index else None)
-        if r is None or float(r["valor"]) <= 0:
-            continue
-        v_mes = float(r["valor"]) / n_meses
-        filas.append({"codigo": cod, "servicio": nombre, "frecuencia": float(r["frecuencia"]),
-                      "frecuencia_mes": float(r["frecuencia"]) / n_meses, "valor_unitario": r["valor_unitario"],
-                      "valor_evento_mes": v_mes, "valor_anual": v_mes * 12,
-                      "impacto_pct": v_mes / run_rate_capita * 100 if run_rate_capita else None,
-                      "estado_catalogo": r["estado"], "en_nota_tecnica": bool(r["en_nt"]),
-                      "pacientes": int(r["pacientes"])})
-    return pd.DataFrame(filas)
 
 
 def riesgo(cons: pd.DataFrame, n_meses: int, tope_traslados_mes: float | None,

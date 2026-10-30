@@ -196,9 +196,12 @@ def test_analisis_completo_informes_y_json(carpeta_rips, tmp_path):
     assert (r.tablas["riesgo"]["codigo"] == "S31307").any()
     x = excel.escribir(r, tmp_path / "i.xlsx")
     hojas = openpyxl.load_workbook(x).sheetnames
-    for h in ("Resumen", "CAPITA Grupos", "Detalle Mensual CAPITA", "TOP 20 EVENTO", "Simulación E→C", "Escenarios",
-              "Riesgo", "Hallazgos", "NT vs RIPS", "EVENTO vs Tarifario", "RIPS vs Facturación", "Trazabilidad"):
+    for h in ("Resumen", "CAPITA Grupos", "Detalle Mensual CAPITA", "TOP 20 EVENTO", "EVENTO Mensual",
+              "Frecuencias NT Municipio", "Frecuencias NT Código", "Riesgo", "Hallazgos", "NT vs RIPS",
+              "EVENTO vs Tarifario", "RIPS vs Facturación", "Trazabilidad"):
         assert h in hojas
+    for retirada in ("Escenarios", "PGP Mensual", "Corredor EVENTO", "Simulación E→C"):
+        assert retirada not in hojas
     # Anonimización: ningún documento ni nombre del paciente en el informe
     contenido = " ".join(str(c.value) for ws in openpyxl.load_workbook(x).worksheets for row in ws.iter_rows()
                          for c in row if c.value is not None)
@@ -208,7 +211,7 @@ def test_analisis_completo_informes_y_json(carpeta_rips, tmp_path):
     assert p.read_bytes()[:4] == b"%PDF"
     r2 = Resultado.desde_json(r.a_json())
     assert r2.indicadores == r.indicadores
-    assert r2.tablas["escenarios"].shape == r.tablas["escenarios"].shape
+    assert r2.tablas["detalle_mensual"].shape == r.tablas["detalle_mensual"].shape
 
 
 def test_dos_lotes_con_los_mismos_archivos_no_duplican(carpeta_rips):

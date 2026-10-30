@@ -63,10 +63,7 @@ CONTROL = {
     "capita_cuatrimestre_2": 4_718_162_379,
     "costo_usuario_mes": 71_803,            # promedio de costo mes / pacientes únicos
     "costo_atencion_mes": 8_626,            # promedio de costo mes / RIPS NT
-    "capita_ampliada_mes": 1_138_493_369,   # Esc.1 + migrables ($105.447.145, pendiente de confirmar)
-    "capita_ajustada_mes": 1_274_926_813,   # Esc.3: prom. may–ago × 1,03 + $60 M
     "evento_total": 7_462_498_070,
-    "pgp2_mes": 3_045_623_529,              # giro con UPC + EVENTO promedio (no depende de la cápita)
 }
 
 # Totales del dashboard FINAL (versión anterior de medicamentos: 57.238 CUMS). Solo referencia histórica.
@@ -78,10 +75,6 @@ CONTROL_FINAL_HISTORICO = {
     "pacientes_unicos": 114_923,
     "asistencias": 213_814,
     "capita_promedio_mes": 1_006_627_051,
-    "capita_ampliada_mes": 1_112_074_196,
-    "capita_ajustada_mes": 1_253_045_148,
-    "pgp2_mes": 3_045_623_529,
-    "migrables_mes": 105_750_000,
 }
 
 # Totales de control de la Nota Técnica (hoja "NOTA TECNICA CAPITA NEPS", frecuencias mensuales).

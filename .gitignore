@@ -7,3 +7,5 @@ __pycache__/
 .pytest_cache/
 *.pyc
 .venv/
+/instalador/build/
+/instalador/dist/
