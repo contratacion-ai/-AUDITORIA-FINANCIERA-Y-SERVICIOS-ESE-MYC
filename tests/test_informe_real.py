@@ -10,7 +10,7 @@ import pytest
 from rips_auditoria import maestros
 from rips_auditoria.calculos import capita
 from rips_auditoria.clasificacion import clasificar
-from rips_auditoria.constantes import CONTROL, CONTROL_NT_MUNICIPIO
+from rips_auditoria.constantes import CONTROL, CONTROL_FINAL_HISTORICO, CONTROL_NT_MUNICIPIO
 from rips_auditoria.referencias.dashboards import cargar_final
 from tests.conftest import ARCHIVO_REAL_INFORME
 
@@ -32,7 +32,8 @@ def test_maestros_y_totales_de_control_del_libro(informe):
     c = {x["indicador"]: x for x in informe["conciliacion_control"]}
     for k in ("CUPS", "Pacientes únicos (suma mensual)", "Asistencias", "RIPS NT subsidiado – RIPS",
               "RIPS NT subsidiado – facturación", "RIPS NT contributivo – RIPS", "RIPS NT contributivo – facturación",
-              "Facturación EVENTO (hoja FACTURACION EVENTO)", "Costo CAPITA sin medicamentos"):
+              "Facturación EVENTO (hoja FACTURACION EVENTO)", "Costo CAPITA sin medicamentos",
+              "Costo CAPITA total ene–ago", "Medicamentos (grupo)", "CUMS", "Costo CAPITA promedio/mes"):
         assert c[k]["estado"] == "OK", k
 
 
@@ -53,12 +54,13 @@ def test_motor_reproduce_libro_y_control(informe):
     s = capita.costear(clasificar(_servicios_desde_nt_costos(), maestros.leer("catalogo"), nt), nt)
     meses = sorted(s.mes.unique())
     g = capita.costos_grupo_mes(s, meses)
-    # costo unitario NT × frecuencia RIPS = total de la hoja NT COSTOS
-    assert g["acumulado"].sum() == pytest.approx(8_264_369_794.92, abs=1)
-    # Reemplazando el grupo MEDICAMENTOS por los valores del dashboard FINAL se obtiene el control
+    # costo unitario NT × frecuencia RIPS = total oficial (libro vigente, medicamentos actuales)
+    assert abs(g["acumulado"].sum() - CONTROL["capita_total"]) <= 1
+    assert abs(g.loc["MEDICAMENTOS", "acumulado"] - CONTROL["medicamentos"]) <= 1
+    # Histórico: con los medicamentos de la versión anterior se reproduce el dashboard FINAL
     fin = cargar_final()
     no_med = g.drop(index="MEDICAMENTOS")[meses].sum()
     med_final = [r["costo"] - v for r, v in zip(fin.detalle_mensual, no_med)]
     g2 = capita.costos_grupo_mes(s, meses, pd.DataFrame({"periodo": meses, "valor": med_final}))
     assert g2[meses].sum().round().tolist() == [r["costo"] for r in fin.detalle_mensual]
-    assert abs(g2["acumulado"].sum() - CONTROL["capita_total"]) <= 1
+    assert abs(g2["acumulado"].sum() - CONTROL_FINAL_HISTORICO["capita_total"]) <= 1

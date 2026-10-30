@@ -151,12 +151,13 @@ $('fRest').onchange = async e => {
 // ---------------------------------------------------------------- 5. referencia
 async function cargarReferencia() {
   const r = await api('/api/referencia');
-  const filas = Object.keys(r.control).map(k => ({indicador: k, control: r.control[k],
-    referencia: r.referencia[k] ?? r.escenarios[{capita_promedio_mes: 'ESC.1 – CAPITA ACTUAL', capita_ampliada_mes: 'ESC.2 – CAPITA AMPLIADA',
-      capita_ajustada_mes: 'ESC.3 – CAPITA DEMANDA REAL', pgp2_mes: 'PGP-2 UPC + EVENTO'}[k]] ?? null}));
-  $('resRef').innerHTML = (r.conciliacion_informe && r.conciliacion_informe.length
-      ? `<h3>Conciliación libro INFORME DE SERVICIOS vs dashboard FINAL</h3>${tabla(r.conciliacion_informe)}`
-      : '<p class="nota">Cargue el libro INFORME DE SERVICIOS en Maestros para ver su conciliación con los totales de control.</p>') +
-    `<h3>Totales de control vs recálculo</h3>${tabla(filas)}<h3>Participación por grupo (FINAL)</h3>
-    ${tabla(Object.entries(r.grupos).map(([g, p]) => ({grupo: g, participacion_pct: p})))}`;
+  const filas = Object.keys(r.control).map(k => ({indicador: k, control_oficial: r.control[k], recalculo: r.calculado[k],
+    dashboard_final_historico: r.historico_dashboard_final[k] ?? null}));
+  $('resRef').innerHTML = `<p class="nota">Control oficial = libro INFORME DE SERVICIOS 2026 vigente con la cifra actual de
+    medicamentos ($236,1 M · 554.587 CUMS). El dashboard FINAL se muestra solo como referencia histórica.</p>
+    <h3>Totales de control oficiales vs recálculo</h3>${tabla(filas)}` +
+    (r.conciliacion_informe && r.conciliacion_informe.length
+      ? `<h3>Conciliación del libro cargado</h3>${tabla(r.conciliacion_informe)}`
+      : '<p class="nota">Cargue el libro INFORME DE SERVICIOS en Maestros para ver su conciliación.</p>') +
+    `<h3>Participación por grupo (oficial)</h3>${tabla(Object.entries(r.grupos).map(([g, p]) => ({grupo: g, participacion_pct: p})))}`;
 }

@@ -45,7 +45,8 @@ def test_carpeta_con_rutas_relativas(cliente):
 
 def test_referencia_y_maestros(cliente):
     ref = cliente.get("/api/referencia").json()
-    assert ref["control"]["capita_total"] == 8_053_016_408
+    assert ref["control"]["capita_total"] == 8_264_369_795
+    assert ref["historico_dashboard_final"]["capita_total"] == 8_053_016_408
     assert cliente.get("/api/maestros").status_code == 200
     assert cliente.get("/api/maestros/plantillas/tarifario.csv").text.startswith("codigo")
     assert cliente.get("/referencias/DASHBOARD_CAPITA_PGP_ESE_MYC_2026_FINAL.html").status_code == 200

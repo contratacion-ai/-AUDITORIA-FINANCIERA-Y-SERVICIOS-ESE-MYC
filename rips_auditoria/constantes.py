@@ -48,11 +48,34 @@ GRUPOS_CAPITA_FINAL = [
 TIPOS_RIPS = ["CT", "AF", "US", "AD", "AC", "AP", "AU", "AH", "AN", "AM", "AT"]
 TIPOS_SERVICIO = ["AC", "AP", "AU", "AH", "AN", "AM", "AT", "AD"]
 
-# Totales de control (dashboard FINAL, enero–agosto 2026).
+# Totales de control OFICIALES, enero–agosto 2026: libro INFORME DE SERVICIOS 2026 vigente, con la
+# cifra ACTUAL de medicamentos (decisión del usuario). Serie mensual en config/control_oficial.yaml.
 CONTROL = {
-    "capita_total": 8_053_016_408,
+    "capita_total": 8_264_369_795,          # NT COSTOS: costo unitario NT × frecuencia RIPS
+    "medicamentos": 236_095_610,            # grupo MEDICAMENTOS del libro vigente
+    "capita_sin_medicamentos": 8_028_274_185,
     "cups": 748_058,
-    "pacientes_unicos": 114_923,   # suma de pacientes únicos mensuales
+    "cums": 554_587,
+    "pacientes_unicos": 114_923,            # suma de pacientes únicos mensuales
+    "asistencias": 213_814,
+    "capita_promedio_mes": 1_033_046_224,
+    "capita_cuatrimestre_1": 3_546_207_416,
+    "capita_cuatrimestre_2": 4_718_162_379,
+    "costo_usuario_mes": 71_803,            # promedio de costo mes / pacientes únicos
+    "costo_atencion_mes": 8_626,            # promedio de costo mes / RIPS NT
+    "capita_ampliada_mes": 1_138_493_369,   # Esc.1 + migrables ($105.447.145, pendiente de confirmar)
+    "capita_ajustada_mes": 1_274_926_813,   # Esc.3: prom. may–ago × 1,03 + $60 M
+    "evento_total": 7_462_498_070,
+    "pgp2_mes": 3_045_623_529,              # giro con UPC + EVENTO promedio (no depende de la cápita)
+}
+
+# Totales del dashboard FINAL (versión anterior de medicamentos: 57.238 CUMS). Solo referencia histórica.
+CONTROL_FINAL_HISTORICO = {
+    "capita_total": 8_053_016_408,
+    "medicamentos": 24_742_224,
+    "cups": 748_058,
+    "cums": 57_238,
+    "pacientes_unicos": 114_923,
     "asistencias": 213_814,
     "capita_promedio_mes": 1_006_627_051,
     "capita_ampliada_mes": 1_112_074_196,

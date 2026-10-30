@@ -15,26 +15,34 @@ Nivel Moreno y Clavijo (NIT 900034131) con Nueva EPS (EPS037/EPSS37), en los mun
   el PGP y el corredor de EVENTO, con el mismo modelo y los mismos nombres de grupo que los
   dashboards de referencia.
 * **Cruza** RIPS vs Nota Técnica, EVENTO vs tarifario pactado y RIPS vs facturación por ámbito.
-* **Concilia** el libro INFORME DE SERVICIOS con los totales de control del dashboard FINAL.
+* **Concilia** el libro INFORME DE SERVICIOS con los totales de control oficiales y con el dashboard FINAL (histórico).
 * **Informa** en Excel (27 hojas), PDF ejecutivo con recomendaciones y JSON para guardar/restaurar.
 
 Los datos de pacientes se procesan en el equipo local (`datos/`, excluido de git) y los informes
 agregados usan seudónimos (`PAC-xxxxxxxxxxxx`).
 
-## Totales de control
+## Totales de control (oficiales)
 
-Las pruebas reproducen los valores del dashboard FINAL (enero–agosto 2026):
+Fuente oficial: libro **INFORME DE SERVICIOS 2026** vigente, con la cifra **actual** de medicamentos
+(decisión del 30/10/2026). Serie mensual en `config/control_oficial.yaml`; las pruebas la reproducen
+con el motor de cálculo:
 
-| Indicador | Control |
-|---|---|
-| Costo CAPITA ene–ago | $8.053.016.408 (el libro actual da $8.264.369.795: ver conciliación) |
-| CUPS | 748.058 |
-| Pacientes únicos (suma mensual) | 114.923 |
-| Asistencias | 213.814 |
-| Promedio/mes · Esc.1 | $1.006.627.051 |
-| Esc.2 CAPITA ampliada | $1.112.074.196 |
-| Esc.3 CAPITA demanda real | $1.253.045.148 |
-| PGP-2 (UPC + EVENTO) | $3.045.623.529 |
+| Indicador (ene–ago 2026) | Control oficial | Dashboard FINAL (histórico) |
+|---|---|---|
+| Costo CAPITA | $8.264.369.795 | $8.053.016.408 |
+| Medicamentos (grupo) | $236.095.610 | $24.742.224 |
+| Costo CAPITA sin medicamentos | $8.028.274.185 | $8.028.274.185 |
+| CUPS / CUMS | 748.058 / 554.587 | 748.058 / 57.238 |
+| Pacientes únicos (suma mensual) / asistencias | 114.923 / 213.814 | igual |
+| Promedio/mes · Esc.1 | $1.033.046.224 | $1.006.627.051 |
+| Cuatrimestres ene–abr / may–ago (+33,0 %) | $3.546.207.416 / $4.718.162.379 | $3.420 M / $4.633 M |
+| Costo/usuario · costo/atención (promedio mensual) | $71.803 · $8.626 | $69.781 · $11.130 |
+| Esc.2 CAPITA ampliada (+ migrables $105.447.145) | $1.138.493.369 | $1.112.074.196 |
+| Esc.3 CAPITA demanda real | $1.274.926.813 | $1.253.045.148 |
+| Facturación EVENTO | $7.462.498.070 | igual |
+| PGP-2 (UPC + EVENTO) | $3.045.623.529 | igual |
+
+Con una nueva versión del libro: `python -m rips_auditoria.cli control-oficial LIBRO.xlsx`.
 
 ```bash
 python -m rips_auditoria.cli controles

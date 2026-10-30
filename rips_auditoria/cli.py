@@ -77,7 +77,9 @@ def main(argv=None) -> int:
     ma = sp.add_parser("maestro", help="Carga un maestro local")
     ma.add_argument("nombre", choices=["informe", *maestros.PLANTILLAS])
     ma.add_argument("archivo")
-    sp.add_parser("controles", help="Muestra los totales de control de los dashboards de referencia")
+    sp.add_parser("controles", help="Muestra los totales de control oficiales y su recálculo")
+    co = sp.add_parser("control-oficial", help="Regenera config/control_oficial.yaml desde el libro INFORME DE SERVICIOS")
+    co.add_argument("archivo")
     sp.add_parser("plantillas", help="Escribe las plantillas CSV de maestros en ./plantillas")
     a = p.parse_args(argv)
     if a.cmd == "procesar":
@@ -88,6 +90,10 @@ def main(argv=None) -> int:
         return 0
     if a.cmd == "controles":
         print(json.dumps(controles_referencia(), ensure_ascii=False, indent=1, default=float))
+        return 0
+    if a.cmd == "control-oficial":
+        from .referencias.oficial import escribir_desde_informe
+        print(f"✔ {escribir_desde_informe(Path(a.archivo).read_bytes())} (actualice CONTROL en constantes.py si cambian)")
         return 0
     if a.cmd == "plantillas":
         maestros.escribir_plantillas(Path("plantillas"))

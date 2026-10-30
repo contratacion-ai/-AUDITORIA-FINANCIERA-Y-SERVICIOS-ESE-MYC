@@ -1,0 +1,120 @@
+# Serie OFICIAL de control (cifras agregadas del libro INFORME DE SERVICIOS 2026 vigente).
+# Decisión: se usa la cifra ACTUAL de medicamentos del libro ($236.095.610; 554.587 CUMS), no la del
+# dashboard FINAL ($24,7 M implícitos; 57.238 CUMS), que se conserva solo como referencia histórica.
+# Regenerar al recibir una nueva versión del libro:  python -m rips_auditoria.cli control-oficial LIBRO.xlsx
+fuente: INFORME_DE_SERVICIOS_2026_BASE_DE_DATOS_ANALISIS.xlsx (versión vigente, decisión del usuario 2026-10-30)
+meses:
+- 2026-01
+- 2026-02
+- 2026-03
+- 2026-04
+- 2026-05
+- 2026-06
+- 2026-07
+- 2026-08
+costo_capita_mensual:
+- 775678489.72
+- 686278498.24
+- 1042281063.58
+- 1041969364.73
+- 1121859941.98
+- 1180138935.22
+- 1212059872.83
+- 1204103628.62
+medicamentos_mensual:
+- 20405474.64
+- 53299525.47
+- 35705088.62
+- 27476340.5
+- 32576677.66
+- 22015102.12
+- 26260896.47
+- 18356504.29
+rips_nt_mensual:
+- 90276.8845
+- 89549.8845
+- 125044.8845
+- 123340.8845
+- 128281.8845
+- 125446.8845
+- 135365.8845
+- 135830.8845
+costo_grupo_total:
+  APOYO TERAPEUTICO: 294874271.31
+  IMAGENOLOGIA: 288471253.3
+  INTERNACION BASICA: 248860411.14
+  LABORATORIO: 711566364.35
+  MEDICAMENTOS: 236095609.78
+  MEDICINA GENERAL: 894963231.34
+  ODONTOLOGIA: 548384954.69
+  PROCEDIMIENTOS: 191964319.12
+  PROMOCION Y MANTENIMIENTO DE LA SALUD: 3487696617.93
+  URGENCIAS: 1361492761.96
+cups_mensual:
+- 68660
+- 60055
+- 100858
+- 101101
+- 100635
+- 102262
+- 105104
+- 109383
+cums_mensual:
+- 79322
+- 54483
+- 78349
+- 54420
+- 51561
+- 75633
+- 56546
+- 104273
+pacientes_mensual:
+- 12822
+- 9374
+- 15887
+- 15093
+- 14394
+- 15738
+- 15136
+- 16479
+asistencias_mensual:
+- 21781
+- 17113
+- 30088
+- 29603
+- 27813
+- 28115
+- 28383
+- 30918
+pacientes_2_mas_mensual:
+- 4889
+- 4031
+- 7018
+- 7013
+- 6650
+- 6443
+- 6812
+- 7228
+evento_mensual:
+- 710189773
+- 749978635
+- 831998018
+- 894501376
+- 1151139339
+- 982017634
+- 1023739359
+- 1118933936
+evento_servicios_mensual:
+- 3679
+- 3888
+- 4569
+- 5409
+- 7221
+- 6559
+- 6575
+- 7275
+frecuencias:
+  subsidiado_rips: 910925.0
+  subsidiado_facturacion: 629182.0
+  contributivo_rips: 17559.0
+  contributivo_facturacion: 18439.0

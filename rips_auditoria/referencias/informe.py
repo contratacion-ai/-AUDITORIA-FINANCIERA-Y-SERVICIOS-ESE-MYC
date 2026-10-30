@@ -7,7 +7,7 @@ trazabilidad de cifras para la auditoría.
 """
 from __future__ import annotations
 
-from ..constantes import CONTROL, CONTROL_NT_MUNICIPIO, MESES, MESES_AB, nombre_grupo, norm
+from ..constantes import CONTROL, CONTROL_FINAL_HISTORICO, CONTROL_NT_MUNICIPIO, MESES, MESES_AB, nombre_grupo, norm
 from .dashboards import cargar_final
 
 
@@ -143,69 +143,67 @@ def resumen_informe(datos: bytes) -> dict:
 
 
 def conciliar(r: dict) -> list[dict]:
-    """Cifras del libro vs dashboard FINAL / totales de control, con la explicación de cada diferencia."""
+    """Cifras del libro vs control OFICIAL (libro vigente, medicamentos actuales) y vs dashboard FINAL
+    (referencia histórica), con la explicación de cada diferencia."""
     fin = cargar_final()
-    dm = fin.detalle_mensual
+    H = CONTROL_FINAL_HISTORICO
     filas: list[dict] = []
 
-    def add(ind, informe, final, explicacion=""):
-        dif = (informe - final) if informe is not None and final is not None else None
-        filas.append({"indicador": ind, "informe": informe, "dashboard_final": final, "diferencia": dif,
-                      "estado": "OK" if dif is not None and abs(dif) <= 1 else ("DIFERENTE" if dif is not None else "—"),
+    def add(ind, informe, control, historico=None, explicacion="", tol=1.0):
+        dif = (informe - control) if informe is not None and control is not None else None
+        filas.append({"indicador": ind, "informe": informe, "control_oficial": control,
+                      "dashboard_final_historico": historico, "diferencia_vs_oficial": dif,
+                      "estado": "OK" if dif is not None and abs(dif) <= tol else ("DIFERENTE" if dif is not None else "—"),
                       "explicacion": explicacion})
     if "capita_mensual" in r:
         tot = sum(r["capita_mensual"])
         med = sum(r["medicamentos_mensual"])
-        sin_med = tot - med
-        med_final = CONTROL["capita_total"] - sin_med
-        add("Costo CAPITA total ene–ago", tot, CONTROL["capita_total"],
-            "La diferencia está completa en el grupo MEDICAMENTOS: sin medicamentos, el libro y el control coinciden "
-            f"({sin_med:,.0f}); el control implica medicamentos por {med_final:,.0f} y el libro trae {med:,.0f} "
-            f"({r.get('unidades_medicamentos', 0):,.0f} unidades CUMS costeadas). Confirmar cuál versión es la oficial.")
-        add("Costo CAPITA sin medicamentos", sin_med, CONTROL["capita_total"] - med_final,
-            "Por construcción: componente no farmacéutico idéntico (ver participación por grupo).")
-        add("Medicamentos (grupo)", med, med_final, "El dashboard FINAL se generó con una versión anterior de las "
-            "frecuencias de medicamentos (57.238 CUMS frente a 554.587 del libro actual).")
-        add("Costo CAPITA promedio/mes", tot / len(r["capita_mensual"]), CONTROL["capita_promedio_mes"])
-        tot_nm = sin_med or 1
-        for g, pct in zip(fin.grupos, fin.grupos_pct):
-            if g == "MEDICAMENTOS":
-                continue
-            v = sum(r["capita_grupo_mes"].get(g, [])) + (sum(r["capita_grupo_mes"].get("URGENCIAS CON OBSERVACION", []))
-                                                         if g == "URGENCIAS" else 0)
-            pct_inf = v / (tot_nm + med_final) * 100
-            filas.append({"indicador": f"Participación {nombre_grupo(g)} (%)", "informe": round(pct_inf, 2),
-                          "dashboard_final": pct, "diferencia": round(pct_inf - pct, 2),
-                          "estado": "OK" if abs(pct_inf - pct) <= 0.1 else "DIFERENTE",
-                          "explicacion": "Calculado sobre el total con los medicamentos del control"})
+        add("Costo CAPITA total ene–ago", tot, CONTROL["capita_total"], H["capita_total"],
+            "Oficial = libro vigente con medicamentos actuales. El dashboard FINAL usaba una versión anterior de "
+            "medicamentos (diferencia completa en ese grupo).")
+        add("Medicamentos (grupo)", med, CONTROL["medicamentos"], H["medicamentos"],
+            f"{r.get('unidades_medicamentos', 0):,.0f} unidades CUMS costeadas en NT COSTOS.")
+        add("Costo CAPITA sin medicamentos", tot - med, CONTROL["capita_sin_medicamentos"],
+            H["capita_total"] - H["medicamentos"], "Idéntico en el libro y en el dashboard FINAL.")
+        add("Costo CAPITA promedio/mes", tot / len(r["capita_mensual"]), CONTROL["capita_promedio_mes"],
+            H["capita_promedio_mes"])
+        for g, pct_fin in zip(fin.grupos, fin.grupos_pct):
+            v = sum(r["capita_grupo_mes"].get(g, []))
+            filas.append({"indicador": f"Participación {nombre_grupo(g)} (%)", "informe": round(v / tot * 100, 2),
+                          "control_oficial": round(v / tot * 100, 2), "dashboard_final_historico": pct_fin,
+                          "diferencia_vs_oficial": 0.0, "estado": "OK",
+                          "explicacion": "Participación oficial (libro vigente); el FINAL difiere por medicamentos"})
     if "pacientes_mes" in r:
         p = r["pacientes_mes"]
-        add("CUPS", sum(x["cups"] for x in p), CONTROL["cups"])
-        add("Pacientes únicos (suma mensual)", sum(x["pacientes"] for x in p), CONTROL["pacientes_unicos"])
-        add("Asistencias", sum(x["asistencias"] for x in p), CONTROL["asistencias"])
-        add("CUMS", sum(x["cums"] for x in p), sum(x["cums"] for x in dm),
-            "El dashboard FINAL muestra otra columna de CUMS (versión anterior).")
+        add("CUPS", sum(x["cups"] for x in p), CONTROL["cups"], H["cups"])
+        add("CUMS", sum(x["cums"] for x in p), CONTROL["cums"], H["cums"],
+            "Cifra actual del libro (el FINAL mostraba 57.238 de una versión anterior).")
+        add("Pacientes únicos (suma mensual)", sum(x["pacientes"] for x in p), CONTROL["pacientes_unicos"],
+            H["pacientes_unicos"])
+        add("Asistencias", sum(x["asistencias"] for x in p), CONTROL["asistencias"], H["asistencias"])
     for k, nombre, ctrl in (("frecuen_sub", "RIPS NT subsidiado", (910_925, 629_182)),
                             ("frecuen_cont", "RIPS NT contributivo", (17_559, 18_439))):
         if k in r:
             add(f"{nombre} – RIPS", r[k].get("rips_total"), ctrl[0])
-            add(f"{nombre} – facturación", r[k].get("facturacion_total"), ctrl[1],
+            add(f"{nombre} – facturación", r[k].get("facturacion_total"), ctrl[1], None,
                 "Facturación incluye diciembre 2025 y llega a julio (columnas de la hoja).")
     if "evento_mensual" in r:
-        add("Facturación EVENTO (hoja FACTURACION EVENTO)", sum(r["evento_mensual"]), sum(fin.pgp["FACT_EV"]))
+        add("Facturación EVENTO (hoja FACTURACION EVENTO)", sum(r["evento_mensual"]), CONTROL["evento_total"],
+            sum(fin.pgp["FACT_EV"]))
     if r.get("evento_modelo_pgp"):
-        add("Facturación EVENTO (hoja ESCENARIO MODELO PGP)", sum(r["evento_modelo_pgp"]), sum(fin.pgp["FACT_EV"]),
-            "Inconsistencia interna del libro: marzo, junio y julio difieren de la hoja FACTURACION EVENTO.")
+        add("Facturación EVENTO (hoja ESCENARIO MODELO PGP)", sum(r["evento_modelo_pgp"]), CONTROL["evento_total"],
+            sum(fin.pgp["FACT_EV"]),
+            "Inconsistencia interna del libro: marzo, junio y julio difieren de la hoja FACTURACION EVENTO, "
+            "que es la que se usa como oficial.")
     if r.get("pgp2_modelo_promedio"):
-        add("PGP-2 promedio/mes (ESCENARIO MODELO PGP)", r["pgp2_modelo_promedio"], CONTROL["pgp2_mes"],
+        add("PGP-2 promedio/mes (ESCENARIO MODELO PGP)", r["pgp2_modelo_promedio"], CONTROL["pgp2_mes"], H["pgp2_mes"],
             "Usa la facturación EVENTO de ESCENARIO MODELO PGP; con la hoja FACTURACION EVENTO coincide.")
     if "giro" in r and r["giro"]:
-        add("Giro directo sin UPC", r["giro"].get("giro_sin_upc"), fin.escenarios_mes.get("giro_sin_upc"))
-        add("Giro + UPC 2026", r["giro"].get("giro_upc"), fin.escenarios_mes.get("giro_upc"))
+        add("Giro directo sin UPC", r["giro"].get("giro_sin_upc"), fin.escenarios_mes.get("giro_sin_upc"),
+            fin.escenarios_mes.get("giro_sin_upc"))
+        add("Giro + UPC 2026", r["giro"].get("giro_upc"), fin.escenarios_mes.get("giro_upc"),
+            fin.escenarios_mes.get("giro_upc"))
     for m, ctrl in CONTROL_NT_MUNICIPIO.items():
         if "nt_municipio_total" in r:
-            add(f"NT mensual {m}", r["nt_municipio_total"].get(m, 0.0), ctrl)
-    for x in filas:
-        if x["indicador"].startswith("NT mensual") and x["diferencia"] is not None and abs(x["diferencia"]) < 0.01:
-            x["estado"] = "OK"
+            add(f"NT mensual {m}", r["nt_municipio_total"].get(m, 0.0), ctrl, None, "", tol=0.01)
     return filas

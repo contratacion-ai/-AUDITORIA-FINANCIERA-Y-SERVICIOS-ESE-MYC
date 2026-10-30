@@ -15,8 +15,8 @@
    El informe también da los pacientes distintos del periodo completo.
 5. **Asistencia = par distinto (paciente, fecha de atención) en el mes.** AM y AT en TXT no traen fecha:
    se asocian a la factura.
-6. **Costo/atención = costo / frecuencia RIPS costeada.** Reproduce la columna del dashboard FINAL
-   (costo mensual / RIPS CAPITA de la hoja PGP).
+6. **Costo/atención = costo / frecuencia RIPS costeada con la NT.** Reproduce la hoja "COSTO ATENCIONES
+   Y CUPS 2026" del libro (costo mes / RIPS NT; promedio $8.626).
 7. **Modalidad efectiva = la declarada por la remisión** (carpeta/contrato) cuando existe; la del
    catálogo se usa para auditar diferencias.
 8. **Migrables valorados a tarifa EVENTO / meses** (dashboard CAPITA·EVENTO). El "costo estimado
@@ -51,7 +51,10 @@ entregado:
 medicamentos. El motor de la aplicación, aplicado a las frecuencias RIPS y costos unitarios del libro,
 reproduce exactamente los $8.264.369.794,92 de NT COSTOS; y, si el grupo MEDICAMENTOS toma los valores
 del FINAL, reproduce mes a mes los $8.053.016.408 de control (prueba `tests/test_informe_real.py`).
-**Pendiente: definir cuál cifra de medicamentos es la oficial para la negociación.**
+**Decisión (30/10/2026): se usa la cifra ACTUAL del libro** (medicamentos $236.095.610, 554.587 CUMS;
+costo CAPITA $8.264.369.795). El dashboard FINAL queda solo como referencia histórica
+(`CONTROL_FINAL_HISTORICO`). Totales oficiales en `rips_auditoria/constantes.py` (`CONTROL`) y serie
+mensual en `config/control_oficial.yaml`.
 
 Otros hallazgos del libro:
 
@@ -82,7 +85,6 @@ Otros hallazgos del libro:
 * **Tarifario pactado de evento**: formato exacto no disponible. Plantilla `config/plantillas/tarifario.csv`.
 * **Facturación por ámbito**: formato del reporte del sistema de facturación no disponible. Plantilla
   `config/plantillas/facturacion.csv`.
-* **Cifra oficial de medicamentos CAPITA** ($236,1 M del libro actual o $24,7 M implícitos en el FINAL).
 * "FRE MES SUB CAPITA" suma 678.146 RIPS, distinto de los 910.925 de "FRECUEN NT SUB CAPITA": no se usa
   como fuente de frecuencias.
 * **Tope contractual de traslados** (`traslados.tope_mensual`): no aparece en los artefactos.

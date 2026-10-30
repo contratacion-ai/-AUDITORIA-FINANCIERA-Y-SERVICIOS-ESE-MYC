@@ -34,8 +34,8 @@ HOJAS = [
     ("validacion", "Validación", "Incidencias de validación por regla"),
     ("trazabilidad_clasificacion", "Trazabilidad", "Trazabilidad de la clasificación CAPITA/EVENTO y grupo"),
     ("sin_costo_nt", "Sin costo NT", "Códigos CAPITA sin costo unitario en la Nota Técnica"),
-    ("comparacion_referencia", "Comparación Referencia", "RIPS cargados vs dashboard FINAL (control)"),
-    ("conciliacion_informe", "Conciliación Informe", "Libro INFORME DE SERVICIOS vs dashboard FINAL / totales de control"),
+    ("comparacion_referencia", "Comparación Referencia", "RIPS cargados vs control oficial (libro vigente)"),
+    ("conciliacion_informe", "Conciliación Informe", "Libro INFORME DE SERVICIOS vs control oficial y dashboard FINAL (histórico)"),
 ]
 MONEDA = ("valor", "costo", "giro", "glosa", "tarifa", "pgp", "evento", "run_rate", "limite", "dif_valor",
           "acumulado", "promedio_mes", "2026-")

@@ -64,7 +64,7 @@ costo CAPITA (mes, grupo) = Σ costo_unitario_NT(código, municipio) × frecuenc
   MEDICAMENTOS se reemplaza por el despacho general (`adj = costNT − medC + despacho`), regla del
   dashboard CAPITA·EVENTO.
 
-Indicadores (dashboard FINAL):
+Indicadores (mismas fórmulas del dashboard FINAL y del libro):
 
 | Indicador | Fórmula |
 |---|---|

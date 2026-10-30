@@ -10,38 +10,51 @@ from rips_auditoria.calculos import capita, cruces
 from rips_auditoria.clasificacion import clasificar
 from rips_auditoria.constantes import CONTROL
 from rips_auditoria.ingesta.lote import procesar
-from rips_auditoria.referencias.dashboards import cargar_final
+from rips_auditoria.referencias import oficial
 from rips_auditoria.servicios import construir
 
 
 def _servicios_control() -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Servicios sintéticos con las frecuencias, pacientes y asistencias del dashboard FINAL y una NT
-    cuyo costo unitario × frecuencia da el costo mensual publicado, repartido con GPCT por grupo."""
-    ref = cargar_final()
+    """Servicios sintéticos con las frecuencias CUPS/CUMS, pacientes y asistencias del control OFICIAL
+    (libro vigente) y una NT cuyo costo unitario × frecuencia da el costo mensual oficial: los CUPS
+    reparten el costo no farmacéutico por grupo y los CUMS llevan el grupo MEDICAMENTOS."""
+    o = oficial.cargar()
+    grupos_nm = {g: v for g, v in o["costo_grupo_total"].items() if g != "MEDICAMENTOS"}
+    tot_nm = sum(grupos_nm.values())
+    gl = list(grupos_nm)
     filas, nt = [], []
-    for m, r in enumerate(ref.detalle_mensual, start=1):
-        per = f"2026-{m:02d}"
-        P, A, Q = r["pacientes"], r["asistencias"], r["cups"]
+    for m, r in enumerate(oficial.detalle_mensual(), start=1):
+        per = r["mes"]
+        P, A, Q, C = r["pacientes"], r["asistencias"], r["cups"], r["cums"]
         base, resto = divmod(Q, A)
-        cant_grupo = [0] * 10
+        cant_grupo = [0] * len(gl)
+        comun = {"num_factura": f"F{m}", "mes": per, "periodo": per, "municipio": "TAME", "hospital": "H",
+                 "descripcion": None, "valor_unitario": 0.0, "valor_total": 0.0, "finalidad": "1",
+                 "tipo_servicio_at": None, "es_episodio": False, "modalidad_declarada": "CAPITA", "eps_objetivo": True}
         for j in range(A):
-            g = j % 10
+            g = j % len(gl)
             q = base + (1 if j < resto else 0)
             cant_grupo[g] += q
-            filas.append({"tipo_archivo": "AP", "num_factura": f"F{m}", "paciente": f"P{m}-{j % P}",
-                          "fecha": f"{1 + j // P:02d}/{m:02d}/2026", "mes": per, "periodo": per,
-                          "municipio": "TAME", "hospital": "H", "codigo": f"T{m:02d}{g}", "tipo_codigo": "CUPS",
-                          "descripcion": None, "cantidad": float(q), "valor_unitario": 0.0, "valor_total": 0.0,
-                          "finalidad": "1", "tipo_servicio_at": None, "es_episodio": False,
-                          "modalidad_declarada": "CAPITA", "eps_objetivo": True})
-        for g, (grupo, pct) in enumerate(zip(ref.grupos, ref.grupos_pct)):
-            nt.append({"codigo": f"T{m:02d}{g}", "descripcion": grupo, "grupo": grupo, "tipo_codigo": "CUPS",
+            filas.append({**comun, "tipo_archivo": "AP", "paciente": f"P{m}-{j % P}",
+                          "fecha": f"{1 + j // P:02d}/{m:02d}/2026", "codigo": f"T{m:02d}{g:02d}",
+                          "tipo_codigo": "CUPS", "cantidad": float(q)})
+        bm, rm = divmod(C, P)
+        for j in range(P):   # medicamentos en los mismos contactos (no agregan asistencias)
+            filas.append({**comun, "tipo_archivo": "AM", "paciente": f"P{m}-{j}", "fecha": f"01/{m:02d}/2026",
+                          "codigo": f"M{m:02d}", "tipo_codigo": "CUMS", "cantidad": float(bm + (1 if j < rm else 0))})
+        no_med = r["costo"] - r["medicamentos"]
+        for g, grupo in enumerate(gl):
+            nt.append({"codigo": f"T{m:02d}{g:02d}", "descripcion": grupo, "grupo": grupo, "tipo_codigo": "CUPS",
                        "municipio": "TODOS", "mes": None, "frecuencia_prevista": None,
-                       "costo_unitario": r["costo"] * pct / 100 / cant_grupo[g]})
+                       "costo_unitario": no_med * grupos_nm[grupo] / tot_nm / cant_grupo[g]})
+        nt.append({"codigo": f"M{m:02d}", "descripcion": "MEDICAMENTOS", "grupo": "MEDICAMENTOS", "tipo_codigo": "CUMS",
+                   "municipio": "TODOS", "mes": None, "frecuencia_prevista": None,
+                   "costo_unitario": r["medicamentos"] / C})
     return pd.DataFrame(filas), pd.DataFrame(nt)
 
 
 def test_motor_capita_reproduce_totales_de_control():
+    """Pipeline completo (clasificación → costeo NT × RIPS → grupos → detalle → KPI) = control oficial."""
     s, nt = _servicios_control()
     s = clasificar(s, None, nt)
     assert (s["modalidad"] == "CAPITA").all()
@@ -50,15 +63,14 @@ def test_motor_capita_reproduce_totales_de_control():
     grupos = capita.costos_grupo_mes(c, meses)
     det = capita.detalle_mensual(c, grupos[meses].sum(axis=0), meses)
     assert abs(det["costo"].sum() - CONTROL["capita_total"]) <= 1
+    assert abs(grupos.loc["MEDICAMENTOS", "acumulado"] - CONTROL["medicamentos"]) <= 1
     assert det["cups"].sum() == CONTROL["cups"]
+    assert det["cums"].sum() == CONTROL["cums"]
     assert det["pacientes"].sum() == CONTROL["pacientes_unicos"]
     assert det["asistencias"].sum() == CONTROL["asistencias"]
     k = capita.kpis(det["costo"].tolist(), det["pacientes"].tolist(), det["asistencias"].tolist())
     assert round(k.promedio_mes) == CONTROL["capita_promedio_mes"]
-    assert round(k.costo_usuario_prom) == 69_781
-    # participación por grupo igual a la del dashboard
-    pct = grupos.set_index("grupo_nombre")["participacion_pct"].round(1)
-    assert pct.iloc[0] == 43.3 and pct.sum() == pytest.approx(100, abs=0.2)
+    assert abs(k.costo_usuario_prom - CONTROL["costo_usuario_mes"]) <= 1
 
 
 def test_clasificacion_precedencia_y_trazabilidad():

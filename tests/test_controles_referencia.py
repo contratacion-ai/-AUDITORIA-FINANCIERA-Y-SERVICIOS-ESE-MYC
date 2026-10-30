@@ -3,27 +3,28 @@ import pytest
 
 from rips_auditoria.analisis import controles_referencia, parametros
 from rips_auditoria.calculos import capita
-from rips_auditoria.constantes import CONTROL
+from rips_auditoria.constantes import CONTROL, CONTROL_FINAL_HISTORICO
+from rips_auditoria.referencias import oficial
 from rips_auditoria.referencias.dashboards import cargar_evento, cargar_final
 
 
-def test_totales_de_control_del_dashboard_final():
+def test_historico_totales_del_dashboard_final():
     ref = cargar_final()
     t = ref.totales()
-    assert ref.textos["total_capita_html"] == CONTROL["capita_total"] == 8_053_016_408
+    assert ref.textos["total_capita_html"] == CONTROL_FINAL_HISTORICO["capita_total"] == 8_053_016_408
     # La suma de los 8 costos mensuales redondeados difiere en $1 del total publicado.
-    assert abs(t["capita_total"] - CONTROL["capita_total"]) <= 1
-    assert t["cups"] == CONTROL["cups"] == 748_058
-    assert t["pacientes_unicos"] == CONTROL["pacientes_unicos"] == 114_923
-    assert t["asistencias"] == CONTROL["asistencias"] == 213_814
+    assert abs(t["capita_total"] - CONTROL_FINAL_HISTORICO["capita_total"]) <= 1
+    assert t["cups"] == CONTROL_FINAL_HISTORICO["cups"] == 748_058
+    assert t["pacientes_unicos"] == CONTROL_FINAL_HISTORICO["pacientes_unicos"] == 114_923
+    assert t["asistencias"] == CONTROL_FINAL_HISTORICO["asistencias"] == 213_814
 
 
-def test_kpis_capita_reproducen_dashboard():
+def test_historico_kpis_capita_reproducen_dashboard_final():
     ref = cargar_final()
     d = ref.detalle_mensual
     k = capita.kpis([r["costo"] for r in d], [r["pacientes"] for r in d], [r["asistencias"] for r in d],
                     ref.pgp["RIPS_CAP"], 4)
-    assert round(k.promedio_mes) == CONTROL["capita_promedio_mes"]
+    assert round(k.promedio_mes) == CONTROL_FINAL_HISTORICO["capita_promedio_mes"]
     assert round(k.periodo_temprano / 1e6) == 3_420          # Cuatrimestre 1 $3.420 M
     assert round(k.periodo_reciente / 1e6) == 4_633          # Cuatrimestre 2 $4.633 M
     assert round(k.crecimiento_pct, 1) == 35.5               # ↑ +35,5 %
@@ -35,13 +36,18 @@ def test_kpis_capita_reproducen_dashboard():
         assert round(r["costo"] / rc) == r["costo_atencion"]
 
 
-def test_escenarios_y_pgp():
-    c = controles_referencia()
-    e = c["escenarios"]
-    assert round(e["ESC.1 – CAPITA ACTUAL"]) == CONTROL["capita_promedio_mes"]
-    assert round(e["ESC.2 – CAPITA AMPLIADA"]) == CONTROL["capita_ampliada_mes"] == 1_112_074_196
-    assert round(e["ESC.3 – CAPITA DEMANDA REAL"]) == CONTROL["capita_ajustada_mes"] == 1_253_045_148
-    assert round(e["PGP-2 UPC + EVENTO"]) == CONTROL["pgp2_mes"] == 3_045_623_529
+def test_historico_escenarios_y_pgp_dashboard_final():
+    ref_f = cargar_final()
+    d = ref_f.detalle_mensual
+    k = capita.kpis([r["costo"] for r in d], [r["pacientes"] for r in d], [r["asistencias"] for r in d],
+                    ref_f.pgp["RIPS_CAP"], 4)
+    ev = ref_f.pgp["FACT_EV"]
+    esc = capita.escenarios(k, ref_f.textos["migrables_esc2"], sum(ev) / len(ev), parametros())
+    e = esc.set_index("escenario")["valor_mes"].to_dict()
+    assert round(e["ESC.1 – CAPITA ACTUAL"]) == CONTROL_FINAL_HISTORICO["capita_promedio_mes"]
+    assert round(e["ESC.2 – CAPITA AMPLIADA"]) == CONTROL_FINAL_HISTORICO["capita_ampliada_mes"] == 1_112_074_196
+    assert round(e["ESC.3 – CAPITA DEMANDA REAL"]) == CONTROL_FINAL_HISTORICO["capita_ajustada_mes"] == 1_253_045_148
+    assert round(e["PGP-2 UPC + EVENTO"]) == CONTROL_FINAL_HISTORICO["pgp2_mes"] == 3_045_623_529
     ref = cargar_final().escenarios_mes
     for clave, nombre in [("giro_sin_upc", "Giro directo sin UPC (vigente)"), ("giro_upc", "Giro + UPC 2026"),
                           ("actas_bogota", "Actas firmadas Bogotá"), ("pgp1_cap_evento", "PGP-1 Cápita vigente + EVENTO")]:
@@ -63,9 +69,9 @@ def test_regla_medicamentos_por_despacho_dashboard_evento():
     assert round(sum(d["nt"]["costNT"])) == 8_264_369_795
     assert round(sum(adj)) == 8_548_188_101
     # Mismos pacientes, CUPS y asistencias que el dashboard FINAL
-    assert sum(r["cups"] for r in d["det"]) == CONTROL["cups"]
-    assert sum(r["pac"] for r in d["det"]) == CONTROL["pacientes_unicos"]
-    assert sum(r["asis"] for r in d["det"]) == CONTROL["asistencias"]
+    assert sum(r["cups"] for r in d["det"]) == CONTROL_FINAL_HISTORICO["cups"]
+    assert sum(r["pac"] for r in d["det"]) == CONTROL_FINAL_HISTORICO["pacientes_unicos"]
+    assert sum(r["asis"] for r in d["det"]) == CONTROL_FINAL_HISTORICO["asistencias"]
 
 
 def test_grupos_final_mismos_nombres_y_participacion():
@@ -73,3 +79,26 @@ def test_grupos_final_mismos_nombres_y_participacion():
     assert ref.grupos[0] == "PROMOCION Y MANTENIMIENTO DE LA SALUD"
     assert len(ref.grupos) == 10
     assert sum(ref.grupos_pct) == pytest.approx(100, abs=0.2)
+
+
+# ----------------------------------------------------------------------------- control OFICIAL
+def test_control_oficial_totales_libro_vigente():
+    """Totales oficiales: libro INFORME DE SERVICIOS vigente con la cifra actual de medicamentos."""
+    det = oficial.detalle_mensual()
+    assert round(sum(r["costo"] for r in det)) == CONTROL["capita_total"] == 8_264_369_795
+    assert round(sum(r["medicamentos"] for r in det)) == CONTROL["medicamentos"] == 236_095_610
+    assert sum(r["cups"] for r in det) == CONTROL["cups"] == 748_058
+    assert sum(r["cums"] for r in det) == CONTROL["cums"] == 554_587
+    assert sum(r["pacientes"] for r in det) == CONTROL["pacientes_unicos"] == 114_923
+    assert sum(r["asistencias"] for r in det) == CONTROL["asistencias"] == 213_814
+
+
+def test_control_oficial_kpis_escenarios_y_pgp():
+    c = controles_referencia()
+    calc = c["calculado"]
+    for clave, v in CONTROL.items():
+        assert abs(calc[clave] - v) <= 1, (clave, calc[clave], v)
+    assert round(c["kpi"]["crecimiento_pct"], 1) == 33.0
+    # Sin medicamentos, el control oficial y el dashboard FINAL son el mismo valor
+    assert abs(CONTROL["capita_sin_medicamentos"]
+               - (CONTROL_FINAL_HISTORICO["capita_total"] - CONTROL_FINAL_HISTORICO["medicamentos"])) <= 1

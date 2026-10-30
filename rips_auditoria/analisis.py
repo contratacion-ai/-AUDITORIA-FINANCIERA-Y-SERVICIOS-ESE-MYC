@@ -17,8 +17,9 @@ from . import maestros
 from .calculos import capita, cruces, evento, hallazgos
 from .clasificacion import clasificar
 from .config import DIR_CONFIG, red_prestadores
-from .constantes import CONTROL, MESES_AB, nombre_grupo
+from .constantes import CONTROL, CONTROL_FINAL_HISTORICO, MESES_AB, nombre_grupo
 from .ingesta.lote import Lote, combinar
+from .referencias import oficial
 from .referencias.dashboards import cargar_final
 from .servicios import construir
 
@@ -86,17 +87,16 @@ def _maestros() -> dict[str, pd.DataFrame | None]:
 
 
 def comparar_referencia(det: pd.DataFrame) -> pd.DataFrame:
-    """RIPS cargados vs detalle mensual del dashboard FINAL (mismos meses)."""
-    ref = cargar_final()
+    """RIPS cargados vs serie oficial de control (libro INFORME DE SERVICIOS vigente), mismos meses."""
     filas = []
-    for i, r in enumerate(ref.detalle_mensual):
-        per = f"2026-{i + 1:02d}"
+    for r in oficial.detalle_mensual():
+        per = r["mes"]
         x = det[det["mes"] == per]
         o = x.iloc[0] if not x.empty else None
-        for k, nombre in (("cups", "CUPS"), ("pacientes", "Pacientes únicos"), ("asistencias", "Asistencias"),
-                          ("costo", "Costo CAPITA")):
+        for k, nombre in (("cups", "CUPS"), ("cums", "CUMS"), ("pacientes", "Pacientes únicos"),
+                          ("asistencias", "Asistencias"), ("costo", "Costo CAPITA")):
             v = float(o[k]) if o is not None else None
-            filas.append({"periodo": per, "indicador": nombre, "referencia": r[k], "calculado": v,
+            filas.append({"periodo": per, "indicador": nombre, "control_oficial": r[k], "calculado": v,
                           "diferencia": (v - r[k]) if v is not None else None,
                           "diferencia_pct": ((v / r[k] - 1) * 100) if v is not None and r[k] else None})
     return pd.DataFrame(filas)
@@ -227,18 +227,26 @@ def analizar(lotes: list[Lote], solo_eps_objetivo: bool = True, mae: dict | None
 
 
 def controles_referencia() -> dict:
-    """Totales de control del dashboard FINAL y su recálculo con las fórmulas de este paquete."""
-    ref = cargar_final()
+    """Totales de control OFICIALES (libro vigente, medicamentos actuales) recalculados con las
+    fórmulas del paquete, más el dashboard FINAL como referencia histórica."""
     p = parametros()
-    det = ref.detalle_mensual
+    det = oficial.detalle_mensual()
+    ev = oficial.cargar()["evento_mensual"]
     k = capita.kpis([r["costo"] for r in det], [r["pacientes"] for r in det], [r["asistencias"] for r in det],
-                    ref.pgp["RIPS_CAP"], p["escenarios"]["meses_ventana"])
-    ev = ref.pgp["FACT_EV"]
-    esc = capita.escenarios(k, ref.textos["migrables_esc2"], sum(ev) / len(ev), p)
-    t = ref.totales()
+                    [r["rips_nt"] for r in det], p["escenarios"]["meses_ventana"])
+    esc = capita.escenarios(k, p["escenarios"]["migrables_mes_referencia"], sum(ev) / len(ev), p)
+    calc = {"capita_total": k.total, "medicamentos": sum(r["medicamentos"] for r in det),
+            "capita_sin_medicamentos": k.total - sum(r["medicamentos"] for r in det),
+            "cups": sum(r["cups"] for r in det), "cums": sum(r["cums"] for r in det),
+            "pacientes_unicos": k.pacientes_suma, "asistencias": k.asistencias, "capita_promedio_mes": k.promedio_mes,
+            "capita_cuatrimestre_1": k.periodo_temprano, "capita_cuatrimestre_2": k.periodo_reciente,
+            "costo_usuario_mes": k.costo_usuario_prom, "costo_atencion_mes": k.costo_atencion_prom,
+            "capita_ampliada_mes": esc.iloc[1]["valor_mes"], "capita_ajustada_mes": esc.iloc[2]["valor_mes"],
+            "evento_total": sum(ev), "pgp2_mes": esc.iloc[7]["valor_mes"]}
+    ref = cargar_final()
     inf = maestros.leer_resumen_informe()
-    return {"conciliacion_informe": (inf or {}).get("conciliacion", []), "control": CONTROL, "referencia": {**t, "capita_total_html": ref.textos["total_capita_html"],
-                                               "migrables_mes": ref.textos["migrables_mes_texto"],
-                                               "migrables_mes_esc2": ref.textos["migrables_esc2"]},
-            "kpi": asdict(k), "escenarios": esc.set_index("escenario")["valor_mes"].to_dict(),
-            "grupos": {nombre_grupo(g): pct for g, pct in zip(ref.grupos, ref.grupos_pct)}}
+    return {"control": CONTROL, "calculado": calc, "kpi": asdict(k),
+            "escenarios": esc.set_index("escenario")["valor_mes"].to_dict(),
+            "historico_dashboard_final": {**CONTROL_FINAL_HISTORICO, "capita_total_html": ref.textos["total_capita_html"]},
+            "conciliacion_informe": (inf or {}).get("conciliacion", []),
+            "grupos": {nombre_grupo(g): v / k.total * 100 for g, v in oficial.cargar()["costo_grupo_total"].items()}}
