@@ -1,0 +1,36 @@
+# Parámetros contractuales y de negociación (valores del dashboard FINAL, hoja 9 y escenarios).
+# Edite aquí cuando cambien; los informes los citan como supuestos.
+giro:
+  # Usuarios contratados. El dashboard rotula "70.004 usuarios", pero el giro $1.813.727.591 sale de
+  # 70.003,7667 (promedio de la base de usuarios, hoja ESCENARIO COSTO VS PAGOS). Se usa el promedio
+  # para reproducir exactamente los valores de referencia.
+  usuarios: 70003.76666666666
+  valor_usuario_mes: 25909   # giro directo vigente sin UPC
+  incremento_upc: 0.1649     # UPC 2026 (+16,49 %)
+  valor_usuario_actas: 40000 # actas firmadas Bogotá
+escenarios:
+  meses_ventana: 4                 # cuatrimestre (dashboard: w = min(4, n))
+  ajuste_poblacional: 0.03         # Esc.3: +3 % crecimiento poblacional
+  nuevos_servicios_mes: 60000000   # Esc.3: nuevos servicios
+  # Esc.2 del dashboard FINAL suma $105.447.145/mes de migrables; el texto de la simulación
+  # dice $105.750.000 y la suma de la tabla SIM da $105.856.087. Inconsistencia del artefacto:
+  # PENDIENTE DE CONFIRMACIÓN. Si se deja vacío se usa el valor calculado desde los RIPS.
+  migrables_mes_referencia: 105447145
+pgp:
+  usuarios_pgp2: 73000             # meta PGP-2 para 73.000 usuarios (enunciado)
+corredor:
+  k_desviaciones: 1.0              # corredor = run-rate ± k·desviación estándar
+traslados:
+  codigos: [S31307, 601T02, 601T01]
+  # Tope contractual mensual de traslados. PENDIENTE DE CONFIRMACIÓN (no está en los artefactos).
+  tope_mensual: null
+cruces:
+  tolerancia_frecuencia_pct: 10    # sobrepaso NT si RIPS > previsto × (1 + 10 %)
+  tolerancia_tarifa_pct: 1         # tarifa fuera de tarifario si |dif| > 1 %
+  tolerancia_valor_pesos: 1
+clasificacion:
+  # Si un código no está en el catálogo ni en la NT, se usa la modalidad declarada por la carpeta
+  # (CAPITA/EVENTO/PGP); sin ella queda EVENTO (SIN MARCA).
+  modalidad_por_defecto: EVENTO
+  # Los medicamentos (AM) de remisiones de cápita se costean como grupo MEDICAMENTOS.
+  reemplazar_medicamentos_por_despacho: false   # regla del dashboard CAPITA·EVENTO (despacho general)

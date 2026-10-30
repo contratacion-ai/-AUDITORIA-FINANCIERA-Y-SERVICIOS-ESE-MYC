@@ -1,0 +1,30 @@
+:root{--a1:#1F4E79;--a2:#2E75B6;--a3:#EBF3FB;--r1:#C00000;--v1:#375623;--bg:#F4F7FB;--tx:#1b2430;--bd:#cfd8e3}
+*{box-sizing:border-box}
+body{margin:0;font-family:Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--tx);font-size:14px}
+header{background:linear-gradient(90deg,var(--a1),var(--a2));color:#fff;padding:14px 18px 0}
+header h1{margin:0;font-size:20px}header p{margin:4px 0 10px;opacity:.9;font-size:12px}
+nav{display:flex;flex-wrap:wrap;gap:4px}
+.tb{background:rgba(255,255,255,.15);color:#fff;border:0;padding:8px 12px;border-radius:6px 6px 0 0;cursor:pointer}
+.tb.on{background:var(--bg);color:var(--a1);font-weight:700}
+main{padding:16px;max-width:1400px;margin:auto}
+.sec{display:none}.sec.on{display:block}
+h2{color:var(--a1);font-size:17px;margin-top:4px}
+.nota{background:var(--a3);border-left:4px solid var(--a2);padding:8px 10px;font-size:12.5px}
+.drop{border:2px dashed var(--a2);border-radius:10px;padding:26px;text-align:center;color:var(--a2);background:#fff;margin:10px 0}
+.drop.on{background:var(--a3)}
+.fila{display:flex;flex-wrap:wrap;gap:12px;margin:8px 0}
+label{display:flex;flex-direction:column;font-size:12px;gap:3px}
+label.inline{display:inline-flex;flex-direction:row;align-items:center;gap:6px;margin:3px 0}
+input,select{padding:5px;border:1px solid var(--bd);border-radius:4px}
+button.pri{background:var(--a1);color:#fff;border:0;padding:8px 16px;border-radius:5px;cursor:pointer;font-weight:600}
+button.sec2{background:#fff;color:var(--a1);border:1px solid var(--a1);padding:4px 10px;border-radius:5px;cursor:pointer}
+table{border-collapse:collapse;width:100%;background:#fff;margin:8px 0;font-size:12px}
+th{background:var(--a1);color:#fff;padding:5px;text-align:left;position:sticky;top:0}
+td{border-bottom:1px solid #e6ebf1;padding:4px 5px}td.n{text-align:right;font-variant-numeric:tabular-nums}
+.scroll{max-height:420px;overflow:auto;border:1px solid var(--bd)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin:10px 0}
+.kc{background:#fff;border-radius:8px;padding:10px;border-top:4px solid var(--a2)}
+.kc .lb{font-size:11px;color:#556}.kc .vl{font-size:18px;font-weight:700;color:var(--a1)}
+.ok{color:var(--v1)}.err{color:var(--r1)}
+.ALTA{color:var(--r1);font-weight:700}.MEDIA{color:#C55A11}
+@media (max-width:600px){main{padding:10px}.tb{font-size:12px;padding:6px 8px}}

@@ -1,0 +1,9 @@
+# Datos sensibles y resultados locales (solo en la raíz): nunca se versionan
+/datos/
+/informes/
+/plantillas/
+*.pkl
+__pycache__/
+.pytest_cache/
+*.pyc
+.venv/

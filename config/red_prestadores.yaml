@@ -1,0 +1,35 @@
+# Red de prestadores de la E.S.E. Moreno y Clavijo (NIT 900034131).
+#
+# SUPUESTO (pendiente de confirmación): el municipio se deduce de los 5 primeros
+# dígitos del código de habilitación del prestador (cod_prestador del RIPS), que
+# corresponden al código DANE del municipio (81 = Arauca). Ejemplos observados:
+#   817940020607 -> 81794 (Tame)   · 812200020604 -> 81220 (Cravo Norte)
+# Si el código no está, se intenta por el nombre de la carpeta (sedes) y por último
+# por la palabra del municipio en la ruta. Corrija aquí o desde la interfaz.
+municipios:
+  "81001": ARAUCA
+  "81794": TAME
+  "81300": FORTUL
+  "81220": CRAVO NORTE
+  "81591": PUERTO RONDON
+
+# Sedes conocidas. Clave = nombre de carpeta normalizado (contiene). Valor = municipio.
+# Agregue aquí cada hospital / centro de salud de la red.
+sedes:
+  "HOSPITAL SAN JOSE DE CRAVO NORTE": CRAVO NORTE
+  "CENTRO DE SALUD JESUS CORONEL": TAME   # observado: cod_prestador 81794...
+  # Pendiente: agregar las demás sedes de Arauca, Fortul y Puerto Rondón con su nombre exacto de carpeta.
+
+# Códigos de la EPS en alcance (Nueva EPS). EPS037 = contributivo, EPSS37 = subsidiado.
+# SUPUESTO: ambos se tratan como Nueva EPS (EPS037) para el análisis de cápita/evento.
+eps_objetivo:
+  - EPS037
+  - EPSS37
+
+# Palabras en el nombre de la carpeta de la remisión o en el número de contrato que
+# indican la modalidad declarada.
+modalidad_por_palabra:
+  CAPITA: CAPITA
+  CAPITADO: CAPITA
+  PGP: PGP
+  EVENTO: EVENTO

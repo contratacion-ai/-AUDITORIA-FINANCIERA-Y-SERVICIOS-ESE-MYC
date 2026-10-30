@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ESE Moreno y Clavijo · CAPITA · EVENTO · PGP · 2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --a1:#1F4E79;--a2:#2E75B6;--a3:#BDD7EE;--a4:#DEEAF1;--dk:#0D2B45;
+  --v1:#375623;--v2:#70AD47;--v3:#E2EFDA;
+  --n1:#E8A020;--n2:#FFF2CC;
+  --r1:#C00000;--r2:#FFDCE0;
+  --m1:#7030A0;--m2:#E2CEFF;
+  --o1:#C55A11;--o2:#FFE4CC;
+  --gr:#F4F6FA;--wh:#fff;
+  --sh:0 2px 16px rgba(0,0,0,.10);--r:12px;
+  box-sizing:border-box;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#E8EFF8;color:#1a1a1a;min-height:100vh}
+
+/* ── HEADER ── */
+.hdr{background:linear-gradient(130deg,var(--dk) 0%,var(--a1) 55%,var(--a2) 100%);
+  color:#fff;padding:14px 24px 12px;
+  display:flex;align-items:center;justify-content:space-between;
+  box-shadow:0 4px 18px rgba(0,0,0,.28);position:sticky;top:0;z-index:300}
+.hdr-l h1{font-size:1.08rem;font-weight:900;letter-spacing:.3px}
+.hdr-l p{font-size:.67rem;opacity:.82;margin-top:2px}
+.hdr-r{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.badge{font-size:.62rem;font-weight:800;padding:3px 11px;border-radius:20px;white-space:nowrap}
+.b-na{background:var(--n1);color:#fff}
+.b-mo{background:var(--m1);color:#fff}
+.b-ve{background:var(--v2);color:#fff}
+
+/* ── NAV ── */
+.nav{background:var(--a1);display:flex;padding:0 14px;overflow-x:auto;scrollbar-width:none;gap:1px}
+.nav::-webkit-scrollbar{display:none}
+.tb{background:none;border:none;color:rgba(255,255,255,.65);padding:9px 14px;
+  font-size:.71rem;font-weight:700;cursor:pointer;border-bottom:3px solid transparent;
+  transition:.16s;white-space:nowrap}
+.tb:hover{color:#fff}.tb.on{color:var(--n1);border-bottom-color:var(--n1)}
+
+/* ── LAYOUT ── */
+.wrap{padding:18px 20px;max-width:1480px;margin:0 auto}
+.sec{display:none}.sec.on{display:block}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+.g14{display:grid;grid-template-columns:1fr 2.5fr;gap:16px;margin-bottom:16px}
+@media(max-width:1000px){.g2,.g3,.g4,.g14{grid-template-columns:1fr}}
+
+/* ── KPI ── */
+.kg{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:12px;margin-bottom:16px}
+.kc{background:var(--wh);border-radius:var(--r);padding:13px 15px;
+  box-shadow:var(--sh);border-left:5px solid var(--a2);position:relative}
+.kc.ve{border-left-color:var(--v2)}.kc.na{border-left-color:var(--n1)}
+.kc.ro{border-left-color:var(--r1)}.kc.mo{border-left-color:var(--m1)}
+.kc.or{border-left-color:var(--o1)}
+.kc .lb{font-size:.6rem;color:#666;font-weight:700;text-transform:uppercase;
+  letter-spacing:.5px;margin-bottom:4px}
+.kc .vl{font-size:1.32rem;font-weight:900;color:var(--a1)}
+.kc .sb{font-size:.64rem;color:#888;margin-top:2px}
+.kc .tr{position:absolute;top:11px;right:11px;font-size:.61rem;font-weight:800;
+  padding:2px 7px;border-radius:9px}
+.tu{background:var(--v3);color:var(--v1)}.tw{background:var(--r2);color:var(--r1)}
+
+/* ── CARD ── */
+.card{background:var(--wh);border-radius:var(--r);padding:15px 17px;
+  box-shadow:var(--sh);margin-bottom:14px}
+.ct{font-size:.75rem;font-weight:800;color:var(--a1);text-transform:uppercase;
+  letter-spacing:.4px;margin-bottom:11px;padding-bottom:6px;
+  border-bottom:2px solid var(--a3);display:flex;align-items:center;gap:6px}
+
+/* ── TABLE ── */
+.tw_{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.69rem}
+th{background:var(--a1);color:#fff;padding:6px 8px;text-align:center;
+  font-weight:700;font-size:.62rem;white-space:nowrap}
+th.L{text-align:left}
+td{padding:5px 8px;border-bottom:1px solid #e8e8e8;text-align:center;white-space:nowrap}
+td.L{text-align:left;font-weight:600}td.LL{text-align:left}
+tr:nth-child(even) td{background:var(--gr)}
+tr:hover td{background:#DEEAF1}
+tr.TOT td{background:var(--n2)!important;font-weight:900;font-size:.73rem}
+tr.PROM td{background:#D9E1F2!important;font-weight:800}
+.hl-m{background:var(--m2)!important;font-weight:800!important}
+.hl-n{background:var(--n2)!important;font-weight:800!important}
+.hl-v{background:var(--v3)!important;font-weight:800!important;color:var(--v1)!important}
+.hl-r{background:var(--r2)!important;font-weight:800!important;color:var(--r1)!important}
+.hl-o{background:var(--o2)!important;font-weight:800!important}
+
+/* ── BADGE ── */
+.b_{padding:2px 8px;border-radius:10px;font-size:.61rem;font-weight:800;
+  display:inline-block;white-space:nowrap}
+.bS{background:var(--v3);color:var(--v1)}.bN{background:var(--r2);color:var(--r1)}
+.bP{background:var(--n2);color:#7F4000}
+.bEX{background:var(--r2);color:var(--r1)}.bMA{background:var(--o2);color:var(--o1)}
+.bAL{background:var(--n2);color:#7F4000}.bME{background:var(--a3);color:var(--a1)}
+
+/* ── ESCENARIO CARDS ── */
+.escg{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px}
+.esc4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+@media(max-width:1000px){.escg,.esc4{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.escg,.esc4{grid-template-columns:1fr}}
+.esc{border-radius:var(--r);padding:16px;box-shadow:var(--sh);position:relative;overflow:hidden}
+.esc::before{content:'';position:absolute;top:0;left:0;right:0;height:5px}
+.e1{background:#EBF3FB}.e1::before{background:var(--a2)}
+.e2{background:var(--v3)}.e2::before{background:var(--v2)}
+.e3{background:var(--m2)}.e3::before{background:var(--m1)}
+.e4{background:#FFF5E0}.e4::before{background:var(--n1)}
+.e5{background:#FFE9E0}.e5::before{background:var(--r1)}
+.esc .en{font-size:.58rem;font-weight:800;text-transform:uppercase;letter-spacing:.9px;opacity:.6;margin-bottom:3px}
+.esc .et{font-size:.78rem;font-weight:800;margin-bottom:10px;line-height:1.3}
+.esc .ev{font-size:1.65rem;font-weight:900;margin-bottom:2px}
+.e1 .ev{color:var(--a1)}.e2 .ev{color:var(--v1)}.e3 .ev{color:var(--m1)}
+.e4 .ev{color:#7F4000}.e5 .ev{color:var(--r1)}
+.esc .es{font-size:.63rem;color:#555;margin-bottom:10px}
+.esc .er{border-top:1px solid rgba(0,0,0,.09);padding-top:8px}
+.esc .row{display:flex;justify-content:space-between;padding:2.5px 0;font-size:.65rem}
+.esc .row .k{color:#555;flex:1}.esc .row .v{font-weight:800;color:#222;flex-shrink:0}
+.esc .tag{margin-top:10px;padding:4px 9px;border-radius:6px;
+  font-size:.64rem;font-weight:800;text-align:center}
+.e1 .tag{background:var(--r2);color:var(--r1)}
+.e2 .tag{background:rgba(112,173,71,.2);color:var(--v1)}
+.e3 .tag{background:rgba(112,48,160,.14);color:var(--m1)}
+.e4 .tag{background:rgba(232,160,32,.2);color:#7F4000}
+.e5 .tag{background:var(--r2);color:var(--r1)}
+
+/* ── PGP HERO ── */
+.pgp-h{background:linear-gradient(135deg,#3A0870,var(--m1));color:#fff;
+  border-radius:var(--r);padding:20px 24px;box-shadow:var(--sh);margin-bottom:16px}
+.pgp-h h2{font-size:1rem;font-weight:900;margin-bottom:5px}
+.pgp-h p{font-size:.72rem;opacity:.9;line-height:1.55;margin-bottom:16px}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px}
+.pk{background:rgba(255,255,255,.14);border-radius:8px;padding:10px 12px}
+.pk .k{font-size:.58rem;text-transform:uppercase;opacity:.8;margin-bottom:3px}
+.pk .v{font-size:1.1rem;font-weight:900}
+
+/* ── ALERTS ── */
+.al{padding:9px 13px;border-radius:8px;font-size:.71rem;margin-bottom:12px;
+  display:flex;gap:8px;align-items:flex-start;line-height:1.5}
+.aw{background:var(--r2);border-left:4px solid var(--r1);color:#7A1010}
+.ao{background:var(--v3);border-left:4px solid var(--v2);color:#1E3F10}
+.ai{background:var(--a4);border-left:4px solid var(--a2);color:var(--a1)}
+.am{background:var(--m2);border-left:4px solid var(--m1);color:#3A0870}
+.an{background:var(--n2);border-left:4px solid var(--n1);color:#7F4000}
+.ai_{font-size:.95rem;flex-shrink:0;margin-top:1px}
+
+/* ── CHARTS ── */
+.ch{position:relative;height:260px}.cht{position:relative;height:310px}
+
+/* ── BARRA ── */
+.bb{display:flex;gap:5px;align-items:center;margin-bottom:8px;font-size:.67rem}
+.bb .bl{width:170px;font-weight:700;color:#444;flex-shrink:0}
+.bb .bt{flex:1;background:#dde3ec;border-radius:4px;height:20px;overflow:hidden}
+.bb .bf{height:100%;border-radius:4px;display:flex;align-items:center;
+  padding-left:6px;font-weight:800;font-size:.61rem;color:#fff;transition:width .9s}
+.bb .bn{width:170px;text-align:right;font-weight:700;flex-shrink:0;font-size:.65rem}
+
+/* ── SLIDER ── */
+.sbox{background:var(--wh);border-radius:var(--r);padding:16px;
+  box-shadow:var(--sh);margin-bottom:16px}
+.sbox h3{font-size:.74rem;font-weight:800;color:var(--a1);
+  text-transform:uppercase;margin-bottom:12px}
+.sr_{display:flex;align-items:center;gap:12px;margin-bottom:9px;flex-wrap:wrap}
+.sr_ label{font-size:.68rem;font-weight:700;color:#444;width:185px;flex-shrink:0}
+input[type=range]{flex:1;min-width:170px;accent-color:var(--a2)}
+.sv{font-size:.82rem;font-weight:900;color:var(--a1);min-width:145px;text-align:right}
+.sres{background:linear-gradient(90deg,var(--dk),var(--a1));color:#fff;
+  border-radius:8px;padding:13px 16px;margin-top:12px;
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:11px}
+.sres .k{font-size:.58rem;opacity:.8;text-transform:uppercase;margin-bottom:2px}
+.sres .v{font-size:1.05rem;font-weight:900}
+
+/* ── CHIPS ── */
+.chip{display:inline-block;padding:2px 8px;border-radius:10px;
+  font-size:.6rem;font-weight:800;margin:2px}
+.ca{background:var(--a3);color:var(--a1)}.cv{background:var(--v3);color:var(--v1)}
+.cr{background:var(--r2);color:var(--r1)}.cm{background:var(--m2);color:var(--m1)}
+.cn{background:var(--n2);color:#7F4000}
+
+/* ── RECOM ── */
+.rl{list-style:none}
+.rl li{display:flex;gap:10px;align-items:flex-start;
+  padding:8px 0;border-bottom:1px solid #e8e8e8;font-size:.7rem}
+.rl li:last-child{border-bottom:none}
+.rn{background:var(--a1);color:#fff;border-radius:50%;
+  width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+  font-size:.63rem;font-weight:900;flex-shrink:0;margin-top:1px}
+.rt strong{display:block;color:var(--a1);font-size:.73rem;margin-bottom:2px}
+
+/* ── SECTION TITLE ── */
+.stit{font-size:.94rem;font-weight:900;color:var(--a1);margin-bottom:14px;
+  padding-bottom:8px;border-bottom:3px solid var(--n1);
+  display:flex;align-items:center;gap:8px}
+
+/* ── DIVIDER ── */
+.div_{background:linear-gradient(90deg,var(--a1),var(--a2));
+  color:#fff;border-radius:7px;padding:8px 14px;
+  font-size:.77rem;font-weight:800;letter-spacing:.3px;margin:14px 0 11px}
+
+/* ── PGP COMPARISON TABLE ── */
+.pgp-row td{background:var(--m2)!important;font-weight:700!important}
+.pgp-best td{background:#C5F0DA!important;font-weight:900!important;color:var(--v1)!important}
+
+/* ── FOOTER ── */
+.footer{background:var(--dk);color:rgba(255,255,255,.6);text-align:center;
+  padding:12px;font-size:.62rem;margin-top:26px}
+
+/* Print */
+@media print{.nav,.hdr,.footer{display:none}.sec{display:block!important}}
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<div class="hdr">
+  <div class="hdr-l">
+    <h1>🏥 ESE MORENO Y CLAVIJO · CAPITA · EVENTO · PGP · Dashboard Unificado 2026</h1>
+    <p>NIT 900034131 · Tame, Arauca · Herramienta Técnica de Negociación · Enero–Agosto 2026 · Datos Reales RIPS</p>
+  </div>
+  <div class="hdr-r">
+    <span class="badge b-na">📊 DATOS REALES</span>
+    <span class="badge b-mo">💡 PGP INCLUIDO</span>
+    <span class="badge b-ve">✅ UNIFICADO</span>
+  </div>
+</div>
+
+<!-- ═══ NAV ═══ -->
+<div class="nav">
+  <button class="tb on" onclick="T('res',this)">📈 Resumen</button>
+  <button class="tb" onclick="T('cap',this)">🏷️ CAPITA Actual</button>
+  <button class="tb" onclick="T('ev',this)">⚡ TOP 20 EVENTO</button>
+  <button class="tb" onclick="T('sim',this)">🔄 Simulación E→C</button>
+  <button class="tb" onclick="T('esc',this)">🔀 3 Escenarios</button>
+  <button class="tb" onclick="T('pag',this)">💳 Costos vs Pagos</button>
+  <button class="tb" onclick="T('pgp',this)">💡 Modelo PGP</button>
+  <button class="tb" onclick="T('rie',this)">⚠️ Riesgo</button>
+  <button class="tb" onclick="T('neg',this)">🎯 Simulador</button>
+  <button class="tb" onclick="T('rec',this)">✅ Recomendaciones</button>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     TAB 1 – RESUMEN EJECUTIVO
+══════════════════════════════════════════════════════ -->
+<div id="s-res" class="sec on"><div class="wrap">
+<div class="stit">📊 Resumen Ejecutivo · E.S.E. Moreno y Clavijo · Enero–Agosto 2026</div>
+
+<div class="al aw"><span class="ai_">⚠️</span>
+  <div><strong>ALERTA GERENCIAL:</strong> El costo real promedio CAPITA es <strong>$1.006.627.051/mes</strong> con tendencia alcista del 35,5% entre cuatrimestres. El Giro Directo actual ($1.813.727.591) cubre el costo pero no el valor real de la demanda proyectada. Con UPC 2026 el giro sería <strong>$2.112.811.270/mes</strong>. El PGP óptimo (UPC+EVENTO) es <strong>$3.045.623.529/mes</strong>. Estos tres valores son el argumento técnico para Bogotá.</div>
+</div>
+
+<div class="kg">
+  <div class="kc"><div class="lb">Costo Total CAPITA</div><div class="vl">$8.053 M</div><div class="sb">Ene–Ago 2026</div><div class="tr tu">↑+35,5%</div></div>
+  <div class="kc ve"><div class="lb">Costo Promedio/Mes</div><div class="vl">$1.007 M</div><div class="sb">Base negociación</div><div class="tr tu">Alcista</div></div>
+  <div class="kc na"><div class="lb">Pacientes Únicos</div><div class="vl">114.923</div><div class="sb">8 meses · 14.365/mes</div><div class="tr tu">↑</div></div>
+  <div class="kc"><div class="lb">RIPS CUPS Procesados</div><div class="vl">748.058</div><div class="sb">93.507/mes</div><div class="tr tu">↑</div></div>
+  <div class="kc ve"><div class="lb">Costo/Usuario</div><div class="vl">$69.781</div><div class="sb">Prom. período</div><div class="tr tu">↑+13,6%</div></div>
+  <div class="kc ro"><div class="lb">Facturación EVENTO</div><div class="vl">$7.462 M</div><div class="sb">Total 8 meses</div><div class="tr tw">⚠</div></div>
+  <div class="kc mo"><div class="lb">Giro con UPC 2026</div><div class="vl">$2.113 M</div><div class="sb">/mes (+16,49%)</div><div class="tr tu">Meta</div></div>
+  <div class="kc na"><div class="lb">PGP Óptimo (UPC+Ev)</div><div class="vl">$3.046 M</div><div class="sb">/mes integrado</div><div class="tr tu">💡</div></div>
+  <div class="kc or"><div class="lb">EVENTO Promedio/Mes</div><div class="vl">$932,8 M</div><div class="sb">Promedio real</div><div class="tr tw">Variable</div></div>
+</div>
+
+<div class="g2">
+  <div class="card"><div class="ct">📅 Evolución Mensual CAPITA – Costo y Pacientes</div>
+    <div class="ch"><canvas id="cEvo"></canvas></div></div>
+  <div class="card"><div class="ct">🥧 Distribución CAPITA por Grupo</div>
+    <div class="ch"><canvas id="cGru"></canvas></div></div>
+</div>
+
+<div class="card"><div class="ct">⚖️ Comparativo Integral de Escenarios de Pago – Valor Mensual</div>
+  <div class="bb"><div class="bl">Costo Real (RIPS)</div><div class="bt"><div class="bf" style="width:19%;background:var(--a2)">$1.007 M</div></div><div class="bn">Costo observado</div></div>
+  <div class="bb"><div class="bl">Giro Directo s/UPC</div><div class="bt"><div class="bf" style="width:35%;background:var(--r1)">$1.814 M</div></div><div class="bn">Vigente – bajo</div></div>
+  <div class="bb"><div class="bl">Giro + UPC 2026 ⭐</div><div class="bt"><div class="bf" style="width:41%;background:var(--a1)">$2.113 M</div></div><div class="bn">META: +16,49%</div></div>
+  <div class="bb"><div class="bl">Actas Bogotá 40k usr</div><div class="bt"><div class="bf" style="width:54%;background:var(--v2)">$2.800 M</div></div><div class="bn">Actas firmadas +54,5%</div></div>
+  <div class="bb"><div class="bl">PGP Cap.2025+Evento</div><div class="bt"><div class="bf" style="width:53%;background:var(--m1)">$2.747 M</div></div><div class="bn">Piso PGP</div></div>
+  <div class="bb"><div class="bl">PGP UPC+Evento ⭐</div><div class="bt"><div class="bf" style="width:59%;background:#4A1070">$3.046 M</div></div><div class="bn">PGP Óptimo</div></div>
+</div>
+</div></div>
+
+<!-- ══════════════════════════════════════════════════════
+     TAB 2 – CAPITA ACTUAL
+══════════════════════════════════════════════════════ -->
+<div id="s-cap" class="sec"><div class="wrap">
+<div class="stit">🏷️ Servicios Bajo CAPITA · Costos Reales por Grupo · Enero–Agosto 2026</div>
+<div class="kg">
+  <div class="kc"><div class="lb">Total CAPITA</div><div class="vl">$8.053 M</div><div class="sb">8 meses</div></div>
+  <div class="kc ve"><div class="lb">Cuatrimestre 1</div><div class="vl">$3.420 M</div><div class="sb">Ene–Abr</div></div>
+  <div class="kc na"><div class="lb">Cuatrimestre 2</div><div class="vl">$4.633 M</div><div class="sb">May–Ago ↑+35,5%</div></div>
+  <div class="kc"><div class="lb">Promedio/Mes</div><div class="vl">$1.007 M</div></div>
+  <div class="kc mo"><div class="lb">RIPS CAPS Procesados</div><div class="vl">676.111</div></div>
+</div>
+<div class="g2">
+  <div class="card"><div class="ct">📋 Costos por Grupo – Datos Exactos Excel</div>
+    <div class="tw_"><table>
+      <thead><tr><th class="L">Grupo</th><th>RIPS</th><th>ENE</th><th>FEB</th><th>MAR</th><th>ABR</th><th>MAY</th><th>JUN</th><th>JUL</th><th>AGO</th><th>Acumulado</th><th>Prom/Mes</th><th>%</th></tr></thead>
+      <tbody id="tbCG"></tbody>
+    </table></div></div>
+  <div class="card"><div class="ct">📊 Peso % por Grupo</div>
+    <div class="cht"><canvas id="cCG"></canvas></div></div>
+</div>
+<div class="card"><div class="ct">📅 Detalle Mensual CAPITA – Datos Reales RIPS</div>
+  <div class="tw_"><table>
+    <thead><tr><th>Mes</th><th>CUPS</th><th>CUMS</th><th>Total</th><th>Pac.Únicos</th><th>Asistencias</th><th>Costo Mes</th><th>Costo/Usu.</th><th>Costo/Atenc.</th></tr></thead>
+    <tbody id="tbMes"></tbody>
+  </table></div></div>
+</div></div>
+
+<!-- ══════════════════════════════════════════════════════
+     TAB 3 – TOP 20 EVENTO
+══════════════════════════════════════════════════════ -->
+<div id="s-ev" class="sec"><div class="wrap">
+<div class="stit">⚡ Top 20 Servicios EVENTO · Análisis de Aplicabilidad CAPITA · Nueva EPS</div>
+<div class="kg">
+  <div class="kc ro"><div class="lb">Fact.Total EVENTO</div><div class="vl">$7.462 M</div><div class="sb">Real 8 meses</div></div>
+  <div class="kc ve"><div class="lb">Migrables CAPITA</div><div class="vl">13</div><div class="sb">SÍ aplican</div></div>
+  <div class="kc ro"><div class="lb">Permanecen EVENTO</div><div class="vl">5</div><div class="sb">Alto riesgo</div></div>
+  <div class="kc na"><div class="lb">Análisis PARCIAL</div><div class="vl">2</div><div class="sb">Cuota episodio</div></div>
+  <div class="kc"><div class="lb">EVENTO Prom/Mes</div><div class="vl">$932,8 M</div><div class="sb">Promedio real</div></div>
+</div>
+<div class="g2">
+  <div class="card"><div class="ct">📊 Top 10 por Valor Facturado</div><div class="cht"><canvas id="cT10V"></canvas></div></div>
+  <div class="card"><div class="ct">📊 Top 10 por Frecuencia</div><div class="cht"><canvas id="cT10F"></canvas></div></div>
+</div>
+<div class="card"><div class="ct">📋 Top 20 – Análisis Completo de Aplicabilidad</div>
+  <div class="tw_"><table>
+    <thead><tr><th>N°</th><th class="L">Código</th><th class="L">Servicio</th>
+      <th>Val.Total</th><th>Frec.</th><th>Val.Unit.</th><th>¿CAPITA?</th><th class="L">Observación</th></tr></thead>
+    <tbody id="tbT20"></tbody>
+  </table></div></div>
+</div></div>
+
+<!-- ══════════════════════════════════════════════════════
+     TAB 4 – SIMULACIÓN EVENTO→CAPITA
+══════════════════════════════════════════════════════ -->
+<div id="s-sim" class="sec"><div class="wrap">
+<div class="stit">🔄 Simulación Económica – Servicios EVENTO → CAPITA</div>
+<div class="al ai"><span class="ai_">ℹ️</span><div>13 servicios EVENTO con frecuencia predecible y costo controlado fueron analizados para su incorporación en CAPITA. El costo mensual adicional total es <strong>$105.750.000/mes</strong> ($1.269.000.000/año), con un impacto del <strong>10,5%</strong> sobre la CAPITA actual.</div></div>
+<div class="card"><div class="ct">📋 Simulación Detallada por Servicio – Datos Reales</div>
+  <div class="tw_"><table>
+    <thead><tr><th class="L">Código</th><th class="L">Servicio</th>
+      <th>Frec E-A</th><th>Frec M-A</th><th>Total</th><th>Prom/Mes</th>
+      <th>Val.Fact.EVENTO</th><th>Costo Estim.</th><th>Costo/Mes CAPITA</th>
+      <th>Costo Anual</th><th>Usuarios</th><th>C/Usuario</th><th>Impacto%</th></tr></thead>
+    <tbody id="tbSim"></tbody>
+  </table></div></div>
+<div class="g2">
+  <div class="card"><div class="ct">📊 Costo Mensual CAPITA por Servicio Migrable</div><div class="cht"><canvas id="cSim_"></canvas></div></div>
+  <div class="card"><div class="ct">📋 Comparativo EVENTO vs CAPITA – Servicios Migrables</div>
+    <div class="tw_"><table>
+      <thead><tr><th class="L">Servicio</th><th>Frec/Mes</th><th>Val.EVENTO/Mes</th><th>Costo CAPITA/Mes</th><th>Ahorro/Mes</th><th>Aplica</th></tr></thead>
+      <tbody id="tbComp"></tbody>
+    </table></div></div>
+</div>
+</div></div>
+
+<!-- ══════════════════════════════════════════════════════
+     TAB 5 – 3 ESCENARIOS
+══════════════════════════════════════════════════════ -->
+<div id="s-esc" class="sec"><div class="wrap">
+<div class="stit">🔀 3 Escenarios de Negociación CAPITA · Bogotá 2026</div>
+<div class="escg">
+  <div class="esc e1">
+    <div class="en">Escenario 1</div>
+    <div class="et">CAPITA ACTUAL<br><small>Base contractual vigente</small></div>
+    <div class="ev">$1.007 M</div><div class="es">/mes promedio RIPS</div>
+    <div class="er">
+      <div class="row"><span class="k">Cuatrimestre 1 (Ene–Abr)</span><span class="v">$3.420 M</span></div>
+      <div class="row"><span class="k">Cuatrimestre 2 (May–Ago)</span><span class="v">$4.633 M</span></div>
+      <div class="row"><span class="k">Total Ene–Ago 2026</span><span class="v">$8.053 M</span></div>
+      <div class="row"><span class="k">Proyección anual</span><span class="v">$12.080 M</span></div>
+      <div class="row"><span class="k">Costo prom/usuario</span><span class="v">$69.781</span></div>
+      <div class="row"><span class="k">Costo prom/atención</span><span class="v">$11.130</span></div>
+      <div class="row"><span class="k">Tendencia mensual</span><span class="v">+$47,5M/mes</span></div>
+    </div>
+    <div class="tag">⚠️ INSUFICIENTE – Revisar urgente</div>
+  </div>
+  <div class="esc e2">
+    <div class="en">Escenario 2</div>
+    <div class="et">CAPITA AMPLIADA<br><small>Base + 13 servicios EVENTO</small></div>
+    <div class="ev">$1.112 M</div><div class="es">/mes (base + migrables)</div>
+    <div class="er">
+      <div class="row"><span class="k">CAPITA base</span><span class="v">$1.006.627.051</span></div>
+      <div class="row"><span class="k">+ 13 servicios migrables</span><span class="v">$105.447.145</span></div>
+      <div class="row"><span class="k">= CAPITA AMPLIADA/MES</span><span class="v">$1.112.074.196</span></div>
+      <div class="row"><span class="k">Costo anual</span><span class="v">$13.344.890.352</span></div>
+      <div class="row"><span class="k">Incremento vs Esc.1</span><span class="v">+10,5%</span></div>
+      <div class="row"><span class="k">CUPS incorporados</span><span class="v">13 servicios</span></div>
+      <div class="row"><span class="k">Permanecen EVENTO</span><span class="v">Traslados, partos</span></div>
+    </div>
+    <div class="tag">✔ RECOMENDADO MÍNIMO</div>
+  </div>
+  <div class="esc e3">
+    <div class="en">Escenario 3 ⭐ ÓPTIMO</div>
+    <div class="et">CAPITA DEMANDA REAL<br><small>Propuesta técnica Bogotá</small></div>
+    <div class="ev">$1.253 M</div><div class="es">/mes ajustado demanda real</div>
+    <div class="er">
+      <div class="row"><span class="k">Base 2do cuatrimestre</span><span class="v">$1.158.296.260</span></div>
+      <div class="row"><span class="k">+ Ajuste crecimiento pob.(3%)</span><span class="v">$34.748.888</span></div>
+      <div class="row"><span class="k">+ Nuevos servicios</span><span class="v">$60.000.000</span></div>
+      <div class="row"><span class="k">= CAPITA AJUSTADA/MES</span><span class="v">$1.253.045.148</span></div>
+      <div class="row"><span class="k">CAPITA AJUSTADA/AÑO</span><span class="v">$15.036.541.776</span></div>
+      <div class="row"><span class="k">Piso negociación</span><span class="v">$1.150.000.000</span></div>
+      <div class="row"><span class="k">Techo negociación</span><span class="v">$1.350.000.000</span></div>
+      <div class="row"><span class="k">Diferencia vs Esc.1</span><span class="v">+$246 M (+24,5%)</span></div>
+    </div>
+    <div class="tag">✔✔ ÓPTIMO – Referente Bogotá</div>
+  </div>
+</div>
+<div class="card"><div class="ct">📊 Comparativo Visual 3 Escenarios + Referencias de Pago</div>
+  <div class="ch"><canvas id="cEsc"></canvas></div></div>
+<div class="card"><div class="ct">📋 Cuadro Resumen – 3 Escenarios (Datos Exactos)</div>
+  <div class="tw_"><table>
+    <thead><tr><th class="L">Escenario</th><th>Costo Mensual</th><th>Costo Anual</th><th>Incremento</th><th>Dif.Anual</th><th class="L">Recomendación</th></tr></thead>
+    <tbody>
+      <tr style="background:#EBF3FB"><td class="L"><strong>ESC.1 – CAPITA ACTUAL</strong></td><td><strong>$1.006.627.051</strong></td><td>$12.079.524.612</td><td>Base</td><td>Base</td><td class="L"><span class="chip cr">⚠ Insuficiente</span></td></tr>
+      <tr style="background:var(--v3)"><td class="L"><strong>ESC.2 – CAPITA AMPLIADA</strong></td><td><strong>$1.112.074.196</strong></td><td>$13.344.890.352</td><td style="color:var(--v1);font-weight:900">+10,5%</td><td>+$1.265 M/año</td><td class="L"><span class="chip cv">✔ Mínimo recom.</span></td></tr>
+      <tr style="background:var(--m2)"><td class="L"><strong>ESC.3 – CAPITA DEMANDA REAL ⭐</strong></td><td><strong>$1.253.045.148</strong></td><td>$15.036.541.776</td><td style="color:var(--m1);font-weight:900">+24,5%</td><td>+$2.957 M/año</td><td class="L"><span class="chip cm">⭐ Óptimo Bogotá</span></td></tr>
+    </tbody>
+  </table></div></div>
+</div></div>
+
+<!-- ══════════════════════════════════════════════════════
+     TAB 6 – COSTOS VS PAGOS (Hoja 9)
+══════════════════════════════════════════════════════ -->
+<div id="s-pag" class="sec"><div class="wrap">
+<div class="stit">💳 Costos vs Pagos · Giro Directo · UPC 2026 · Actas Bogotá</div>
+<div class="al an"><span class="ai_">💰</span>
+  <div><strong>DATO CLAVE:</strong> Valores exactos de la Hoja 9. Giro Directo actual: <strong>$1.813.727.591/mes</strong> (70.004 usuarios × $25.909). Con UPC 2026 (+16,49%): <strong>$2.112.811.270/mes</strong> (70.004 × $30.181). Actas firmadas Bogotá (40.000 usr valor): <strong>$2.800.150.667/mes</strong>. Costo real agosto: $1.188.766.946. El excedente Giro vs Costo real es <strong>+$624.960.645/mes</strong>.</div>
+</div>
+<div class="kg">
+  <div class="kc ro"><div class="lb">Costo Real Agosto</div><div class="vl">$1.189 M</div><div class="sb">RIPS confirmado</div></div>
+  <div class="kc"><div class="lb">Giro Directo Actual</div><div class="vl">$1.814 M</div><div class="sb">70.004 × $25.909</div></div>
+  <div class="kc mo"><div class="lb">Giro + UPC 2026 ⭐</div><div class="vl">$2.113 M</div><div class="sb">70.004 × $30.181 (+16,49%)</div></div>
+  <div class="kc na"><div class="lb">Actas Bogotá</div><div class="vl">$2.800 M</div><div class="sb">70.004 × $40.000 (+54,5%)</div></div>
+  <div class="kc ve"><div class="lb">Excedente Giro vs Costo</div><div class="vl">+$625 M</div><div class="sb">/mes a favor ESE</div></div>
+  <div class="kc"><div class="lb">Usuarios Contratados</div><div class="vl">70.004</div><div class="sb">Base actual</div></div>
+</div>
+<div class="g2">
+  <div class="card"><div class="ct">📊 Comparativo Costos vs Giros – Mensual</div>
+    <div class="cht"><canvas id="cPag"></canvas></div></div>
+  <div class="card"><div class="ct">📋 Escenarios de Giro Directo – Hoja 9 Exacta</div>
+    <div class="tw_"><table>
+      <thead><tr><th class="L">Escenario</th><th>Usuarios</th><th>Val/Usuario</th><th>Giro Mensual</th><th>vs Costo Real</th><th>UPC</th></tr></thead>
+      <tbody>
+        <tr><td class="L">Costo real agosto (RIPS)</td><td>16.479</td><td>$72.138</td><td>$1.188.766.946</td><td class="hl-r">BASE COSTO</td><td>—</td></tr>
+        <tr><td class="L">Giro Directo sin UPC (vigente)</td><td>70.004</td><td>$25.909</td><td>$1.813.727.591</td><td class="hl-v">+52,6%</td><td>—</td></tr>
+        <tr><td class="L">⭐ Giro + UPC 2026 (+16,49%)</td><td>70.004</td><td>$30.181</td><td class="hl-m">$2.112.811.270</td><td class="hl-m">+77,8%</td><td>16,49%</td></tr>
+        <tr><td class="L">Actas firmadas Bogotá</td><td>70.004</td><td>$40.000</td><td class="hl-n">$2.800.150.667</td><td class="hl-n">+135,5%</td><td>54,5%</td></tr>
+      </tbody>
+    </table></div></div>
+</div>
+</div></div>
+
+<!-- ══════════════════════════════════════════════════════
+     TAB 7 – MODELO PGP (Datos Exactos)
+══════════════════════════════════════════════════════ -->
+<div id="s-pgp" class="sec"><div class="wrap">
+<div class="stit">💡 Modelo PGP · Pago Global Prospectivo · Datos Exactos Hoja "ESCENARIO MODELO PGP"</div>
+
+<div class="pgp-h">
+  <h2>💡 Pago Global Prospectivo (PGP) – Construcción con Datos Reales ESE Moreno y Clavijo</h2>
+  <p>El PGP integra en un valor fijo mensual <strong>TODOS los servicios (CAPITA + EVENTO)</strong> para la población contratada. Con los datos reales de enero–agosto 2026, se construyeron <strong>3 modelos PGP</strong> basados en la combinación de la CAPITA pagada (o ajustada) más la facturación real de EVENTO. Elimina glosas, da flujo de caja predecible y simplifica la gestión contractual.</p>
+  <div class="pgrid">
+    <div class="pk"><div class="k">PGP-1: CAPITA 2025 + EVENTO</div><div class="v">$2.746.540 M</div></div>
+    <div class="pk"><div class="k">PGP-2 ⭐: CAPITA UPC + EVENTO</div><div class="v">$3.045.624 M</div></div>
+    <div class="pk"><div class="k">EVENTO Promedio Real</div><div class="v">$932.812 M</div></div>
+    <div class="pk"><div class="k">Val/Atención UPC (prom.)</div><div class="v">$32.773</div></div>
+    <div class="pk"><div class="k">RIPS Totales (Cap+Ev)</div><div class="v">763.668</div></div>
+    <div class="pk"><div class="k">Usuarios Base PGP</div><div class="v">73.000</div></div>
+  </div>
+</div>
+
+<div class="al am"><span class="ai_">💡</span>
+  <div><strong>VALORES EXACTOS DEL MODELO PGP (Hoja Excel):</strong><br>
+  • <strong>PGP-1 (CAPITA 2025 + EVENTO):</strong> Promedio $2.746.539.849/mes → $37.623/usuario (73.000 users)<br>
+  • <strong>PGP-2 ⭐ (CAPITA UPC 16,49% + EVENTO):</strong> Promedio $3.045.623.529/mes → $41.721/usuario<br>
+  • <strong>PGP-3 (40.000 valor usuario + EVENTO):</strong> $3.045.623.529/mes → $41.721/usuario<br>
+  • EVENTO real promedio mensual: <strong>$932.812.259</strong> (8 meses)
+  </div>
+</div>
+
+<div class="esc4">
+  <div class="esc e1">
+    <div class="en">PGP Modalidad 1</div>
+    <div class="et">CAPITA 2025<br>+ EVENTO Real</div>
+    <div class="ev" style="font-size:1.35rem">$2.746.540 M</div><div class="es">/mes promedio real</div>
+    <div class="er">
+      <div class="row"><span class="k">CAPITA base 2025</span><span class="v">$1.813.728 M</span></div>
+      <div class="row"><span class="k">EVENTO real prom.</span><span class="v">$932.812 M</span></div>
+      <div class="row"><span class="k">Val/usuario (73k)</span><span class="v">$37.624</span></div>
+      <div class="row"><span class="k">PGP Anual</span><span class="v">$32.958 M</span></div>
+    </div>
+    <div class="tag" style="background:#EBF3FB;color:var(--a1)">Piso PGP</div>
+  </div>
+  <div class="esc e2">
+    <div class="en">PGP Modalidad 2 ⭐ ÓPTIMO</div>
+    <div class="et">CAPITA UPC 16,49%<br>+ EVENTO Real</div>
+    <div class="ev" style="font-size:1.35rem">$3.045.624 M</div><div class="es">/mes (recomendado)</div>
+    <div class="er">
+      <div class="row"><span class="k">CAPITA UPC 2026</span><span class="v">$2.112.811 M</span></div>
+      <div class="row"><span class="k">EVENTO real prom.</span><span class="v">$932.812 M</span></div>
+      <div class="row"><span class="k">Val/usuario (73k)</span><span class="v">$41.721</span></div>
+      <div class="row"><span class="k">PGP Anual</span><span class="v">$36.547 M</span></div>
+      <div class="row"><span class="k">vs PGP-1</span><span class="v">+$299 M/mes</span></div>
+    </div>
+    <div class="tag">✔ ÓPTIMO – UPC reconocida</div>
+  </div>
+  <div class="esc e4">
+    <div class="en">PGP Modalidad 3</div>
+    <div class="et">CAPITA 40.000 usr<br>+ EVENTO Real</div>
+    <div class="ev" style="font-size:1.35rem;color:#7F4000">$3.045.624 M</div><div class="es">/mes (actas firmadas)</div>
+    <div class="er">
+      <div class="row"><span class="k">CAPITA 40k usuarios</span><span class="v">$2.800.151 M</span></div>
+      <div class="row"><span class="k">EVENTO real prom.</span><span class="v">$932.812 M</span></div>
+      <div class="row"><span class="k">Val/usuario (73k)</span><span class="v">$41.721</span></div>
+      <div class="row"><span class="k">PGP Anual</span><span class="v">$36.547 M</span></div>
+    </div>
+    <div class="tag" style="background:var(--n2);color:#7F4000">Techo PGP</div>
+  </div>
+  <div class="esc e5">
+    <div class="en">EVENTO Solo (Ref.)</div>
+    <div class="et">Facturación EVENTO<br>Real Promedio</div>
+    <div class="ev" style="font-size:1.35rem">$932.812 M</div><div class="es">/mes promedio real</div>
+    <div class="er">
+      <div class="row"><span class="k">RIPS EVENTO total</span><span class="v">52.906</span></div>
+      <div class="row"><span class="k">Mín.mensual</span><span class="v">$710,2 M (Ene)</span></div>
+      <div class="row"><span class="k">Máx.mensual</span><span class="v">$1.151,1 M (May)</span></div>
+      <div class="row"><span class="k">Total 8 meses</span><span class="v">$7.462 M</span></div>
+    </div>
+    <div class="tag">⚠ Referencia – No es PGP</div>
+  </div>
+</div>
+
+<div class="g2">
+  <div class="card"><div class="ct">📊 Evolución Mensual PGP – Costo Fijo + Evento + PGP</div>
+    <div class="cht"><canvas id="cPGPevo"></canvas></div></div>
+  <div class="card"><div class="ct">📊 Composición PGP-2 Óptimo (UPC+EVENTO)</div>
+    <div class="cht"><canvas id="cPGPdnt"></canvas></div></div>
+</div>
+
+<div class="card"><div class="ct">📋 Tabla PGP Mensual – Datos Exactos (Hoja "ESCENARIO MODELO PGP")</div>
+  <div class="tw_"><table>
+    <thead><tr>
+      <th>Mes</th><th>RIPS Cap.</th><th>RIPS Ev.</th><th>Costo Fijo (CAPITA)</th>
+      <th>Fact.EVENTO</th><th>CAPITA 2025</th>
+      <th style="background:#4A1070">⭐ PGP-2 UPC+Ev</th>
+      <th>PGP-3 (40k+Ev)</th><th>Val/Atenc.UPC</th>
+    </tr></thead>
+    <tbody id="tbPGP"></tbody>
+  </table></div></div>
+
+<div class="div_">📐 Resumen Financiero del Modelo PGP – Comparativo 3 Modalidades</div>
+<div class="card"><div class="ct">📋 Comparativo Completo: CAPITA vs PGP – Todas las Modalidades</div>
+  <div class="tw_"><table>
+    <thead><tr><th class="L">Modalidad</th><th>Val.Mensual</th><th>Val.Anual</th><th>Val/Usuario (73k)</th><th>Incl.EVENTO</th><th>Riesgo Glosa</th><th class="L">Estado</th></tr></thead>
+    <tbody>
+      <tr><td class="L">Costo Real CAPITA (RIPS)</td><td>$1.006.627.051</td><td>$12.079.524.612</td><td>$13.789</td><td><span class="b_ bN">NO</span></td><td>MUY ALTO</td><td class="L"><span class="chip cr">⚠ Insuficiente</span></td></tr>
+      <tr style="background:var(--v3)"><td class="L">Esc.2 – CAPITA Ampliada</td><td>$1.112.074.196</td><td>$13.344.890.352</td><td>$15.234</td><td><span class="b_ bP">PARCIAL</span></td><td>MEDIO</td><td class="L"><span class="chip cv">✔ Mínimo</span></td></tr>
+      <tr style="background:var(--m2)"><td class="L">Esc.3 – CAPITA Dem.Real ⭐</td><td>$1.253.045.148</td><td>$15.036.541.776</td><td>$17.165</td><td><span class="b_ bP">PARCIAL</span></td><td>BAJO-MEDIO</td><td class="L"><span class="chip cm">⭐ Óptimo CAPITA</span></td></tr>
+      <tr><td class="L">Giro Directo sin UPC</td><td>$1.813.727.591</td><td>$21.764.731.092</td><td>$24.845</td><td><span class="b_ bN">NO</span></td><td>ALTO</td><td class="L"><span class="chip ca">Giro vigente</span></td></tr>
+      <tr style="background:var(--a4)"><td class="L">Giro + UPC 2026 (+16,49%)</td><td>$2.112.811.270</td><td>$25.353.735.240</td><td>$28.942</td><td><span class="b_ bN">NO</span></td><td>ALTO</td><td class="L"><span class="chip cm">Meta CAPITA</span></td></tr>
+      <tr><td class="L">Actas Bogotá (40k val.user)</td><td>$2.800.150.667</td><td>$33.601.808.004</td><td>$38.358</td><td><span class="b_ bN">NO</span></td><td>MEDIO</td><td class="L"><span class="chip cn">Firmadas</span></td></tr>
+      <tr class="pgp-row"><td class="L">PGP-1: CAPITA 2025 + EVENTO</td><td>$2.746.539.849</td><td>$32.958.478.188</td><td>$37.624</td><td><span class="b_ bS">SÍ TOTAL</span></td><td>MUY BAJO</td><td class="L"><span class="chip cm">Piso PGP</span></td></tr>
+      <tr class="pgp-best"><td class="L">⭐ PGP-2: UPC 16,49% + EVENTO</td><td>$3.045.623.529</td><td>$36.547.482.348</td><td>$41.721</td><td><span class="b_ bS">SÍ TOTAL</span><td>MÍNIMO</td><td class="L">⭐ PGP ÓPTIMO</td></tr>
+      <tr class="pgp-row"><td class="L">PGP-3: 40k val.user + EVENTO</td><td>$3.045.623.529</td><td>$36.547.482.348</td><td>$41.721</td><td><span class="b_ bS">SÍ TOTAL</span></td><td>MÍNIMO</td><td class="L"><span class="chip cm">Techo PGP</span></td></tr>
+    </tbody>
+  </table></div></div>
+
+<div class="al ao"><span class="ai_">✅</span>
+  <div><strong>VENTAJAS TÉCNICAS DEL PGP PARA LA ESE:</strong> (1) Elimina el riesgo de glosas del EVENTO. (2) Garantiza flujo de caja mensual fijo y predecible. (3) Simplifica la gestión contractual a un solo valor. (4) Alinea incentivos ESE–EPS hacia la eficiencia. (5) El PGP-2 ($3.045.623.529/mes) reconoce el UPC 2026 E integra el EVENTO real, siendo la propuesta más completa y sólida técnicamente para el contrato 2027.</div>
+</div>
+</div></div>
+
+<!-- ══════════════════════════════════════════════════════
+     TAB 8 – RIESGO FINANCIERO
+══════════════════════════════════════════════════════ -->
+<div id="s-rie" class="sec"><div class="wrap">
+<div class="stit">⚠️ Riesgo Financiero · Servicios que Deben Permanecer en EVENTO</div>
+<div class="al aw"><span class="ai_">⚠️</span>
+  <div><strong>ADVERTENCIA CRÍTICA:</strong> S31307 y 601T02 representaron <strong>$2.919 M en 7 meses</strong> (39,1% del total EVENTO). Su costo unitario puede superar $1,4M/episodio. Son la mayor fuente de riesgo financiero de la ESE y <strong>NO deben incorporarse a ninguna modalidad CAPITA sin topes contractuales explícitos</strong>.</div>
+</div>
+<div class="kg">
+  <div class="kc ro"><div class="lb">Traslado Intermun./mes</div><div class="vl">$210,4 M</div><div class="sb">S31307 · EXTREMO</div></div>
+  <div class="kc ro"><div class="lb">Traslado Terrestre/mes</div><div class="vl">$154,5 M</div><div class="sb">601T02 · EXTREMO</div></div>
+  <div class="kc na"><div class="lb">Total Traslados 7m</div><div class="vl">$2.919 M</div><div class="sb">Impredecible</div></div>
+  <div class="kc"><div class="lb">Costo unit.máx.</div><div class="vl">$1,4 M</div><div class="sb">Por episodio S31307</div></div>
+</div>
+<div class="g2">
+  <div class="card"><div class="ct">⚠️ Servicios de Riesgo – Análisis Completo</div>
+    <div class="tw_"><table>
+      <thead><tr><th>Código</th><th class="L">Servicio</th><th>Costo/Mes</th><th>Frec/Mes</th><th>Riesgo</th><th class="L">Justificación</th></tr></thead>
+      <tbody id="tbRie"></tbody>
+    </table></div></div>
+  <div class="card"><div class="ct">📊 Impacto Financiero por Servicio de Riesgo</div>
+    <div class="cht"><canvas id="cRie"></canvas></div></div>
+</div>
+</div></div>
+
+<!-- ══════════════════════════════════════════════════════
+     TAB 9 – SIMULADOR INTERACTIVO
+══════════════════════════════════════════════════════ -->
+<div id="s-neg" class="sec"><div class="wrap">
+<div class="stit">🎯 Simulador Interactivo de Negociación · Construya su Propuesta PGP</div>
+<div class="al ai"><span class="ai_">ℹ️</span><div>Ajuste los parámetros con los deslizadores. El simulador calcula en tiempo real el PGP resultante, el valor por usuario y el incremento versus el giro actual. Use los valores exactos del Excel como punto de partida.</div></div>
+
+<div class="sbox"><h3>🎛️ Parámetros de Construcción del PGP</h3>
+  <div class="sr_"><label>💰 CAPITA base/mes (costo real)</label><input type="range" id="slCap" min="800000000" max="1500000000" value="1006627051" step="5000000"><div class="sv" id="vCap">$1.006.627.051</div></div>
+  <div class="sr_"><label>📈 Ajuste UPC (%)</label><input type="range" id="slUPC" min="0" max="30" value="16" step="1"><div class="sv" id="vUPC">16%</div></div>
+  <div class="sr_"><label>🔄 Servicios migrables/mes</label><input type="range" id="slMig" min="0" max="150000000" value="105750000" step="1000000"><div class="sv" id="vMig">$105.750.000</div></div>
+  <div class="sr_"><label>⚡ EVENTO real/mes</label><input type="range" id="slEv" min="500000000" max="1500000000" value="932812259" step="10000000"><div class="sv" id="vEv">$932.812.259</div></div>
+  <div class="sr_"><label>🚑 Tope traslados/mes</label><input type="range" id="slTr" min="100000000" max="500000000" value="380000000" step="10000000"><div class="sv" id="vTr">$380.000.000</div></div>
+  <div class="sr_"><label>👥 Usuarios contratados</label><input type="range" id="slUsr" min="40000" max="90000" value="73000" step="1000"><div class="sv" id="vUsr">73.000</div></div>
+  <div class="sres">
+    <div><div class="k">CAPITA Ajustada/mes</div><div class="v" id="srCA">—</div></div>
+    <div><div class="k">EVENTO incluido</div><div class="v" id="srEv">—</div></div>
+    <div><div class="k">= PGP TOTAL/mes</div><div class="v" id="srPGP">—</div></div>
+    <div><div class="k">PGP Anual</div><div class="v" id="srAn">—</div></div>
+    <div><div class="k">Valor/usuario</div><div class="v" id="srVu">—</div></div>
+    <div><div class="k">Incr.vs Giro actual</div><div class="v" id="srInc">—</div></div>
+  </div>
+</div>
+<div class="card"><div class="ct">📊 Tu Simulación vs Referencias Clave</div>
+  <div class="ch"><canvas id="cNeg"></canvas></div></div>
+
+<div class="card"><div class="ct">📋 Tabla de Referencias para Negociación</div>
+  <div class="tw_"><table>
+    <thead><tr><th class="L">Referencia</th><th>Val.Mensual</th><th>Val.Anual</th><th>Val/Usuario(73k)</th><th>Modalidad</th><th>Estado</th></tr></thead>
+    <tbody>
+      <tr><td class="L">Costo Real CAPITA (RIPS prom.)</td><td>$1.006.627.051</td><td>$12.079.524.612</td><td>$13.789</td><td>CAPITA</td><td><span class="b_ bN">⚠ Insuficiente</span></td></tr>
+      <tr><td class="L">Piso CAPITA (Esc.2 Ampliada)</td><td>$1.112.074.196</td><td>$13.344.890.352</td><td>$15.234</td><td>CAPITA</td><td><span class="b_ bP">Mínimo</span></td></tr>
+      <tr><td class="L">Óptimo CAPITA (Esc.3 Dem.Real)</td><td>$1.253.045.148</td><td>$15.036.541.776</td><td>$17.165</td><td>CAPITA</td><td><span class="b_ bS">✔ Óptimo</span></td></tr>
+      <tr><td class="L">Giro Directo sin UPC (vigente)</td><td>$1.813.727.591</td><td>$21.764.731.092</td><td>$24.845</td><td>Giro</td><td><span class="b_ bP">Vigente</span></td></tr>
+      <tr><td class="L">⭐ Giro + UPC 2026 (+16,49%)</td><td>$2.112.811.270</td><td>$25.353.735.240</td><td>$28.942</td><td>Giro</td><td><span class="b_ bS">Meta</span></td></tr>
+      <tr><td class="L">Actas firmadas Bogotá</td><td>$2.800.150.667</td><td>$33.601.808.004</td><td>$38.358</td><td>Giro</td><td><span class="b_ bP">Firmadas</span></td></tr>
+      <tr style="background:var(--m2)"><td class="L">PGP-1: CAPITA 2025+EVENTO</td><td>$2.746.539.849</td><td>$32.958.478.188</td><td>$37.624</td><td>PGP</td><td><span class="b_ bS">Piso PGP</span></td></tr>
+      <tr style="background:#C5F0DA"><td class="L">⭐ PGP-2: UPC+EVENTO (ÓPTIMO)</td><td>$3.045.623.529</td><td>$36.547.482.348</td><td>$41.721</td><td>PGP</td><td><span class="b_ bS">⭐ ÓPTIMO</span></td></tr>
+    </tbody>
+  </table></div></div>
+</div></div>
+
+<!-- ══════════════════════════════════════════════════════
+     TAB 10 – RECOMENDACIONES
+══════════════════════════════════════════════════════ -->
+<div id="s-rec" class="sec"><div class="wrap">
+<div class="stit">✅ Recomendaciones Estratégicas · Guía Completa para Bogotá</div>
+<div class="al ao"><span class="ai_">✅</span>
+  <div><strong>SÍNTESIS EJECUTIVA:</strong> La ESE tiene tres argumentos técnicos irrefutables: (1) El costo real CAPITA es $1.007M/mes creciendo al 35,5%. (2) El Giro Directo con UPC 2026 debería ser $2.113M/mes. (3) El PGP óptimo que integra todo es $3.046M/mes. La estrategia de negociación debe ir en escalera: primero exigir UPC 2026, luego proponer CAPITA ampliada, y como visión 2027 presentar el PGP.</div>
+</div>
+
+<div class="g2">
+  <div class="card"><div class="ct">💰 Tabla de Valores para Mesa de Negociación</div>
+    <div class="tw_"><table>
+      <thead><tr><th class="L">Concepto</th><th>Valor Mensual</th><th>Valor Anual</th><th>Val/Usuario</th></tr></thead>
+      <tbody>
+        <tr style="background:var(--r2)"><td class="L">⛔ Giro actual (sin UPC)</td><td><strong>$1.813.727.591</strong></td><td>$21.764.731.092</td><td>$24.845</td></tr>
+        <tr style="background:var(--a4)"><td class="L">🎯 PISO CAPITA (Esc.2)</td><td><strong>$1.112.074.196</strong></td><td>$13.344.890.352</td><td>$15.234</td></tr>
+        <tr style="background:var(--m2)"><td class="L">⭐ PROPUESTA CAPITA (Esc.3)</td><td><strong>$1.253.045.148</strong></td><td>$15.036.541.776</td><td>$17.165</td></tr>
+        <tr style="background:var(--v3)"><td class="L">✔ META: Giro + UPC 2026</td><td><strong>$2.112.811.270</strong></td><td>$25.353.735.240</td><td>$28.942</td></tr>
+        <tr style="background:var(--n2)"><td class="L">💬 Actas Bogotá</td><td><strong>$2.800.150.667</strong></td><td>$33.601.808.004</td><td>$38.358</td></tr>
+        <tr style="background:var(--m2)"><td class="L">💡 PGP-1 (Cap.2025+Ev)</td><td><strong>$2.746.539.849</strong></td><td>$32.958.478.188</td><td>$37.624</td></tr>
+        <tr style="background:#C5F0DA"><td class="L">⭐ PGP-2 ÓPTIMO (UPC+Ev)</td><td><strong>$3.045.623.529</strong></td><td>$36.547.482.348</td><td>$41.721</td></tr>
+      </tbody>
+    </table></div></div>
+  <div class="card"><div class="ct">📊 Impacto % Grupos de Mayor Costo CAPITA</div>
+    <div class="ch"><canvas id="cImp"></canvas></div></div>
+</div>
+
+<div class="card"><div class="ct">🗺️ Guía Paso a Paso · 8 Acciones para Bogotá</div>
+  <ul class="rl">
+    <li><div class="rn">1</div><div class="rt"><strong>Exigir reconocimiento UPC 2026 (+16,49%) como prioridad #1</strong>El Giro Directo debería ser $2.112.811.270/mes (vs $1.813.727.591 actual). La diferencia acumulada ene–ago es $2.390.951.111. Llevar la Hoja 9 como evidencia irrefutable y solicitar liquidación retroactiva desde enero 2026.</div></li>
+    <li><div class="rn">2</div><div class="rt"><strong>Sustentar con RIPS el crecimiento real de la demanda</strong>El costo mensual creció de $757M (enero) a $1.189M (agosto): +57% en 8 meses. El 2do cuatrimestre promedió $1.158M vs $855M del 1ro (+35,5%). Estos datos invalidan cualquier argumento de que la CAPITA está bien dimensionada.</div></li>
+    <li><div class="rn">3</div><div class="rt"><strong>Proponer CAPITA Ampliada (Esc.2) como piso de negociación</strong>Incorporar los 13 servicios EVENTO predecibles ($105.447.145/mes adicionales) en la CAPITA. Costo resultante: $1.112.074.196/mes. Presentar como "paquete básico de primer nivel" respaldado en RIPS.</div></li>
+    <li><div class="rn">4</div><div class="rt"><strong>Defender el Escenario 3 ($1.253.045.148/mes) como propuesta central</strong>Está soportado en la tendencia real del 2do cuatrimestre + 3% crecimiento + nuevos servicios. Es la propuesta con mayor solidez estadística y representa el +24,5% sobre la base actual, justificado en datos.</div></li>
+    <li><div class="rn">5</div><div class="rt"><strong>Exigir cláusula de revisión cuatrimestral con RIPS como base</strong>Dado el crecimiento sostenido, incluir mecanismo automático de ajuste cada 4 meses usando RIPS reales. Esto protege a la ESE de la subestimación crónica y da certeza a ambas partes.</div></li>
+    <li><div class="rn">6</div><div class="rt"><strong>Negociar tope explícito para traslados en EVENTO</strong>S31307 y 601T02 = $364,9M/mes promedio. Proponer tope mensual de $380M y cuota fija de $850.000 por episodio básico. Lo que exceda se gestiona por comité técnico ESE–EPS con revisión mensual.</div></li>
+    <li><div class="rn">7</div><div class="rt"><strong>Presentar el PGP-2 como propuesta visionaria 2027</strong>El PGP (UPC 2026 + EVENTO real = $3.045.623.529/mes → $41.721/usuario) es la propuesta más eficiente. Integra todo en un valor fijo, elimina glosas y da previsibilidad total. Solicitar análisis conjunto con la EPS para implementación en el siguiente contrato.</div></li>
+    <li><div class="rn">8</div><div class="rt"><strong>Llevar el Dra. Linda: socializar modelo de contratación PGP con Mendivelso y Mayerli</strong>Según el PDF original, la Dra. Linda debe enviar solicitud de socialización del modelo PGP (ahora con datos exactos). Usar este dashboard como soporte técnico completo de la reunión.</div></li>
+  </ul>
+</div>
+
+<div class="g3">
+  <div class="card"><div class="ct">✅ Migran a CAPITA (13 servicios)</div>
+    <span class="chip cv">VIH Anticuerpos</span><span class="chip cv">Hemograma I</span>
+    <span class="chip cv">Recuento Plaquetas</span><span class="chip cv">Uroanálisis</span>
+    <span class="chip cv">Transaminasa GPT</span><span class="chip cv">Transaminasa GOT</span>
+    <span class="chip cv">Tiempo Protrombina</span><span class="chip cv">Tromboplastina TTP</span>
+    <span class="chip cv">Proteína C Reactiva</span><span class="chip cv">Ginecología 1ª vez</span>
+    <span class="chip cv">Control Ginecología</span><span class="chip cv">Pediatría 1ª vez</span>
+    <span class="chip cv">Ecografías obstétricas</span>
+    <p style="font-size:.64rem;margin-top:8px;color:var(--v1);font-weight:700">Costo adicional: $105.447.145/mes</p>
+  </div>
+  <div class="card"><div class="ct">⚡ Permanecen en EVENTO</div>
+    <span class="chip cr">Traslado Intermun.>25km</span>
+    <span class="chip cr">Traslado Terrestre Sec.</span>
+    <span class="chip cr">Traslado Terrestre Prim.</span>
+    <span class="chip cr">Asistencia del Parto</span>
+    <span class="chip cr">Colposcopia</span>
+    <span class="chip cr">Oclusión Trompa Falopio</span>
+    <span class="chip cr">Vasectomía</span>
+    <span class="chip cr">Insumos/Medicamentos</span>
+    <p style="font-size:.64rem;margin-top:8px;color:var(--r1);font-weight:700">Proponer topes contractuales</p>
+  </div>
+  <div class="card"><div class="ct">🔄 Análisis Pendiente 2027</div>
+    <span class="chip cn">Consulta Urgencias MG</span>
+    <span class="chip cn">Sala Obs.Urgencias</span>
+    <span class="chip cn">Monitoría Fetal</span>
+    <span class="chip cn">Det.VPH Molecular</span>
+    <span class="chip cn">Hepatitis B Ag HBs</span>
+    <span class="chip cn">Creatinina en suero</span>
+    <span class="chip cn">Control Pediatría</span>
+    <p style="font-size:.64rem;margin-top:8px;color:#7F4000;font-weight:700">Evaluar en contrato 2027 con mayor historial</p>
+  </div>
+</div>
+</div></div>
+
+<div class="footer">
+  ESE Departamental de Primer Nivel Moreno y Clavijo · NIT 900034131 · Tame, Arauca ·
+  Elaborado por Winston Gerlein Gutiérrez Pastrana · Profesional de Costos y Contratación ·
+  Contrato No. 001-1000 de 2026 · Dashboard Unificado CAPITA · EVENTO · PGP · Septiembre 2026
+</div>
+
+<script>
+// ── HELPERS ──────────────────────────────────────────────────────
+const F  = n => '$' + Math.round(n).toLocaleString('es-CO');
+const FM = n => '$' + (n/1e6).toFixed(1) + ' M';
+const FN = n => Math.round(n).toLocaleString('es-CO');
+
+// ── TABS ─────────────────────────────────────────────────────────
+function T(id, btn) {
+  document.querySelectorAll('.sec').forEach(s => s.classList.remove('on'));
+  document.querySelectorAll('.tb').forEach(b => b.classList.remove('on'));
+  document.getElementById('s-' + id).classList.add('on');
+  btn.classList.add('on');
+}
+
+// ── DATOS EXACTOS DEL EXCEL ───────────────────────────────────────
+const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago'];
+
+// Hoja 2 – CAPITA grupos
+const GN  = ['Promoción y Mant.Salud','Urgencias','Medicina General','Laboratorio',
+              'Odontología','Apoyo Terapéutico','Imagenología','Internación Básica',
+              'Procedimientos','Medicamentos'];
+const GRIPS=[236198,12495,71678,193814,112781,29732,10862,1001,5300,2250];
+const GMON =[[41067628,34310215,54756837,55192799,59247246,62996520,64435195,63955637],
+             [16031577,13393685,21375436,21545623,23128358,24591963,25153579,24966373],
+             [10538192, 8804201,14050923,14162793,15203188,16165273,16534446,16411388],
+             [ 8378694, 7000034,11171592,11260538,12087734,12852668,13146189,13048348],
+             [ 6457233, 5394737, 8609644, 8678192, 9315689, 9905203,10131412,10056009],
+             [ 3472145, 2900826, 4629526, 4666385, 5009177, 5326167, 5447802, 5407257],
+             [ 3396749, 2837836, 4528999, 4565058, 4900405, 5210512, 5329506, 5289842],
+             [ 2930331, 2448164, 3907108, 3938216, 4227516, 4495041, 4597696, 4563478],
+             [ 2260380, 1888449, 3013840, 3037835, 3260994, 3467356, 3546541, 3520146],
+             [  291340,  243402,  388453,  391546,  420309,  446906,  457113,  453711]];
+const GPCT=[43.3,16.9,11.1,8.8,6.8,3.7,3.6,3.1,2.4,0.3];
+const GCOL=['#1F4E79','#C00000','#2E75B6','#70AD47','#375623',
+            '#F4B942','#FF6B35','#7030A0','#BDD7EE','#BFBFBF'];
+
+// Hoja 8 – Detalle mensual
+const DM = [
+  [68660,5291,73951,12822,21781,757466936,59076,11113],
+  [60055,3230,63285,9374, 17113,634022513,67636,10370],
+  [100858,7852,108710,15887,30088,1010084089,63579,10704],
+  [101101,7366,108467,15093,29603,1018257832,67466,10722],
+  [100635,7480,108115,14394,27813,1093011564,75935,11274],
+  [102262,9335,111597,15738,28115,1162127575,73842,11767],
+  [105104,8714,113818,15136,28383,1189278954,78573,11752],
+  [109383,7970,117353,16479,30918,1188766946,72138,11342]
+];
+
+// PGP hoja exacta
+const PGP_RIPS_CAP =[68158,61142,94367,94969,96951,98759,101200,104814];
+const PGP_RIPS_EV  =[3679,3888,4569,5409,7221,6559,6575,5409];
+const PGP_COSTO_FIJ=[757466936,634022513,1010084089,1018257832,1093011564,1162127575,1189278954,1188766946];
+const PGP_FACT_EV  =[710189773,749978635,831998018,894501376,1151139339,982017634,1023739359,1118933936];
+const PGP_CAP2025  =[1813727591,1813727591,1813727591,1813727591,1813727591,1813727591,1813727591,1813727591];
+const PGP_UPC      =[2112811270,2112811270,2112811270,2112811270,2112811270,2112811270,2112811270,2112811270];
+const PGP_P1       =[2523917364,2563706226,2645725609,2708228967,2964866930,2795745225,2837466950,2932661527];
+const PGP_P2       =[2823001043,2862789905,2944809289,3007312647,3263950610,3094828905,3136550630,3231745207];
+const PGP_P3       =[3510340440,3550129302,3632148685,3694652043,3951290006,3782168301,3823890026,3919084603];
+const PGP_VAT      =[39297,44023,29765,29960,31332,29386,29103,29320];
+
+// TOP 20 EVENTO
+const T20 = [
+  [1,'906249','VIRUS VIH 1 Y 2 ANTICUERPOS',433423135,3207,135149,'SÍ','Alta frecuencia predecible. Candidato CAPITA.'],
+  [2,'890701','CONSULTA URGENCIAS MED.GRAL.',318638596,3036,104953,'PARCIAL','Vol.alto urgente. Cuota fija episodio.'],
+  [3,'902207','HEMOGRAMA I MANUAL',69512525,1594,43609,'SÍ','Frecuencia estable. Bajo costo. Ideal CAPITA.'],
+  [4,'902221','RECUENTO PLAQUETAS MANUAL',24968930,1397,17873,'SÍ','Complementario hemograma. CAPITA lab.'],
+  [5,'907106','UROANÁLISIS',37341185,1342,27825,'SÍ','Predecible. Costo bajo. Candidato.'],
+  [6,'5DSB01','SALA OBS. URG. BAJA COMPLEJIDAD',138654193,1230,112727,'PARCIAL','Ligado urgencias. Cuota episodio.'],
+  [7,'903866','TRANSAMINASA GPT [ALT]',49867794,1210,41213,'SÍ','Marcador rutinario. CAPITA lab.'],
+  [8,'903867','TRANSAMINASA GOT [AST]',49708910,1206,41218,'SÍ','Similar GPT. CAPITA lab.'],
+  [9,'S31307','TRASLADO INTERMUNICIPAL >25KM',1683544000,1190,1414743,'NO','Costo atípico $1,4M. Permanece EVENTO.'],
+  [10,'890250','GINECOLOGÍA 1ª VEZ',75487804,1101,68563,'SÍ','Protocolo materno-perinatal.'],
+  [11,'890350','CONTROL GINECOLOGÍA',77359906,1053,73466,'SÍ','Gestantes seguimiento. Muy predecible.'],
+  [12,'902045','TIEMPO PROTROMBINA [TP]',57409945,979,58641,'SÍ','Coagulación básica. CAPITA lab.'],
+  [13,'902208','HEMOGRAMA II SEMIAUTOM.',42230491,976,43269,'SÍ','Complemento hemograma I.'],
+  [14,'902049','TIEMPO TROMBOPLASTINA [TTP]',55361540,970,57074,'SÍ','Coagulación básica. CAPITA lab.'],
+  [15,'601T02','TRASLADO TERRESTRE SECUNDARIO',1236000500,942,1312102,'NO','Permanece EVENTO con tope.'],
+  [16,'D-0082','JERINGA DESECHABLE 10 ML',796050,902,883,'NO','Insumo. No aplica.'],
+  [17,'906914','PROTEÍNA C REACTIVA',23414350,889,26338,'SÍ','Marcador inflamatorio. Bajo costo.'],
+  [18,'G-0105','LACTATO RINGER 500ML',3914624,712,5498,'NO','Medicamento urgencias.'],
+  [19,'890283','PEDIATRÍA 1ª VEZ',56966624,649,87776,'SÍ','Demanda programada. Candidato.'],
+  [20,'903895','CREATININA EN SUERO',16097440,636,25310,'SÍ','Función renal. CAPITA lab.']
+];
+
+// Simulación (Hoja 4)
+const SIM = [
+  ['906249','VIH ANTICUERPOS',1500,1707,3207,401,433423135,310000000,38750000,465000000,2100,185000,3.85],
+  ['902207','HEMOGRAMA I MANUAL',780,814,1594,199,69512525,51000000,6375000,76500000,950,67368,0.63],
+  ['907106','UROANÁLISIS',650,692,1342,168,37341185,28500000,3562500,42750000,820,43659,0.35],
+  ['903866','TRANSAMINASA GPT',580,630,1210,151,49867794,37000000,4625000,55500000,680,68382,0.46],
+  ['903867','TRANSAMINASA GOT',573,633,1206,151,49708910,36800000,4600000,55200000,680,68088,0.46],
+  ['890250','GINECOLOGÍA 1ª VEZ',535,566,1101,138,75487804,85000000,10625000,127500000,520,163462,1.06],
+  ['890350','CONTROL GINECOLOGÍA',510,543,1053,132,77359906,81000000,10125000,121500000,498,162651,1.01],
+  ['902045','TIEMPO PROTROMBINA',472,507,979,122,57409945,43000000,5375000,64500000,610,88525,0.53],
+  ['902208','HEMOGRAMA II SEMI',473,503,976,122,42230491,31500000,3937500,47250000,580,68103,0.39],
+  ['902049','TIEMPO TROMBOPLASTINA',470,500,970,121,55361540,40700000,5087500,61050000,590,86780,0.51],
+  ['906914','PROTEÍNA C REACTIVA',432,457,889,111,23414350,17500000,2187500,26250000,520,42308,0.22],
+  ['890283','PEDIATRÍA 1ª VEZ',310,339,649,81,56966624,65000000,8125000,97500000,420,154762,0.81],
+  ['881431+2','ECOGRAFÍAS OBST.',225,239,464,58,6214745,6214745,2481087,29772000,320,39396,0.25]
+];
+
+// RIESGO (Hoja 7)
+const RIE = [
+  ['S31307','TRASLADO INTERMUNICIPAL >25 KM',210443000,149,'EXTREMO','Costo/km variable. Un traslado puede valer $1,4M. No modelable en CAPITA.'],
+  ['601T02','TRASLADO TERRESTRE SECUNDARIO',154500063,118,'EXTREMO','Total 7m: $1.236M. Altamente impredecible. Permanece EVENTO con topes.'],
+  ['601T01','TRASLADO TERRESTRE PRIMARIO',22906425,50,'MUY ALTO','Costo unitario $459K. Impredecible y alta varianza.'],
+  ['735301','ASISTENCIA DEL PARTO',8079596,6,'MUY ALTO','Frec.baja pero complicaciones elevan el costo exponencialmente.'],
+  ['662201','OCLUSIÓN TROMPA FALOPIO',1109207,3,'ALTO','Procedimiento quirúrgico complejo. Variable por caso.'],
+  ['702203','COLPOSCOPIA',22903500,40,'ALTO','Valor unitario ~$570K. Frec.creciente. Evaluar 2027.'],
+  ['637300','VASECTOMÍA',888141,2,'MEDIO','Frec.muy baja. Permanece EVENTO.'],
+  ['908890','DETECCIÓN VPH MOLECULAR',2100750,13,'MEDIO','Prueba especializada. Frec.en aumento.'],
+  ['897011','MONITORÍA FETAL ANTEPARTO',844936,18,'MEDIO','Ligado control prenatal. Evaluar si ginecología migra.'],
+  ['906317','HEPATITIS B ANTÍGENO HBs',10068673,53,'MEDIO','Frec.creciente. Candidato futuro CAPITA 2027.']
+];
+
+const BCLS = {SÍ:'bS',NO:'bN',PARCIAL:'bP'};
+const RCLS = {EXTREMO:'bEX','MUY ALTO':'bMA',ALTO:'bAL',MEDIO:'bME'};
+const RBGS = {
+  EXTREMO:['#FFE0E0','#C00000'],
+  'MUY ALTO':['#FFE4CC','#C55A11'],
+  ALTO:['#FFF2CC','#7F4000'],
+  MEDIO:['#DEEAF1','#1F4E79']
+};
+
+// ── POPULATE TABLES ───────────────────────────────────────────────
+
+// Tabla CAPITA grupos
+const tbCG = document.getElementById('tbCG');
+if(tbCG) {
+  GN.forEach((g,i) => {
+    const mvals = GMON[i].map(v => F(v)).join('</td><td>');
+    const acum  = GMON[i].reduce((a,v)=>a+v,0);
+    const prom  = acum/8;
+    tbCG.innerHTML += `<tr><td class="L">${g}</td><td>${FN(GRIPS[i])}</td>
+      <td>${mvals}</td><td>${F(acum)}</td><td>${F(prom)}</td>
+      <td><strong>${GPCT[i]}%</strong></td></tr>`;
+  });
+  const totRIPS = GRIPS.reduce((a,v)=>a+v,0);
+  tbCG.innerHTML += `<tr class="TOT"><td class="L">TOTAL</td><td>${FN(totRIPS)}</td>
+    <td colspan="8" style="text-align:left">Suma mensual real de todos los grupos</td>
+    <td>$8.053.016.408</td><td>$1.006.627.051</td><td>100%</td></tr>`;
+}
+
+// Detalle mensual
+const tbMes = document.getElementById('tbMes');
+if(tbMes) {
+  DM.forEach((r,i) => {
+    tbMes.innerHTML += `<tr><td>${MESES[i]}</td><td>${FN(r[0])}</td><td>${FN(r[1])}</td>
+      <td>${FN(r[2])}</td><td>${FN(r[3])}</td><td>${FN(r[4])}</td>
+      <td>${F(r[5])}</td><td>${F(r[6])}</td><td>${F(r[7])}</td></tr>`;
+  });
+  tbMes.innerHTML += `<tr class="TOT"><td>TOTAL</td><td>748.058</td><td>57.238</td>
+    <td>805.296</td><td>114.923</td><td>213.814</td>
+    <td>$8.053.016.408</td><td>—</td><td>—</td></tr>
+  <tr class="PROM"><td>PROMEDIO</td><td>93.507</td><td>7.155</td><td>100.662</td>
+    <td>14.365</td><td>26.727</td><td>$1.006.627.051</td>
+    <td>$69.781</td><td>$11.130</td></tr>`;
+}
+
+// Top 20
+const tbT20 = document.getElementById('tbT20');
+if(tbT20) {
+  const RBGT = {SÍ:'',NO:'background:#FFF0F0',PARCIAL:'background:#FFFBEA'};
+  T20.forEach(r => {
+    tbT20.innerHTML += `<tr style="${RBGT[r[6]]}">
+      <td>${r[0]}</td><td class="L"><strong>${r[1]}</strong></td><td class="LL">${r[2]}</td>
+      <td>${F(r[3])}</td><td>${FN(r[4])}</td><td>${F(r[5])}</td>
+      <td><span class="b_ ${BCLS[r[6]]}">${r[6]}</span></td>
+      <td class="LL" style="font-size:.6rem">${r[7]}</td></tr>`;
+  });
+}
+
+// Simulación
+const tbSim = document.getElementById('tbSim');
+if(tbSim) {
+  SIM.forEach(r => {
+    tbSim.innerHTML += `<tr>
+      <td class="L"><strong>${r[0]}</strong></td><td class="LL">${r[1]}</td>
+      <td>${FN(r[2])}</td><td>${FN(r[3])}</td><td>${FN(r[4])}</td><td>${FN(r[5])}</td>
+      <td>${F(r[6])}</td><td>${F(r[7])}</td><td>${F(r[8])}</td>
+      <td>${F(r[9])}</td><td>${FN(r[10])}</td><td>${F(r[11])}</td>
+      <td>${r[12].toFixed(2)}%</td></tr>`;
+  });
+  tbSim.innerHTML += `<tr class="TOT">
+    <td class="L" colspan="8">TOTAL SERVICIOS MIGRABLES</td>
+    <td>$105.750.000</td><td>$1.269.000.000</td>
+    <td colspan="3">Impacto: 10,5% sobre CAPITA actual</td></tr>`;
+}
+
+// Comparativo
+const tbComp = document.getElementById('tbComp');
+if(tbComp) {
+  SIM.forEach(r => {
+    const evMes = r[6]/8;
+    const ahorro = evMes - r[8];
+    tbComp.innerHTML += `<tr>
+      <td class="L">${r[1]}</td><td>${FN(r[5])}</td>
+      <td>${F(evMes)}</td><td>${F(r[8])}</td>
+      <td style="color:var(--v1);font-weight:800">${ahorro>0?'+':''} ${F(ahorro)}</td>
+      <td><span class="b_ bS">SÍ</span></td></tr>`;
+  });
+}
+
+// Tabla PGP
+const tbPGP = document.getElementById('tbPGP');
+if(tbPGP) {
+  MESES.forEach((m,i) => {
+    tbPGP.innerHTML += `<tr>
+      <td>${m}</td><td>${FN(PGP_RIPS_CAP[i])}</td><td>${FN(PGP_RIPS_EV[i])}</td>
+      <td>${F(PGP_COSTO_FIJ[i])}</td><td>${F(PGP_FACT_EV[i])}</td>
+      <td>${F(PGP_P1[i])}</td>
+      <td class="hl-m">${F(PGP_P2[i])}</td>
+      <td>${F(PGP_P3[i])}</td><td>${F(PGP_VAT[i])}</td></tr>`;
+  });
+  const t1=PGP_P1.reduce((a,v)=>a+v,0);
+  const t2=PGP_P2.reduce((a,v)=>a+v,0);
+  const t3=PGP_P3.reduce((a,v)=>a+v,0);
+  const tCF=PGP_COSTO_FIJ.reduce((a,v)=>a+v,0);
+  const tEV=PGP_FACT_EV.reduce((a,v)=>a+v,0);
+  tbPGP.innerHTML += `<tr class="TOT">
+    <td>TOTAL</td><td>720.359</td><td>52.906</td>
+    <td>${F(tCF)}</td><td>${F(tEV)}</td>
+    <td>${F(t1)}</td><td class="hl-m">${F(t2)}</td><td>${F(t3)}</td><td>—</td></tr>
+  <tr class="PROM">
+    <td>PROMEDIO</td><td>90.045</td><td>6.613</td>
+    <td>${F(tCF/8)}</td><td>${F(tEV/8)}</td>
+    <td>${F(t1/8)}</td><td class="hl-m">${F(t2/8)}</td><td>${F(t3/8)}</td>
+    <td>$32.773</td></tr>`;
+}
+
+// Riesgo
+const tbRie = document.getElementById('tbRie');
+if(tbRie) {
+  RIE.forEach(r => {
+    const [bg,tc] = RBGS[r[4]] || ['#fff','#000'];
+    tbRie.innerHTML += `<tr style="background:${bg}">
+      <td><strong>${r[0]}</strong></td><td class="L">${r[1]}</td>
+      <td>${F(r[2])}</td><td>${FN(r[3])}</td>
+      <td><span class="b_ ${RCLS[r[4]]}" style="color:${tc}">${r[4]}</span></td>
+      <td class="LL" style="font-size:.6rem">${r[5]}</td></tr>`;
+  });
+}
+
+// ── CHARTS ────────────────────────────────────────────────────────
+function mk(id, cfg) {
+  const el = document.getElementById(id);
+  if(!el) return null;
+  return new Chart(el, cfg);
+}
+const CM = DM.map(r=>r[5]);
+const CP = DM.map(r=>r[3]);
+
+// Evolución mensual
+mk('cEvo',{type:'bar',data:{labels:MESES,datasets:[
+  {label:'Costo Mes',data:CM,backgroundColor:'rgba(46,117,182,.75)',yAxisID:'y',borderRadius:4},
+  {label:'Pac.Únicos',data:CP,type:'line',borderColor:'#E8A020',
+   backgroundColor:'rgba(232,160,32,.18)',yAxisID:'y1',tension:.4,
+   pointRadius:4,pointBackgroundColor:'#E8A020'}
+]},options:{responsive:true,maintainAspectRatio:false,
+  plugins:{legend:{labels:{font:{size:10}}}},
+  scales:{y:{ticks:{callback:v=>FM(v),font:{size:9}}},
+          y1:{position:'right',grid:{drawOnChartArea:false},ticks:{font:{size:9}}}}}});
+
+// Grupos doughnut
+mk('cGru',{type:'doughnut',data:{labels:GN,datasets:[{data:GPCT,
+  backgroundColor:GCOL,borderWidth:2,borderColor:'#fff'}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{position:'right',labels:{font:{size:9},padding:5}}}}});
+
+// Capita grupos bar
+mk('cCG',{type:'bar',data:{labels:GN,datasets:[{label:'% Costo',data:GPCT,
+  backgroundColor:GCOL,borderRadius:4}]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{x:{ticks:{callback:v=>v+'%',font:{size:9}}},y:{ticks:{font:{size:9}}}}}});
+
+// Top10 valor
+const T10V=T20.slice(0,10);
+const TCOL=['#7030A0','#2E75B6','#70AD47','#70AD47','#70AD47',
+            '#F4B942','#70AD47','#70AD47','#C00000','#70AD47'];
+mk('cT10V',{type:'bar',data:{labels:T10V.map(r=>r[2].substring(0,20)),
+  datasets:[{label:'Val.Fact.',data:T10V.map(r=>r[3]),backgroundColor:TCOL,borderRadius:4}]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>FM(c.raw)}}},
+    scales:{x:{ticks:{callback:v=>FM(v),font:{size:9}}},y:{ticks:{font:{size:9}}}}}});
+
+mk('cT10F',{type:'bar',data:{labels:T10V.map(r=>r[2].substring(0,20)),
+  datasets:[{label:'Frecuencia',data:T10V.map(r=>r[4]),backgroundColor:TCOL,borderRadius:4}]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{x:{ticks:{font:{size:9}}},y:{ticks:{font:{size:9}}}}}});
+
+// Simulación
+mk('cSim_',{type:'bar',data:{labels:SIM.map(r=>r[1].substring(0,18)),
+  datasets:[{label:'Costo/Mes CAPITA',data:SIM.map(r=>r[8]),
+    backgroundColor:'rgba(112,173,71,.8)',borderRadius:4}]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>FM(c.raw)+'/mes'}}},
+    scales:{x:{ticks:{callback:v=>FM(v),font:{size:9}}},y:{ticks:{font:{size:9}}}}}});
+
+// Escenarios
+mk('cEsc',{type:'bar',data:{
+  labels:['Esc.1\nActual','Esc.2\nAmpliada','Esc.3⭐\nDem.Real','Giro\ns/UPC','Giro\nUPC⭐','Actas\nBogotá','PGP-1\nCap+Ev','PGP-2⭐\nUPC+Ev'],
+  datasets:[{label:'Val.Mensual',
+    data:[1006627051,1112074196,1253045148,1813727591,2112811270,2800150667,2746539849,3045623529],
+    backgroundColor:['#BDD7EE','#70AD47','#7030A0','#C00000','#1F4E79','#375623','#9B59B6','#4A1070'],
+    borderRadius:5}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>FM(c.raw)+'/mes'}}},
+    scales:{y:{ticks:{callback:v=>FM(v),font:{size:9}}},x:{ticks:{font:{size:9}}}}}});
+
+// Pagos
+mk('cPag',{type:'bar',data:{labels:MESES,datasets:[
+  {label:'Costo Real CAPITA',data:CM,backgroundColor:'rgba(46,117,182,.7)',borderRadius:3},
+  {label:'Fact.EVENTO',data:PGP_FACT_EV,backgroundColor:'rgba(192,0,0,.6)',borderRadius:3},
+  {label:'Giro UPC 2026',data:PGP_UPC,type:'line',borderColor:'#7030A0',
+   backgroundColor:'rgba(112,48,160,.12)',tension:.4,pointRadius:4,pointBackgroundColor:'#7030A0'},
+]},options:{responsive:true,maintainAspectRatio:false,
+  plugins:{legend:{labels:{font:{size:10}}}},
+  scales:{y:{ticks:{callback:v=>FM(v),font:{size:9}}},x:{ticks:{font:{size:9}}}}}});
+
+// PGP evolución
+mk('cPGPevo',{type:'bar',data:{labels:MESES,datasets:[
+  {label:'Costo Fijo',data:PGP_COSTO_FIJ,backgroundColor:'rgba(46,117,182,.65)',borderRadius:3,stack:'s'},
+  {label:'Fact.EVENTO',data:PGP_FACT_EV,backgroundColor:'rgba(192,0,0,.55)',borderRadius:3,stack:'s'},
+  {label:'PGP-2 (UPC+Ev)',data:PGP_P2,type:'line',borderColor:'#7030A0',
+   backgroundColor:'rgba(112,48,160,.1)',tension:.4,pointRadius:4,pointBackgroundColor:'#7030A0'},
+]},options:{responsive:true,maintainAspectRatio:false,
+  plugins:{legend:{labels:{font:{size:10}}}},
+  scales:{y:{ticks:{callback:v=>FM(v),font:{size:9}}},x:{ticks:{font:{size:9}}}}}});
+
+// PGP doughnut
+mk('cPGPdnt',{type:'doughnut',data:{
+  labels:['CAPITA UPC 2026','EVENTO promedio real','Diferencia (margen)'],
+  datasets:[{data:[2112811270,932812259,0],
+    backgroundColor:['#1F4E79','#C00000','#70AD47'],
+    borderWidth:2,borderColor:'#fff'}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{position:'bottom',labels:{font:{size:9},padding:7}}}}});
+
+// Riesgo
+mk('cRie',{type:'bar',data:{
+  labels:['Trasl.Intermun.','Trasl.Terrestre','Colposcopia','Trasl.Prim.','Hepat.B','Parto'],
+  datasets:[{label:'Costo/Mes',
+    data:[210443000,154500063,22903500,22906425,10068673,8079596],
+    backgroundColor:['#C00000','#C00000','#F4B942','#FF6B35','#F4B942','#FF6B35'],
+    borderRadius:4}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>FM(c.raw)+'/mes'}}},
+    scales:{y:{ticks:{callback:v=>FM(v),font:{size:9}}},x:{ticks:{font:{size:9}}}}}});
+
+// Impacto
+mk('cImp',{type:'bar',data:{labels:GN,
+  datasets:[{label:'% del costo CAPITA',data:GPCT,backgroundColor:GCOL,borderRadius:4}]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{x:{ticks:{callback:v=>v+'%',font:{size:9}},max:50},
+            y:{ticks:{font:{size:9}}}}}});
+
+// ── SIMULADOR INTERACTIVO ─────────────────────────────────────────
+let negCh = null;
+function calcSim() {
+  const cap  = +document.getElementById('slCap').value;
+  const upc  = +document.getElementById('slUPC').value/100;
+  const mig  = +document.getElementById('slMig').value;
+  const ev   = +document.getElementById('slEv').value;
+  const tr   = +document.getElementById('slTr').value;
+  const usr  = +document.getElementById('slUsr').value;
+
+  document.getElementById('vCap').textContent = F(cap);
+  document.getElementById('vUPC').textContent = Math.round(upc*100)+'%';
+  document.getElementById('vMig').textContent = F(mig);
+  document.getElementById('vEv').textContent  = F(ev);
+  document.getElementById('vTr').textContent  = F(tr);
+  document.getElementById('vUsr').textContent = FN(usr);
+
+  const capAj = cap*(1+upc) + mig;
+  const evFin = Math.min(ev, tr);
+  const pgp   = capAj + evFin;
+  const anual = pgp * 12;
+  const vu    = Math.round(pgp/usr);
+  const incr  = ((pgp - 1813727591)/1813727591*100).toFixed(1);
+
+  document.getElementById('srCA').textContent  = FM(capAj);
+  document.getElementById('srEv').textContent  = FM(evFin);
+  document.getElementById('srPGP').textContent = FM(pgp);
+  document.getElementById('srAn').textContent  = FM(anual);
+  document.getElementById('srVu').textContent  = F(vu);
+  document.getElementById('srInc').textContent = (incr>0?'+':'')+incr+'%';
+
+  const el = document.getElementById('cNeg');
+  if(el) {
+    if(negCh){ negCh.destroy(); }
+    negCh = new Chart(el, {type:'bar',data:{
+      labels:['Giro\nActual','Esc.2\nAmpliada','Esc.3⭐\nÓptimo','Giro\nUPC','PGP-2⭐\nUPC+Ev','🎯 TU\nSIMULACIÓN'],
+      datasets:[{data:[1813727591,1112074196,1253045148,2112811270,3045623529,pgp],
+        backgroundColor:['#C00000','#70AD47','#7030A0','#1F4E79','#4A1070','#E8A020'],
+        borderRadius:5}]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>FM(c.raw)+'/mes'}}},
+        scales:{y:{ticks:{callback:v=>FM(v),font:{size:9}}},x:{ticks:{font:{size:9}}}}}});
+  }
+}
+
+['slCap','slUPC','slMig','slEv','slTr','slUsr'].forEach(id => {
+  document.getElementById(id).addEventListener('input', calcSim);
+});
+calcSim();
+</script>
+</body>
+</html>

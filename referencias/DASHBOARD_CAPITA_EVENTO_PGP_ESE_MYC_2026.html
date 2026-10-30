@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ESE Moreno y Clavijo · CAPITA · EVENTO · PGP-EVENTO · MEDICAMENTOS · 2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --a1:#1F4E79;--a2:#2E75B6;--a3:#BDD7EE;--a4:#DEEAF1;--dk:#0D2B45;
+  --v1:#375623;--v2:#70AD47;--v3:#E2EFDA;
+  --n1:#E8A020;--n2:#FFF2CC;
+  --r1:#C00000;--r2:#FFDCE0;
+  --m1:#7030A0;--m2:#E2CEFF;
+  --o1:#C55A11;--o2:#FFE4CC;
+  --gr:#F4F6FA;--wh:#fff;
+  --sh:0 2px 16px rgba(0,0,0,.10);--r:12px;
+  box-sizing:border-box;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#E8EFF8;color:#1a1a1a;min-height:100vh}
+
+/* ── HEADER ── */
+.hdr{background:linear-gradient(130deg,var(--dk) 0%,var(--a1) 55%,var(--a2) 100%);
+  color:#fff;padding:14px 24px 12px;
+  display:flex;align-items:center;justify-content:space-between;
+  box-shadow:0 4px 18px rgba(0,0,0,.28);position:sticky;top:0;z-index:300}
+.hdr-l h1{font-size:1.08rem;font-weight:900;letter-spacing:.3px}
+.hdr-l p{font-size:.67rem;opacity:.82;margin-top:2px}
+.hdr-r{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.badge{font-size:.62rem;font-weight:800;padding:3px 11px;border-radius:20px;white-space:nowrap}
+.b-na{background:var(--n1);color:#fff}
+.b-mo{background:var(--m1);color:#fff}
+.b-ve{background:var(--v2);color:#fff}
+
+/* ── NAV ── */
+.nav{background:var(--a1);display:flex;padding:0 14px;overflow-x:auto;scrollbar-width:none;gap:1px}
+.nav::-webkit-scrollbar{display:none}
+.tb{background:none;border:none;color:rgba(255,255,255,.65);padding:9px 14px;
+  font-size:.71rem;font-weight:700;cursor:pointer;border-bottom:3px solid transparent;
+  transition:.16s;white-space:nowrap}
+.tb:hover{color:#fff}.tb.on{color:var(--n1);border-bottom-color:var(--n1)}
+
+/* ── LAYOUT ── */
+.wrap{padding:18px 20px;max-width:1480px;margin:0 auto}
+.sec{display:none}.sec.on{display:block}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+.g14{display:grid;grid-template-columns:1fr 2.5fr;gap:16px;margin-bottom:16px}
+@media(max-width:1000px){.g2,.g3,.g4,.g14{grid-template-columns:1fr}}
+
+/* ── KPI ── */
+.kg{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:12px;margin-bottom:16px}
+.kc{background:var(--wh);border-radius:var(--r);padding:13px 15px;
+  box-shadow:var(--sh);border-left:5px solid var(--a2);position:relative}
+.kc.ve{border-left-color:var(--v2)}.kc.na{border-left-color:var(--n1)}
+.kc.ro{border-left-color:var(--r1)}.kc.mo{border-left-color:var(--m1)}
+.kc.or{border-left-color:var(--o1)}
+.kc .lb{font-size:.6rem;color:#666;font-weight:700;text-transform:uppercase;
+  letter-spacing:.5px;margin-bottom:4px}
+.kc .vl{font-size:1.32rem;font-weight:900;color:var(--a1)}
+.kc .sb{font-size:.64rem;color:#888;margin-top:2px}
+.kc .tr{position:absolute;top:11px;right:11px;font-size:.61rem;font-weight:800;
+  padding:2px 7px;border-radius:9px}
+.tu{background:var(--v3);color:var(--v1)}.tw{background:var(--r2);color:var(--r1)}
+
+/* ── CARD ── */
+.card{background:var(--wh);border-radius:var(--r);padding:15px 17px;
+  box-shadow:var(--sh);margin-bottom:14px}
+.ct{font-size:.75rem;font-weight:800;color:var(--a1);text-transform:uppercase;
+  letter-spacing:.4px;margin-bottom:11px;padding-bottom:6px;
+  border-bottom:2px solid var(--a3);display:flex;align-items:center;gap:6px}
+
+/* ── TABLE ── */
+.tw_{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.69rem}
+th{background:var(--a1);color:#fff;padding:6px 8px;text-align:center;
+  font-weight:700;font-size:.62rem;white-space:nowrap}
+th.L{text-align:left}
+td{padding:5px 8px;border-bottom:1px solid #e8e8e8;text-align:center;white-space:nowrap}
+td.L{text-align:left;font-weight:600}td.LL{text-align:left}
+tr:nth-child(even) td{background:var(--gr)}
+tr:hover td{background:#DEEAF1}
+tr.TOT td{background:var(--n2)!important;font-weight:900;font-size:.73rem}
+tr.PROM td{background:#D9E1F2!important;font-weight:800}
+.hl-m{background:var(--m2)!important;font-weight:800!important}
+.hl-n{background:var(--n2)!important;font-weight:800!important}
+.hl-v{background:var(--v3)!important;font-weight:800!important;color:var(--v1)!important}
+.hl-r{background:var(--r2)!important;font-weight:800!important;color:var(--r1)!important}
+.hl-o{background:var(--o2)!important;font-weight:800!important}
+
+/* ── BADGE ── */
+.b_{padding:2px 8px;border-radius:10px;font-size:.61rem;font-weight:800;
+  display:inline-block;white-space:nowrap}
+.bS{background:var(--v3);color:var(--v1)}.bN{background:var(--r2);color:var(--r1)}
+.bP{background:var(--n2);color:#7F4000}
+.bEX{background:var(--r2);color:var(--r1)}.bMA{background:var(--o2);color:var(--o1)}
+.bAL{background:var(--n2);color:#7F4000}.bME{background:var(--a3);color:var(--a1)}
+
+/* ── ESCENARIO CARDS ── */
+.escg{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px}
+.esc4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+@media(max-width:1000px){.escg,.esc4{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.escg,.esc4{grid-template-columns:1fr}}
+.esc{border-radius:var(--r);padding:16px;box-shadow:var(--sh);position:relative;overflow:hidden}
+.esc::before{content:'';position:absolute;top:0;left:0;right:0;height:5px}
+.e1{background:#EBF3FB}.e1::before{background:var(--a2)}
+.e2{background:var(--v3)}.e2::before{background:var(--v2)}
+.e3{background:var(--m2)}.e3::before{background:var(--m1)}
+.e4{background:#FFF5E0}.e4::before{background:var(--n1)}
+.e5{background:#FFE9E0}.e5::before{background:var(--r1)}
+.esc .en{font-size:.58rem;font-weight:800;text-transform:uppercase;letter-spacing:.9px;opacity:.6;margin-bottom:3px}
+.esc .et{font-size:.78rem;font-weight:800;margin-bottom:10px;line-height:1.3}
+.esc .ev{font-size:1.65rem;font-weight:900;margin-bottom:2px}
+.e1 .ev{color:var(--a1)}.e2 .ev{color:var(--v1)}.e3 .ev{color:var(--m1)}
+.e4 .ev{color:#7F4000}.e5 .ev{color:var(--r1)}
+.esc .es{font-size:.63rem;color:#555;margin-bottom:10px}
+.esc .er{border-top:1px solid rgba(0,0,0,.09);padding-top:8px}
+.esc .row{display:flex;justify-content:space-between;padding:2.5px 0;font-size:.65rem}
+.esc .row .k{color:#555;flex:1}.esc .row .v{font-weight:800;color:#222;flex-shrink:0}
+.esc .tag{margin-top:10px;padding:4px 9px;border-radius:6px;
+  font-size:.64rem;font-weight:800;text-align:center}
+.e1 .tag{background:var(--r2);color:var(--r1)}
+.e2 .tag{background:rgba(112,173,71,.2);color:var(--v1)}
+.e3 .tag{background:rgba(112,48,160,.14);color:var(--m1)}
+.e4 .tag{background:rgba(232,160,32,.2);color:#7F4000}
+.e5 .tag{background:var(--r2);color:var(--r1)}
+
+/* ── PGP HERO ── */
+.pgp-h{background:linear-gradient(135deg,#3A0870,var(--m1));color:#fff;
+  border-radius:var(--r);padding:20px 24px;box-shadow:var(--sh);margin-bottom:16px}
+.pgp-h h2{font-size:1rem;font-weight:900;margin-bottom:5px}
+.pgp-h p{font-size:.72rem;opacity:.9;line-height:1.55;margin-bottom:16px}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px}
+.pk{background:rgba(255,255,255,.14);border-radius:8px;padding:10px 12px}
+.pk .k{font-size:.58rem;text-transform:uppercase;opacity:.8;margin-bottom:3px}
+.pk .v{font-size:1.1rem;font-weight:900}
+
+/* ── ALERTS ── */
+.al{padding:9px 13px;border-radius:8px;font-size:.71rem;margin-bottom:12px;
+  display:flex;gap:8px;align-items:flex-start;line-height:1.5}
+.aw{background:var(--r2);border-left:4px solid var(--r1);color:#7A1010}
+.ao{background:var(--v3);border-left:4px solid var(--v2);color:#1E3F10}
+.ai{background:var(--a4);border-left:4px solid var(--a2);color:var(--a1)}
+.am{background:var(--m2);border-left:4px solid var(--m1);color:#3A0870}
+.an{background:var(--n2);border-left:4px solid var(--n1);color:#7F4000}
+.ai_{font-size:.95rem;flex-shrink:0;margin-top:1px}
+
+/* ── CHARTS ── */
+.ch{position:relative;height:260px}.cht{position:relative;height:310px}
+
+/* ── BARRA ── */
+.bb{display:flex;gap:5px;align-items:center;margin-bottom:8px;font-size:.67rem}
+.bb .bl{width:170px;font-weight:700;color:#444;flex-shrink:0}
+.bb .bt{flex:1;background:#dde3ec;border-radius:4px;height:20px;overflow:hidden}
+.bb .bf{height:100%;border-radius:4px;display:flex;align-items:center;
+  padding-left:6px;font-weight:800;font-size:.61rem;color:#fff;transition:width .9s}
+.bb .bn{width:170px;text-align:right;font-weight:700;flex-shrink:0;font-size:.65rem}
+
+/* ── SLIDER ── */
+.sbox{background:var(--wh);border-radius:var(--r);padding:16px;
+  box-shadow:var(--sh);margin-bottom:16px}
+.sbox h3{font-size:.74rem;font-weight:800;color:var(--a1);
+  text-transform:uppercase;margin-bottom:12px}
+.sr_{display:flex;align-items:center;gap:12px;margin-bottom:9px;flex-wrap:wrap}
+.sr_ label{font-size:.68rem;font-weight:700;color:#444;width:185px;flex-shrink:0}
+input[type=range]{flex:1;min-width:170px;accent-color:var(--a2)}
+.sv{font-size:.82rem;font-weight:900;color:var(--a1);min-width:145px;text-align:right}
+.sres{background:linear-gradient(90deg,var(--dk),var(--a1));color:#fff;
+  border-radius:8px;padding:13px 16px;margin-top:12px;
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:11px}
+.sres .k{font-size:.58rem;opacity:.8;text-transform:uppercase;margin-bottom:2px}
+.sres .v{font-size:1.05rem;font-weight:900}
+
+/* ── CHIPS ── */
+.chip{display:inline-block;padding:2px 8px;border-radius:10px;
+  font-size:.6rem;font-weight:800;margin:2px}
+.ca{background:var(--a3);color:var(--a1)}.cv{background:var(--v3);color:var(--v1)}
+.cr{background:var(--r2);color:var(--r1)}.cm{background:var(--m2);color:var(--m1)}
+.cn{background:var(--n2);color:#7F4000}
+
+/* ── RECOM ── */
+.rl{list-style:none}
+.rl li{display:flex;gap:10px;align-items:flex-start;
+  padding:8px 0;border-bottom:1px solid #e8e8e8;font-size:.7rem}
+.rl li:last-child{border-bottom:none}
+.rn{background:var(--a1);color:#fff;border-radius:50%;
+  width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+  font-size:.63rem;font-weight:900;flex-shrink:0;margin-top:1px}
+.rt strong{display:block;color:var(--a1);font-size:.73rem;margin-bottom:2px}
+
+/* ── SECTION TITLE ── */
+.stit{font-size:.94rem;font-weight:900;color:var(--a1);margin-bottom:14px;
+  padding-bottom:8px;border-bottom:3px solid var(--n1);
+  display:flex;align-items:center;gap:8px}
+
+/* ── DIVIDER ── */
+.div_{background:linear-gradient(90deg,var(--a1),var(--a2));
+  color:#fff;border-radius:7px;padding:8px 14px;
+  font-size:.77rem;font-weight:800;letter-spacing:.3px;margin:14px 0 11px}
+
+/* ── PGP COMPARISON TABLE ── */
+.pgp-row td{background:var(--m2)!important;font-weight:700!important}
+.pgp-best td{background:#C5F0DA!important;font-weight:900!important;color:var(--v1)!important}
+
+/* ── FOOTER ── */
+.footer{background:var(--dk);color:rgba(255,255,255,.6);text-align:center;
+  padding:12px;font-size:.62rem;margin-top:26px}
+
+/* Print */
+@media print{.nav,.hdr,.footer{display:none}.sec{display:block!important}}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+.drop{border:2px dashed var(--a2);border-radius:12px;padding:22px;text-align:center;background:#F3F8FD;cursor:pointer;transition:.2s}
+.drop:hover,.drop.on{background:#E3F0FB;border-color:var(--a1)}
+.drop b{display:block;font-size:.95rem;color:var(--a1);margin-bottom:4px}
+.drop span{font-size:.7rem;color:#555}
+.btn{display:inline-block;border:none;border-radius:8px;padding:8px 14px;font-size:.72rem;font-weight:700;cursor:pointer;margin:4px 6px 0 0;background:var(--a1);color:#fff}
+.btn.sec{background:#fff;color:var(--a1);border:1.5px solid var(--a1)}
+.btn.red{background:#C00000}
+.ok{color:#2E7D32;font-weight:700}.wn{color:#C55A11;font-weight:700}
+.vl-li{font-size:.72rem;padding:5px 0;border-bottom:1px solid #E6EDF5;line-height:1.45}
+.lec{margin:0;padding-left:0;list-style:none}
+.lec li{padding:3px 0 3px 0;font-size:.78rem;line-height:1.5}
+.lec li b.t{display:inline-block;min-width:92px;color:var(--a1)}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-l">
+    <h1>🏥 ESE MORENO Y CLAVIJO · CAPITA · EVENTO · PGP-EVENTO · MEDICAMENTOS · Dashboard 2026</h1>
+    <p id="hdrSub">NIT 900034131 · Tame, Arauca · Herramienta técnica de negociación</p>
+  </div>
+  <div class="hdr-r">
+    <span class="badge b-na">📊 DATOS REALES RIPS</span>
+    <span class="badge b-mo">💡 PGP-EVENTO · Decreto 441/2022</span>
+    <span class="badge b-ve">📂 CARGA MENSUAL</span>
+  </div>
+</div>
+
+<div class="nav">
+  <button class="tb on" onclick="T('res',this)">📈 Resumen</button>
+  <button class="tb" onclick="T('cargar',this)">📂 Cargar datos</button>
+  <button class="tb" onclick="T('cap',this)">🏷️ CAPITA Actual</button>
+  <button class="tb" onclick="T('med',this)">💊 Medicamentos</button>
+  <button class="tb" onclick="T('ev',this)">⚡ EVENTO · Comportamiento</button>
+  <button class="tb" onclick="T('sim',this)">🔄 Simulación E→C</button>
+  <button class="tb" onclick="T('esc',this)">🔀 Escenarios</button>
+  <button class="tb" onclick="T('pag',this)">💳 Costos vs Pagos</button>
+  <button class="tb" onclick="T('pgp',this)">💡 PGP-EVENTO</button>
+  <button class="tb" onclick="T('rie',this)">⚠️ Riesgo</button>
+  <button class="tb" onclick="T('rec',this)">✅ Recomendaciones</button>
+</div>
+
+<!-- RESUMEN -->
+<div id="s-res" class="sec on"><div class="wrap">
+<div class="stit" id="tRes">📊 Resumen Ejecutivo</div>
+<div class="al aw"><span class="ai_">📌</span><div id="alRes"></div></div>
+<div class="kg" id="kgRes"></div>
+<div class="g2">
+  <div class="card"><div class="ct">📅 Evolución mensual CAPITA – costo y pacientes</div><div class="ch"><canvas id="cEvo"></canvas></div></div>
+  <div class="card"><div class="ct">🥧 Distribución del costo CAPITA por grupo</div><div class="ch"><canvas id="cGru"></canvas></div></div>
+</div>
+<div class="card"><div class="ct">⚖️ Comparativo – valor mensual de referencia</div><div id="barsRes"></div></div>
+</div></div>
+
+<!-- CARGAR -->
+<div id="s-cargar" class="sec"><div class="wrap">
+<div class="stit">📂 Cargar datos · Actualización mensual</div>
+<div class="al ai"><span class="ai_">ℹ️</span><div>Cada mes agregue el mes nuevo a sus dos libros de Excel y cárguelos aquí: <strong>INFORME DE SERVICIOS (base de datos análisis)</strong> y <strong>CONSOLIDADO DE MEDICAMENTOS</strong>. El tablero reconoce cada archivo por el nombre de sus hojas, recalcula todas las pestañas y detecta automáticamente cuántos meses trae. Puede cargar uno solo (el otro se conserva). El archivo se procesa en su equipo; no se envía a ningún servidor.</div></div>
+<div class="g2">
+  <div class="card">
+    <div class="ct">⬆️ Cargar archivos</div>
+    <div class="drop" id="drop" onclick="document.getElementById('fileIn').click()">
+      <b>📁 Haga clic o arrastre aquí los archivos .xlsx</b>
+      <span>Informe de servicios + Consolidado de medicamentos (también acepta un .json guardado con este tablero)</span>
+    </div>
+    <input type="file" id="fileIn" accept=".xlsx,.xls,.xlsm,.json" multiple style="display:none">
+    <div style="margin-top:10px">
+      <button class="btn" onclick="exportJSON()">💾 Descargar datos (.json)</button>
+      <button class="btn red" onclick="resetData()">↩️ Restablecer datos incluidos</button>
+    </div>
+    <div id="loadMsg" style="margin-top:10px;font-size:.74rem"></div>
+  </div>
+  <div class="card">
+    <div class="ct">📋 Estado de la carga</div>
+    <div class="tw_"><table><thead><tr><th class="L">Fuente</th><th class="L">Archivo</th><th>Meses</th><th>Última carga</th></tr></thead><tbody id="tbSrc"></tbody></table></div>
+    <div class="ct" style="margin-top:14px">✔ Validaciones automáticas</div>
+    <div id="valList"></div>
+  </div>
+</div>
+</div></div>
+
+<!-- CAPITA -->
+<div id="s-cap" class="sec"><div class="wrap">
+<div class="stit" id="tCap">🏷️ Servicios bajo CAPITA</div>
+<div class="al ai"><span class="ai_">ℹ️</span><div id="alCap"></div></div>
+<div class="kg" id="kgCap"></div>
+<div class="g2">
+  <div class="card"><div class="ct">📋 Costo por grupo ($ millones; medicamentos = despacho general)</div>
+    <div class="tw_"><table id="tblCG"></table></div></div>
+  <div class="card"><div class="ct">📊 Peso % por grupo</div><div class="cht"><canvas id="cCG"></canvas></div></div>
+</div>
+<div class="card"><div class="ct">📅 Detalle mensual CAPITA – datos reales RIPS</div>
+  <div class="tw_"><table><thead><tr><th>Mes</th><th>CUPS</th><th>CUMS (despacho)</th><th>Pac. únicos</th><th>Asistencias</th><th>Costo NT</th><th>Costo ajustado</th><th>Costo/Pac.</th><th>Costo/Asist.</th></tr></thead><tbody id="tbMes"></tbody></table></div></div>
+<div class="g2">
+  <div class="card"><div class="ct">💰 Top 15 CUPS por costo mensual (Nota Técnica)</div>
+    <div class="tw_"><table><thead><tr><th>CUPS</th><th class="L">Descripción</th><th>RIPS/mes</th><th>Costo/mes</th><th>% NT</th></tr></thead><tbody id="tbTC"></tbody></table></div></div>
+  <div class="card"><div class="ct">🔁 Top 15 CUPS por frecuencia</div>
+    <div class="tw_"><table><thead><tr><th>CUPS</th><th class="L">Descripción</th><th>Grupo</th><th>RIPS/mes</th></tr></thead><tbody id="tbTF"></tbody></table></div></div>
+</div>
+</div></div>
+
+<!-- MEDICAMENTOS -->
+<div id="s-med" class="sec"><div class="wrap">
+<div class="stit" id="tMed">💊 Medicamentos</div>
+<div class="al an"><span class="ai_">💊</span><div id="alMed"></div></div>
+<div class="kg" id="kgMed"></div>
+<div class="g2">
+  <div class="card"><div class="ct">📅 Valor despachado por mes – general vs listado Nueva EPS</div><div class="cht"><canvas id="cMedV"></canvas></div></div>
+  <div class="card"><div class="ct">📦 Unidades por mes – general, sin oxígeno y listado</div><div class="cht"><canvas id="cMedQ"></canvas></div></div>
+</div>
+<div class="card"><div class="ct">📋 Resumen mensual del despacho</div>
+  <div class="tw_"><table><thead><tr><th>Mes</th><th>Unid. general</th><th>Unid. sin oxígeno</th><th>Unid. listado N.EPS</th><th>Valor general</th><th>Valor sin Vitamix</th><th>Valor listado N.EPS</th><th>% valor listado</th><th>Medic. distintos</th></tr></thead><tbody id="tbMedMes"></tbody></table></div></div>
+<div class="g2">
+  <div class="card"><div class="ct">🏆 Pareto – 15 medicamentos de mayor valor</div>
+    <div class="tw_"><table><thead><tr><th>#</th><th>Código</th><th class="L">Medicamento</th><th>Unidades</th><th>Valor</th><th>% valor</th><th>% acum.</th><th>Clase</th></tr></thead><tbody id="tbPar"></tbody></table></div></div>
+  <div class="card"><div class="ct">🔁 Frecuencia de despacho</div>
+    <div class="tw_"><table><thead><tr><th class="L">Clase</th><th>Medic. general</th><th>% valor</th><th>Códigos N.EPS</th><th>% valor</th></tr></thead><tbody id="tbFr"></tbody></table></div>
+    <div class="ct" style="margin-top:14px">🧮 Base de medicamentos en el costo CAPITA</div>
+    <div class="tw_"><table><thead><tr><th class="L">Base</th><th>Medicam. periodo</th><th>Costo CAPITA periodo</th><th>Prom./mes</th></tr></thead><tbody id="tbSens"></tbody></table></div></div>
+</div>
+<div class="card"><div class="ct">📋 Comportamiento del listado Nueva EPS – 15 ítems de mayor cantidad</div>
+  <div class="tw_"><table id="tblMI"></table></div></div>
+<div class="g2">
+  <div class="card"><div class="ct">🔎 Hallazgos</div><ul class="rl" id="ulMedH"></ul></div>
+  <div class="card"><div class="ct">🧭 Acciones recomendadas</div><ul class="rl" id="ulMedA"></ul></div>
+</div>
+</div></div>
+
+<!-- EVENTO -->
+<div id="s-ev" class="sec"><div class="wrap">
+<div class="stit" id="tEv">⚡ EVENTO · Comportamiento y Top 20</div>
+<div class="al ai"><span class="ai_">ℹ️</span><div id="alEv"></div></div>
+<div class="kg" id="kgEv"></div>
+<div class="g2">
+  <div class="card"><div class="ct">📈 Facturación mensual EVENTO y servicios facturados</div><div class="cht"><canvas id="cEvM"></canvas></div></div>
+  <div class="card"><div class="ct">💵 Valor promedio por servicio facturado</div><div class="cht"><canvas id="cEvP"></canvas></div></div>
+</div>
+<div class="g2">
+  <div class="card"><div class="ct">📋 Comportamiento mensual</div>
+    <div class="tw_"><table><thead><tr><th>Mes</th><th>Facturación</th><th>Var. mes ant.</th><th>Servicios</th><th>Var. mes ant.</th><th>Valor/servicio</th></tr></thead><tbody id="tbEvM"></tbody></table></div></div>
+  <div class="card"><div class="ct">🧩 Composición por grupo (periodo detallado)</div>
+    <div class="tw_"><table><thead><tr><th class="L">Grupo</th><th>CUPS</th><th>Valor</th><th>% EVENTO</th><th>Valor/mes</th></tr></thead><tbody id="tbEvG"></tbody></table></div></div>
+</div>
+<div class="g2">
+  <div class="card"><div class="ct">📊 Top 10 por valor facturado</div><div class="cht"><canvas id="cT10V"></canvas></div></div>
+  <div class="card"><div class="ct">📊 Top 10 por frecuencia</div><div class="cht"><canvas id="cT10F"></canvas></div></div>
+</div>
+<div class="card"><div class="ct">📋 Top 20 – aplicabilidad a CAPITA</div>
+  <div class="tw_"><table><thead><tr><th>N°</th><th class="L">Código</th><th class="L">Servicio</th><th>Val.Total</th><th>Frec.</th><th>Val.Unit.</th><th>¿CAPITA?</th><th>Marcación CAPITA</th><th class="L">Observación</th></tr></thead><tbody id="tbT20"></tbody></table></div></div>
+</div></div>
+
+<!-- SIMULACIÓN E→C -->
+<div id="s-sim" class="sec"><div class="wrap">
+<div class="stit">🔄 Servicios EVENTO que pueden pasar a CAPITA</div>
+<div class="al ai"><span class="ai_">ℹ️</span><div id="alSim"></div></div>
+<div class="kg" id="kgSim"></div>
+<div class="card"><div class="ct" id="tSim">📋 Servicios migrables – valor a tarifa EVENTO</div>
+  <div class="tw_"><table><thead><tr><th class="L">CUPS</th><th class="L">Servicio</th><th>Frec. periodo</th><th>Frec./mes</th><th>Val.Unit.</th><th>Valor/mes</th><th>Valor anual</th><th>% s/ run-rate CAPITA</th><th>Marcación CAPITA</th><th>En Nota Técnica</th></tr></thead><tbody id="tbSim"></tbody></table></div></div>
+<div class="g2">
+  <div class="card"><div class="ct">📊 Valor mensual por servicio migrable</div><div class="cht"><canvas id="cSim_"></canvas></div></div>
+  <div class="card"><div class="ct">🚩 EVENTO facturado en CUPS marcados OFERTADOS en CAPITA</div>
+    <div class="al aw" style="margin-bottom:8px"><span class="ai_">🚩</span><div id="alOfer"></div></div>
+    <div class="tw_"><table><thead><tr><th>CUPS</th><th class="L">Servicio</th><th>Valor periodo</th><th>Cantidad</th></tr></thead><tbody id="tbOfer"></tbody></table></div></div>
+</div>
+</div></div>
+
+<!-- ESCENARIOS -->
+<div id="s-esc" class="sec"><div class="wrap">
+<div class="stit">🔀 Escenarios CAPITA · Costo frente al giro, UPC 2026 y actas</div>
+<div class="al ai"><span class="ai_">ℹ️</span><div id="alEsc"></div></div>
+<div class="escg" id="escCards"></div>
+<div class="card"><div class="ct">📊 Escenarios de costo y referencias de pago</div><div class="ch"><canvas id="cEsc"></canvas></div></div>
+<div class="card"><div class="ct">📋 Cuadro de referencias (valor mensual)</div>
+  <div class="tw_"><table><thead><tr><th class="L">Escenario / Referencia</th><th>Valor mensual</th><th>Valor anual</th><th>Valor/usuario</th><th>Var. vs giro actual</th></tr></thead><tbody id="tbEsc"></tbody></table></div></div>
+</div></div>
+
+<!-- COSTOS VS PAGOS -->
+<div id="s-pag" class="sec"><div class="wrap">
+<div class="stit">💳 Costos vs Pagos · Giro directo · UPC 2026 · Actas</div>
+<div class="al an"><span class="ai_">💰</span><div id="alPag"></div></div>
+<div class="kg" id="kgPag"></div>
+<div class="g2">
+  <div class="card"><div class="ct">📊 Costo CAPITA, EVENTO facturado y giros – mensual</div><div class="cht"><canvas id="cPag"></canvas></div></div>
+  <div class="card"><div class="ct">👤 Costo CAPITA por paciente y por asistencia</div><div class="cht"><canvas id="cUni"></canvas></div></div>
+</div>
+<div class="g2">
+  <div class="card"><div class="ct">📋 Escenarios de giro</div>
+    <div class="tw_"><table><thead><tr><th class="L">Escenario</th><th>Usuarios</th><th>Val/Usuario</th><th>Giro mensual</th><th>Incremento vs actual</th></tr></thead><tbody id="tbGiro"></tbody></table></div></div>
+  <div class="card"><div class="ct">📋 Valores por mes</div>
+    <div class="tw_"><table><thead><tr><th>Mes</th><th>Costo CAPITA</th><th>Fact. EVENTO</th><th>Giro actual</th><th>Giro UPC 2026</th></tr></thead><tbody id="tbVM"></tbody></table></div></div>
+</div>
+</div></div>
+
+<!-- PGP EVENTO -->
+<div id="s-pgp" class="sec"><div class="wrap">
+<div class="stit">💡 Modelo PGP – solo EVENTO · Decreto 441 de 2022</div>
+<div class="pgp-h">
+  <h2>💡 Pago Global Prospectivo para los servicios hoy pagados por EVENTO</h2>
+  <p>El PGP es una suma fija global, pactada por anticipado, para un grupo de personas y un periodo, cuya frecuencia de uso se ajusta por nivel de riesgo y por cambios en el volumen de población (Decreto 441/2022, art. 2.5.3.4.2.3, num. 2). Este modelo convierte la facturación EVENTO (pago retrospectivo) en un valor fijo mensual con <strong>nota técnica</strong> (art. 2.5.3.4.2.4) y <strong>mecanismos de ajuste de riesgo</strong> (parágrafo 1, art. 2.5.3.4.2.3). La CAPITA se mantiene como contrato aparte.</p>
+  <div class="pgrid" id="pgrid"></div>
+</div>
+<div class="al am"><span class="ai_">💡</span><div id="alPgp"></div></div>
+<div class="esc4" id="escPgp"></div>
+<div class="g2">
+  <div class="card"><div class="ct">📊 EVENTO facturado vs PGP-EVENTO y corredor de ajuste</div><div class="cht"><canvas id="cPGPevo"></canvas></div></div>
+  <div class="card"><div class="ct">📋 Facturado frente al corredor</div>
+    <div class="tw_"><table><thead><tr><th>Mes</th><th>EVENTO facturado</th><th>PGP run-rate</th><th>Límite inferior</th><th>Límite superior</th><th>Posición</th></tr></thead><tbody id="tbCorr"></tbody></table></div></div>
+</div>
+<div class="div_">📐 Nota técnica del PGP-EVENTO (art. 2.5.3.4.2.4 del Decreto 441/2022)</div>
+<div class="card"><div class="ct" id="tNT">Servicios, frecuencias y costos por grupo</div>
+  <div class="tw_"><table><thead><tr><th class="L">Grupo de servicios</th><th>CUPS</th><th>Frec. esperada/mes</th><th>Valor/mes (periodo detallado)</th><th>% del EVENTO</th><th>De ello OFERTADO en CAPITA/mes</th><th class="L">Tratamiento propuesto en el PGP</th><th class="L">Riesgo (art. 2.5.3.4.1.3)</th></tr></thead><tbody id="tbNT"></tbody></table></div></div>
+<div class="g2">
+  <div class="card"><div class="ct">🛡️ Mecanismos de ajuste de riesgo propuestos</div><ul class="rl" id="ulAjuste"></ul></div>
+  <div class="card"><div class="ct">🧾 Contenido mínimo del acuerdo (art. 2.5.3.4.2.2)</div>
+    <div class="tw_"><table><thead><tr><th class="L">Elemento</th><th class="L">Cómo lo cubre este modelo</th></tr></thead><tbody id="tbChk"></tbody></table></div></div>
+</div>
+<div class="div_">📐 Esquema de contratación resultante</div>
+<div class="card"><div class="tw_"><table><thead><tr><th class="L">Componente</th><th>Modalidad</th><th>Valor mensual</th><th>Valor anual</th><th>Valor/usuario-mes</th></tr></thead><tbody id="tbEsq"></tbody></table></div></div>
+</div></div>
+
+<!-- RIESGO -->
+<div id="s-rie" class="sec"><div class="wrap">
+<div class="stit">⚠️ Servicios de riesgo · Permanecen en EVENTO</div>
+<div class="al aw"><span class="ai_">⚠️</span><div id="alRie"></div></div>
+<div class="kg" id="kgRie"></div>
+<div class="g2">
+  <div class="card"><div class="ct" id="tRie">⚠️ Servicios de riesgo</div>
+    <div class="tw_"><table><thead><tr><th>Código</th><th class="L">Servicio</th><th>Valor/mes</th><th>Frec./mes</th><th>Val.Unit.</th><th>Riesgo</th><th>Marcación CAPITA</th></tr></thead><tbody id="tbRie"></tbody></table></div></div>
+  <div class="card"><div class="ct">📊 Valor mensual por servicio</div><div class="cht"><canvas id="cRie"></canvas></div></div>
+</div>
+</div></div>
+
+<!-- RECOMENDACIONES -->
+<div id="s-rec" class="sec"><div class="wrap">
+<div class="stit">✅ Recomendaciones estratégicas</div>
+<div class="al ao"><span class="ai_">✅</span><div id="alRec"></div></div>
+<div class="g2">
+  <div class="card"><div class="ct">💰 Valores de referencia para la mesa de negociación</div>
+    <div class="tw_"><table><thead><tr><th class="L">Concepto</th><th>Valor mensual</th><th>Valor anual</th><th>Val/Usuario</th></tr></thead><tbody id="tbMesa"></tbody></table></div></div>
+  <div class="card"><div class="ct">📊 Peso % de los grupos de mayor costo</div><div class="ch"><canvas id="cImp"></canvas></div></div>
+</div>
+<div class="card"><div class="ct" id="tRec">🗺️ Guía paso a paso</div><ul class="rl" id="ulRec"></ul></div>
+<div class="g3" id="chipsRec"></div>
+</div></div>
+
+<div class="footer">
+  ESE Departamental de Primer Nivel Moreno y Clavijo · NIT 900034131 · Tame, Arauca ·
+  Elaborado por Winston Gerlein Gutiérrez Pastrana · Profesional de Costos y Contratación ·
+  Contrato No. 001-1000 de 2026 · Dashboard CAPITA · EVENTO · PGP-EVENTO · MEDICAMENTOS
+</div>
+
+<script>
+// Lector de los dos libros (informe de servicios y consolidado de medicamentos). Funciona en navegador (SheetJS global) y en node.
+(function(root){
+const MN=['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+const AB=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const norm=s=>String(s==null?'':s).trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+const num=v=>{if(v==null||v==='')return 0;if(typeof v==='number')return v;const n=parseFloat(String(v).replace(/[^0-9.\-eE]/g,''));return isNaN(n)?0:n;};
+const str=v=>v==null?'':String(v).trim();
+function rowsOf(X,wb,name){const ws=wb.Sheets[name];const rg=X.utils.decode_range(ws['!ref']);rg.s.c=0;rg.s.r=0;return X.utils.sheet_to_json(ws,{header:1,defval:null,raw:true,range:rg});}
+function sheetBy(wb,pref){return wb.SheetNames.find(n=>norm(n).startsWith(norm(pref)));}
+function sumArr(a){return a.reduce((x,y)=>x+y,0);}
+
+function classifyGroup(cod,act,mg){
+  const a=norm(act),c=String(cod);
+  if(/TRASLADO/.test(a)) return 'TRASLADOS';
+  if(mg){ if(mg==='URGENCIAS CON OBSERVACION') return 'URGENCIAS'; return mg; }
+  if(/^(G-|D-|MD)/.test(c)) return 'MEDICAMENTOS E INSUMOS';
+  if(/INTERNACI/.test(a)) return 'INTERNACION BASICA';
+  if(/DERECHOS DE SALA/.test(a)) return 'PROCEDIMIENTOS';
+  if(/ANTIGENO|SARS|DENGUE|HEPATITIS|VIH|SEROLOG|HEMOGRAMA/.test(a)) return 'LABORATORIO';
+  return 'OTROS';
+}
+
+function parseInforme(X,wb){
+  const D={}; const log=[];
+  // ---- NT COSTOS
+  const sNT=sheetBy(wb,'NT COSTOS'); if(!sNT) throw new Error('Falta la hoja NT COSTOS');
+  const nt=rowsOf(X,wb,sNT);
+  const hi=nt.findIndex(r=>r&&r.some(c=>norm(c)==='CODIGOCUPS')); const h=nt[hi].map(norm);
+  const runs=[];let cur=null;
+  h.forEach((c,i)=>{const m=MN.indexOf(c);if(m>=0){if(cur&&cur.last===i-1){cur.idx.push(i);cur.last=i;}else{cur={idx:[i],last:i};runs.push(cur);}}});
+  const nM=runs[0].idx.length; const rIdx=runs[0].idx, cIdx=runs[1].idx;
+  const iCod=h.indexOf('CODIGOCUPS'), iDesc=h.findIndex(c=>c.startsWith('DESCRIPCION')), iGr=h.indexOf('GRUPO');
+  const gm={},gr={},ntcods=[];
+  const costNT=Array(nM).fill(0),ripsNT=Array(nM).fill(0),medC=Array(nM).fill(0),medU=Array(nM).fill(0);
+  for(let i=hi+1;i<nt.length;i++){const r=nt[i]; if(!r||r[iCod]==null)continue;
+    const cod=String(r[iCod]); ntcods.push(cod); let g=norm(r[iGr]); if(g==='URGENCIAS CON OBSERVACION')g='URGENCIAS';
+    gm[g]=gm[g]||Array(nM).fill(0); gr[g]=gr[g]||0;
+    for(let m=0;m<nM;m++){const c=num(r[cIdx[m]]),q=num(r[rIdx[m]]);gm[g][m]+=c;costNT[m]+=c;ripsNT[m]+=q;gr[g]+=q;
+      if(norm(r[iGr])==='MEDICAMENTOS'){medC[m]+=c;medU[m]+=q;}}
+  }
+  D.nM=nM; D.meses=AB.slice(0,nM);
+  D.nt={gm,gr,costNT,ripsNT,medC,medU,ntcods};
+  // ---- Pacientes
+  const sP=sheetBy(wb,'PACIENTES ATENDIDOS'); const pr=rowsOf(X,wb,sP);
+  const ph=pr.findIndex(r=>r&&r.some(c=>norm(c)==='PACIENTES UNICOS')); const phh=pr[ph].map(norm);
+  const ix=n=>phh.findIndex(c=>c.startsWith(n));
+  const iMes=ix('MES'),iCU=ix('FRECUENCIA CUPS'),iCM=ix('FRECUENCIA CUMS'),iPU=ix('PACIENTES UNICOS'),iAs=ix('ASISTENCIAS'),i2=ix('PACIENTES CON');
+  D.det=[];
+  for(let i=ph+1;i<pr.length;i++){const r=pr[i]; if(!r||MN.indexOf(norm(r[iMes]))<0)continue; D.det.push({cups:num(r[iCU]),cums_nt:num(r[iCM]),pac:num(r[iPU]),asis:num(r[iAs]),dos:num(r[i2])});}
+  // ---- Facturación evento
+  const sF=sheetBy(wb,'FACTURACION EVENTO'); const fr=rowsOf(X,wb,sF);
+  D.ev=[];D.evr=[];
+  fr.forEach(r=>{ if(!r)return; const k=r.findIndex(c=>MN.indexOf(norm(c))>=0); if(k<0)return; if(norm(r[k+1])!=='EVENTO')return; D.ev.push(num(r[k+3]));D.evr.push(num(r[k+4]));});
+  // ---- Consolidado evento
+  const sC=sheetBy(wb,'Consolidado'); const cr=rowsOf(X,wb,sC);
+  let per='';cr.slice(0,8).forEach(r=>r&&r.forEach(c=>{if(typeof c==='string'&&/Periodo disponible/i.test(c))per=c;}));
+  const mm=(per.match(/Periodo disponible:\s*([a-záéíóú]+)\s+a\s+([a-záéíóú]+)/i)||[]);
+  let mesesCons=nM; if(mm[2]){const e=MN.indexOf(norm(mm[2]));const s=MN.indexOf(norm(mm[1]));if(e>=0&&s>=0)mesesCons=e-s+1;}
+  // marcación
+  const sM=sheetBy(wb,'MARCACION'); const mr=rowsOf(X,wb,sM); const mc={};
+  mr.slice(1).forEach(r=>{if(r&&r[1]!=null)mc[String(r[1])]={g:norm(r[4]),of:norm(r[7])};});
+  const ntset=new Set(ntcods);
+  const ch=cr.findIndex(r=>r&&r.some(c=>norm(c)==='COD. PROCEDIMIENTO'));
+  const lines=[];let tot=0;
+  for(let i=ch+1;i<cr.length;i++){const r=cr[i]; if(!r||r[1]==null)continue; if(r[0]==null)continue;
+    const cod=String(r[1]);const mk=mc[cod]||{};
+    const g=classifyGroup(cod,r[2],mk.g);
+    lines.push([cod,str(r[2]).slice(0,90),num(r[4]),num(r[5]),num(r[7]),g,mk.of||'',ntset.has(cod)?1:0]); tot+=num(r[4]);}
+  D.cons={periodo:per,meses:mesesCons,tot,lines};
+  // ---- Top 20
+  const sT=sheetBy(wb,'TOP 20'); const tr=rowsOf(X,wb,sT);
+  const th=tr.findIndex(r=>r&&r.some(c=>norm(c)==='CODIGOCUPS'));
+  D.top20=[];for(let i=th+1;i<tr.length&&D.top20.length<20;i++){const r=tr[i];if(!r||r[3]==null)continue;D.top20.push([num(r[2]),String(r[3]),str(r[4]),num(r[5])]);}
+  // ---- Giro
+  const sG=sheetBy(wb,'ESCENARIO COSTO VS PAGOS'); const gr2=rowsOf(X,wb,sG);
+  const G={users:0,v0:0,giro0:0,v1:0,giro1:0,v2:0,giro2:0};
+  const nextData=(from)=>{for(let i=from;i<gr2.length;i++){const r=gr2[i];if(r&&typeof r[9]==='number'&&typeof r[8]==='number'&&r[8]>1000)return r;}return null;};
+  gr2.forEach((r,i)=>{if(!r||typeof r[1]!=='string')return;const t=norm(r[1]);
+    if(t.startsWith('ESCENARIO ACTUAL')){const d=nextData(i);if(d){G.users=d[8];G.v0=num(d[7]);G.giro0=d[9];}}
+    else if(t.startsWith('ESCENARIO 1')){const d=nextData(i);if(d){G.v1=num(d[7]);G.giro1=d[9];}}
+    else if(t.startsWith('ESCENARIO 2')){const d=nextData(i);if(d){G.v2=num(d[7]);G.giro2=d[9];}}});
+  D.giro=G;
+  // ---- Costo por servicio
+  const sS=sheetBy(wb,'COSTO X SERVICIO'); const sr=rowsOf(X,wb,sS);
+  const hs=[];sr.forEach((r,i)=>{if(r&&norm(r[2])==='CODIGOCUPS')hs.push(i);});
+  D.top_cost=[];D.top_freq=[];
+  for(let i=hs[0]+1;i<sr.length&&D.top_cost.length<15;i++){const r=sr[i];if(!r||r[2]==null)break;D.top_cost.push([String(r[2]),str(r[3]).slice(0,58),str(r[4]),num(r[5]),num(r[6]),num(r[7])]);}
+  for(let i=hs[1]+1;i<sr.length&&D.top_freq.length<15;i++){const r=sr[i];if(!r||r[2]==null)break;D.top_freq.push([String(r[2]),str(r[3]).slice(0,58),str(r[4]),num(r[5])]);}
+  return D;
+}
+
+function parseMed(X,wb){
+  const M={};
+  const rm=rowsOf(X,wb,'RESUMEN MENSUAL');
+  M.gen_q=[];M.gen_v=[];M.list_v=[];M.gen_noxy=[];M.gen_novit=[];M.ndist=[];
+  for(const r of rm){ if(!r)continue; if(MN.indexOf(norm(r[2]))<0)continue;
+    M.gen_q.push(num(r[3]));M.gen_noxy.push(num(r[7]));M.gen_v.push(num(r[8]));M.list_v.push(num(r[10]));M.gen_novit.push(num(r[12]));M.ndist.push(num(r[13]));}
+  const cm=rowsOf(X,wb,'COMPORTAMIENTO NUEVA EPS');
+  const ch=cm.findIndex(r=>r&&norm(r[1])==='CODIGOCUPS'); const h=cm[ch].map(norm);
+  const n=M.gen_q.length; const iAc=h.findIndex(c=>c.startsWith('ACUMULADO'));
+  const col=p=>h.findIndex(c=>c.startsWith(p));
+  const iCV=col('COEF'),iMs=col('MESES CON'),iEs=col('ESTABILIDAD'),iVal=col('VALOR ACUM'),iPU=col('PRECIO UNIT');
+  const items=[];M.list_q=Array(n).fill(0);
+  for(let i=ch+1;i<cm.length;i++){const r=cm[i]; if(!r)continue;
+    if(norm(r[2])==='TOTAL LISTADO NUEVA EPS'){M.list_q=r.slice(3,3+n).map(num);M.list_tot_q=num(r[iAc]);continue;}
+    if(r[1]&&/^MD/.test(String(r[1]))&&typeof r[3]==='number'){items.push({cod:String(r[1]),desc:str(r[2]).slice(0,70),m:r.slice(3,3+n).map(num),acum:num(r[iAc]),cv:num(r[iCV]),meses:num(r[iMs]),est:str(r[iEs]),val:num(r[iVal]),pu:num(r[iPU])});}}
+  items.sort((a,b)=>b.acum-a.acum); M.items=items.slice(0,15); M.items_n=items.length;
+  M.tot_q=sumArr(M.gen_q);M.tot_v=sumArr(M.gen_v);M.list_tot_v=sumArr(M.list_v);
+  if(!M.list_tot_q)M.list_tot_q=sumArr(M.list_q);
+  const fr=rowsOf(X,wb,'FRECUENCIAS'); const fh=[];fr.forEach((r,i)=>{if(r&&typeof r[1]==='string'&&norm(r[1]).startsWith('CLASE DE FRECU'))fh.push(i);});
+  const tbl=s=>{const o=[];for(let i=s+1;i<fr.length;i++){const r=fr[i];if(!r||r[1]==null)break;o.push(r.slice(1,11));}return o;};
+  M.frec_g=tbl(fh[0]);M.frec_l=tbl(fh[1]);
+  const pa=rowsOf(X,wb,'PARETO GENERAL'); const ph=pa.findIndex(r=>r&&norm(r[1])==='RANK');
+  M.pareto=[];M.paretoCls=[];
+  for(let i=ph+1;i<pa.length;i++){const r=pa[i];if(!r)continue;
+    if(typeof r[1]==='number'&&M.pareto.length<15)M.pareto.push({rk:r[1],cod:String(r[2]),desc:str(r[3]).slice(0,60),q:num(r[4]),v:num(r[5]),pct:num(r[6]),acu:num(r[7]),cl:str(r[8]),ne:str(r[9])});
+    if(r[11]&&/^(A|B|C|TOTAL)$/.test(norm(r[11])))M.paretoCls.push(r.slice(11,16));}
+  const ha=rowsOf(X,wb,'HALLAZGOS Y ACCIONES');
+  let sec=0;M.H=[];M.A=[];M.S=[];M.K=[];
+  for(const r of ha){ if(!r||r[1]==null)continue; const t=String(r[1]);
+    if(/^1\. INDICADORES/i.test(t)){sec=1;continue;} if(/^2\. ALCANCE/i.test(t)){sec=2;continue;} if(/^3\. HALLAZGOS/i.test(t)){sec=3;continue;}
+    if(/^4\. ACCIONES/i.test(t)){sec=4;continue;} if(/^5\. SUPUESTOS/i.test(t)){sec=5;continue;}
+    if(sec===1)M.K.push([t,r[2]]); if(sec===3)M.H.push(t); if(sec===4)M.A.push(t); if(sec===5)M.S.push(t); }
+  return M;
+}
+const api={parseInforme,parseMed,MN,AB,norm,num,classifyGroup};
+if(typeof module!=='undefined')module.exports=api; else root.PARSER=api;
+})(typeof window!=='undefined'?window:globalThis);
+
+</script>
+<script>
+const DEFAULT={"nM":8,"meses":["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago"],"nt":{"gm":{"APOYO TERAPEUTICO":[29099804.053307947,21717212.33277804,40949677.166746,36678820.787164845,44930717.6504839,40145105.5026178,36473342.08900523,44879591.72996985],"IMAGENOLOGIA":[25686915.72377382,19444929.84178807,35523762.58491366,41765748.46689942,37484595.846270435,44445553.92408702,43497817.84776456,40621929.06444129],"INTERNACION BASICA":[20783353.208241493,7827496.662844199,35628605.49984256,28340936.193056583,30770159.29531857,39947224.34830833,49664116.75735629,35898519.177871674],"LABORATORIO":[60171540.38383925,54633640.68743436,105925882.1395664,100249063.83808333,91685674.02715993,98869092.2641529,100749082.80665947,99282388.20383678],"MEDICAMENTOS":[20405474.6448,53299525.4675,35705088.616900004,27476340.499199998,32576677.662700005,22015102.125,26260896.467000004,18356504.2935],"MEDICINA GENERAL":[70907338.2461107,65925470.31862378,123835002.76896036,126157377.29154825,119926920.91105708,126057490.2153079,128729469.50473697,133424162.08803292],"ODONTOLOGIA":[68599921.82722513,38704459.63874345,77047679.47643979,79536582.27225131,72385131.20418848,67953349.33507852,66271989.45026178,77885841.48167539],"PROCEDIMIENTOS":[9946106.682906698,4147927.8991494305,8340457.173558531,11328749.315956509,31042557.18073122,43486340.87817949,41122467.98941691,42549711.99772638],"PROMOCION Y MANTENIMIENTO DE LA SALUD":[351969038.85752046,336151462.3229531,412405553.00372094,428199059.69072026,480573387.3387759,471572152.44571865,493862884.84230846,512963079.42606884],"URGENCIAS":[118108996.09047972,84426373.06785978,166919355.15090448,162236686.37061337,180484120.86673844,225647524.18095943,225427805.0786974,198241901.1583395]},"gr":{"APOYO TERAPEUTICO":38583,"IMAGENOLOGIA":8827,"INTERNACION BASICA":922,"LABORATORIO":168033,"MEDICAMENTOS":245174,"MEDICINA GENERAL":71678,"ODONTOLOGIA":42640,"PROCEDIMIENTOS":4304,"PROMOCION Y MANTENIMIENTO DE LA SALUD":360482.0762403391,"URGENCIAS":12495},"costNT":[775678489.7182056,686278498.2396741,1042281063.5815525,1041969364.7254941,1121859941.9834237,1180138935.2194104,1212059872.8332067,1204103628.6214626],"ripsNT":[90276.88453004239,89549.88453004239,125044.88453004239,123340.88453004239,128281.88453004239,125446.88453004239,135365.8845300424,135830.8845300424],"medC":[20405474.6448,53299525.4675,35705088.616900004,27476340.499199998,32576677.662700005,22015102.125,26260896.467000004,18356504.2935],"medU":[23247,28965,32498,30079,33097,28519,36071,32698],"ntcods":["890211","890212","890311","890312","931001","939403","943102","944002","944102","944202","890205","890206","890208","890305","890306","890308","870001","870003","870004","870005","870006","870101","870102","870103","870104","870105","870107","870108","870112","870113","870131","870601","870602","871010","871019","871020","871030","871040","871050","871060","871070","871091","871111","871112","871121","871129","871202","871208","872002","873001","873002","873004","873111","873112","873121","873122","873123","873202","873204","873205","873206","873210","873302","873303","873308","873311","873312","873313","873314","873333","873335","873340","873411","873412","873420","873422","873423","873431","873443","873444","129B01","129B02","130B01","130B02","901101","901107","901111","901304","901305","901325","902204","902205","902206","902208","902215","902216","902217","902218","902219","902220","902221","902223","902224","903802","903822","903823","903824","903826","903840","903842","903843","903844","903845","903856","903857","903876","903881","903883","903885","903886","903887","903888","903889","903890","903891","903892","903893","903894","906002","906625","906913","906914","907002","907003","907004","907005","907007","907008","907012","907013","907014","907107","911009","911010","911017","911018","911019","911020","902207","902209","902211","902213","902214","903801","903815","903816","903817","903818","903841","903868","903895","904508","906039","906915","907009","907106","911015","911016","MD000013","MD000014","MD000017","MD000024","MD000042","MD000076","MD000080","MD000128","MD000157","MD000158","MD000186","MD000209","MD000210","MD000230","MD000231","MD000246","MD000247","MD000250","MD000262","MD000265","MD000281","MD000401","MD000431","MD000435","MD000453","MD000455","MD000457","MD000554","MD000565","MD000569","MD000571","MD000572","MD000605","MD001548","MD002904","MD003321","MD008978","MD015657","MD019664","890201","890301","890501","230101","230102","230103","230201","230202","230203","231101","231201","232101","232102","232103","232104","232201","232401","232402","240401","243201","249101","275301","278201","870451","870452","870453","870454","870455","870460","890203","890303","890703","893108","893109","972201","274901","389301","579401","579501","702101","860201","862701","869401","869501","895101","897011","897012","935001","935101","935301","935302","935303","935304","935305","935306","935401","939402","961601","965201","965301","965901","965902","971401","973801","974301","976501","978301","978801","981101","991403","991801","992102","992201","992901","992990","994101","994201","240201","933701","950601","972401","977101","977301","993101","993103","993104","993105","993107","993121","993123","993124","993125","993131","993505","993506","993507","993508","993521","994301","995201","997103","997104","997105","91011354","995202","697101","861203","861801","892901","898015","990101","990103","990104","990105","990106","990108","990111","990112","990113","990201","990203","990204","990205","990206","990208","990211","990212","990213","990221","990222","990223","990224","993102","993106","993120","993122","993130","993501","993502","993503","993504","993509","993510","993512","993513","993520","993522","997002","997106","997107","997301","91010816","890701","5DSB01"]},"det":[{"cups":68660,"cums_nt":79322,"pac":12822,"asis":21781,"dos":4889},{"cups":60055,"cums_nt":54483,"pac":9374,"asis":17113,"dos":4031},{"cups":100858,"cums_nt":78349,"pac":15887,"asis":30088,"dos":7018},{"cups":101101,"cums_nt":54420,"pac":15093,"asis":29603,"dos":7013},{"cups":100635,"cums_nt":51561,"pac":14394,"asis":27813,"dos":6650},{"cups":102262,"cums_nt":75633,"pac":15738,"asis":28115,"dos":6443},{"cups":105104,"cums_nt":56546,"pac":15136,"asis":28383,"dos":6812},{"cups":109383,"cums_nt":104273,"pac":16479,"asis":30918,"dos":7228}],"ev":[710189773,749978635,831998018,894501376,1151139339,982017634,1023739359,1118933936],"evr":[3679,3888,4569,5409,7221,6559,6575,7275],"cons":{"periodo":"E.S.E. Moreno y Clavijo | Periodo disponible: enero a julio de 2026 | Valores en pesos colombianos (COP)","meses":7,"tot":6380175160,"lines":[["906249","VIRUS DE INMUNODEFICIENCIA HUMANA 1 Y 2 ANTICUERPOS",433423135,3207,135149.0910508263,"LABORATORIO","OFERTADO",0],["890701","CONSULTA DE URGENCIAS POR MEDICINA GENERAL",318638596,3036,104953.42424242424,"URGENCIAS","OFERTADO",1],["902207","HEMOGRAMA I (HEMOGLOBINA HEMATOCRITO Y LEUCOGRAMA) MANUAL",69512525,1594,43608.86135508156,"LABORATORIO","OFERTADO",1],["902221","RECUENTO DE PLAQUETAS MANUAL",24968930,1397,17873.249821045098,"LABORATORIO","OFERTADO",1],["907106","UROANÁLISIS",37341185,1342,27825.0260804769,"LABORATORIO","OFERTADO",1],["5DSB01","DERECHOS DE SALA DE OBSERVACIÓN EN URGENCIAS COMPLEJIDAD BAJA",138654193,1230,112726.98617886179,"URGENCIAS","OFERTADO",1],["903866","TRANSAMINASA GLUTÁMICO-PIRÚVICA [ALANINO AMINO TRANSFERASA]",49867794,1210,41213.05289256198,"LABORATORIO","NO OFERTADO",0],["903867","TRANSAMINASA GLUTÁMICO OXALACÉTICA [ASPARTATO AMINO TRANSFERASA]",49708910,1206,41218.00165837479,"LABORATORIO","NO OFERTADO",0],["S31307","TRASLADO BASICOSERVICIO INTERMUNICIPAL MAYOR DE 25 KMS HASTA 300KMS (CADA KILOMETRO)",1683544000,1190,1414742.857142857,"TRASLADOS","",0],["890250","CONSULTA DE PRIMERA VEZ POR ESPECIALISTA EN GINECOLOGÍA Y OBSTETRICIA",75487804,1101,68562.94641235241,"CONSULTA MEDICA ESPECIALIZADA","",0],["890350","CONSULTA DE CONTROL O DE SEGUIMIENTO POR ESPECIALISTA EN GINECOLOGÍA Y OBSTETRICIA",77359906,1053,73466.1975308642,"CONSULTA MEDICA ESPECIALIZADA","",0],["902045","TIEMPO DE PROTROMBINA [TP]",57409945,979,58641.414708886616,"LABORATORIO","NO OFERTADO",0],["902208","HEMOGRAMA II (HEMOGLOBINA HEMATOCRITO RECUENTO DE ERITROCITOS ÍNDICES ERITROCITARIOS LEUCO",42230491,976,43268.94569672131,"LABORATORIO","OFERTADO",1],["902049","TIEMPO DE TROMBOPLASTINA PARCIAL [TTP]",55361540,970,57073.75257731959,"LABORATORIO","NO OFERTADO",0],["601T02","TRASLADO ASISTENCIAL BÁSICO TERRESTRE SECUNDARIO",1236000500,942,1312102.441613588,"TRASLADOS","NO OFERTADO",0],["D-0082","JERINGA DESECHABLE 10 ML",796050,902,882.5388026607538,"MEDICAMENTOS E INSUMOS","",0],["906914","PROTEÍNA C REACTIVA MANUAL O SEMIAUTOMATIZADO",23414350,889,26337.85151856018,"LABORATORIO","OFERTADO",1],["G-0105","LACTATO DE RINGER - HARMANT SOLUCION INYECTABLE 500ML",3914624,712,5498.067415730337,"MEDICAMENTOS E INSUMOS","",0],["890283","CONSULTA DE PRIMERA VEZ POR ESPECIALISTA EN PEDIATRÍA",56966624,649,87776,"CONSULTA MEDICA ESPECIALIZADA","",0],["903895","CREATININA EN SUERO U OTROS FLUIDOS",16097440,636,25310.440251572327,"LABORATORIO","OFERTADO",1],["903809","BILIRRUBINAS TOTAL Y DIRECTA",12887932,615,20955.98699186992,"LABORATORIO","OFERTADO",0],["D-0081","JERINGA DESECHABLE 5 ML",456300,608,750.4934210526316,"MEDICAMENTOS E INSUMOS","",0],["10B004","INTERNACION COMPLEJIDAD BAJA CUATRO O MAS CAMAS",144213900,579,249074.09326424872,"INTERNACION BASICA","",0],["D-0048","EQUIPO BURETROL",3652806,564,6476.606382978724,"MEDICAMENTOS E INSUMOS","",0],["G-0052","CLORURO DE SODIO 0.09% SOLUCION INYECTABLE 500ML",2995755,553,5417.278481012659,"MEDICAMENTOS E INSUMOS","",0],["903856","NITRÓGENO UREICO",11106776,528,21035.560606060608,"LABORATORIO","OFERTADO",1],["129B02","INTERNACIÓN ADULTOS COMPLEJIDAD BAJA HABITACION MÚLTIPLE",168428200,527,319598.10246679315,"INTERNACION BASICA","OFERTADO",1],["D-0050","EQUIPO MACROGOTEO",1564717,527,2969.102466793169,"MEDICAMENTOS E INSUMOS","",0],["906208","DENGUE ANTICUERPOS IG M",40031820,513,78034.73684210527,"LABORATORIO","NO OFERTADO",0],["876802","MAMOGRAFÍA BILATERAL",138224370,471,293470,"PROMOCION Y MANTENIMIENTO DE LA SALUD","NO OFERTADO",0],["906340","SARS COV 2 [COVID-19] ANTÍGENO",47758300,436,109537.38532110091,"LABORATORIO","",0],["901235","UROCULTIVO (ANTIBIOGRAMA DE DISCO)",41639972,425,97976.40470588235,"LABORATORIO","NO OFERTADO",0],["906317","HEPATITIS B ANTÍGENO DE SUPERFICIE [AG HBS]",80549385,423,190424.0780141844,"LABORATORIO","NO OFERTADO",0],["906341","DENGUE ANTÍGENO MANUAL",39965425,417,95840.34772182255,"LABORATORIO","",0],["901107","COLORACIÓN GRAM Y LECTURA PARA CUALQUIER MUESTRA",9295785,410,22672.646341463416,"LABORATORIO","OFERTADO",1],["601T01","TRASLADO ASISTENCIAL BÁSICO TERRESTRE PRIMARIO",183251400,399,459276.6917293233,"TRASLADOS","NO OFERTADO",0],["902214","HEMOPARÁSITOS EXTENDIDO DE GOTA GRUESA",8971264,396,22654.70707070707,"LABORATORIO","OFERTADO",1],["890266","CONSULTA DE PRIMERA VEZ POR ESPECIALISTA EN MEDICINA INTERNA",33881536,386,87776,"CONSULTA MEDICA ESPECIALIZADA","NO OFERTADO",0],["902210","HEMOGRAMA IV (HEMOGLOBINA HEMATOCRITO RECUENTO DE ERITROCITOS ÍNDICES ERITROCITARIOS LEUCO",14440141,367,39346.43324250681,"LABORATORIO","NO OFERTADO",0],["5DS003","DERECHOS DE SALA DE PEQUEÑA CIRUGÍA (SUTURAS)",27116920,359,75534.59610027855,"PROCEDIMIENTOS","",0],["871121","RADIOGRAFÍA DE TÓRAX (P.A. O A.P. Y LATERAL- DECÚBITO LATERAL- OBLICUAS O LATERAL)",34389284,346,99390.99421965318,"IMAGENOLOGIA","OFERTADO",1],["702203","COLPOSCOPIA",183228000,321,570803.738317757,"PROMOCION Y MANTENIMIENTO DE LA SALUD","NO OFERTADO",0],["865101","SUTURA DE HERIDA ÚNICA- EN ÁREA GENERAL",9145770,310,29502.483870967742,"OTROS","",0],["906207","DENGUE ANTICUERPOS IG G",46773713,299,156433.8227424749,"LABORATORIO","NO OFERTADO",0],["903841","GLUCOSA EN SUERO U OTRO FLUIDO DIFERENTE A ORINA",7812780,297,26305.656565656565,"LABORATORIO","OFERTADO",1],["939402","NEBULIZACIÓN",7109214,280,25390.05,"PROCEDIMIENTOS","OFERTADO",1],["D-0076","JELCO CATETER NRO 20",1117125,280,3989.7321428571427,"MEDICAMENTOS E INSUMOS","",0],["G-0002","ACETAMINOFEN TABLETA 500MG",45924,273,168.21978021978023,"MEDICAMENTOS E INSUMOS","",0],["939403","TERAPIA RESPIRATORIA INTEGRAL",6720304,268,25075.761194029852,"APOYO TERAPEUTICO","OFERTADO",1],["D-0075","JELCO CATETER NRO 18",1110375,264,4205.965909090909,"MEDICAMENTOS E INSUMOS","",0],["881431","ECOGRAFÍA OBSTÉTRICA TRANSABDOMINAL",19848696,194,102312.86597938144,"IMAGENOLOGIA","NO OFERTADO",0],["907002","COPROLÓGICO",3320601,191,17385.34554973822,"LABORATORIO","OFERTADO",1],["881432","ECOGRAFÍA OBSTÉTRICA TRANSVAGINAL",29869262,185,161455.47027027028,"IMAGENOLOGIA","NO OFERTADO",0],["G-0042","CEFALOTINA POLVO REC/INYECTABLE 1G AMPOLLAS",862800,184,4689.130434782609,"MEDICAMENTOS E INSUMOS","",0],["890383","CONSULTA DE CONTROL O DE SEGUIMIENTO POR ESPECIALISTA EN PEDIATRÍA",15975232,182,87776,"CONSULTA MEDICA ESPECIALIZADA","",0],["906039","TREPONEMA PALLIDUM ANTICUERPOS (PRUEBA TREPONEMICA) MANUAL O SEMIAUTOMATIZADA O AUTOMATIZA",24585400,180,136585.55555555556,"LABORATORIO","OFERTADO",1],["D-0049","EQUIPO MICROGOTEO",519780,174,2987.2413793103447,"MEDICAMENTOS E INSUMOS","",0],["901304","EXAMEN DIRECTO FRESCO DE CUALQUIER MUESTRA",15526670,167,92974.07185628742,"LABORATORIO","OFERTADO",1],["D-0077","JELCO CATETER NRO 22",688500,167,4122.754491017964,"MEDICAMENTOS E INSUMOS","",0],["890284","CONSULTA DE PRIMERA VEZ POR ESPECIALISTA EN PSIQUIATRÍA",14044160,160,87776,"CONSULTA MEDICA ESPECIALIZADA","NO OFERTADO",0],["D-0078","JELCO CATETER NRO 24",729000,159,4584.905660377359,"MEDICAMENTOS E INSUMOS","",0],["D-0030","CATETER HEPARINIZADO",109964,147,748.0544217687075,"MEDICAMENTOS E INSUMOS","",0],["G-0067","DICLOFENACO SODICO SOLUCION INYECTABLE 75MG/3ML",110055,144,764.2708333333334,"MEDICAMENTOS E INSUMOS","",0],["897011","MONITORIA FETAL ANTEPARTO",6759485,143,47269.12587412587,"PROCEDIMIENTOS","OFERTADO",1],["903436","TROPONINA I CUALITATIVA",12360600,126,98100,"LABORATORIO","NO OFERTADO",0],["G-0010","AMPICILNA + SULBACTAM POLVO REC/INYECTABLE 1.5GR AMPOLLAS",656872,126,5213.269841269841,"MEDICAMENTOS E INSUMOS","",0],["903883","GLUCOSA SEMIAUTOMATIZADA [GLUCOMETRÍA]",865240,121,7150.743801652892,"LABORATORIO","OFERTADO",1],["890366","CONSULTA DE CONTROL O DE SEGUIMIENTO POR ESPECIALISTA EN MEDICINA INTERNA",10533120,120,87776,"CONSULTA MEDICA ESPECIALIZADA","NO OFERTADO",0],["901236","UROCULTIVO (ANTIBIOGRAMA CONCENTRACIÓN MÍNIMA INHIBITORIA AUTOMATIZADO)",11988960,120,99908,"LABORATORIO","NO OFERTADO",0],["904508","GONADOTROPINA CORIÓNICA SUBUNIDAD BETA CUALITATIVA PRUEBA DE EMBARAZO EN ORINA O SUERO",4062885,117,34725.51282051282,"LABORATORIO","OFERTADO",1],["G-0069","DIPIRONA SODICA SOLUCION INYECTABLE 1GR/ML",123250,117,1053.4188034188035,"MEDICAMENTOS E INSUMOS","",0],["G-0123","METOCLOPRAMIDA SOLUCION INYECTABLE 10MG/2ML",90174,114,791,"MEDICAMENTOS E INSUMOS","",0],["895101","ELECTROCARDIOGRAMA DE RITMO O DE SUPERFICIE",9623700,111,86700,"PROCEDIMIENTOS","OFERTADO",1],["908890","DETECCIÓN VIRUS DEL PAPILOMA HUMANO POR PRUEBAS MOLECULARES (ESPECÍFICO)",22806000,108,211166.66666666666,"PROMOCION Y MANTENIMIENTO DE LA SALUD","NO OFERTADO",0],["890384","CONSULTA DE CONTROL O DE SEGUIMIENTO POR ESPECIALISTA EN PSIQUIATRÍA",9392032,107,87776,"CONSULTA MEDICA ESPECIALIZADA","NO OFERTADO",0],["G-0012","AMPICILINA POLVO REC/INYECTABLE 1GR VIAL",276243,101,2735.079207920792,"MEDICAMENTOS E INSUMOS","",0],["G-0095","HIOSCINA N-BUTIL BROMURO + DIPIRONA SOLUCION INYECTABLE 20MG/2.5G/5ML",300366,99,3034,"MEDICAMENTOS E INSUMOS","",0],["G-0061","DEXAMETASONA FOSFATO SOLUCION INYECTABLE 8MG/2ML",85476,98,872.204081632653,"MEDICAMENTOS E INSUMOS","",0],["881401","ECOGRAFÍA PÉLVICA GINECOLÓGICA TRANSVAGINAL",11256889,93,121041.81720430107,"IMAGENOLOGIA","NO OFERTADO",0],["895100","ELECTROCARDIOGRAMA DE RITMO O DE SUPERFICIE SOD +",7831970,92,85130.10869565218,"OTROS","",0],["5DS004","DERECHOS DE SALA DE YESOS",9685855,91,106437.96703296703,"PROCEDIMIENTOS","",0],["906915","PRUEBA NO TREPONÉMICA MANUAL",2422485,87,27844.655172413793,"LABORATORIO","OFERTADO",1],["G-0093","HIOSCINA N-BUTIL BROMURO SOLUCION INYECTABLE 20MG/2ML",141414,86,1644.3488372093022,"MEDICAMENTOS E INSUMOS","",0],["G-0143","OMEPRAZOL POLVO REC/INYECTABLE 40MG VIAL",410320,86,4771.162790697675,"MEDICAMENTOS E INSUMOS","",0],["903833","FOSFATASA ALCALINA",2463139,85,28978.105882352942,"LABORATORIO","NO OFERTADO",0],["10B002","INTERNACION COMPLEJIDAD BAJA HABITACION BIPERSONAL",24802400,84,295266.6666666667,"INTERNACION BASICA","",0],["G-0051","CLINDAMICINA SOLUCION INYECTABLE 600MG/4ML",290996,84,3464.2380952380954,"MEDICAMENTOS E INSUMOS","",0],["G-0124","METILPREDNISOLONA POLVO REC/INYECTABLE 500ML VIAL",1718955,84,20463.75,"MEDICAMENTOS E INSUMOS","",0],["906131","TRYPANOSOMA CRUZI ANTICUERPOS IG G SEMIAUTOMATIZADO O AUTOMATIZADO",8426841,82,102766.35365853658,"LABORATORIO","NO OFERTADO",0],["G-00628","KETOROLACO SOLUCION INYECTABLE 30MG",195615,80,2445.1875,"MEDICAMENTOS E INSUMOS","",0],["911016","HEMOCLASIFICACIÓN SISTEMA RH [ANTÍGENO RH D] EN TUBO",4267900,78,54716.666666666664,"LABORATORIO","OFERTADO",1],["G-0044","CEFTRIAZONA POLVO REC/INYECTABLE 1GR VIAL",210571,78,2699.628205128205,"MEDICAMENTOS E INSUMOS","",0],["903805","AMILASA EN SUERO U OTROS FLUIDOS",2405820,75,32077.6,"LABORATORIO","NO OFERTADO",0],["902220","RECUENTO DE PLAQUETAS AUTOMATIZADO",1303285,73,17853.219178082192,"LABORATORIO","OFERTADO",1],["D-0080","JERINGA DESECHABLE 3 ML",35900,68,527.9411764705883,"MEDICAMENTOS E INSUMOS","",0],["907004","COPROSCÓPICO",4273885,63,67839.44444444444,"LABORATORIO","OFERTADO",1],["10B003","INTERNACION COMPLEJIDAD BAJA TRES CAMAS",36198800,62,583851.6129032258,"INTERNACION BASICA","",0],["873333","RADIOGRAFÍA DE PIE (AP- LATERAL Y OBLICUA)",3696550,53,69746.22641509434,"IMAGENOLOGIA","OFERTADO",1],["902204","ERITROSEDIMENTACIÓN [VELOCIDAD SEDIMENTACIÓN GLOBULAR - VSG] MANUAL",535300,53,10100,"LABORATORIO","OFERTADO",1],["873420","RADIOGRAFÍA DE RODILLA (AP- LATERAL)",4479500,51,87833.33333333333,"IMAGENOLOGIA","OFERTADO",1],["872002","RADIOGRAFÍA DE ABDOMEN SIMPLE",5744950,50,114899,"IMAGENOLOGIA","OFERTADO",1],["G-0165","TRAMADOL CLORHIDRATO SOLUCION INYECTABLE 50MG/ML",52525,50,1050.5,"MEDICAMENTOS E INSUMOS","",0],["903026","MICROALBUMINURIA AUTOMATIZADA EN ORINA PARCIAL",3338043,49,68123.32653061225,"LABORATORIO","NO OFERTADO",0],["735301","ASISTENCIA DEL PARTO CON O SIN EPISIORRAFIA O PERINEORRAFIA",64636764,47,1375250.2978723405,"ATENCION PARTO Y RN","NO OFERTADO",0],["G-0156","SALBUTAMOL SUSPENSION PARA INHALACION 100MCG/10ML AEROSOL",418018,47,8894,"MEDICAMENTOS E INSUMOS","",0],["870001","RADIOGRAFÍA DE CRÁNEO SIMPLE",4671500,46,101554.34782608696,"IMAGENOLOGIA","OFERTADO",1],["873210","RADIOGRAFÍA DE MANO",3139725,46,68254.89130434782,"IMAGENOLOGIA","OFERTADO",1],["890408","INTERCONSULTA POR PSICOLOGÍA",2229840,44,50678.181818181816,"OTROS","",0],["906304","ANTÍGENOS FEBRILES MANUAL O SEMIAUTOMATIZADO",2685658,44,61037.681818181816,"LABORATORIO","NO OFERTADO",0],["G-0003","ACETAMINOFEN JARABE 150MG/5ML X 60ML FRASCO",126500,44,2875,"MEDICAMENTOS E INSUMOS","",0],["873431","RADIOGRAFÍA DE TOBILLO (AP- LATERAL Y ROTACIÓN INTERNA)",3028550,43,70431.3953488372,"IMAGENOLOGIA","OFERTADO",1],["G-0130","METRONIDAZOL SOLUCION INYECTABLE 500MG/100ML",169928,43,3951.813953488372,"MEDICAMENTOS E INSUMOS","",0],["890409","INTERCONSULTA POR TRABAJO SOCIAL",4620000,42,110000,"OTROS","",0],["D-0079","JERINGA DESECHABLE 1 ML",19850,42,472.6190476190476,"MEDICAMENTOS E INSUMOS","",0],["906225","HEPATITIS C ANTICUERPO SEMIAUTOMATIZADO O AUTOMATIZADO",8790400,41,214400,"LABORATORIO","NO OFERTADO",0],["G-0070","DIPIRONA MAGNESICA SOLUCION INYECTABLE 2GR/5ML",426075,38,11212.5,"MEDICAMENTOS E INSUMOS","",0],["903869","UREA EN SANGRE U OTROS FLUIDOS",835200,36,23200,"OTROS","",0],["904902","HORMONA ESTIMULANTE DEL TIROIDES",4472692,35,127791.2,"LABORATORIO","NO OFERTADO",0],["873204","RADIOGRAFÍA DE HOMBRO",2947800,33,89327.27272727272,"IMAGENOLOGIA","OFERTADO",1],["G-0011","AMPICILINA POLVO REC/INYECTABLE 500MG VIAL",60416,32,1888,"MEDICAMENTOS E INSUMOS","",0],["904903","HORMONA ESTIMULANTE DEL TIROIDES [TSH] NEONATAL",3688570,30,122952.33333333333,"OTROS","",0],["G-0166","TOXOIDE TETANICA SOLUCION INYECTABLE 0.5ML",550290,30,18343,"MEDICAMENTOS E INSUMOS","",0],["993503","VACUNACIÓN CONTRA HEPATITIS B",349000,28,12464.285714285714,"PROMOCION Y MANTENIMIENTO DE LA SALUD","OFERTADO",1],["130B02","INTERNACIÓN PEDIÁTRICA COMPLEJIDAD BAJA HABITACION MÚLTIPLE",9167200,27,339525.9259259259,"INTERNACION BASICA","OFERTADO",1],["993102","VACUNACIÓN CONTRA TUBERCULOSIS [BCG]",336000,27,12444.444444444445,"PROMOCION Y MANTENIMIENTO DE LA SALUD","OFERTADO",1],["G-0037","BROMURO DE IPRATROPIO SUSPENSION PARA INHALACION 20MCG/DOSIS AEROSOL",379242,27,14046,"MEDICAMENTOS E INSUMOS","",0],["873206","RADIOGRAFÍA DE PUÑO O MUÑECA",1714600,25,68584,"IMAGENOLOGIA","OFERTADO",1],["G-0097","HIDROCORTISONA SOLUCION INYECTABLE 100MG",138138,25,5525.52,"MEDICAMENTOS E INSUMOS","",0],["869500","CURACION DE LESION EN PIEL O TEJIDO CELULAR SUBCUTANEO SOD +",2134400,23,92800,"OTROS","",0],["873205","RADIOGRAFÍA DE CODO",1647900,23,71647.82608695653,"IMAGENOLOGIA","OFERTADO",1],["873313","RADIOGRAFÍA DE PIERNA (AP- LATERAL)",2080800,23,90469.56521739131,"IMAGENOLOGIA","OFERTADO",1],["902206","EXTENDIDO DE SANGRE PERIFÉRICA ESTUDIO DE MORFOLOGÍA",363400,23,15800,"LABORATORIO","OFERTADO",1],["G-0141","OXACILINA POLVO REC/INYECTABLE 1GR AMPOLLAS",115456,23,5019.826086956522,"MEDICAMENTOS E INSUMOS","",0],["662201","ABLACIÓN U OCLUSIÓN DE TROMPA DE FALOPIO BILATERAL POR LAPAROTOMÍA",23293347,21,1109207,"OTROS","",0],["873122","RADIOGRAFÍA DE ANTEBRAZO",1447400,21,68923.80952380953,"IMAGENOLOGIA","OFERTADO",1],["D-00002","MASCARA CON KIT NEBULIZADOR PEDIATRICO",155862,21,7422,"MEDICAMENTOS E INSUMOS","",0],["905727","DROGAS DE ABUSO",3522000,20,176100,"OTROS","",0],["992901","INYECCIÓN DE VITAMINA K",190000,19,10000,"PROCEDIMIENTOS","OFERTADO",1],["637300","VASECTOMIA SOD",15986541,18,888141.1666666666,"OTROS","",0],["935304","INMOVILIZACIÓN EN MIEMBRO SUPERIOR O INFERIOR TOTAL O PARCIAL",2618800,18,145488.88888888888,"PROCEDIMIENTOS","OFERTADO",1],["1000929","CERVICOMETRIA",1863000,18,103500,"OTROS","",0],["D-0083","JERINGA DESECHABLE 20 ML",18333,18,1018.5,"MEDICAMENTOS E INSUMOS","",0],["871040","RADIOGRAFÍA DE COLUMNA LUMBOSACRA",2406700,17,141570.58823529413,"IMAGENOLOGIA","OFERTADO",1],["G-0054","CLORURO DE SODIO SOLUCION INYECTABLE 2MEQ/10ML",41055,17,2415,"MEDICAMENTOS E INSUMOS","",0],["906911","FACTOR REUMATOIDEO MANUAL",463884,16,28992.75,"LABORATORIO","NO OFERTADO",0],["935301","APLICACIÓN O CAMBIO DE YESO PARA INMOVILIZACIÓN EN MIEMBRO SUPERIOR (EXCEPTO MANO)",1590400,16,99400,"PROCEDIMIENTOS","OFERTADO",1],["601T01.","TRASLADO BASICO PACIENTES VEREDAS",14739000,15,982600,"TRASLADOS","",0],["901101","BACILOSCOPIA COLORACIÓN ÁCIDO ALCOHOL-RESISTENTE [ZIEHL-NEELSEN]",597600,15,39840,"LABORATORIO","OFERTADO",1],["D-00008","INHALOCAMARA PEDIATRICA",209385,15,13959,"MEDICAMENTOS E INSUMOS","",0],["G-0207","OXIGENO GAS MEDICINAL X LITRO",2857800,15,190520,"MEDICAMENTOS E INSUMOS","",0],["935100","APLICACION DE VENDAJE ENYESADO SOD +",2433785,14,173841.7857142857,"OTROS","",0],["D-0073","HUMIDIFICADOR DE OXIGENO",123200,14,8800,"MEDICAMENTOS E INSUMOS","",0],["G-0053","CLORURO DE POTASIO SOLUCION INYECTABLE 2MEQ/10ML",33810,14,2415,"MEDICAMENTOS E INSUMOS","",0],["39201","DERECHOS DE SALA PARA SUTURAS",1127100,13,86700,"PROCEDIMIENTOS","",0],["663100","SECCION Y/O LIGADURA DE TROMPAS DE FALOPIO [CIRUGIA DE POMEROY] POR MINILAPAROTOMIA SOD +",14667900,13,1128300,"OTROS","",0],["871111","RADIOGRAFÍA DE REJA COSTAL",1270700,13,97746.15384615384,"IMAGENOLOGIA","OFERTADO",1],["D-00007","INHALOCAMARA ADULTO",181467,13,13959,"MEDICAMENTOS E INSUMOS","",0],["G-0035","BECLOMETASONA DIPROPIONATO SUSPENSION PARA INHALACION 250MCG/10ML AEROSOL",199210,13,15323.846153846154,"MEDICAMENTOS E INSUMOS","",0],["MYC011","GLUCOMETRIA",1120800,13,86215.38461538461,"OTROS","",0],["873121","RADIOGRAFÍA DE HÚMERO",1098200,12,91516.66666666667,"IMAGENOLOGIA","OFERTADO",1],["881402","ECOGRAFÍA PÉLVICA GINECOLÓGICA TRANSABDOMINAL",1521976,12,126831.33333333333,"IMAGENOLOGIA","NO OFERTADO",0],["903427","HEMOGLOBINA GLICOSILADA MANUAL O SEMIAUTOMATIZADA",928010,12,77334.16666666667,"LABORATORIO","NO OFERTADO",0],["D-00001","MASCARA CON KIT NEBULIZADOR ADULTO",89064,12,7422,"MEDICAMENTOS E INSUMOS","",0],["D-0024","CANULA NASAL DE OXIGENO ADULTO",36000,12,3000,"MEDICAMENTOS E INSUMOS","",0],["G-0136","NIFEDIPINO CAPSULA 30MG",2784,12,232,"MEDICAMENTOS E INSUMOS","",0],["873412","RADIOGRAFÍA DE CADERA COMPARATIVA",431200,11,39200,"IMAGENOLOGIA","OFERTADO",1],["D-0135","SONDA NELATON 8",13200,11,1200,"MEDICAMENTOS E INSUMOS","",0],["5DS002","DERECHOS DE SALA DE CURACIONES O PROCEDIMIENTOS",375000,10,37500,"PROCEDIMIENTOS","",0],["870101","RADIOGRAFÍA DE CARA (PERFILOGRAMA)",886000,10,88600,"IMAGENOLOGIA","OFERTADO",1],["873411","RADIOGRAFÍA DE CADERA O ARTICULACIÓN COXO-FEMORAL (AP- LATERAL)",786000,10,78600,"IMAGENOLOGIA","OFERTADO",1],["906611","ANTÍGENO ESPECÍFICO DE PRÓSTATA FRACCIÓN LIBRE SEMIAUTOMATIZADO O AUTOMATIZADO",2362660,10,236266,"LABORATORIO","NO OFERTADO",0],["D-0023","CANULA NASAL DE OXIGENO PEDIATRICA",30000,10,3000,"MEDICAMENTOS E INSUMOS","",0],["G-0001","ACIDO TRANEXAMICO SOLUCION INYECTABLE 500MG/5ML",73520,10,7352,"MEDICAMENTOS E INSUMOS","",0],["G-00456","ALIMENTO EN POLVO LISTO PARA CONSUMO A BASE MALTODETRINA Y ACEITES VEGETALES ENRIQUECIDO C",1644500,10,164450,"MEDICAMENTOS E INSUMOS","",0],["903815","COLESTEROL DE ALTA DENSIDAD",392363,9,43595.88888888889,"LABORATORIO","OFERTADO",1],["903818","COLESTEROL TOTAL",476327,9,52925.22222222222,"LABORATORIO","OFERTADO",1],["903868","TRIGLICERIDOS",261620,9,29068.88888888889,"LABORATORIO","OFERTADO",1],["G-0050","CLARITROMICINA POLVO REC/INYECTABLE 500MG VIAL",182025,9,20225,"MEDICAMENTOS E INSUMOS","",0],["871050","RADIOGRAFÍA DE SACRO CÓCCIX",834400,8,104300,"IMAGENOLOGIA","OFERTADO",1],["890208","CONSULTA DE PRIMERA VEZ POR PSICOLOGÍA",376800,8,47100,"APOYO TERAPEUTICO","OFERTADO",1],["903301","GALACTOSA CUANTITATIVA",388800,8,48600,"LABORATORIO","NO OFERTADO",0],["903816","COLESTEROL DE BAJA DENSIDAD SEMIAUTOMATIZADO",409900,8,51237.5,"LABORATORIO","OFERTADO",1],["903859","POTASIO EN SUERO U OTROS FLUIDOS",433056,8,54132,"LABORATORIO","NO OFERTADO",0],["903864","SODIO EN SUERO U OTROS FLUIDOS",358456,8,44807,"LABORATORIO","NO OFERTADO",0],["904509","HIDROXIPROGESTERONA 17 ALFA",1291200,8,161400,"LABORATORIO","NO OFERTADO",0],["906209","DENGUE ANTICUERPOS TOTALES",3060000,8,382500,"LABORATORIO","NO OFERTADO",0],["908316","FENILALANINA CUANTITATIVA",1715200,8,214400,"LABORATORIO","NO OFERTADO",0],["908354","TRIPSINÓGENO INMUNOREACTIVO",1440000,8,180000,"OTROS","",0],["908355","BIOTINIDASA ACTIVIDAD",857600,8,107200,"LABORATORIO","NO OFERTADO",0],["D-0134","SONDA NELATON 6",11000,8,1375,"MEDICAMENTOS E INSUMOS","",0],["G-0009","ADRENALINA - EPINEFRINA SOLUCION INYECTABLE 1MG/ML",11136,8,1392,"MEDICAMENTOS E INSUMOS","",0],["G-0029","BETAMETASONA SOLUCION INYECTABLE 8MG/2ML",11349,8,1418.625,"MEDICAMENTOS E INSUMOS","",0],["G-0040","CAPTOPRIL TABLETA 50MG",880,8,110,"MEDICAMENTOS E INSUMOS","",0],["G-0086","FUROSEMIDA SOLUCION INYECTABLE 20MG/2ML",12727,8,1590.875,"MEDICAMENTOS E INSUMOS","",0],["G-0144","OXITOCINA SOLUCION INYECTABLE 10UI",55380,8,6922.5,"MEDICAMENTOS E INSUMOS","",0],["871010","RADIOGRAFÍA DE COLUMNA CERVICAL",805200,7,115028.57142857143,"IMAGENOLOGIA","OFERTADO",1],["892901","TOMA NO QUIRÚRGICA DE MUESTRA O TEJIDO CERVICOVAGINAL PARA ESTUDIO CITOLÓGICO",154000,7,22000,"PROMOCION Y MANTENIMIENTO DE LA SALUD","OFERTADO",1],["906218","HEPATITIS A ANTICUERPOS IG M SEMIAUTOMATIZADO O AUTOMATIZADO",1206490,7,172355.7142857143,"LABORATORIO","NO OFERTADO",0],["907008","SANGRE OCULTA EN MATERIA FECAL [GUAYACO O EQUIVALENTE]",92400,7,13200,"LABORATORIO","OFERTADO",1],["G-0006","ACIDO ASCORBICO (VITAMINA C) TABLETA 500MG",2422,7,346,"MEDICAMENTOS E INSUMOS","",0],["G-0021","AGUA DESTILADA SOLUCION INYECTABLE 500ML",46920,7,6702.857142857143,"MEDICAMENTOS E INSUMOS","",0],["G-0034","BECLOMETASONA DIPROPIONATO SUSPENSION PARA INHALACION 50MCG/10ML AEROSOL",62937,7,8991,"MEDICAMENTOS E INSUMOS","",0],["G-0060","DEXAMETASONA FOSFATO SOLUCION INYECTABLE 4MG/ML",7651,7,1093,"MEDICAMENTOS E INSUMOS","",0],["G-0100","HIDROXICINA CLORHIDRATO SOLUCION INYECTABLE 100MG/2ML",99498,7,14214,"MEDICAMENTOS E INSUMOS","",0],["873112","RADIOGRAFÍA DE CLAVICULA",423100,6,70516.66666666667,"IMAGENOLOGIA","OFERTADO",1],["898001","ESTUDIO DE COLORACION BASICA EN CITOLOGIA VAGINAL TUMORAL Y/O FUNCIONAL",1308000,6,218000,"OTROS","",0],["902215","HEMOPARÁSITOS EXTENDIDO DE SANGRE PERIFÉRICA",136200,6,22700,"LABORATORIO","OFERTADO",1],["903801","ÁCIDO ÚRICO EN SUERO U OTROS FLUIDOS",177600,6,29600,"LABORATORIO","OFERTADO",1],["904921","TIROXINA LIBRE",575068,6,95844.66666666667,"LABORATORIO","NO OFERTADO",0],["907009","SANGRE OCULTA EN MATERIA FECAL (DETERMINACIÓN DE HEMOGLOBINA HUMANA ESPECÍFICA)",79200,6,13200,"LABORATORIO","OFERTADO",1],["993505","VACUNACIÓN CONTRA RABIA",75000,6,12500,"PROMOCION Y MANTENIMIENTO DE LA SALUD","OFERTADO",1],["D-0019","BOLSA RECOLECTORA DE ORINA CYSTOFLO X 2000ML",72894,6,12149,"MEDICAMENTOS E INSUMOS","",0],["G-0133","MIDAZOLAM SOLUCION INYECTABLE 15MG/3ML",96600,6,16100,"MEDICAMENTOS E INSUMOS","",0],["G-0157","SALBUTAMOL SOLUCION PARA NEBULIZACION FRASCO 10ML",313950,6,52325,"MEDICAMENTOS E INSUMOS","",0],["865102","SUTURA DE HERIDA MÚLTIPLE- EN ÁREA GENERAL",168500,5,33700,"OTROS","",0],["873312","RADIOGRAFÍA DE FÉMUR (AP- LATERAL)",462400,5,92480,"IMAGENOLOGIA","OFERTADO",1],["890201","CONSULTA DE PRIMERA VEZ POR MEDICINA GENERAL",343500,5,68700,"MEDICINA GENERAL","OFERTADO",1],["906223","HEPATITIS B ANTICUERPOS S [ANTI-HBS] SEMIAUTOMATIZADO O AUTOMATIZADO",876614,5,175322.8,"LABORATORIO","NO OFERTADO",0],["D-0171","VENDA ELASTICA 4X5",18600,5,3720,"MEDICAMENTOS E INSUMOS","",0],["G-0085","FITOMENADIONA (VITAMINA K1) SOLUCION INYECTABLE 1MG/0.5ML",13340,5,2668,"MEDICAMENTOS E INSUMOS","",0],["870107","RADIOGRAFÍA DE HUESOS NASALES",375700,4,93925,"IMAGENOLOGIA","OFERTADO",1],["872011","RADIOGRAFÍA DE ABDOMEN SIMPLE CON PROYECCIONES ADICIONALES (SERIE DE ABDOMEN AGUDO)",589200,4,147300,"OTROS","",0],["873340","RADIOGRAFÍA DE MIEMBRO INFERIOR (AP- LATERAL)",433500,4,108375,"IMAGENOLOGIA","OFERTADO",1],["906610","ANTÍGENO ESPECÍFICO DE PRÓSTATA SEMIAUTOMATIZADO O AUTOMATIZADO",945064,4,236266,"LABORATORIO","NO OFERTADO",0],["D-0132","SONDA FOLEY 2 VIAS 16",24500,4,6125,"MEDICAMENTOS E INSUMOS","",0],["D-0133","SONDA FOLEY 2 VIAS 18",19600,4,4900,"MEDICAMENTOS E INSUMOS","",0],["D-0172","VENDA ELASTICA 5X5",38000,4,9500,"MEDICAMENTOS E INSUMOS","",0],["G-0062","DEXTROSA 5% SOLUCION INYECTABLE 500ML",17100,4,4275,"MEDICAMENTOS E INSUMOS","",0],["G-0076","ENOXAPARINA SODICA SOLUCION INYECTABLE 40MG/0.4ML",78384,4,19596,"MEDICAMENTOS E INSUMOS","",0],["S11103","INTERNACION EN SERVICIO COMPLEJIDAD BAJA HABITACION TRES CAMAS",979600,4,244900,"INTERNACION BASICA","",0],["S22103","SALA DE YESOS",489200,4,122300,"OTROS","",0],["129B01","INTERNACIÓN ADULTOS COMPLEJIDAD BAJA HABITACIÓN INDIVIDUAL (INCLUYE AISLAMIENTO)",3909500,3,1303166.6666666667,"INTERNACION BASICA","OFERTADO",1],["870601","RADIOGRAFÍA DE TEJIDOS BLANDOS DE CUELLO",355200,3,118400,"IMAGENOLOGIA","OFERTADO",1],["890301","CONSULTA DE CONTROL O DE SEGUIMIENTO POR MEDICINA GENERAL",206100,3,68700,"MEDICINA GENERAL","OFERTADO",1],["901111","BACILOSCOPIA COLORACIÓN ÁCIDO ALCOHOL RESISTENTE [ZIELH-NEELSEN] LECTURA SERIADA TRES MUES",107700,3,35900,"LABORATORIO","OFERTADO",1],["903803","ALBUMINA EN SUERO U OTROS FLUIDOS",48902,3,16300.666666666666,"LABORATORIO","OFERTADO",0],["906858","HEMOGLOBINAS (ESPECÍFICO) CUALITATIVA O CUANTITATIVA",456000,3,152000,"OTROS","",0],["990201","EDUCACIÓN INDIVIDUAL EN SALUD- POR MEDICINA GENERAL",62200,3,20733.333333333332,"PROMOCION Y MANTENIMIENTO DE LA SALUD","OFERTADO",1],["991402","APLICACIÓN INMUNOGLOBULINA ANTIRRÁBICA",30000,3,10000,"OTROS","",0],["D-0124","SONDA NASOGASTRICA 14",5400,3,1800,"MEDICAMENTOS E INSUMOS","",0],["D-0163","VENDA DE ALGODON LAMINADO 4X5",11250,3,3750,"MEDICAMENTOS E INSUMOS","",0],["D-0165","VENDA DE ALGODON LAMINADO 6X5",16000,3,5333.333333333333,"MEDICAMENTOS E INSUMOS","",0],["D-0168","VENDA DE YESO 5X5",62300,3,20766.666666666668,"MEDICAMENTOS E INSUMOS","",0],["D-0169","VENDA DE YESO 6X5",57500,3,19166.666666666668,"MEDICAMENTOS E INSUMOS","",0],["G-0063","DEXTROSA 10% SOLUCION INYECTABLE 500ML",12657,3,4219,"MEDICAMENTOS E INSUMOS","",0],["G-0082","ETONOGESTREL IMPLANTE SUBDERMICO 68 MG",396750,3,132250,"MEDICAMENTOS E INSUMOS","",0],["G-0107","LABETALOL SOLUCION INYECTABLE 100MG/20ML",59589,3,19863,"MEDICAMENTOS E INSUMOS","",0],["G-0121","MEDROXIPROGESTERONA ACETATO SOLUCION INYECTABLE 150MG/3ML",33975,3,11325,"MEDICAMENTOS E INSUMOS","",0],["G-0162","SUERO ANTIOFIDICO POLIVALENTE POLVO REC/INYECTABLE 10ML VIAL",2236750,3,745583.3333333334,"MEDICAMENTOS E INSUMOS","",0],["10M004","INTERNACION COMPLEJIDAD MEDIANA HABITACION CUATRO O MAS CAMAS",579900,2,289950,"INTERNACION BASICA","",0],["862701","ONICECTOMÍA",361960,2,180980,"PROCEDIMIENTOS","OFERTADO",1],["871020","RADIOGRAFÍA DE COLUMNA TORÁCICA",215000,2,107500,"IMAGENOLOGIA","OFERTADO",1],["873422","RADIOGRAFÍA DE RODILLAS COMPARATIVAS POSICIÓN VERTICAL (ÚNICAMENTE VISTA ANTEROPOSTERIOR)",78400,2,39200,"IMAGENOLOGIA","OFERTADO",1],["902212","HEMOCLASIFICACION GRUPO ABO Y FACTOR RH +",112000,2,56000,"OTROS","",0],["903863","PROTEÍNAS TOTALES EN SUERO Y OTROS FLUIDOS",33401,2,16700.5,"LABORATORIO","OFERTADO",0],["903876","CREATININA EN ORINA PARCIAL",50800,2,25400,"LABORATORIO","OFERTADO",1],["906129","TOXOPLASMA GONDII ANTICUERPOS IG M AUTOMATIZADO",279014,2,139507,"LABORATORIO","NO OFERTADO",0],["906133","TRYPANOSOMA CRUZI ANTICUERPOS IG M SEMIAUTOMATIZADO O AUTOMATIZADO",211198,2,105599,"LABORATORIO","NO OFERTADO",0],["935302","APLICACIÓN O CAMBIO DE YESO PARA INMOVILIZACIÓN EN MANO",507200,2,253600,"PROCEDIMIENTOS","OFERTADO",1],["935305","APLICACIÓN O CAMBIO DE YESO EN PIE",198800,2,99400,"PROCEDIMIENTOS","OFERTADO",1],["960200","INSERCION DE VIA AEREA OROFARINGEA SOD",443200,2,221600,"OTROS","",0],["D-0095","MASCARA DE NO REINHALACION CON RESERVORIO PEDIATRICA",53460,2,26730,"MEDICAMENTOS E INSUMOS","",0],["D-0112","POLYPROPYLENE 30 TS24 45CM REF 9564F",26000,2,13000,"MEDICAMENTOS E INSUMOS","",0],["D-0131","SONDA FOLEY 2 VIAS 14",9800,2,4900,"MEDICAMENTOS E INSUMOS","",0],["D-0136","SONDA NELATON 10",2200,2,1100,"MEDICAMENTOS E INSUMOS","",0],["D-0137","SONDA NELATON 12",2200,2,1100,"MEDICAMENTOS E INSUMOS","",0],["D-0164","VENDA DE ALGODON LAMINADO 5X5",18900,2,9450,"MEDICAMENTOS E INSUMOS","",0],["D-0173","VENDA ELASTICA 6X5",27000,2,13500,"MEDICAMENTOS E INSUMOS","",0],["G-0066","DIAZEPAM SOLUCION INYECTABLE 10MG/ML",11938,2,5969,"MEDICAMENTOS E INSUMOS","",0],["G-0083","FENTANILO SOLUCION INYECTABLE 0.5MG/10ML",8106,2,4053,"MEDICAMENTOS E INSUMOS","",0],["G-0084","FENITOINA SODICA SOLUCION INYECTABLE 250MG/5ML",6128,2,3064,"MEDICAMENTOS E INSUMOS","",0],["G-0089","GENTAMICINA SOLUCION INYECTABLE 80MG/2ML",4192,2,2096,"MEDICAMENTOS E INSUMOS","",0],["G-0096","HAEMACEL GELOFUSINE 4% SOLUCION INYECTABLE 500ML",293250,2,146625,"MEDICAMENTOS E INSUMOS","",0],["G-0110","LEVONORGESTREL IMPLANTE SUBDERMICO 75MG KIT",253000,2,126500,"MEDICAMENTOS E INSUMOS","",0],["G-0119","LOSARTAN POTASICO TABLETA 100MG",288,2,144,"MEDICAMENTOS E INSUMOS","",0],["G-0128","METRONIDAZOL TABLETA 500MG",312,2,156,"MEDICAMENTOS E INSUMOS","",0],["G-0161","SULFATO DE MAGNESIO 20% SOLUCION INYECTABLE 10ML",17451,2,8725.5,"MEDICAMENTOS E INSUMOS","",0],["G-00587","MEDROXIPROGESTERONA ACETATO SUSPENSION INYECTABLE 150MG/1ML",22650,2,11325,"MEDICAMENTOS E INSUMOS","",0],["690103","LEGRADO UTERINO GINECOLÓGICO",507172,1,507172,"OTROS","",0],["861801","INSERCIÓN DE ANTICONCEPTIVOS SUBDÉRMICOS",101200,1,101200,"PROMOCION Y MANTENIMIENTO DE LA SALUD","OFERTADO",1],["870003","RADIOGRAFÍA DE BASE DE CRÁNEO",136900,1,136900,"IMAGENOLOGIA","OFERTADO",1],["873111","RADIOGRAFÍA DE OMOPLATO",86700,1,86700,"IMAGENOLOGIA","OFERTADO",1],["873303","RADIOGRAFÍA COMPARATIVA DE PIES CON APOYO (AP Y LATERAL)",39200,1,39200,"IMAGENOLOGIA","OFERTADO",1],["890205","CONSULTA DE PRIMERA VEZ POR ENFERMERÍA",21300,1,21300,"APOYO TERAPEUTICO","OFERTADO",1],["890206","CONSULTA DE PRIMERA VEZ POR NUTRICIÓN Y DIETÉTICA",50000,1,50000,"APOYO TERAPEUTICO","OFERTADO",1],["890303","CONSULTA DE CONTROL O DE SEGUIMIENTO POR ODONTOLOGÍA GENERAL",91500,1,91500,"ODONTOLOGIA","OFERTADO",1],["890306","CONSULTA DE CONTROL O DE SEGUIMIENTO POR NUTRICIÓN Y DIETÉTICA",50000,1,50000,"APOYO TERAPEUTICO","OFERTADO",1],["890308","CONSULTA DE CONTROL O DE SEGUIMIENTO POR PSICOLOGÍA",47100,1,47100,"APOYO TERAPEUTICO","OFERTADO",1],["890404","INTERCONSULTA POR OTRAS ESPECIALIDADES EN ODONTOLOGIA",110000,1,110000,"OTROS","",0],["901001","ANTIBIOGRAMA (DISCO)",47471,1,47471,"LABORATORIO","NO OFERTADO",0],["901305","EXAMEN DIRECTO PARA HONGOS (KOH)",25400,1,25400,"LABORATORIO","OFERTADO",1],["901325","EXAMEN DIRECTO DE CUALQUIER MUESTRA",50600,1,50600,"LABORATORIO","OFERTADO",1],["902209","HEMOGRAMA III (HEMOGLOBINA HEMATOCRITO RECUENTO DE ERITROCITOS ÍNDICES ERITROCITARIOS LEUC",43800,1,43800,"LABORATORIO","OFERTADO",1],["902213","HEMOGLOBINA",175900,1,175900,"LABORATORIO","OFERTADO",1],["903426","HEMOGLOBINA GLICOSILADA AUTOMATIZADA",97000,1,97000,"LABORATORIO","NO OFERTADO",0],["903817","COLESTEROL DE BAJA DENSIDAD [LDL] AUTOMATIZADO",52300,1,52300,"LABORATORIO","OFERTADO",1],["903842","GLUCOSA PRE Y POST CARGA DE GLUCOSA",66900,1,66900,"LABORATORIO","OFERTADO",1],["903857","NITRÓGENO UREICO EN ORINA DE 24 HORAS",21100,1,21100,"LABORATORIO","OFERTADO",1],["903862","PROTEÍNAS EN ORINA DE 24 HORAS",17317,1,17317,"LABORATORIO","NO OFERTADO",0],["904904","HORMONA ESTIMULANTE DEL TIROIDES ULTRASENSIBLE",120252,1,120252,"LABORATORIO","NO OFERTADO",0],["904922","TIROXINA TOTAL",104200,1,104200,"LABORATORIO","NO OFERTADO",0],["904924","TRIYODOTIRONINA LIBRE",103600,1,103600,"OTROS","",0],["904925","TRIYODOTIRONINA TOTAL",103600,1,103600,"LABORATORIO","NO OFERTADO",0],["906002","ANTIESTREPTOLISINA MANUAL",74700,1,74700,"LABORATORIO","OFERTADO",1],["906040","TREPONEMA PALLIDUM ANTICUERPOS IG G SEMIAUTOMATIZADO O AUTOMATIZADO",60429,1,60429,"LABORATORIO","NO OFERTADO",0],["906127","TOXOPLASMA GONDII ANTICUERPOS IG G AUTOMATIZADO",139507,1,139507,"LABORATORIO","NO OFERTADO",0],["906132","TRYPANOSOMA CRUZI ANTICUERPOS MANUAL",105599,1,105599,"LABORATORIO","NO OFERTADO",0],["906219","HEPATITIS A ANTICUERPOS TOTALES SEMIAUTOMATIZADO O AUTOMATIZADO",164938,1,164938,"LABORATORIO","NO OFERTADO",0],["908436","DETECCION VIRUS DEL PAPILOMA HUMANO PRUEBAS DE ADN 14 CEPAS",210000,1,210000,"OTROS","",0],["965100","IRRIGACION Y LAVADO DEL OJO SOD",262600,1,262600,"OTROS","",0],["965201","LAVADO E IRRIGACIÓN DE OÍDOS",44400,1,44400,"PROCEDIMIENTOS","OFERTADO",1],["965301","IRRIGACIÓN O CURACIÓN DE CONDUCTOS NASALES",44400,1,44400,"PROCEDIMIENTOS","OFERTADO",1],["990203","EDUCACIÓN INDIVIDUAL EN SALUD- POR ODONTOLOGÍA",23000,1,23000,"PROMOCION Y MANTENIMIENTO DE LA SALUD","OFERTADO",1],["990205","EDUCACIÓN INDIVIDUAL EN SALUD- POR NUTRICIÓN Y DIETÉTICA",0,1,0,"PROMOCION Y MANTENIMIENTO DE LA SALUD","OFERTADO",1],["990211","EDUCACIÓN INDIVIDUAL EN SALUD- POR AGENTE EDUCATIVO",19600,1,19600,"PROMOCION Y MANTENIMIENTO DE LA SALUD","OFERTADO",1],["993501","VACUNACIÓN CONTRA POLIOMIELITIS (VOP O IVP)",13000,1,13000,"PROMOCION Y MANTENIMIENTO DE LA SALUD","OFERTADO",1],["D-0007","AGUJA HIPODERMICA 24",286,1,286,"MEDICAMENTOS E INSUMOS","",0],["D-0017","BOLSA RECOLECTORA DE ORINA RECORIN",1188,1,1188,"MEDICAMENTOS E INSUMOS","",0],["D-0040","CIRCUITO DE ANESTESIA PEDIATRICO",78705,1,78705,"MEDICAMENTOS E INSUMOS","",0],["D-0069","HOJAS DE BISTURI NRO 11",960,1,960,"MEDICAMENTOS E INSUMOS","",0],["D-0122","SONDA NASOGASTRICA 10",1800,1,1800,"MEDICAMENTOS E INSUMOS","",0],["D-0126","SONDA NASOGASTRICA 18",1800,1,1800,"MEDICAMENTOS E INSUMOS","",0],["D-0139","SONDA NELATON 16",1100,1,1100,"MEDICAMENTOS E INSUMOS","",0],["D-0145","TUBO ENDOTRAQUEAL CON BALON 30",5000,1,5000,"MEDICAMENTOS E INSUMOS","",0],["D-0154","TUBO ENDOTRAQUEAL CON BALON 75",6500,1,6500,"MEDICAMENTOS E INSUMOS","",0],["D-0170","VENDA ELASTICA 3X5",2400,1,2400,"MEDICAMENTOS E INSUMOS","",0],["G-0005","ACIDO ACETIL SALICILICO TABLETA 100MG",138,1,138,"MEDICAMENTOS E INSUMOS","",0],["G-0022","ATROPINA SULFATO SOLUCION INYECTABLE 1MG/ML",1344,1,1344,"MEDICAMENTOS E INSUMOS","",0],["G-0024","ATORVASTATINA TABLETA 40MG",312,1,312,"MEDICAMENTOS E INSUMOS","",0],["G-0056","CLOPIDOGREL TABLETA 75MG",3432,1,3432,"MEDICAMENTOS E INSUMOS","",0],["G-0071","DINITRATO DE ISOSORBIDE TABLETA SUBLINGUAL 5MG",2096,1,2096,"MEDICAMENTOS E INSUMOS","",0],["G-0091","HALOPERIDOL SOLUCION INYECTABLE 5MG/ML",2600,1,2600,"MEDICAMENTOS E INSUMOS","",0],["G-0099","HIDROXIDO AL 4MG + HIDROXIDO MG 4MG + SIMETICONA 0.4MG SUSPENSION FRASCO 360ML",8580,1,8580,"MEDICAMENTOS E INSUMOS","",0],["G-0125","METOPROLOL SUCCINATO SOLUCION INYECTABLE 5MG/ML",20240,1,20240,"MEDICAMENTOS E INSUMOS","",0],["G-0131","MEPERIDINA CLORHIDRATO SOLUCION INYECTABLE 100MG/2ML",587,1,587,"MEDICAMENTOS E INSUMOS","",0],["G-0134","MORFINA CLORHIDRATO SOLUCION INYECTABLE 10MG/ML",495,1,495,"MEDICAMENTOS E INSUMOS","",0],["G-0138","NITROFURAZONA 2% UNGUENTO 500GR POTE",72994,1,72994,"MEDICAMENTOS E INSUMOS","",0],["G-0139","NITROGLICERINA SOLUCION INYECTABLE 50MG/10ML",20240,1,20240,"MEDICAMENTOS E INSUMOS","",0],["G-0149","PENICILINA G BENZATINICA POLVO REC/INYECTABLE 1.200.000UI VIAL",2432,1,2432,"MEDICAMENTOS E INSUMOS","",0],["G-0150","PENICILINA G SODICA POLVO REC/INYECTABLE 1.000.000UI VIAL",2645,1,2645,"MEDICAMENTOS E INSUMOS","",0],["G-0154","ROCURONIO BROMURO SOLUCION INYECTABLE 50MG/5ML",16549,1,16549,"MEDICAMENTOS E INSUMOS","",0],["G-00335","MISOPROSTOL TABLETA 200MCG",12880,1,12880,"MEDICAMENTOS E INSUMOS","",0],["G-00416","MIFEPRISTONA TABLETA 200MG",51750,1,51750,"MEDICAMENTOS E INSUMOS","",0],["G-00469","BROMURO DE IPRATROPIO 0.25% SUSPENCIÓN PARA INHALAR FRASCO X20ML.",24450,1,24450,"MEDICAMENTOS E INSUMOS","",0],["G-00483","PROPOFOL 1% 10MG/ML",11529,1,11529,"MEDICAMENTOS E INSUMOS","",0],["G-00624","CISATRACURIO SOLUCION INYECTABLE 10MG/5ML",34500,1,34500,"MEDICAMENTOS E INSUMOS","",0]]},"top20":[[1,"906249","VIRUS DE INMUNODEFICIENCIA HUMANA 1 Y 2 ANTICUERPOS",3207],[2,"890701","CONSULTA DE URGENCIAS POR MEDICINA GENERAL",3036],[3,"902207","HEMOGRAMA I (HEMOGLOBINA HEMATOCRITO Y LEUCOGRAMA) MANUAL",1594],[4,"902221","RECUENTO DE PLAQUETAS MANUAL",1397],[5,"907106","UROANÁLISIS",1342],[6,"5DSB01","DERECHOS DE SALA DE OBSERVACIÓN EN URGENCIAS COMPLEJIDAD BAJA",1230],[7,"903866","TRANSAMINASA GLUTÁMICO-PIRÚVICA [ALANINO AMINO TRANSFERASA]",1210],[8,"903867","TRANSAMINASA GLUTÁMICO OXALACÉTICA [ASPARTATO AMINO TRANSFERASA]",1206],[9,"S31307","TRASLADO BASICOSERVICIO INTERMUNICIPAL MAYOR DE 25 KMS HASTA 300KMS (CADA KILOMETRO)",1190],[10,"890250","CONSULTA DE PRIMERA VEZ POR ESPECIALISTA EN GINECOLOGÍA Y OBSTETRICIA",1101],[11,"890350","CONSULTA DE CONTROL O DE SEGUIMIENTO POR ESPECIALISTA EN GINECOLOGÍA Y OBSTETRICIA",1053],[12,"902045","TIEMPO DE PROTROMBINA [TP]",979],[13,"902208","HEMOGRAMA II (HEMOGLOBINA HEMATOCRITO RECUENTO DE ERITROCITOS ÍNDICES ERITROCITARIOS LEUCOGRAMA RECUENTO DE PLAQUETAS E ÍNDICES PLAQUETARIOS) SEMIAUTOMATIZADO",976],[14,"902049","TIEMPO DE TROMBOPLASTINA PARCIAL [TTP]",970],[15,"601T02","TRASLADO ASISTENCIAL BÁSICO TERRESTRE SECUNDARIO",942],[16,"D-0082","JERINGA DESECHABLE 10 ML",902],[17,"906914","PROTEÍNA C REACTIVA MANUAL O SEMIAUTOMATIZADO",889],[18,"G-0105","LACTATO DE RINGER - HARMANT SOLUCION INYECTABLE 500ML",712],[19,"890283","CONSULTA DE PRIMERA VEZ POR ESPECIALISTA EN PEDIATRÍA",649],[20,"903895","CREATININA EN SUERO U OTROS FLUIDOS",636]],"giro":{"users":70003.76666666666,"v0":25909,"giro0":1813727590.5666666,"v1":30181.394099999998,"giro1":2112811270.2511098,"v2":40000,"giro2":2800150666.6666665},"top_cost":[["990201","EDUCACION INDIVIDUAL EN SALUD, POR MEDICINA GENERAL(11123)","PROMOCION Y MANTENIMIENTO DE LA SALUD",99887.07624033907,155897312.4975517,0.15487097461586236],["5DSB01","DERECHOS DE SALA DE OBSERVACION EN URGENCIAS COMPLEJIDAD B","URGENCIAS CON OBSERVACION",4280,144403817.74557403,0.14345314639634743],["890201","CONSULTA DE PRIMERA VEZ POR MEDICINA GENERAL(5313)","MEDICINA GENERAL",42387,66154898.44686332,0.06571937279701355],["890301","CONSULTA DE CONTROL O DE SEGUIMIENTO POR MEDICINA GENERAL ","MEDICINA GENERAL",29291,45715505.47118393,0.045414540981841695],["990211","EDUCACION INDIVIDUAL EN SALUD. POR AGENTE EDUCATIVO(11142)","PROMOCION Y MANTENIMIENTO DE LA SALUD",34948,43685000,0.04339740318615304],["997301","DETARTRAJE SUPRAGINGIVAL(30199)","PROMOCION Y MANTENIMIENTO DE LA SALUD",35707,36419667.787303664,0.036179901725337464],["232102","OBTURACION DENTAL CON RESINA DE FOTOCURADO +(977)","ODONTOLOGIA",15684,35645811,0.03541113956425338],["129B02","INTERNACIÓN ADULTOS COMPLEJIDAD BAJA HABITACION MÚLTIPLE(7","INTERNACION BASICA",817,27564934.368722886,0.02738346275836818],["990212","EDUCACION INDIVIDUAL EN SALUD. POR HIGIENE ORAL(11143)","PROMOCION Y MANTENIMIENTO DE LA SALUD",26754,27287976.92277487,0.027108328640313626],["997002","CONTROL DE PLACA DENTAL(69727)","PROMOCION Y MANTENIMIENTO DE LA SALUD",26672,27204340.30366492,0.027025242636407452],["890701","CONSULTA DE URGENCIAS. POR MEDICINA GENERAL(5477)","URGENCIAS",8215,25782777.5,0.025613038581352294],["997107","APLICACION DE SELLANTES(69728)","PROMOCION Y MANTENIMIENTO DE LA SALUD",24063,24543267.873691097,0.024381689170661087],["990203","EDUCACION INDIVIDUAL EN SALUD, POR ODONTOLOGIA(11127)","PROMOCION Y MANTENIMIENTO DE LA SALUD",20860,21276339.93455497,0.021136268798570015],["990204","EDUCACION INDIVIDUAL EN SALUD, POR ENFERMERIA(11129)","PROMOCION Y MANTENIMIENTO DE LA SALUD",17567,18628672.8142452,0.018506032389669847],["997106","TOPICACION DE FLUOR EN BARNIZ(30198)","PROMOCION Y MANTENIMIENTO DE LA SALUD",18219,18582628.823952876,0.01846029152642124]],"top_freq":[["990201","EDUCACION INDIVIDUAL EN SALUD, POR MEDICINA GENERAL(11123)","PROMOCION Y MANTENIMIENTO DE LA SALUD",99887.07624033907],["890201","CONSULTA DE PRIMERA VEZ POR MEDICINA GENERAL(5313)","MEDICINA GENERAL",42387],["997301","DETARTRAJE SUPRAGINGIVAL(30199)","PROMOCION Y MANTENIMIENTO DE LA SALUD",35707],["990211","EDUCACION INDIVIDUAL EN SALUD. POR AGENTE EDUCATIVO(11142)","PROMOCION Y MANTENIMIENTO DE LA SALUD",34948],["890301","CONSULTA DE CONTROL O DE SEGUIMIENTO POR MEDICINA GENERAL ","MEDICINA GENERAL",29291],["990212","EDUCACION INDIVIDUAL EN SALUD. POR HIGIENE ORAL(11143)","PROMOCION Y MANTENIMIENTO DE LA SALUD",26754],["997002","CONTROL DE PLACA DENTAL(69727)","PROMOCION Y MANTENIMIENTO DE LA SALUD",26672],["997107","APLICACION DE SELLANTES(69728)","PROMOCION Y MANTENIMIENTO DE LA SALUD",24063],["990203","EDUCACION INDIVIDUAL EN SALUD, POR ODONTOLOGIA(11127)","PROMOCION Y MANTENIMIENTO DE LA SALUD",20860],["907106","UROANALISIS(6671)","LABORATORIO",18357],["997106","TOPICACION DE FLUOR EN BARNIZ(30198)","PROMOCION Y MANTENIMIENTO DE LA SALUD",18219],["990204","EDUCACION INDIVIDUAL EN SALUD, POR ENFERMERIA(11129)","PROMOCION Y MANTENIMIENTO DE LA SALUD",17567],["232102","OBTURACION DENTAL CON RESINA DE FOTOCURADO +(977)","ODONTOLOGIA",15684],["902208","HEMOGRAMA II (HEMOGLOBINA HEMATOCRITO RECUENTO DE ERITROCI","LABORATORIO",15280],["903841","GLUCOSA EN SUERO. LCR U OTRO FLUIDO DIFERENTE A ORINA(6064","LABORATORIO",15122]],"med":{"gen_q":[79322,54483,78349,54420,51561,75633,56546,104273],"gen_v":[49526140,82088107,68006043,61686614,77223872,59839547,62767819,58775774],"list_v":[18849940,60982829,41325178,31889803,37837140,25613822,30627311,21502225],"gen_noxy":[30846,35947,41040,39059,42172,36392,43653,39531],"gen_novit":[38642740,29343957,36668543,38801614,49796372,42848297,42355319,47850774],"ndist":[103,99,95,102,106,104,105,102],"list_q":[23247,28965,32498,30079,33097,28519,36071,32698],"list_tot_q":245174,"items":[{"cod":"MD000076","desc":"SULFATO FERROSO HEPTAHIDRATADO 300MG (TABLETA)(13387)","m":[8041,8840,11970,10535,10500,9360,10621,8701],"acum":78568,"cv":0.1238030810352052,"meses":8,"est":"ESTABLE","val":6140167,"pu":78.150990225028},{"cod":"MD000042","desc":"CALCIO CARBONATO 1500MG EQ.600MG DE CALCIO (TABLETA)(13352)","m":[6481,8551,9212,9002,11865,8670,12795,11974],"acum":78550,"cv":0.20620010023768873,"meses":8,"est":"ESTABLE","val":16531880,"pu":210.4631444939529},{"cod":"MD000080","desc":"FOLICO ACIDO 1MG (TABLETA)(13391)","m":[5943,7411,7322,7218,6570,7232,9184,8284],"acum":59164,"cv":0.125060088479568,"meses":8,"est":"ESTABLE","val":4385163,"pu":74.11877155026706},{"cod":"MD008978","desc":"ALIMENTO EN POLVO A BASE DE MALTODEXTRINA CON VITAMINAS, HIERRO Y ZINC","m":[582,1858,1090,796,954,591,710,380],"acum":6961,"cv":0.4915625124219948,"meses":8,"est":"VARIABLE","val":193606300,"pu":27813.001005602644},{"cod":"MD000453","desc":"ACETAMINOFEN 500MG (TABLETA)(13807)","m":[510,543,549,421,820,720,596,572],"acum":4731,"cv":0.19737724216201205,"meses":8,"est":"ESTABLE","val":411571,"pu":86.99450433312197},{"cod":"MD000186","desc":"LEVONORGESTREL + ETINILESTRADIOL 150/30MCG (TABLETA)(13517)","m":[105,141,160,196,161,254,262,778],"acum":2057,"cv":0.790347622734475,"meses":8,"est":"ALTA VARIABILIDAD","val":2624875,"pu":1276.0695187165775},{"cod":"MD000265","desc":"CEFALOTINA 1 G (POLVO PARA SUSPENSION INYECTABLE)(13605)","m":[221,178,393,256,229,284,228,255],"acum":2044,"cv":0.23309039843409496,"meses":8,"est":"ESTABLE","val":7377985,"pu":3609.5817025440315},{"cod":"MD015657","desc":"SULFATO FERROSO HEPTAHIDRATADO 200MG/5ML (JARABE*120ML)(59628)","m":[121,169,264,246,312,171,274,317],"acum":1874,"cv":0.2886651060578794,"meses":8,"est":"ESTABLE","val":9863425,"pu":5263.300426894343},{"cod":"MD000401","desc":"DICLOFENACO SODICO 75 mg/3mL (SOLUCION INYECTABLE)(13747)","m":[81,132,215,197,209,202,245,233],"acum":1514,"cv":0.2726105408185328,"meses":8,"est":"ESTABLE","val":1139919,"pu":752.9187582562747},{"cod":"MD002904","desc":"OMEPRAZOL 40 MG (SOLUCION INYECTABLE)(16529)","m":[180,199,173,193,175,124,122,154],"acum":1320,"cv":0.16569967411505837,"meses":8,"est":"ESTABLE","val":5915760,"pu":4481.636363636364},{"cod":"MD000554","desc":"ALBENDAZOL 100 mg/5 mL (SUSPENSION ORAL)(13925)","m":[188,205,180,229,233,98,97,78],"acum":1308,"cv":0.3601428702090004,"meses":8,"est":"VARIABLE","val":2886420,"pu":2206.743119266055},{"cod":"MD000017","desc":"METOCLOPRAMIDA CLORHIDRATO 10 MG/2ML (SOLUCION INYECTABLE)(13327)","m":[145,136,182,136,198,155,160,189],"acum":1301,"cv":0.13947577564760658,"meses":8,"est":"ESTABLE","val":1035580,"pu":795.9877017678708},{"cod":"MD000013","desc":"HIOSCINA N-BUTIL BROMURO 20 MG/ML (SOLUCION INYECTABLE)(13323)","m":[180,128,149,147,148,102,131,133],"acum":1118,"cv":0.14991653170335104,"meses":8,"est":"ESTABLE","val":1671048,"pu":1494.6762075134168},{"cod":"MD000209","desc":"DEXAMETASONA FOSFATO 8MG (SOLUCION INYECTABLE*2ML)(13542)","m":[119,124,140,145,168,121,136,128],"acum":1081,"cv":0.11213962546131387,"meses":8,"est":"ESTABLE","val":911002,"pu":842.7400555041628},{"cod":"MD000014","desc":"HIOSCINA N-BUTIL BROMURO+DIPIRONA 0.020/2.5 MG/5 ML (SOLUCION INYECTAB","m":[43,84,156,124,172,112,119,160],"acum":970,"cv":0.3310996117747943,"meses":8,"est":"VARIABLE","val":2934802,"pu":3025.5690721649485}],"items_n":39,"tot_q":554587,"tot_v":519913916,"list_tot_v":268628248,"frec_g":[["PERMANENTE","Despachado los 8 meses",8,8,75,0.5639097744360902,540658,0.9748840127878944,491379854,0.9451177182955034],["FRECUENTE","Despachado 6 a 7 meses",6,7,16,0.12030075187969924,12759,0.023006309199458334,8219595,0.01580953066853475],["INTERMITENTE","Despachado 3 a 5 meses",3,5,21,0.15789473684210525,1076,0.001940182514195248,20022457,0.03851110036454573],["ESPORÁDICO","Despachado 1 a 2 meses",1,2,21,0.15789473684210525,94,0.00016949549845200122,292010,0.0005616506714161503],["TOTAL",null,null,null,133,1,554587,1,519913916,1]],"frec_l":[["PERMANENTE","Despachado los 8 meses",8,8,26,0.7222222222222222,244910,0.9989232137176046,268127778,0.998136942024057],["FRECUENTE","Despachado 6 a 7 meses",6,7,5,0.1388888888888889,226,0.0009217943175051189,438925,0.0016339495316218568],["INTERMITENTE","Despachado 3 a 5 meses",3,5,3,0.08333333333333333,33,0.00013459828529942,41044,0.00015279107951446714],["ESPORÁDICO","Despachado 1 a 2 meses",1,2,2,0.05555555555555555,5,2.0393679590821212e-05,20501,7.631736480669747e-05],["TOTAL",null,null,null,36,1,245174,1,268628248,1]],"pareto":[{"rk":1,"cod":"G-0168","desc":"ALIMENTO EN POLVO A BASE DE MALTODEXTRINA CON VITAMINAS Y MI","q":6961,"v":193606300,"pct":0.3723814540097827,"acu":0.3723814540097827,"cl":"A","ne":"SÍ"},{"rk":2,"cod":"G-0105","desc":"LACTATO DE RINGER - HARMANT SOLUCION INYECTABLE 500ML","q":8024,"v":32451734,"pct":0.06241751374856448,"acu":0.43479896775834714,"cl":"A","ne":"NO"},{"rk":3,"cod":"G-0052","desc":"CLORURO DE SODIO 0.09% SOLUCION INYECTABLE 500ML","q":7663,"v":31863855,"pct":0.06128679002313914,"acu":0.4960857577814863,"cl":"A","ne":"NO"},{"rk":4,"cod":"G-0019","desc":"ALBENDAZOL TABLETA 200MG","q":4698,"v":26311320,"pct":0.05060707011350702,"acu":0.5466928278949933,"cl":"A","ne":"NO"},{"rk":5,"cod":"G-0207","desc":"OXIGENO GAS MEDICINAL X LITRO","q":245947,"v":24594700,"pct":0.047305331215639165,"acu":0.5939981591106325,"cl":"A","ne":"NO"},{"rk":6,"cod":"G-0122","desc":"MEDROXIPROGESTERONA ACETATO + ESTRADIOL SOLUCION INYECTABLE ","q":4008,"v":20661750,"pct":0.03974071353766188,"acu":0.6337388726482943,"cl":"A","ne":"NO"},{"rk":7,"cod":"G-00072","desc":"CARBONATO DE CALCIO TABLETA 600MG","q":78550,"v":16531880,"pct":0.03179734085055727,"acu":0.6655362134988516,"cl":"A","ne":"SÍ"},{"rk":8,"cod":"G-0162","desc":"SUERO ANTIOFIDICO POLIVALENTE POLVO REC/INYECTABLE 10ml VIAL","q":66,"v":16133700,"pct":0.03103148329655404,"acu":0.6965676967954056,"cl":"A","ne":"NO"},{"rk":9,"cod":"G-0124","desc":"METILPREDNISOLONA POLVO REC/INYECTABLE 500ML VIAL","q":548,"v":10940562,"pct":0.021043025899695287,"acu":0.717610722695101,"cl":"A","ne":"NO"},{"rk":10,"cod":"G-0159","desc":"SULFATO FERROSO JARABE FRASCO 120ML","q":1874,"v":9863425,"pct":0.018971265620056993,"acu":0.736581988315158,"cl":"A","ne":"SÍ"},{"rk":11,"cod":"G-0010","desc":"AMPICILNA + SULBACTAM POLVO REC/INYECTABLE 1.5GR AMPOLLAS","q":2117,"v":7388562,"pct":0.014211125674120252,"acu":0.7507931139892783,"cl":"A","ne":"NO"},{"rk":12,"cod":"G-0042","desc":"CEFALOTINA POLVO REC/INYECTABLE 1G AMPOLLAS","q":2044,"v":7377985,"pct":0.014190781921674896,"acu":0.7649838959109532,"cl":"A","ne":"SÍ"},{"rk":13,"cod":"G-0166","desc":"TOXOIDE TETANICA SOLUCION INYECTABLE 0.5ML","q":369,"v":6691991,"pct":0.012871344263076043,"acu":0.7778552401740292,"cl":"A","ne":"NO"},{"rk":14,"cod":"G-0018","desc":"ALBENDAZOL 400MG/20ML SUSPENSION (SACHET)","q":2847,"v":6573728,"pct":0.012643877760717603,"acu":0.7904991179347468,"cl":"A","ne":"NO"},{"rk":15,"cod":"G-0158","desc":"SULFATO FERROSO TABLETA 300MG","q":78568,"v":6140167,"pct":0.01180996855641002,"acu":0.8023090864911568,"cl":"A","ne":"SÍ"}],"paretoCls":[["A",15,417131659,0.8023090864911567,5],["B",24,77898112,0.14982886513081908,9],["C",94,24884145,0.04786204837802418,22],["TOTAL",133,519913916,1,36]],"H":["1. Comportamiento del general. Se despachan en promedio 69.323 unidades y $65,0 M por mes. El valor osciló entre $49,5 M (enero) y $82,1 M (febrero); la cantidad tiene su pico en agosto (104.273 unidades).","2. Dos productos distorsionan el general. Vitamix (G-0168) suma $193,6 M (37,2% del valor acumulado) y en febrero llegó a 1.858 sobres y $52,7 M, el 64,3% del valor de ese mes. El oxígeno (G-0207) aporta 44,3% de las unidades pero solo 4,7% del valor; su consumo va de 9.389 a 64.742 litros por mes (agosto: 62,1% de las unidades del mes). Sin oxígeno la cantidad mensual es mucho más estable (coeficiente de variación 0,10 frente a 0,25).","3. Listado Nueva EPS. Suma 245.174 unidades (44,2% del general) y $268,6 M (51,7% del valor). Mes a mes pesa entre 29,3% y 64,2% de las unidades y entre 36,6% y 74,3% del valor; esa variación viene del oxígeno y de Vitamix, no de cambios en el listado. Sin Vitamix, el listado representa 23,0% del valor general.","4. Tendencia Nueva EPS. La cantidad mensual del listado es estable (coeficiente de variación 0,12): 23.247 en enero, 36.071 en julio (máximo) y 32.698 en agosto. Comparando mayo–agosto con enero–abril varía 13,6% (general: 8,0%; general sin oxígeno: 10,1%). El valor es más volátil (coeficiente 0,37) porque depende de Vitamix.","5. Concentración dentro del listado. Tres productos concentran 88,2% de las unidades del listado: Sulfato ferroso tableta 300mg (78.568), Carbonato de calcio tableta 600mg (78.550) y Acido folico (vitamina b9) tableta 1mg (59.164). Por estabilidad de la cantidad mensual, de los 35 ítems con despacho: 13 son estables, 10 variables, 10 de alta variabilidad y 2 esporádicos.","6. Frecuencia del general. 75 de 133 medicamentos (56,4%) se despachan los 8 meses y concentran 97,5% de las unidades y 94,5% del valor; 21 (15,8%) son esporádicos (1–2 meses) y pesan 0,02% de las unidades y 0,06% del valor. Dentro del listado Nueva EPS, 26 de 36 códigos son permanentes y concentran 99,9% de sus unidades.","7. Concentración del valor (Pareto). 15 medicamentos explican el 80% del valor despachado y 39 el 95%; el primero es Vitamix.","8. Cobertura del listado. Cuatro ítems de Nueva EPS no tienen despacho equivalente en los reportes: lidocaína jalea 2%, lidocaína 2% inyectable, gentamicina oftálmica y ácido acetilsalicílico 500 mg (la institución despacha ácido acetilsalicílico de 100 mg, otra concentración).","9. Despacho fuera del listado. 97 códigos G (72,9%) no están en el listado de Nueva EPS y suman $251,3 M (48,3% del valor). Los de mayor valor: Lactato de ringer - harmant solucion inyectable ($32,5 M); Cloruro de sodio 0.09% solucion inyectable 500ml ($31,9 M); Albendazol tableta 200mg ($26,3 M); Oxigeno gas medicinal x litro ($24,6 M); Medroxiprogesterona acetato + estradiol solucion ($20,7 M); Suero antiofidico polivalente polvo rec/inyectable ($16,1 M).","10. Precios. En enero, 64 de 96 medicamentos comparables tienen un valor unitario que difiere más de 10% del valor mediano de febrero–agosto (por ejemplo Vitamix: $18.700 en enero frente a $28.750 desde marzo). Valorado a precios constantes, enero pasa de $49,5 M a $54,2 M; de febrero en adelante el efecto precio es mínimo."],"A":["1. Identificar el pagador. Solicitar a facturación/RIPS el despacho por EPS para separar lo atribuible a Nueva EPS del resto; hasta entonces las cifras del cruce miden productos del listado, no facturación a Nueva EPS.","2. Gestionar el riesgo de Vitamix (MD008978). Confirmar que la tarifa del listado cubre el costo de $28.750 por sobre, definir el cobro o recobro de lo despachado ($193,6 M) y programar compras con el promedio mensual (870 sobres) y el pico de febrero como techo de referencia.","3. Abastecimiento de los productos permanentes del listado. Fijar stock mínimo por producto con promedio mensual más una desviación estándar (hoja COMPORTAMIENTO NUEVA EPS), empezando por sulfato ferroso, carbonato de calcio y ácido fólico.","4. Negociación del listado. Revisar con Nueva EPS los 4 ítems sin despacho y evaluar la inclusión o soporte tarifario de productos de alto valor despachados fuera del listado (hallazgo 9), que representan cerca de la mitad del valor.","5. Depuración de códigos. Unificar los 4 pares de códigos G que parecen duplicados (amiodarona, propofol, ipratropio para nebulización y tramadol inyectable), completar el ATC de 4 productos y homologar CUMS/CUPS del resto del catálogo para poder repetir este cruce con Sanitas, Coosalud y FOMAG.","6. Oxígeno. Validar el registro en litros (variación de 7 veces entre meses, con 64.742 litros en agosto) y presentarlo aparte del resto de medicamentos en los informes de gerencia.","7. Continuidad. Para septiembre, agregar la hoja mensual y una columna a cada consolidado con la misma fórmula SUMIFS; los cruces, el resumen y el Pareto se actualizan por fórmula."],"S":["• Cantidad = unidades despachadas en la unidad propia de cada producto; no es homogénea entre productos. Valor = columna VALOR TOTAL de cada hoja mensual, sin ajuste.","• Homologación: 33 cruces exactos, 2 por equivalencia (carbonato de calcio: 1.500 mg de carbonato = 600 mg de calcio elemental; omeprazol: solución vs. polvo para inyección, ambos 40 mg) y 1 múltiple (betametasona). El detalle está en las columnas R–T de CRUCE NUEVA EPS.","• Las filas '(en blanco)' de los reportes mensuales son filas vacías de tabla dinámica y se excluyeron; los totales de cada hoja mensual cuadran con los consolidados (diferencia 0)."],"K":[["Cantidad acumulada general (unid.)",554587],["Valor acumulado general ($)",519913916],["Medicamentos distintos despachados (códigos G)",133],["Cantidad del listado Nueva EPS (unid.)",245174],["% Nueva EPS / general (cantidad)",0.44208392912203137],["Valor del listado Nueva EPS ($)",268628248],["% Nueva EPS / general (valor)",0.5166783187238251],["Ítems del listado Nueva EPS con despacho (de 39)",35],["Ítems del listado Nueva EPS sin despacho",4],["Valor despachado fuera del listado Nueva EPS ($)",251285668],["Medicamentos permanentes (8 de 8 meses)",75],["Medicamentos que concentran el 80% del valor (clase A)",15],["Coef. de variación mensual – cantidad Nueva EPS",1.1195871166874989],["Coef. de variación mensual – valor general",0.15107993843461295]]},"src":{"inf":{"file":"INFORME_DE_SERVICIOS_2026_BASE_DE_DATOS_ANALISIS.xlsx","ts":"Incluido en el tablero"},"med":{"file":"CONSOLIDADO_MEDICAMENTOS_ENERO_A_AGOSTO_2026_INFORME.xlsx","ts":"Incluido en el tablero"}}};
+// ═════════ UTILIDADES ═════════
+const $=id=>document.getElementById(id);
+const nf=(n,d=0)=>Number(n).toLocaleString('es-CO',{minimumFractionDigits:d,maximumFractionDigits:d});
+const F=n=>'$'+nf(Math.round(n));
+const FM=n=>'$'+nf(n/1e6,1)+' M';
+const FN=n=>nf(Math.round(n));
+const P=(n,d=1)=>nf(n,d)+'%';
+const sum=a=>a.reduce((x,y)=>x+y,0);
+const avg=a=>a.length?sum(a)/a.length:0;
+const sd=a=>{if(a.length<2)return 0;const m=avg(a);return Math.sqrt(sum(a.map(v=>(v-m)**2))/(a.length-1));};
+const ST=(id,h)=>{const e=$(id);if(e)e.innerHTML=h;};
+const cap1=s=>s.charAt(0)+s.slice(1).toLowerCase();
+function T(id,btn){document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));document.querySelectorAll('.tb').forEach(b=>b.classList.remove('on'));$('s-'+id).classList.add('on');btn.classList.add('on');window.dispatchEvent(new Event('resize'));}
+const CH={};
+function mk(id,cfg){const el=$(id);if(!el||typeof Chart==='undefined')return;if(CH[id])CH[id].destroy();CH[id]=new Chart(el,cfg);}
+const fs={font:{size:9}};
+const yM={ticks:{callback:v=>FM(v),font:{size:9}}};
+const GCOL=['#1F4E79','#C00000','#2E75B6','#70AD47','#375623','#7030A0','#F4B942','#FF6B35','#BDD7EE','#BFBFBF','#8E6E53','#4A90C4'];
+const kpis=a=>a.map(k=>`<div class="kc ${k[0]}"><div class="lb">${k[1]}</div><div class="vl">${k[2]}</div><div class="sb">${k[3]||''}</div>${k[4]?`<div class="tr tu">${k[4]}</div>`:''}</div>`).join('');
+const lis=a=>a.map((r,i)=>`<li><div class="rn">${i+1}</div><div class="rt"><strong>${r[0]}</strong>${r[1]}</div></li>`).join('');
+
+// ═════════ CATÁLOGOS ═════════
+const GN={'PROMOCION Y MANTENIMIENTO DE LA SALUD':'Promoción y Mant. de la Salud','URGENCIAS':'Urgencias','MEDICINA GENERAL':'Medicina General','LABORATORIO':'Laboratorio','ODONTOLOGIA':'Odontología','MEDICAMENTOS':'Medicamentos','APOYO TERAPEUTICO':'Apoyo Terapéutico','IMAGENOLOGIA':'Imagenología','INTERNACION BASICA':'Internación Básica','PROCEDIMIENTOS':'Procedimientos','TRASLADOS':'Traslados','CONSULTA MEDICA ESPECIALIZADA':'Consulta médica especializada','ATENCION PARTO Y RN':'Atención parto y RN','MEDICAMENTOS E INSUMOS':'Medicamentos e insumos','OTROS':'Otros / por clasificar','COMPLEMENTARIOS':'Complementarios','ATENCION DOMICILIARIA':'Atención domiciliaria','ALBERGUE':'Albergue'};
+const gname=g=>GN[g]||cap1(g);
+const OBS={'906249':['SÍ','Alta frecuencia y predecible. Candidato CAPITA.'],'890701':['PARCIAL','Volumen alto urgente. Cuota fija por episodio.'],'902207':['SÍ','Frecuencia estable, bajo costo. Ideal CAPITA.'],'902221':['SÍ','Complementa hemograma. CAPITA laboratorio.'],'907106':['SÍ','Predecible, costo bajo.'],'5DSB01':['PARCIAL','Ligado a urgencias. Cuota por episodio.'],'903866':['SÍ','Marcador rutinario. CAPITA laboratorio.'],'903867':['SÍ','Similar a GPT. CAPITA laboratorio.'],'S31307':['NO','Costo unitario atípico. Permanece EVENTO con tope.'],'890250':['SÍ','Ruta materno-perinatal.'],'890350':['SÍ','Seguimiento de gestantes, muy predecible.'],'902045':['SÍ','Coagulación básica. CAPITA laboratorio.'],'902208':['SÍ','Complemento de hemograma I.'],'902049':['SÍ','Coagulación básica. CAPITA laboratorio.'],'601T02':['NO','Permanece EVENTO con tope mensual.'],'D-0082':['NO','Insumo. No aplica.'],'906914':['SÍ','Marcador inflamatorio, bajo costo.'],'G-0105':['NO','Medicamento/insumo de urgencias.'],'890283':['SÍ','Demanda programada. Candidato.'],'903895':['SÍ','Función renal. CAPITA laboratorio.']};
+const MIG={'906249':'VIH 1 y 2 anticuerpos','902207':'Hemograma I manual','902221':'Recuento plaquetas','907106':'Uroanálisis','903866':'Transaminasa GPT','903867':'Transaminasa GOT','890250':'Ginecología 1ª vez','890350':'Control ginecología','902045':'Tiempo protrombina','902208':'Hemograma II semiaut.','902049':'Tiempo tromboplastina','906914':'Proteína C reactiva','890283':'Pediatría 1ª vez','903895':'Creatinina en suero','881431':'Eco obstétrica transabd.','881432':'Eco obstétrica transvag.'};
+const RIE=[['S31307','Traslado intermunicipal >25 km','EXTREMO'],['601T02','Traslado terrestre secundario','EXTREMO'],['601T01','Traslado terrestre primario','MUY ALTO'],['735301','Asistencia del parto','MUY ALTO'],['702203','Colposcopia','ALTO'],['662201','Oclusión trompa de Falopio','ALTO'],['906317','Hepatitis B Ag HBs','MEDIO'],['908890','Detección VPH molecular','MEDIO'],['897011','Monitoría fetal anteparto','MEDIO'],['637300','Vasectomía','MEDIO']];
+const TRAT={'TRASLADOS':['Fuera del PGP: por evento con tope mensual','Primario (incidencia no evitable)'],'URGENCIAS':['Incluido con corredor de ajuste','Técnico (uso de recursos / severidad)'],'INTERNACION BASICA':['Incluido con corredor de ajuste','Técnico (uso de recursos / severidad)'],'ATENCION PARTO Y RN':['Incluido con corredor de ajuste','Primario / técnico'],'OTROS':['Por clasificar antes de pactar','Por definir']};
+const TRATD=['Incluido a frecuencia esperada','Bajo: frecuencia predecible'];
+
+// ═════════ CÁLCULOS ═════════
+function compute(D){
+  const s={}; const n=D.nM; s.n=n; s.MES=D.meses; s.per=D.meses[0]+'–'+D.meses[n-1];
+  const nt=D.nt,M=D.med; s.M=M;
+  s.adj=nt.costNT.map((c,i)=>c-nt.medC[i]+(M.gen_v[i]!=null?M.gen_v[i]:nt.medC[i]));
+  s.ntc=nt.costNT; s.totAdj=sum(s.adj); s.avgAdj=s.totAdj/n; s.totNT=sum(nt.costNT);
+  const w=Math.min(4,n); s.w=w; const early=n-w>0?s.adj.slice(0,n-w):s.adj.slice(0,w);
+  s.q1=avg(early); s.q2=avg(s.adj.slice(n-w)); s.growth=(s.q2/s.q1-1)*100;
+  s.lbRec=D.meses[n-w].toLowerCase()+'–'+D.meses[n-1].toLowerCase(); s.lbEar=n-w>0?D.meses[0].toLowerCase()+'–'+D.meses[n-w-1].toLowerCase():s.lbRec;
+  s.pac=D.det.map(r=>r.pac);s.asis=D.det.map(r=>r.asis);s.cups=D.det.map(r=>r.cups);
+  s.pacT=sum(s.pac);s.cupsT=sum(s.cups);s.cumsT=M.tot_q;
+  // grupos
+  const G=[];Object.keys(nt.gm).forEach(g=>{let mon=nt.gm[g].slice(),rips=nt.gr[g];if(g==='MEDICAMENTOS'){mon=mon.map((c,i)=>M.gen_v[i]!=null?M.gen_v[i]:c);rips=M.tot_q;}G.push({k:g,n:gname(g),mon,acum:sum(mon),rips});});
+  const gt=sum(G.map(g=>g.acum));G.forEach(g=>g.pct=g.acum/gt*100);G.sort((a,b)=>b.acum-a.acum);s.grupos=G;
+  // evento
+  s.ev=D.ev;s.evr=D.evr;s.nE=D.ev.length;s.evT=sum(D.ev);s.evAvg=s.evT/s.nE;
+  const wE=Math.min(4,s.nE);s.wE=wE;s.evRec=avg(D.ev.slice(s.nE-wE));s.evEar=s.nE-wE>0?avg(D.ev.slice(0,s.nE-wE)):s.evRec;s.evGrowth=(s.evRec/s.evEar-1)*100;
+  s.evMes=D.meses.slice(0,s.nE);s.lbEvRec=D.meses[s.nE-wE].toLowerCase()+'–'+D.meses[s.nE-1].toLowerCase();s.lbEvEar=s.nE-wE>0?D.meses[0].toLowerCase()+'–'+D.meses[s.nE-wE-1].toLowerCase():s.lbEvRec;
+  // detalle evento por CUPS
+  s.cm=D.cons.meses;s.consTot=D.cons.tot;
+  const L=D.cons.lines.map(l=>({cod:l[0],act:l[1],v:l[2],q:l[3],pu:l[4],g:l[5],of:l[6],nt:l[7]}));s.L=L;
+  s.consPer=D.meses[0]+'–'+D.meses[s.cm-1];s.consLb=D.meses[0].toLowerCase()+'–'+D.meses[s.cm-1].toLowerCase();
+  const byc={};L.forEach(l=>{byc[l.cod]=l;});s.byc=byc;
+  const gg={};L.forEach(l=>{const o=gg[l.g]=gg[l.g]||{k:l.g,n:0,v:0,q:0,vof:0};o.n++;o.v+=l.v;o.q+=l.q;if(l.of==='OFERTADO')o.vof+=l.v;});
+  s.eg=Object.values(gg).sort((a,b)=>b.v-a.v);
+  s.consMed=(gg['MEDICAMENTOS E INSUMOS']||{v:0}).v;s.consCups=s.consTot-s.consMed;s.tras=gg['TRASLADOS']||{v:0,q:0,n:0};s.trShare=s.tras.v/s.consTot;s.trMes=s.tras.v/s.cm;
+  const srt=L.slice().sort((a,b)=>b.v-a.v);s.srt=srt;let acc=0,n80=0;for(const l of srt){acc+=l.v;n80++;if(acc>=0.8*s.consTot)break;}s.n80=n80;s.top3=sum(srt.slice(0,3).map(l=>l.v))/s.consTot;
+  const of=L.filter(l=>l.of==='OFERTADO');s.of={n:of.length,v:sum(of.map(l=>l.v)),top:of.slice().sort((a,b)=>b.v-a.v).slice(0,8)};
+  const inn=L.filter(l=>l.nt);s.inNT={n:inn.length,v:sum(inn.map(l=>l.v))};
+  s.t20=D.top20.map(r=>{const l=byc[r[1]]||{};const ob=OBS[r[1]]||['SIN CLASIFICAR','Revisar con contratación.'];return{n:r[0],cod:r[1],act:r[2],q:r[3],v:l.v||0,pu:l.pu||0,cls:ob[0],obs:ob[1],of:l.of||(/^(D-|G-)/.test(r[1])?'N/A':'SIN MARCA'),nt:l.nt};});
+  s.mig=Object.keys(MIG).map(c=>{const l=byc[c]||byc[c+'.']||{};return{cod:c,n:MIG[c],q:l.q||0,v:l.v||0,pu:l.pu||0,of:l.of||'SIN MARCA',nt:!!l.nt};}).filter(m=>m.v>0);
+  s.migT=sum(s.mig.map(m=>m.v));s.migMes=s.migT/s.cm;s.migOf=s.mig.filter(m=>m.of==='OFERTADO');
+  s.rie=RIE.map(r=>{const l=byc[r[0]]||byc[r[0]+'.']||null;return l?{cod:r[0],n:r[1],rk:r[2],q:l.q,v:l.v,pu:l.pu,of:l.of||'SIN MARCA'}:null;}).filter(Boolean);
+  // giro
+  s.G=D.giro;s.U=D.giro.users;s.giro0=D.giro.giro0;s.giroU=D.giro.giro1;s.giroA=D.giro.giro2;s.upc=(D.giro.v1/D.giro.v0-1)*100;
+  // PGP-EVENTO
+  const rw=D.ev.slice(s.nE-wE);s.pg={base:s.evAvg,rr:s.evRec,sd:sd(rw)};s.pg.cv=s.pg.sd/s.pg.rr*100;s.pg.lo=s.pg.rr-s.pg.sd;s.pg.hi=s.pg.rr+s.pg.sd;
+  s.pg.tr=s.pg.rr*s.trShare;s.pg.core=s.pg.rr-s.pg.tr;
+  s.ref=[]; return s;
+}
+
+// ═════════ RENDER ═════════
+let D=null,S=null;
+function renderAll(){S=compute(D);
+  ST('hdrSub',`NIT 900034131 · Tame, Arauca · Herramienta técnica de negociación · Datos ${S.per} 2026 · EVENTO detallado por CUPS: ${S.consPer}`);
+  rRes();rCap();rMed();rEv();rSim();rEsc();rPag();rPgp();rRie();rRec();rCargar();
+}
+function rRes(){const s=S,M=s.M,v1=M.pareto[0]||{pct:0,desc:''};
+  ST('tRes',`📊 Resumen Ejecutivo · E.S.E. Moreno y Clavijo · ${s.per} 2026`);
+  ST('alRes',`<strong>LECTURA GERENCIAL · ${s.per} 2026</strong><ul class="lec">
+   <li><b class="t">CAPITA</b>Costo real ${FM(s.totAdj)} (prom. ${FM(s.avgAdj)}/mes). ${s.lbRec}: ${FM(s.q2)}/mes, ${P(s.growth)} más que ${s.lbEar} (${FM(s.q1)}). Costo por paciente-mes: ${F(s.totAdj/s.pacT)}.</li>
+   <li><b class="t">Pagos CAPITA</b>Giro actual ${FM(s.giro0)}/mes (${FN(s.U)} usuarios × ${F(s.G.v0)}). Con UPC 2026 (+${P(s.upc,2)}): ${FM(s.giroU)}/mes, es decir ${FM(s.giroU-s.giro0)} más al mes y ${FM((s.giroU-s.giro0)*s.n)} en ${s.per}.</li>
+   <li><b class="t">EVENTO</b>Facturó ${FM(s.evT)} (prom. ${FM(s.evAvg)}/mes). ${s.lbEvRec}: ${FM(s.evRec)}/mes, ${P(s.evGrowth)} más que ${s.lbEvEar}. Servicios facturados: ${FN(s.evr[0])} en ${s.MES[0].toLowerCase()} y ${FN(s.evr[s.nE-1])} en ${s.MES[s.nE-1].toLowerCase()}.</li>
+   <li><b class="t">Traslados</b>${FM(s.tras.v)} en ${s.consLb}: ${P(s.trShare*100)} del EVENTO detallado; ${FM(s.trMes)}/mes.</li>
+   <li><b class="t">Conciliación</b>${FN(s.of.n)} CUPS marcados OFERTADOS en CAPITA suman ${FM(s.of.v)} facturados por evento (${P(s.of.v/s.consTot*100)} del EVENTO detallado).</li>
+   <li><b class="t">Medicamentos</b>${FM(M.tot_v)} despachados (${FN(M.tot_q)} unidades). ${v1.desc?`El primer producto del Pareto aporta ${P(v1.pct*100)} del valor.`:''}</li>
+   <li><b class="t">Propuesta</b>PGP solo EVENTO a run-rate: ${FM(s.pg.rr)}/mes de valor fijo (${F(s.pg.rr/s.U)} por usuario-mes), con corredor de ajuste ±${P(s.pg.cv)} y traslados fuera del PGP con tope.</li></ul>`);
+  $('kgRes').innerHTML=kpis([
+   ['','Costo CAPITA total',FM(s.totAdj),`${s.per} · base NT ${FM(s.totNT)} + medicam. general`],
+   ['ve','Costo promedio/mes',FM(s.avgAdj),`${s.per}`],
+   ['na',`Run-rate ${s.lbRec}`,FM(s.q2),`vs ${FM(s.q1)} en ${s.lbEar}`,'+'+P(s.growth)],
+   ['','Pacientes únicos (suma mensual)',FN(s.pacT),`${FN(s.pacT/s.n)}/mes`],
+   ['mo','RIPS CUPS · CUMS',FN(s.cupsT),`CUMS despachados: ${FN(s.cumsT)} unid.`],
+   ['ve','Costo/paciente-mes',F(s.totAdj/s.pacT),`Costo/asistencia ${F(s.totAdj/sum(s.asis))}`],
+   ['ro','Facturación EVENTO',FM(s.evT),`Prom. ${FM(s.evAvg)}/mes`],
+   ['','Giro directo actual',FM(s.giro0),`${FN(s.U)} usuarios × ${F(s.G.v0)}`],
+   ['mo','Giro con UPC 2026',FM(s.giroU),`+${P(s.upc,2)} sobre el giro actual`],
+   ['na','PGP-EVENTO run-rate',FM(s.pg.rr),'/mes · valor fijo']]);
+  const refs=[['Costo CAPITA promedio',s.avgAdj,'var(--a2)',s.per],['Run-rate costo CAPITA',s.q2,'var(--a1)',s.lbRec],['Giro directo vigente',s.giro0,'var(--r1)','Sin UPC 2026'],['Giro + UPC 2026 ⭐',s.giroU,'var(--m1)','+'+P(s.upc,2)],['EVENTO facturado promedio',s.evAvg,'#C55A11',s.per],['PGP-EVENTO run-rate ⭐',s.pg.rr,'#4A1070',s.lbEvRec],['Giro con actas',s.giroA,'var(--v2)','Referencia']];
+  const mx=Math.max(...refs.map(r=>r[1]));
+  ST('barsRes',refs.map(r=>`<div class="bb"><div class="bl">${r[0]}</div><div class="bt"><div class="bf" style="width:${r[1]/mx*100}%;background:${r[2]}">${FM(r[1])}</div></div><div class="bn">${r[3]}</div></div>`).join(''));
+  mk('cEvo',{type:'bar',data:{labels:s.MES,datasets:[{label:'Costo ajustado',data:s.adj,backgroundColor:'rgba(46,117,182,.75)',yAxisID:'y',borderRadius:4},{label:'Pac. únicos',data:s.pac,type:'line',borderColor:'#E8A020',backgroundColor:'rgba(232,160,32,.18)',yAxisID:'y1',tension:.4,pointRadius:4,pointBackgroundColor:'#E8A020'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:10}}}},scales:{y:yM,y1:{position:'right',grid:{drawOnChartArea:false},ticks:fs}}}});
+  mk('cGru',{type:'doughnut',data:{labels:s.grupos.map(g=>g.n),datasets:[{data:s.grupos.map(g=>g.pct),backgroundColor:GCOL,borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:9},padding:5}}}}});
+}
+function rCap(){const s=S;
+  ST('tCap',`🏷️ Servicios bajo CAPITA · Costos por grupo · ${s.per} 2026`);
+  ST('alCap',`Costo mensual = hoja <strong>NT COSTOS</strong> (costo unitario × frecuencia RIPS) con el grupo <strong>Medicamentos</strong> reemplazado por el despacho general de la institución (<strong>${FM(s.M.tot_v)}</strong> frente a ${FM(sum(D.nt.medC))} a costo de nota técnica). Los primeros meses suelen traer menor registro RIPS; el run-rate de ${s.lbRec} es la referencia más estable.`);
+  $('kgCap').innerHTML=kpis([['','Total CAPITA (ajustado)',FM(s.totAdj),`${s.n} meses`],['ve',`Periodo ${s.lbEar}`,FM(sum(s.adj.slice(0,s.n-s.w))),`Prom. ${FM(s.q1)}`],['na',`Periodo ${s.lbRec}`,FM(sum(s.adj.slice(s.n-s.w))),`Prom. ${FM(s.q2)} · +${P(s.growth)}`],['','Promedio/mes',FM(s.avgAdj),`Base NT: ${FM(s.totNT/s.n)}`],['mo','Unidades RIPS NT',FN(sum(D.nt.ripsNT)),'CUPS + CUMS de la nota técnica']]);
+  $('tblCG').innerHTML=`<thead><tr><th class="L">Grupo</th><th>Unid. RIPS</th>${s.MES.map(m=>`<th>${m.toUpperCase()}</th>`).join('')}<th>Acum.</th><th>Prom/Mes</th><th>%</th></tr></thead><tbody>`+s.grupos.map(g=>`<tr><td class="L">${g.n}</td><td>${FN(g.rips)}</td>${g.mon.map(v=>`<td>${nf(v/1e6,1)}</td>`).join('')}<td>${nf(g.acum/1e6,1)}</td><td>${nf(g.acum/s.n/1e6,1)}</td><td><strong>${P(g.pct)}</strong></td></tr>`).join('')+`<tr class="TOT"><td class="L">TOTAL</td><td>${FN(sum(s.grupos.map(g=>g.rips)))}</td>${s.adj.map(v=>`<td>${nf(v/1e6,1)}</td>`).join('')}<td>${nf(s.totAdj/1e6,1)}</td><td>${nf(s.avgAdj/1e6,1)}</td><td>100%</td></tr></tbody>`;
+  ST('tbMes',D.det.map((r,i)=>`<tr><td>${s.MES[i]}</td><td>${FN(r.cups)}</td><td>${FN(D.med.gen_q[i]||0)}</td><td>${FN(r.pac)}</td><td>${FN(r.asis)}</td><td>${F(s.ntc[i])}</td><td class="hl-v">${F(s.adj[i])}</td><td>${F(s.adj[i]/r.pac)}</td><td>${F(s.adj[i]/r.asis)}</td></tr>`).join('')+`<tr class="TOT"><td>TOTAL</td><td>${FN(s.cupsT)}</td><td>${FN(s.cumsT)}</td><td>${FN(s.pacT)}</td><td>${FN(sum(s.asis))}</td><td>${F(s.totNT)}</td><td>${F(s.totAdj)}</td><td>${F(s.totAdj/s.pacT)}</td><td>${F(s.totAdj/sum(s.asis))}</td></tr><tr class="PROM"><td>PROMEDIO</td><td>${FN(s.cupsT/s.n)}</td><td>${FN(s.cumsT/s.n)}</td><td>${FN(s.pacT/s.n)}</td><td>${FN(sum(s.asis)/s.n)}</td><td>${F(s.totNT/s.n)}</td><td>${F(s.avgAdj)}</td><td>—</td><td>—</td></tr>`);
+  ST('tbTC',D.top_cost.map(r=>`<tr><td>${r[0]}</td><td class="LL" style="white-space:normal;font-size:.6rem">${r[1]}</td><td>${FN(r[3])}</td><td>${F(r[4])}</td><td>${P(r[5]*100)}</td></tr>`).join(''));
+  ST('tbTF',D.top_freq.map(r=>`<tr><td>${r[0]}</td><td class="LL" style="white-space:normal;font-size:.6rem">${r[1]}</td><td style="font-size:.58rem">${r[2].replace('PROMOCION Y MANTENIMIENTO DE LA SALUD','PyM SALUD')}</td><td>${FN(r[3])}</td></tr>`).join(''));
+  mk('cCG',{type:'bar',data:{labels:s.grupos.map(g=>g.n),datasets:[{label:'% costo',data:s.grupos.map(g=>g.pct),backgroundColor:GCOL,borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{callback:v=>v+'%',font:{size:9}}},y:{ticks:fs}}}});
+}
+function rMed(){const s=S,M=s.M,nm=M.gen_q.length,ML=D.meses.slice(0,nm);
+  ST('tMed',`💊 Medicamentos · Despacho ${ML[0]}–${ML[nm-1]} 2026 · General vs listado Nueva EPS`);
+  const nd=(M.frec_g[M.frec_g.length-1]||[])[4]||0,cl=(M.paretoCls[0]||[]),top=M.pareto[0]||{desc:'',v:0,pct:0,q:0};
+  ST('alMed',`Base: ${nm} reportes mensuales, <strong>${FN(nd)} medicamentos distintos</strong>, <strong>${FN(M.tot_q)} unidades</strong> y <strong>${F(M.tot_v)}</strong>. Los reportes no identifican pagador: el «listado Nueva EPS» mide productos del listado despachados, no facturación a Nueva EPS. El oxígeno (litros) y el producto de mayor valor distorsionan el general.`);
+  $('kgMed').innerHTML=kpis([['','Valor despachado',FM(M.tot_v),`Prom. ${FM(M.tot_v/nm)}/mes`],['ve','Unidades despachadas',FN(M.tot_q),`Sin oxígeno: ${FN(sum(M.gen_noxy))}`],['na','Listado Nueva EPS',FM(M.list_tot_v),`${P(M.list_tot_v/M.tot_v*100)} del valor · ${FN(M.list_tot_q)} unid.`],['ro','Mayor valor (Pareto #1)',FM(top.v),`${P(top.pct*100)} del valor · ${top.cod||''}`],['mo','Medic. distintos',FN(nd),'Códigos G despachados'],['or','Clase A (80% del valor)',cl[1]!=null?FN(cl[1]):'—','medicamentos']]);
+  ST('tbMedMes',ML.map((m,i)=>`<tr><td>${m}</td><td>${FN(M.gen_q[i])}</td><td>${FN(M.gen_noxy[i])}</td><td>${FN(M.list_q[i])}</td><td>${F(M.gen_v[i])}</td><td>${F(M.gen_novit[i])}</td><td>${F(M.list_v[i])}</td><td>${P(M.list_v[i]/M.gen_v[i]*100)}</td><td>${FN(M.ndist[i])}</td></tr>`).join('')+`<tr class="TOT"><td>TOTAL</td><td>${FN(M.tot_q)}</td><td>${FN(sum(M.gen_noxy))}</td><td>${FN(M.list_tot_q)}</td><td>${F(M.tot_v)}</td><td>${F(sum(M.gen_novit))}</td><td>${F(M.list_tot_v)}</td><td>${P(M.list_tot_v/M.tot_v*100)}</td><td>${FN(nd)}</td></tr>`);
+  ST('tbPar',M.pareto.map(r=>`<tr><td>${r.rk}</td><td>${r.cod}</td><td class="LL" style="white-space:normal;font-size:.6rem">${r.desc}</td><td>${FN(r.q)}</td><td>${F(r.v)}</td><td>${P(r.pct*100)}</td><td>${P(r.acu*100)}</td><td><span class="b_ ${r.cl=='A'?'bN':'bP'}">${r.cl}</span></td></tr>`).join(''));
+  ST('tbFr',M.frec_g.map((r,i)=>`<tr><td class="L">${r[0]}</td><td>${r[4]}</td><td>${P(r[9]*100)}</td><td>${(M.frec_l[i]||[])[4]??'—'}</td><td>${(M.frec_l[i]&&M.frec_l[i][9]!=null)?P(M.frec_l[i][9]*100):'—'}</td></tr>`).join(''));
+  const mn=D.nt.medC.slice(0,nm);
+  ST('tbSens',[['Despacho general institución (base del dashboard)',M.tot_v,s.totAdj],['Solo listado Nueva EPS',M.list_tot_v,s.totNT-sum(D.nt.medC)+M.list_tot_v],['A costo de la Nota Técnica',sum(D.nt.medC),s.totNT]].map(r=>`<tr><td class="L">${r[0]}</td><td>${F(r[1])}</td><td>${F(r[2])}</td><td>${F(r[2]/s.n)}</td></tr>`).join(''));
+  $('tblMI').innerHTML=`<thead><tr><th>Código</th><th class="L">Medicamento</th>${ML.map(m=>`<th>${m.toUpperCase()}</th>`).join('')}<th>Acum.</th><th>Meses</th><th>Estabilidad</th><th>Valor acum.</th></tr></thead><tbody>`+M.items.map(r=>`<tr><td>${r.cod}</td><td class="LL" style="white-space:normal;font-size:.58rem">${r.desc}</td>${r.m.map(v=>`<td>${FN(v)}</td>`).join('')}<td><strong>${FN(r.acum)}</strong></td><td>${r.meses}</td><td><span class="b_ ${r.est=='ESTABLE'?'bS':r.est=='VARIABLE'?'bP':'bN'}">${r.est}</span></td><td>${F(r.val)}</td></tr>`).join('')+`<tr class="TOT"><td colspan="2" class="L">TOTAL LISTADO NUEVA EPS</td>${M.list_q.map(v=>`<td>${FN(v)}</td>`).join('')}<td>${FN(M.list_tot_q)}</td><td colspan="2">—</td><td>${F(M.list_tot_v)}</td></tr></tbody>`;
+  const strip=t=>t.replace(/^\d+\.\s*/,'').replace(/^([^.]{3,60}\.)\s/,'<strong>$1</strong> ');
+  ST('ulMedH',M.H.map((t,i)=>`<li><div class="rn">${i+1}</div><div class="rt">${strip(t)}</div></li>`).join(''));
+  ST('ulMedA',M.A.map((t,i)=>`<li><div class="rn">${i+1}</div><div class="rt">${strip(t)}</div></li>`).join(''));
+  mk('cMedV',{type:'bar',data:{labels:ML,datasets:[{label:'General',data:M.gen_v,backgroundColor:'rgba(46,117,182,.75)',borderRadius:3},{label:'Listado Nueva EPS',data:M.list_v,backgroundColor:'rgba(232,160,32,.8)',borderRadius:3},{label:'General sin Vitamix',data:M.gen_novit,type:'line',borderColor:'#7030A0',tension:.3,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:10}}}},scales:{y:yM,x:{ticks:fs}}}});
+  mk('cMedQ',{type:'bar',data:{labels:ML,datasets:[{label:'General',data:M.gen_q,backgroundColor:'rgba(46,117,182,.7)',borderRadius:3},{label:'General sin oxígeno',data:M.gen_noxy,backgroundColor:'rgba(112,173,71,.75)',borderRadius:3},{label:'Listado Nueva EPS',data:M.list_q,type:'line',borderColor:'#C00000',tension:.3,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:10}}}},scales:{y:{ticks:fs},x:{ticks:fs}}}});
+}
+const varp=(a,b)=>b?((a/b-1)*100):0;
+const sgn=v=>(v>=0?'+':'')+P(v);
+function rEv(){const s=S,n=s.nE;
+  ST('tEv',`⚡ EVENTO · Comportamiento y Top 20 · ${s.MES[0]}–${s.MES[n-1]} 2026`);
+  const fc=sum(s.ev.slice(0,s.cm)),dif=s.consCups-fc;
+  ST('alEv',`El detalle por CUPS (Consolidado y Top 20) cubre <strong>${s.consPer}</strong>; sus promedios mensuales se calculan entre ${s.cm}. La facturación mensual cubre ${s.MES[0]}–${s.MES[n-1]}. Conciliación ${s.consPer}: facturación mensual ${F(fc)} · consolidado sin medicamentos e insumos ${F(s.consCups)} (${Math.abs(dif)<1?'coinciden':'diferencia '+F(Math.abs(dif))}). El consolidado incluye además ${F(s.consMed)} de medicamentos e insumos que no están en la facturación mensual.`);
+  const vs=s.ev.map((v,i)=>v/s.evr[i]);
+  $('kgEv').innerHTML=kpis([['ro','Facturación EVENTO',FM(s.evT),`Prom. ${FM(s.evAvg)}/mes`],['na',`Run-rate ${s.lbEvRec}`,FM(s.evRec),`vs ${FM(s.evEar)} en ${s.lbEvEar}`,sgn(s.evGrowth)],['','Servicios facturados',FN(s.evr[n-1]),`vs ${FN(s.evr[0])} en ${s.MES[0].toLowerCase()}`,sgn(varp(s.evr[n-1],s.evr[0]))],['ve','Valor por servicio',F(vs[n-1]),`vs ${F(vs[0])} en ${s.MES[0].toLowerCase()}`,sgn(varp(vs[n-1],vs[0]))],['mo','Traslados',P(s.trShare*100),`${FM(s.tras.v)} en ${s.consLb}`],['or',`CUPS para el 80%`,FN(s.n80),`de ${FN(s.L.length)} líneas · top 3 = ${P(s.top3*100)}`]]);
+  ST('tbEvM',s.ev.map((v,i)=>`<tr><td>${s.MES[i]}</td><td>${F(v)}</td><td>${i?sgn(varp(v,s.ev[i-1])):'—'}</td><td>${FN(s.evr[i])}</td><td>${i?sgn(varp(s.evr[i],s.evr[i-1])):'—'}</td><td>${F(vs[i])}</td></tr>`).join('')+`<tr class="TOT"><td>TOTAL</td><td>${F(s.evT)}</td><td>—</td><td>${FN(sum(s.evr))}</td><td>—</td><td>${F(s.evT/sum(s.evr))}</td></tr>`);
+  ST('tbEvG',s.eg.map(g=>`<tr><td class="L">${gname(g.k)}</td><td>${g.n}</td><td>${F(g.v)}</td><td>${P(g.v/s.consTot*100)}</td><td>${F(g.v/s.cm)}</td></tr>`).join('')+`<tr class="TOT"><td class="L">TOTAL</td><td>${s.L.length}</td><td>${F(s.consTot)}</td><td>100%</td><td>${F(s.consTot/s.cm)}</td></tr>`);
+  const nSi=s.t20.filter(r=>r.cls=='SÍ').length;
+  const BC={'SÍ':'bS','NO':'bN','PARCIAL':'bP'},RB={'SÍ':'','NO':'background:#FFF0F0','PARCIAL':'background:#FFFBEA'},OB={'OFERTADO':'bS','NO OFERTADO':'bN','SIN MARCA':'bP','N/A':'bME'};
+  ST('tbT20',s.t20.map(r=>`<tr style="${RB[r.cls]||''}"><td>${r.n}</td><td class="L"><strong>${r.cod}</strong></td><td class="LL" style="white-space:normal;font-size:.6rem;min-width:200px">${r.act}</td><td>${F(r.v)}</td><td>${FN(r.q)}</td><td>${F(r.pu)}</td><td><span class="b_ ${BC[r.cls]||'bP'}">${r.cls}</span></td><td><span class="b_ ${OB[r.of]||'bP'}">${r.of}</span></td><td class="LL" style="font-size:.6rem">${r.obs}</td></tr>`).join('')+`<tr class="TOT"><td colspan="3" class="L">TOTAL TOP 20</td><td>${F(sum(s.t20.map(r=>r.v)))}</td><td>${FN(sum(s.t20.map(r=>r.q)))}</td><td colspan="4">${P(sum(s.t20.map(r=>r.v))/s.consTot*100)} del EVENTO detallado</td></tr>`);
+  mk('cEvM',{type:'bar',data:{labels:s.evMes,datasets:[{label:'Facturación EVENTO',data:s.ev,backgroundColor:'rgba(192,0,0,.65)',yAxisID:'y',borderRadius:4},{label:'Servicios facturados',data:s.evr,type:'line',borderColor:'#2E75B6',yAxisID:'y1',tension:.35,pointRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:10}}}},scales:{y:yM,y1:{position:'right',grid:{drawOnChartArea:false},ticks:fs}}}});
+  mk('cEvP',{type:'line',data:{labels:s.evMes,datasets:[{label:'Valor por servicio',data:vs,borderColor:'#7030A0',backgroundColor:'rgba(112,48,160,.12)',fill:true,tension:.3,pointRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>F(c.raw)}}},scales:{y:{ticks:{callback:v=>F(v),font:{size:9}}},x:{ticks:fs}}}});
+  const T10=s.t20.slice(0,10),TC=T10.map(r=>r.cls=='SÍ'?'#70AD47':r.cls=='NO'?'#C00000':r.cls=='PARCIAL'?'#F4B942':'#999');
+  mk('cT10V',{type:'bar',data:{labels:T10.map(r=>r.act.substring(0,22)),datasets:[{data:T10.map(r=>r.v),backgroundColor:TC,borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>FM(c.raw)}}},scales:{x:yM,y:{ticks:fs}}}});
+  mk('cT10F',{type:'bar',data:{labels:T10.map(r=>r.act.substring(0,22)),datasets:[{data:T10.map(r=>r.q),backgroundColor:TC,borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:fs},y:{ticks:fs}}}});
+}
+function rSim(){const s=S;const OB={'OFERTADO':'bS','NO OFERTADO':'bN','SIN MARCA':'bP'};
+  ST('tSim',`📋 Servicios migrables – valor a tarifa EVENTO (${s.consPer}, promedio mensual entre ${s.cm})`);
+  ST('alSim',`${s.mig.length} servicios del Top 20 y de ecografía obstétrica tienen frecuencia predecible. Valorados a tarifa EVENTO suman <strong>${F(s.migMes)}/mes</strong> (${F(s.migMes*12)}/año), ${P(s.migMes/s.q2*100)} del run-rate de costo CAPITA. <strong>${s.migOf.length} de los ${s.mig.length}</strong> ya figuran como OFERTADOS en la marcación CAPITA, es decir, no deberían estarse facturando por evento.`);
+  $('kgSim').innerHTML=kpis([['ve','Servicios migrables',s.mig.length,'Frecuencia predecible'],['na','Valor a tarifa EVENTO/mes',FM(s.migMes),`${s.consPer} ÷ ${s.cm}`],['','Valor anual',FM(s.migMes*12),'Proyección'],['mo','% s/ run-rate CAPITA',P(s.migMes/s.q2*100),s.lbRec],['ro','Ya OFERTADOS en CAPITA',s.migOf.length,FM(sum(s.migOf.map(m=>m.v))/s.cm)+'/mes']]);
+  ST('tbSim',s.mig.map(m=>`<tr><td class="L"><strong>${m.cod}</strong></td><td class="LL">${m.n}</td><td>${FN(m.q)}</td><td>${FN(m.q/s.cm)}</td><td>${F(m.pu)}</td><td>${F(m.v/s.cm)}</td><td>${F(m.v/s.cm*12)}</td><td>${P(m.v/s.cm/s.q2*100,2)}</td><td><span class="b_ ${OB[m.of]||'bP'}">${m.of}</span></td><td><span class="b_ ${m.nt?'bS':'bP'}">${m.nt?'SÍ':'NO'}</span></td></tr>`).join('')+`<tr class="TOT"><td class="L" colspan="2">TOTAL MIGRABLES</td><td>${FN(sum(s.mig.map(m=>m.q)))}</td><td>${FN(sum(s.mig.map(m=>m.q))/s.cm)}</td><td>—</td><td>${F(s.migMes)}</td><td>${F(s.migMes*12)}</td><td>${P(s.migMes/s.q2*100,2)}</td><td colspan="2">—</td></tr>`);
+  ST('alOfer',`<strong>${FN(s.of.n)} CUPS</strong> marcados OFERTADOS suman <strong>${F(s.of.v)}</strong> facturados por evento en ${s.consLb} (${P(s.of.v/s.consTot*100)} del EVENTO detallado); ${FN(s.inNT.n)} están además en la Nota Técnica CAPITA (${F(s.inNT.v)}). Validar contractualmente: puede ser cruce de fechas de la oferta, pero implica riesgo de glosa o reclamo de pago doble.`);
+  ST('tbOfer',s.of.top.map(r=>`<tr><td>${r.cod}</td><td class="LL" style="white-space:normal;font-size:.6rem">${r.act.substring(0,55)}</td><td>${F(r.v)}</td><td>${FN(r.q)}</td></tr>`).join(''));
+  mk('cSim_',{type:'bar',data:{labels:s.mig.map(m=>m.n.substring(0,22)),datasets:[{data:s.mig.map(m=>m.v/s.cm),backgroundColor:s.mig.map(m=>m.of=='OFERTADO'?'rgba(192,0,0,.7)':'rgba(112,173,71,.8)'),borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>FM(c.raw)+'/mes'}}},scales:{x:yM,y:{ticks:fs}}}});
+}
+function rEsc(){const s=S;const E1=s.avgAdj,E2=s.q2,E3=s.q2+s.migMes;s.E=[E1,E2,E3];
+  ST('alEsc',`Los tres escenarios son <strong>pisos técnicos de costo</strong> (lo que cuesta atender, no lo que se paga): costo promedio ${s.per}, run-rate ${s.lbRec} y run-rate más los ${s.mig.length} servicios migrables a tarifa EVENTO. Se comparan con los valores de pago vigentes o en negociación: giro actual, giro con UPC 2026 y giro con actas.`);
+  const cd=[['e1','Escenario 1',`COSTO REAL PROMEDIO<br><small>${s.per}</small>`,E1,'/mes promedio',[[`Periodo ${s.lbEar}`,FM(sum(s.adj.slice(0,s.n-s.w)))],[`Periodo ${s.lbRec}`,FM(sum(s.adj.slice(s.n-s.w)))],['Total '+s.per,FM(s.totAdj)],['Proyección anual',FM(E1*12)],['Costo/usuario contratado',F(E1/s.U)],['Costo/paciente-mes',F(s.totAdj/s.pacT)]],'Referencia histórica'],
+   ['e2','Escenario 2',`RUN-RATE ${s.lbRec.toUpperCase()}<br><small>Demanda reciente</small>`,E2,`/mes (promedio ${s.w} meses)`,[[`Costo ${s.lbEar}`,FM(s.q1)],['Crecimiento','+'+P(s.growth)],[`Costo ${s.MES[s.n-1].toLowerCase()}`,FM(s.adj[s.n-1])],['Proyección anual',FM(E2*12)],['Costo/usuario contratado',F(E2/s.U)]],'✔ Base técnica recomendada'],
+   ['e3','Escenario 3 ⭐','RUN-RATE + MIGRABLES<br><small>CAPITA ampliada</small>',E3,`/mes (costo + ${s.mig.length} servicios)`,[['Run-rate costo',FM(E2)],['+ Migrables a tarifa EVENTO',FM(s.migMes)],['= Costo CAPITA ampliada',FM(E3)],['Proyección anual',FM(E3*12)],['Costo/usuario contratado',F(E3/s.U)]],'⭐ Piso para negociar ampliación']];
+  ST('escCards',cd.map(e=>`<div class="esc ${e[0]}"><div class="en">${e[1]}</div><div class="et">${e[2]}</div><div class="ev">${FM(e[3])}</div><div class="es">${e[4]}</div><div class="er">${e[5].map(r=>`<div class="row"><span class="k">${r[0]}</span><span class="v">${r[1]}</span></div>`).join('')}</div><div class="tag">${e[6]}</div></div>`).join(''));
+  const rows=[['Esc.1 – Costo real promedio',E1,'#EBF3FB'],['Esc.2 – Run-rate '+s.lbRec,E2,'#EBF3FB'],['Esc.3 – Run-rate + migrables ⭐',E3,'var(--m2)'],['Giro directo actual (sin UPC)',s.giro0,'var(--r2)'],['Giro + UPC 2026',s.giroU,'var(--v3)'],['Giro con actas ('+F(s.G.v2)+'/usuario)',s.giroA,'var(--n2)']];
+  ST('tbEsc',rows.map(r=>`<tr style="background:${r[2]}"><td class="L"><strong>${r[0]}</strong></td><td><strong>${F(r[1])}</strong></td><td>${F(r[1]*12)}</td><td>${F(r[1]/s.U)}</td><td>${sgn(varp(r[1],s.giro0))}</td></tr>`).join(''));
+  mk('cEsc',{type:'bar',data:{labels:['Esc.1\nCosto prom.','Esc.2\nRun-rate','Esc.3⭐\n+Migrables','Giro\nactual','Giro\nUPC⭐','Giro\nactas'],datasets:[{data:[E1,E2,E3,s.giro0,s.giroU,s.giroA],backgroundColor:['#BDD7EE','#2E75B6','#7030A0','#C00000','#1F4E79','#375623'],borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>FM(c.raw)+'/mes'}}},scales:{y:yM,x:{ticks:fs}}}});
+}
+function rPag(){const s=S,G=s.G,last=s.n-1;
+  ST('alPag',`<strong>DATOS CLAVE:</strong> giro actual <strong>${F(s.giro0)}/mes</strong> (${FN(s.U)} usuarios × ${F(G.v0)}). Con UPC 2026 (+${P(s.upc,2)}): <strong>${F(s.giroU)}</strong> (${F(G.v1)} por usuario). Con actas (${F(G.v2)} por usuario): <strong>${F(s.giroA)}</strong>. Costo CAPITA ${s.MES[last].toLowerCase()}: <strong>${F(s.adj[last])}</strong> (ajustado; ${F(s.ntc[last])} a base NT). Reconocer el UPC 2026 desde ${s.MES[0].toLowerCase()} equivale a <strong>${FM((s.giroU-s.giro0)*s.n)}</strong> en ${s.n} meses.`);
+  $('kgPag').innerHTML=kpis([['ro',`Costo CAPITA ${s.MES[last].toLowerCase()}`,FM(s.adj[last]),`Ajustado (NT: ${FM(s.ntc[last])})`],['','Giro directo actual',FM(s.giro0),`${FN(s.U)} × ${F(G.v0)}`],['mo','Giro + UPC 2026 ⭐',FM(s.giroU),`${FN(s.U)} × ${F(G.v1)} (+${P(s.upc,2)})`],['na','Giro con actas',FM(s.giroA),`${FN(s.U)} × ${F(G.v2)}`],['ve','UPC 2026 no reconocido',FM((s.giroU-s.giro0)*s.n),`${FM(s.giroU-s.giro0)}/mes × ${s.n} meses`],['','Costo/usuario contratado',F(s.avgAdj/s.U),`Promedio ${s.per}`]]);
+  ST('tbGiro',[['Giro directo sin UPC (vigente)',G.v0,s.giro0],['⭐ Giro + UPC 2026',G.v1,s.giroU],['Giro con actas',G.v2,s.giroA]].map((r,i)=>`<tr><td class="L">${r[0]}</td><td>${FN(s.U)}</td><td>${F(r[1])}</td><td class="${['hl-v','hl-m','hl-n'][i]}">${F(r[2])}</td><td>${i?sgn(varp(r[2],s.giro0)):'—'}</td></tr>`).join(''));
+  ST('tbVM',s.MES.map((m,i)=>`<tr><td>${m}</td><td>${F(s.adj[i])}</td><td>${s.ev[i]!=null?F(s.ev[i]):'—'}</td><td>${F(s.giro0)}</td><td>${F(s.giroU)}</td></tr>`).join('')+`<tr class="TOT"><td>TOTAL</td><td>${F(s.totAdj)}</td><td>${F(s.evT)}</td><td>${F(s.giro0*s.n)}</td><td>${F(s.giroU*s.n)}</td></tr>`);
+  mk('cPag',{type:'bar',data:{labels:s.MES,datasets:[{label:'Costo CAPITA ajustado',data:s.adj,backgroundColor:'rgba(46,117,182,.7)',borderRadius:3},{label:'Fact. EVENTO',data:s.ev,backgroundColor:'rgba(192,0,0,.6)',borderRadius:3},{label:'Giro actual',data:s.MES.map(()=>s.giro0),type:'line',borderColor:'#C00000',borderDash:[5,4],pointRadius:0},{label:'Giro UPC 2026',data:s.MES.map(()=>s.giroU),type:'line',borderColor:'#7030A0',tension:.4,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:10}}}},scales:{y:yM,x:{ticks:fs}}}});
+  mk('cUni',{type:'line',data:{labels:s.MES,datasets:[{label:'Costo por paciente',data:s.adj.map((a,i)=>a/s.pac[i]),borderColor:'#2E75B6',tension:.3,pointRadius:4,yAxisID:'y'},{label:'Costo por asistencia',data:s.adj.map((a,i)=>a/s.asis[i]),borderColor:'#E8A020',tension:.3,pointRadius:4,yAxisID:'y1'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:10}}}},scales:{y:{ticks:{callback:v=>F(v),font:{size:9}}},y1:{position:'right',grid:{drawOnChartArea:false},ticks:{callback:v=>F(v),font:{size:9}}}}}});
+}
+function rPgp(){const s=S,pg=s.pg,U=s.U;
+  ST('pgrid',[['PGP-EVENTO run-rate ⭐',FM(pg.rr)],['PGP-EVENTO promedio',FM(pg.base)],['Corredor ±',`${P(pg.cv)} (±${FM(pg.sd)})`],['Traslados fuera del PGP',FM(pg.tr)+'/mes (est.)'],['Valor/usuario-mes',F(pg.rr/U)],['Usuarios base',FN(U)]].map(k=>`<div class="pk"><div class="k">${k[0]}</div><div class="v">${k[1]}</div></div>`).join(''));
+  ST('alPgp',`<strong>BASE DEL MODELO (hoja Facturación EVENTO):</strong> ${s.nE} meses facturados por ${FM(s.evT)}. El promedio del periodo (${FM(pg.base)}) subestima la demanda actual: ${s.lbEvRec} el EVENTO promedia ${FM(pg.rr)}/mes, ${P(s.evGrowth)} más que ${s.lbEvEar} (${FM(s.evEar)}). Por eso el valor fijo recomendado parte del <strong>run-rate</strong>. La variabilidad mensual observada en ${s.lbEvRec} es de ±${FM(pg.sd)} (${P(pg.cv)}), que se propone como corredor de ajuste. Los traslados (${P(s.trShare*100)} del EVENTO detallado) quedan fuera del PGP con tope, por ser riesgo primario.`);
+  const cd=[['e1','PGP-EVENTO 1',`PROMEDIO DEL PERIODO<br><small>Todos los servicios EVENTO</small>`,pg.base,'Piso histórico',[['Meses base',s.nE],['Valor/usuario-mes',F(pg.base/U)],['Valor anual',FM(pg.base*12)]]],
+   ['e2','PGP-EVENTO 2 ⭐',`RUN-RATE ${s.lbEvRec.toUpperCase()}<br><small>Todos los servicios EVENTO</small>`,pg.rr,'✔ Recomendado: refleja la demanda actual',[['Corredor inferior',FM(pg.lo)],['Corredor superior',FM(pg.hi)],['Valor/usuario-mes',F(pg.rr/U)],['Valor anual',FM(pg.rr*12)],['vs promedio',sgn(varp(pg.rr,pg.base))]]],
+   ['e4','PGP-EVENTO 3','NÚCLEO SIN TRASLADOS<br><small>Run-rate − traslados</small>',pg.core,'Traslados por evento con tope',[['Traslados fuera (est.)',FM(pg.tr)+'/mes'],['Participación traslados',P(s.trShare*100)],['Valor/usuario-mes',F(pg.core/U)],['Valor anual',FM(pg.core*12)]]]];
+  ST('escPgp',cd.map(e=>`<div class="esc ${e[0]}"><div class="en">${e[1]}</div><div class="et">${e[2]}</div><div class="ev" style="font-size:1.35rem">${FM(e[3])}</div><div class="es">/mes</div><div class="er">${e[5].map(r=>`<div class="row"><span class="k">${r[0]}</span><span class="v">${r[1]}</span></div>`).join('')}</div><div class="tag">${e[4]}</div></div>`).join(''));
+  ST('tbCorr',s.ev.map((v,i)=>{const p=v<pg.lo?['Por debajo','bP']:v>pg.hi?['Por encima','bN']:['Dentro','bS'];return`<tr><td>${s.MES[i]}</td><td>${F(v)}</td><td>${F(pg.rr)}</td><td>${F(pg.lo)}</td><td>${F(pg.hi)}</td><td><span class="b_ ${p[1]}">${p[0]}</span></td></tr>`;}).join(''));
+  ST('tNT',`Servicios, frecuencias y costos por grupo · ${s.consPer} (${s.cm} meses)`);
+  ST('tbNT',s.eg.map(g=>{const t=TRAT[g.k]||TRATD;return`<tr><td class="L">${gname(g.k)}</td><td>${g.n}</td><td>${FN(g.q/s.cm)}</td><td>${F(g.v/s.cm)}</td><td>${P(g.v/s.consTot*100)}</td><td>${g.vof?F(g.vof/s.cm):'—'}</td><td class="LL" style="white-space:normal;font-size:.62rem">${t[0]}</td><td class="LL" style="white-space:normal;font-size:.62rem">${t[1]}</td></tr>`;}).join('')+`<tr class="TOT"><td class="L">TOTAL</td><td>${s.L.length}</td><td>${FN(sum(s.eg.map(g=>g.q))/s.cm)}</td><td>${F(s.consTot/s.cm)}</td><td>100%</td><td>${F(s.of.v/s.cm)}</td><td colspan="2">—</td></tr>`);
+  const vih=s.byc['906249'];
+  ST('ulAjuste',lis([
+   ['Corredor de ajuste ±'+P(pg.cv),`Si el valor facturado mensual sale del corredor (${FM(pg.lo)} a ${FM(pg.hi)}) dos meses seguidos, se revisa el valor fijo. Base: mecanismos de ajuste frente a desviaciones de la nota técnica (art. 2.5.3.4.2.3, parágrafo 1) y monitoreo de la nota técnica (art. 2.5.3.4.3.5).`],
+   ['Ajuste por volumen de población',`Valor fijo = ${F(pg.rr/U)} por usuario-mes × afiliados vigentes (hoy ${FN(U)}), con base de datos de afiliados actualizada. El PGP se ajusta por nivel de riesgo y por cambios en el volumen de población (art. 2.5.3.4.2.3, num. 2; art. 2.5.3.4.2.2, num. 4).`],
+   ['Traslados fuera del PGP con tope',`${FM(s.trMes)}/mes en ${s.consLb} (${P(s.trShare*100)} del EVENTO). Se tratan como riesgo primario: variación no evitable de la incidencia (art. 2.5.3.4.1.3, num. 10). Los servicios prestados por otro prestador por referencia de la ERP se descuentan a valor de nota técnica (art. 2.5.3.4.5.4, num. 2).`],
+   ['Riesgo técnico en urgencias, internación y parto',`Variación en uso de recursos o complicaciones (art. 2.5.3.4.1.3, num. 11). Se incluyen con corredor de ajuste y reporte mensual de frecuencias reales frente a la nota técnica.`],
+   ['Monitoreo mensual, evaluación cuatrimestral',`La periodicidad de monitoreo debe ser menor al plazo del acuerdo (art. 2.5.3.4.2.4, num. 4). Indicadores de calidad, gestión (facturación, radicación, glosas, pagos, cartera) y resultados (art. 2.5.3.4.3.1).`],
+   ['Actualización de valores y liquidación',`Valores y nota técnica se actualizan en cada vigencia o prórroga (art. 2.5.3.4.6.1); liquidación dentro de los cuatro meses siguientes a la terminación si no se pacta otro plazo (art. 2.5.3.4.6.2).`],
+   ['Plazos de pago y glosas',`Plazos de pago según Ley 1122/2007 art. 13, Ley 1438/2011 art. 57 y Ley 2024/2020 (art. 2.5.3.4.2.2, num. 18). Intereses moratorios por pago tardío o glosa infundada (art. 2.5.3.4.5.7).`],
+   ['Atención sin autorización',`VIH/SIDA no requiere autorización (art. 2.5.3.4.7.4; Ley 972/2005)${vih?`; la prueba 906249 suma ${FM(vih.v/s.cm)}/mes dentro del PGP`:''}.`]]));
+  const chk=[['Objeto determinado (num. 1)','Prestación de los servicios hoy facturados por EVENTO a la población contratada de Nueva EPS, mediante PGP.'],
+   ['Plazo (num. 2)','Vigencia anual con revisión cuatrimestral del valor fijo.'],
+   ['Población objeto (num. 4)',`${FN(s.U)} usuarios contratados; base de datos de afiliados actualizada mensualmente.`],
+   ['Servicios y tecnologías (num. 5-6)',`${FN(s.L.length)} CUPS y medicamentos/insumos de la tabla de nota técnica.`],
+   ['Modalidad y ajuste de riesgo (num. 8)','PGP con corredor de ajuste, traslados con tope y ajuste por población.'],
+   ['Nota técnica y tarifas (num. 10-11)',`Frecuencia esperada y valor por grupo (tabla superior); tarifas EVENTO vigentes.`],
+   ['Indicadores y seguimiento (num. 15-16)','Calidad, gestión y resultados; monitoreo mensual.'],
+   ['Plazos de pago (num. 18)','Los de ley (Ley 1122/2007, Ley 1438/2011, Ley 2024/2020).'],
+   ['Renovación, terminación y liquidación (num. 20)','Actualización por vigencia y liquidación a cuatro meses.'],
+   ['Incentivos (num. 21)','Posibles incentivos por indicadores (art. 2.5.3.4.2.5).']];
+  ST('tbChk',chk.map(r=>`<tr><td class="L" style="white-space:normal">${r[0]}</td><td class="LL" style="white-space:normal;font-size:.62rem">${r[1]}</td></tr>`).join(''));
+  const esq=[['CAPITA – giro actual','Capitación',s.giro0],['CAPITA – con UPC 2026','Capitación',s.giroU],['EVENTO – facturación promedio actual','Evento (retrospectivo)',s.evAvg],['⭐ PGP-EVENTO – run-rate','PGP (prospectivo)',pg.rr],['⭐ Esquema propuesto: CAPITA con UPC + PGP-EVENTO','Mixto',s.giroU+pg.rr]];
+  ST('tbEsq',esq.map((r,i)=>`<tr class="${i>=3?'pgp-best':''}"><td class="L">${r[0]}</td><td>${r[1]}</td><td><strong>${F(r[2])}</strong></td><td>${F(r[2]*12)}</td><td>${F(r[2]/U)}</td></tr>`).join(''));
+  const cdat=[pg.lo,pg.hi];
+  mk('cPGPevo',{type:'bar',data:{labels:s.evMes,datasets:[{label:'EVENTO facturado',data:s.ev,backgroundColor:'rgba(192,0,0,.6)',borderRadius:3},{label:'PGP-EVENTO run-rate',data:s.ev.map(()=>pg.rr),type:'line',borderColor:'#4A1070',pointRadius:0,borderWidth:2},{label:'Límite superior',data:s.ev.map(()=>pg.hi),type:'line',borderColor:'#7030A0',borderDash:[5,4],pointRadius:0},{label:'Límite inferior',data:s.ev.map(()=>pg.lo),type:'line',borderColor:'#7030A0',borderDash:[5,4],pointRadius:0},{label:'Promedio del periodo',data:s.ev.map(()=>pg.base),type:'line',borderColor:'#999',borderDash:[2,3],pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:10}}}},scales:{y:yM,x:{ticks:fs}}}});
+}
+function rRie(){const s=S;const RJ={EXTREMO:['#FFE0E0','#C00000','bEX'],'MUY ALTO':['#FFE4CC','#C55A11','bMA'],ALTO:['#FFF2CC','#7F4000','bAL'],MEDIO:['#DEEAF1','#1F4E79','bME']},OB={'OFERTADO':'bS','NO OFERTADO':'bN','SIN MARCA':'bP'};
+  ST('tRie',`⚠️ Servicios de riesgo – análisis completo (${s.consPer}, promedio entre ${s.cm})`);
+  const s31=s.byc['S31307'];
+  ST('alRie',`<strong>ADVERTENCIA CRÍTICA:</strong> los traslados suman <strong>${F(s.tras.v)} en ${s.cm} meses</strong> (${P(s.trShare*100)} del EVENTO detallado; ${F(s.trMes)}/mes). Ninguno está marcado OFERTADO en CAPITA y <strong>no deben incorporarse a ninguna modalidad sin topes contractuales</strong>.${s31?` Validar el registro de S31307: la tarifa es por kilómetro, pero la cantidad (${FN(s31.q)}) y el valor unitario (${F(s31.pu)}) sugieren registro por viaje.`:''}`);
+  const r0=s.rie[0]||{v:0,pu:0},r1=s.rie[1]||{v:0};
+  $('kgRie').innerHTML=kpis([['ro',(s.rie[0]||{n:''}).n.split(' ').slice(0,2).join(' ')+'/mes',FM(r0.v/s.cm),(r0.cod||'')+' · '+(r0.rk||'')],['ro',(s.rie[1]||{n:''}).n.split(' ').slice(0,3).join(' ')+'/mes',FM(r1.v/s.cm),(r1.cod||'')+' · '+(r1.rk||'')],['na','Total traslados',FM(s.tras.v),`${FM(s.trMes)}/mes`],['','Costo unit. máximo',F(r0.pu),'Por registro '+(r0.cod||'')]]);
+  ST('tbRie',s.rie.map(r=>{const j=RJ[r.rk];return`<tr style="background:${j[0]}"><td><strong>${r.cod}</strong></td><td class="L">${r.n}</td><td>${F(r.v/s.cm)}</td><td>${FN(r.q/s.cm)}</td><td>${F(r.pu)}</td><td><span class="b_ ${j[2]}" style="color:${j[1]}">${r.rk}</span></td><td><span class="b_ ${OB[r.of]||'bP'}">${r.of}</span></td></tr>`;}).join(''));
+  mk('cRie',{type:'bar',data:{labels:s.rie.slice(0,8).map(r=>r.n.substring(0,20)),datasets:[{data:s.rie.slice(0,8).map(r=>r.v/s.cm),backgroundColor:['#C00000','#C00000','#FF6B35','#FF6B35','#F4B942','#F4B942','#4A90C4','#4A90C4'],borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>FM(c.raw)+'/mes'}}},scales:{x:yM,y:{ticks:fs}}}});
+}
+function rRec(){const s=S,pg=s.pg,U=s.U,M=s.M,top=M.pareto[0]||{};
+  ST('alRec',`<strong>SÍNTESIS EJECUTIVA:</strong> (1) El costo CAPITA de ${s.lbRec} (${FM(s.q2)}/mes) es ${P(s.growth)} mayor que el de ${s.lbEar}; el EVENTO creció ${P(s.evGrowth)} (${FM(s.evRec)}/mes). (2) El UPC 2026 (${FM(s.giroU-s.giro0)}/mes) sigue sin reconocerse. (3) El EVENTO factura ${FM(s.evAvg)}/mes, ${P(s.trShare*100)} en traslados. (4) Estrategia: UPC 2026 → conciliar EVENTO vs CAPITA → PGP-EVENTO a run-rate con nota técnica y corredor de ajuste.`);
+  ST('tbMesa',[['⛔ Giro actual (sin UPC)',s.giro0,'var(--r2)'],['🎯 Piso técnico CAPITA: run-rate + migrables',s.E[2],'var(--a4)'],['✔ META: Giro + UPC 2026',s.giroU,'var(--v3)'],['💬 Giro con actas',s.giroA,'var(--n2)'],['⚡ EVENTO facturado promedio',s.evAvg,'var(--m2)'],['⭐ PGP-EVENTO run-rate',pg.rr,'#C5F0DA'],['⭐ Esquema: CAPITA UPC + PGP-EVENTO',s.giroU+pg.rr,'#C5F0DA']].map(r=>`<tr style="background:${r[2]}"><td class="L">${r[0]}</td><td><strong>${F(r[1])}</strong></td><td>${F(r[1]*12)}</td><td>${F(r[1]/U)}</td></tr>`).join(''));
+  const acts=[
+   ['Exigir el reconocimiento del UPC 2026 (+'+P(s.upc,2)+')',`El giro debería ser ${F(s.giroU)}/mes (hoy ${F(s.giro0)}). La diferencia acumulada en ${s.per} es ${F((s.giroU-s.giro0)*s.n)}; solicitar liquidación retroactiva desde ${s.MES[0].toLowerCase()} con la hoja «Escenario Costo vs Pagos» como soporte.`],
+   ['Proponer el PGP-EVENTO a run-rate',`Valor fijo de ${F(pg.rr)}/mes (${F(pg.rr/U)} por usuario-mes; ${F(pg.rr*12)}/año) frente a ${F(s.evAvg)} del promedio histórico. Con nota técnica por grupo, corredor de ±${P(pg.cv)} y ajuste por población (Decreto 441/2022, art. 2.5.3.4.2.3 y 2.5.3.4.2.4).`],
+   ['Dejar los traslados fuera del PGP, con tope',`${FM(s.trMes)}/mes (${P(s.trShare*100)} del EVENTO). Proponer tope mensual y cuota por episodio; el exceso se revisa en comité técnico ESE–EPS. Validar el registro de S31307 antes de pactar.`],
+   ['Conciliar EVENTO vs CAPITA antes de negociar',`${FN(s.of.n)} CUPS marcados OFERTADOS suman ${FM(s.of.v)} facturados por evento (${s.consLb}). Definir con Nueva EPS cuáles se pagan por CAPITA y cuáles por evento para evitar glosas o descuentos retroactivos.`],
+   ['Ampliar la CAPITA con los servicios migrables',`${s.mig.length} servicios, ${FM(s.migMes)}/mes a tarifa EVENTO (${P(s.migMes/s.q2*100)} del run-rate de costo). Condición: que el pago aumente en ese monto y no se descuente del giro.`],
+   ['Sustentar con RIPS el crecimiento de la demanda',`Costo CAPITA +${P(s.growth)} y EVENTO +${P(s.evGrowth)} entre ${s.lbEar} y ${s.lbRec}; servicios EVENTO de ${FN(s.evr[0])} a ${FN(s.evr[s.nE-1])} por mes. Los primeros meses tienen menor registro: usar el run-rate como referencia.`],
+   ['Pactar monitoreo mensual de la nota técnica',`Reporte mensual de frecuencias, valores y población frente a la nota técnica, con evaluación cuatrimestral y ajuste del valor fijo (art. 2.5.3.4.3.5). Indicadores de calidad, gestión y resultados (art. 2.5.3.4.3.1).`],
+   ['Gestionar medicamentos: producto de mayor valor, oxígeno y pagador',`${top.desc?`${top.desc.substring(0,40)} (${top.cod}) suma ${FM(top.v)}, ${P(top.pct*100)} del valor despachado; `:''}el oxígeno debe reportarse aparte (litros). Pedir a facturación el despacho por EPS para separar lo atribuible a Nueva EPS (base actual: despacho general ${FM(M.tot_v)}).`]];
+  ST('tRec',`🗺️ Guía paso a paso · ${acts.length} acciones`);
+  ST('ulRec',lis(acts));
+  ST('chipsRec',`<div class="card"><div class="ct">✅ Migran a CAPITA (${s.mig.length} servicios)</div>${s.mig.map(m=>`<span class="chip cv">${m.n}</span>`).join('')}<p style="font-size:.64rem;margin-top:8px;color:var(--v1);font-weight:700">Valor a tarifa EVENTO: ${F(s.migMes)}/mes</p></div>
+<div class="card"><div class="ct">⚡ Permanecen en EVENTO / fuera del PGP</div>${s.rie.filter(r=>r.rk!=='MEDIO').map(r=>`<span class="chip cr">${r.n}</span>`).join('')}<p style="font-size:.64rem;margin-top:8px;color:var(--r1);font-weight:700">Proponer topes contractuales</p></div>
+<div class="card"><div class="ct">🔄 PGP-EVENTO con corredor de ajuste</div>${s.eg.filter(g=>(TRAT[g.k]||[''])[0].startsWith('Incluido con')).map(g=>`<span class="chip cn">${gname(g.k)}</span>`).join('')}<p style="font-size:.64rem;margin-top:8px;color:#7F4000;font-weight:700">Riesgo técnico / primario</p></div>`);
+  mk('cImp',{type:'bar',data:{labels:s.grupos.map(g=>g.n),datasets:[{data:s.grupos.map(g=>g.pct),backgroundColor:GCOL,borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{callback:v=>v+'%',font:{size:9}}},y:{ticks:fs}}}});
+}
+
+// ═════════ CARGA DE ARCHIVOS ═════════
+const EMB_ID='ese-2026-10-v4';
+function validations(){const s=S,v=[];const ok=(c,t)=>v.push([c,t]);
+  const nm=D.med.gen_q.length;
+  ok(s.n===D.det.length&&s.n===s.nE,`Meses: NT/costos ${s.n}, pacientes ${D.det.length}, facturación EVENTO ${s.nE}${nm!==s.n?`, medicamentos ${nm}`:''}.${(s.n===D.det.length&&s.n===s.nE)?'':' Revise que los libros traigan los mismos meses.'}`);
+  ok(nm===s.n,`Medicamentos: ${nm} meses cargados frente a ${s.n} del informe de servicios.`);
+  const d=s.consCups-sum(s.ev.slice(0,s.cm));ok(Math.abs(d)/s.consCups<0.005,`Consolidado por CUPS sin medicamentos e insumos (${s.consPer}) ${F(s.consCups)} frente a la facturación del mismo periodo ${F(sum(s.ev.slice(0,s.cm)))}: diferencia ${F(Math.abs(d))} (${P(Math.abs(d)/s.consCups*100,2)}).`);
+  ok(Math.abs(sum(s.grupos.map(g=>g.acum))-s.totAdj)<10,`Suma de grupos de costo = costo mensual total (${F(s.totAdj)}).`);
+  ok(Math.abs(s.U*s.G.v0-s.giro0)<1000,`Giro actual = usuarios × valor (${FN(s.U)} × ${F(s.G.v0)} = ${F(s.U*s.G.v0)}).`);
+  ok(s.t20.every(r=>r.v>0),`Top 20: ${s.t20.filter(r=>r.v>0).length} de ${s.t20.length} códigos encontrados en el consolidado por CUPS.`);
+  ok(s.t20.every(r=>OBS[r.cod]),`Clasificación de aplicabilidad CAPITA: ${s.t20.filter(r=>OBS[r.cod]).length} de ${s.t20.length} códigos con criterio definido${s.t20.some(r=>!OBS[r.cod])?' (los demás aparecen como SIN CLASIFICAR)':''}.`);
+  return v;}
+function rCargar(){
+  const sr=D.src||{};const row=(a,k)=>{const x=sr[k];return`<tr><td class="L">${a}</td><td class="LL" style="white-space:normal;font-size:.62rem">${x?x.file:'—'}</td><td>${k==='med'?D.med.gen_q.length:S.n}</td><td>${x?x.ts:'—'}</td></tr>`;};
+  ST('tbSrc',row('Informe de servicios (CAPITA, EVENTO, costos)','inf')+row('Consolidado de medicamentos','med'));
+  ST('valList',validations().map(v=>`<div class="vl-li"><span class="${v[0]?'ok':'wn'}">${v[0]?'✔':'⚠'}</span> ${v[1]}</div>`).join(''));
+}
+function stamp(){return new Date().toLocaleString('es-CO',{dateStyle:'short',timeStyle:'short'});}
+function persist(){try{localStorage.setItem('ese_dash_data',JSON.stringify({emb:EMB_ID,D}));}catch(e){}}
+function msg(h,c){ST('loadMsg',`<span style="color:${c||'#1F4E79'}">${h}</span>`);}
+async function handleFiles(files){
+  for(const f of files){
+    try{
+      msg(`⏳ Procesando ${f.name}…`);
+      if(/\.json$/i.test(f.name)){const o=JSON.parse(await f.text());if(!o.nM||!o.nt)throw new Error('JSON no reconocido');D=o;msg(`✔ Datos restaurados desde ${f.name}.`,'#2E7D32');continue;}
+      if(typeof XLSX==='undefined')throw new Error('No se pudo cargar la librería de lectura de Excel (se necesita conexión a internet la primera vez).');
+      const buf=await f.arrayBuffer();const wb=XLSX.read(buf,{type:'array'});const names=wb.SheetNames.map(n=>PARSER.norm(n));
+      if(names.some(n=>n.startsWith('NT COSTOS'))){const inf=PARSER.parseInforme(XLSX,wb);const med=D.med,src=D.src||{};D=Object.assign({},inf);D.med=med;D.src=Object.assign({},src,{inf:{file:f.name,ts:stamp()}});msg(`✔ Informe de servicios cargado: ${inf.nM} meses de costos, ${inf.ev.length} de facturación EVENTO.`,'#2E7D32');}
+      else if(names.includes('RESUMEN MENSUAL')&&names.includes('PARETO GENERAL')){const med=PARSER.parseMed(XLSX,wb);D=Object.assign({},D);D.med=med;D.src=Object.assign({},D.src||{},{med:{file:f.name,ts:stamp()}});msg(`✔ Consolidado de medicamentos cargado: ${med.gen_q.length} meses.`,'#2E7D32');}
+      else throw new Error('No reconozco el archivo: debe contener las hojas «NT COSTOS» (informe de servicios) o «RESUMEN MENSUAL» y «PARETO GENERAL» (medicamentos).');
+    }catch(e){msg('⚠ '+f.name+': '+e.message,'#C00000');console.error(e);return;}
+  }
+  renderAll();persist();
+}
+function exportJSON(){const b=new Blob([JSON.stringify(D)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='datos_dashboard_ESE_MYC_'+D.meses[D.nM-1]+'_2026.json';a.click();}
+function resetData(){try{localStorage.removeItem('ese_dash_data');}catch(e){}D=JSON.parse(JSON.stringify(DEFAULT));renderAll();msg('↩️ Se restablecieron los datos incluidos en este archivo.');}
+(function init(){
+  D=JSON.parse(JSON.stringify(DEFAULT));
+  try{const st=JSON.parse(localStorage.getItem('ese_dash_data')||'null');if(st&&st.emb===EMB_ID&&st.D&&st.D.nM){D=st.D;}}catch(e){}
+  const fi=$('fileIn');fi.addEventListener('change',e=>{handleFiles([...e.target.files]);fi.value='';});
+  const dr=$('drop');['dragover','dragenter'].forEach(ev=>dr.addEventListener(ev,e=>{e.preventDefault();dr.classList.add('on');}));
+  ['dragleave','drop'].forEach(ev=>dr.addEventListener(ev,e=>{e.preventDefault();dr.classList.remove('on');}));
+  dr.addEventListener('drop',e=>handleFiles([...e.dataTransfer.files]));
+  renderAll();
+})();
+
+</script>
+</body>
+</html>

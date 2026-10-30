@@ -1,0 +1,225 @@
+campo,dato_anexo,codigo,descripcion,origen
+tipo_id_prestador,Tipo de identificación del prestador,NI,NIT,Res. 3374/2000
+tipo_id_prestador,Tipo de identificación del prestador,CC,Cédula de ciudadanía,Res. 3374/2000
+tipo_id_prestador,Tipo de identificación del prestador,CE,Cédula de extranjería,Res. 3374/2000
+tipo_id_prestador,Tipo de identificación del prestador,PA,Pasaporte,Res. 3374/2000
+tipo_id_usuario,Tipo de identificación del usuario,CC,Cédula de ciudadanía,Res. 3374/2000
+tipo_id_usuario,Tipo de identificación del usuario,CE,Cédula de extranjería,Res. 3374/2000
+tipo_id_usuario,Tipo de identificación del usuario,PA,Pasaporte,Res. 3374/2000
+tipo_id_usuario,Tipo de identificación del usuario,RC,Registro civil,Res. 3374/2000
+tipo_id_usuario,Tipo de identificación del usuario,TI,Tarjeta de identidad,Res. 3374/2000
+tipo_id_usuario,Tipo de identificación del usuario,AS,Adulto sin identificación,Res. 3374/2000
+tipo_id_usuario,Tipo de identificación del usuario,MS,Menor sin identificación,Res. 3374/2000
+tipo_id_usuario,Tipo de identificación del usuario,NU,Número único de identificación,Res. 3374/2000
+tipo_id_usuario,Tipo de identificación del usuario,CD,Carné diplomático,Catálogo extendido (advertencia)
+tipo_id_usuario,Tipo de identificación del usuario,CN,Certificado de nacido vivo,Catálogo extendido (advertencia)
+tipo_id_usuario,Tipo de identificación del usuario,DE,Documento de identificación extranjero,Catálogo extendido (advertencia)
+tipo_id_usuario,Tipo de identificación del usuario,NI,NIT,Catálogo extendido (advertencia)
+tipo_id_usuario,Tipo de identificación del usuario,NV,Certificado de nacido vivo (código anterior),Catálogo extendido (advertencia)
+tipo_id_usuario,Tipo de identificación del usuario,PE,Permiso especial de permanencia,Catálogo extendido (advertencia)
+tipo_id_usuario,Tipo de identificación del usuario,PT,Permiso por protección temporal,Catálogo extendido (advertencia)
+tipo_id_usuario,Tipo de identificación del usuario,SC,Salvoconducto,Catálogo extendido (advertencia)
+tipo_id_usuario,Tipo de identificación del usuario,SI,Sin identificación,Catálogo extendido (advertencia)
+tipo_usuario,Tipo de usuario,1,Contributivo,Res. 3374/2000
+tipo_usuario,Tipo de usuario,2,Subsidiado,Res. 3374/2000
+tipo_usuario,Tipo de usuario,3,Vinculado,Res. 3374/2000
+tipo_usuario,Tipo de usuario,4,Particular,Res. 3374/2000
+tipo_usuario,Tipo de usuario,5,Otro,Res. 3374/2000
+unidad_edad,Unidad de medida de la edad,1,Años,Res. 3374/2000
+unidad_edad,Unidad de medida de la edad,2,Meses,Res. 3374/2000
+unidad_edad,Unidad de medida de la edad,3,Días,Res. 3374/2000
+sexo,Sexo,M,Masculino,Res. 3374/2000
+sexo,Sexo,F,Femenino,Res. 3374/2000
+zona,Zona de residencia habitual,U,Urbana,Res. 3374/2000
+zona,Zona de residencia habitual,R,Rural,Res. 3374/2000
+cod_concepto,Código del concepto,01,Consultas,Res. 3374/2000
+cod_concepto,Código del concepto,02,Procedimientos de diagnósticos,Res. 3374/2000
+cod_concepto,Código del concepto,03,Procedimientos terapéuticos no quirúrgicos,Res. 3374/2000
+cod_concepto,Código del concepto,04,Procedimientos terapéuticos quirúrgicos,Res. 3374/2000
+cod_concepto,Código del concepto,05,Procedimientos de promoción y prevención,Res. 3374/2000
+cod_concepto,Código del concepto,06,Estancias,Res. 3374/2000
+cod_concepto,Código del concepto,07,Honorarios,Res. 3374/2000
+cod_concepto,Código del concepto,08,Derechos de sala,Res. 3374/2000
+cod_concepto,Código del concepto,09,Materiales e insumos,Res. 3374/2000
+cod_concepto,Código del concepto,10,Banco de sangre,Res. 3374/2000
+cod_concepto,Código del concepto,11,Prótesis y órtesis,Res. 3374/2000
+cod_concepto,Código del concepto,12,Medicamentos POS,Res. 3374/2000
+cod_concepto,Código del concepto,13,Medicamentos no POS,Res. 3374/2000
+cod_concepto,Código del concepto,14,Traslado de pacientes,Res. 3374/2000
+finalidad,Finalidad de la consulta,01,Atención del parto (puerperio),Res. 3374/2000
+finalidad,Finalidad de la consulta,02,Atención del recién nacido,Res. 3374/2000
+finalidad,Finalidad de la consulta,03,Atención en planificación familiar,Res. 3374/2000
+finalidad,Finalidad de la consulta,04,Detección de alteraciones de crecimiento y desarrollo del menor de diez años,Res. 3374/2000
+finalidad,Finalidad de la consulta,05,Detección de alteración del desarrollo joven,Res. 3374/2000
+finalidad,Finalidad de la consulta,06,Detección de alteraciones del embarazo,Res. 3374/2000
+finalidad,Finalidad de la consulta,07,Detección de alteraciones del adulto,Res. 3374/2000
+finalidad,Finalidad de la consulta,08,Detección de alteraciones de agudeza visual,Res. 3374/2000
+finalidad,Finalidad de la consulta,09,Detección de enfermedad profesional,Res. 3374/2000
+finalidad,Finalidad de la consulta,10,No aplica,Res. 3374/2000
+finalidad,Finalidad de la consulta,11,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,12,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,13,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,14,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,15,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,16,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,17,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,18,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,19,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,20,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,21,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,22,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,23,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,24,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,25,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,26,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,27,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,28,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,29,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,30,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,31,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,32,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,33,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,34,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,35,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,36,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,37,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,38,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,39,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,40,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,41,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,42,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,43,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad de la consulta,44,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,01,Accidente de trabajo,Res. 3374/2000
+causa_externa,Causa externa,02,Accidente de tránsito,Res. 3374/2000
+causa_externa,Causa externa,03,Accidente rábico,Res. 3374/2000
+causa_externa,Causa externa,04,Accidente ofídico,Res. 3374/2000
+causa_externa,Causa externa,05,Otro tipo de accidente,Res. 3374/2000
+causa_externa,Causa externa,06,Evento catastrófico,Res. 3374/2000
+causa_externa,Causa externa,07,Lesión por agresión,Res. 3374/2000
+causa_externa,Causa externa,08,Lesión auto infligida,Res. 3374/2000
+causa_externa,Causa externa,09,Sospecha de maltrato físico,Res. 3374/2000
+causa_externa,Causa externa,10,Sospecha de abuso sexual,Res. 3374/2000
+causa_externa,Causa externa,11,Sospecha de violencia sexual,Res. 3374/2000
+causa_externa,Causa externa,12,Sospecha de maltrato emocional,Res. 3374/2000
+causa_externa,Causa externa,13,Enfermedad general,Res. 3374/2000
+causa_externa,Causa externa,14,Enfermedad profesional,Res. 3374/2000
+causa_externa,Causa externa,15,Otra,Res. 3374/2000
+causa_externa,Causa externa,21,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,22,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,23,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,24,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,25,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,26,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,27,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,28,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,29,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,30,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,31,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,32,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,33,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,34,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,35,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,36,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,37,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,38,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,39,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,40,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,41,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,42,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,43,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,44,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,45,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,46,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,47,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,48,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+causa_externa,Causa externa,49,Causa motivo de atención (Res. 2275/2023),Catálogo extendido (advertencia)
+tipo_dx_principal,Tipo de diagnóstico principal,1,Impresión diagnóstica,Res. 3374/2000
+tipo_dx_principal,Tipo de diagnóstico principal,2,Confirmado nuevo,Res. 3374/2000
+tipo_dx_principal,Tipo de diagnóstico principal,3,Confirmado repetido,Res. 3374/2000
+ambito,Ámbito de realización del procedimiento,1,Ambulatorio,Res. 3374/2000
+ambito,Ámbito de realización del procedimiento,2,Hospitalario,Res. 3374/2000
+ambito,Ámbito de realización del procedimiento,3,En urgencias,Res. 3374/2000
+finalidad,Finalidad del procedimiento,1,Diagnóstico,Res. 3374/2000
+finalidad,Finalidad del procedimiento,2,Terapéutico,Res. 3374/2000
+finalidad,Finalidad del procedimiento,3,Protección específica,Res. 3374/2000
+finalidad,Finalidad del procedimiento,4,Detección temprana de enfermedad general,Res. 3374/2000
+finalidad,Finalidad del procedimiento,5,Detección temprana de enfermedad profesional,Res. 3374/2000
+finalidad,Finalidad del procedimiento,11,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,12,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,13,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,14,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,15,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,16,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,17,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,18,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,19,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,20,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,21,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,22,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,23,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,24,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,25,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,26,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,27,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,28,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,29,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,30,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,31,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,32,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,33,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,34,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,35,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,36,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,37,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,38,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,39,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,40,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,41,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,42,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,43,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+finalidad,Finalidad del procedimiento,44,Finalidad tecnología en salud (Res. 2275/2023),Catálogo extendido (advertencia)
+personal_atiende,Personal que atiende,1,Médico (a) especialista,Res. 3374/2000
+personal_atiende,Personal que atiende,2,Médico (a) general,Res. 3374/2000
+personal_atiende,Personal que atiende,3,Enfermera (o),Res. 3374/2000
+personal_atiende,Personal que atiende,4,Auxiliar de enfermería,Res. 3374/2000
+personal_atiende,Personal que atiende,5,Otro,Res. 3374/2000
+forma_acto_qx,Forma de realización del acto quirúrgico,1,Único o unilateral,Res. 3374/2000
+forma_acto_qx,Forma de realización del acto quirúrgico,2,"Múltiple o bilateral, misma vía, diferente especialidad",Res. 3374/2000
+forma_acto_qx,Forma de realización del acto quirúrgico,3,"Múltiple o bilateral, misma vía, igual especialidad",Res. 3374/2000
+forma_acto_qx,Forma de realización del acto quirúrgico,4,"Múltiple o bilateral, diferente vía, diferente especialidad",Res. 3374/2000
+forma_acto_qx,Forma de realización del acto quirúrgico,5,"Múltiple o bilateral, diferente vía, igual especialidad",Res. 3374/2000
+destino_salida,Destino del usuario a la salida de observación,1,Alta de urgencias,Res. 3374/2000
+destino_salida,Destino del usuario a la salida de observación,2,Remisión a otro nivel de complejidad,Res. 3374/2000
+destino_salida,Destino del usuario a la salida de observación,3,Hospitalización,Res. 3374/2000
+estado_salida,Estado a la salida,1,Vivo (a),Res. 3374/2000
+estado_salida,Estado a la salida,2,Muerto (a),Res. 3374/2000
+via_ingreso,Vía de ingreso a la institución,1,Urgencias,Res. 3374/2000
+via_ingreso,Vía de ingreso a la institución,2,Consulta externa o programada,Res. 3374/2000
+via_ingreso,Vía de ingreso a la institución,3,Remitido,Res. 3374/2000
+via_ingreso,Vía de ingreso a la institución,4,Nacido en la institución,Res. 3374/2000
+tipo_id_madre,Tipo de identificación de la madre,CC,Cédula de ciudadanía,Res. 3374/2000
+tipo_id_madre,Tipo de identificación de la madre,CE,Cédula de extranjería,Res. 3374/2000
+tipo_id_madre,Tipo de identificación de la madre,PA,Pasaporte,Res. 3374/2000
+tipo_id_madre,Tipo de identificación de la madre,RC,Registro civil,Res. 3374/2000
+tipo_id_madre,Tipo de identificación de la madre,TI,Tarjeta de identidad,Res. 3374/2000
+tipo_id_madre,Tipo de identificación de la madre,AS,Adulto sin identificación,Res. 3374/2000
+tipo_id_madre,Tipo de identificación de la madre,MS,Menor sin identificación,Res. 3374/2000
+tipo_id_madre,Tipo de identificación de la madre,NU,Número único de identificación,Res. 3374/2000
+tipo_id_madre,Tipo de identificación de la madre,CD,Carné diplomático,Catálogo extendido (advertencia)
+tipo_id_madre,Tipo de identificación de la madre,CN,Certificado de nacido vivo,Catálogo extendido (advertencia)
+tipo_id_madre,Tipo de identificación de la madre,DE,Documento de identificación extranjero,Catálogo extendido (advertencia)
+tipo_id_madre,Tipo de identificación de la madre,NI,NIT,Catálogo extendido (advertencia)
+tipo_id_madre,Tipo de identificación de la madre,NV,Certificado de nacido vivo (código anterior),Catálogo extendido (advertencia)
+tipo_id_madre,Tipo de identificación de la madre,PE,Permiso especial de permanencia,Catálogo extendido (advertencia)
+tipo_id_madre,Tipo de identificación de la madre,PT,Permiso por protección temporal,Catálogo extendido (advertencia)
+tipo_id_madre,Tipo de identificación de la madre,SC,Salvoconducto,Catálogo extendido (advertencia)
+tipo_id_madre,Tipo de identificación de la madre,SI,Sin identificación,Catálogo extendido (advertencia)
+control_prenatal,Control prenatal,1,Sí,Res. 3374/2000
+control_prenatal,Control prenatal,2,No,Res. 3374/2000
+tipo_medicamento,Tipo de medicamento,1,Medicamento POS,Res. 3374/2000
+tipo_medicamento,Tipo de medicamento,2,Medicamento no POS,Res. 3374/2000
+tipo_servicio,Tipo de servicio,1,Materiales e insumos,Res. 3374/2000
+tipo_servicio,Tipo de servicio,2,Traslados,Res. 3374/2000
+tipo_servicio,Tipo de servicio,3,Estancias,Res. 3374/2000
+tipo_servicio,Tipo de servicio,4,Honorarios,Res. 3374/2000

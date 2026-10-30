@@ -1,0 +1,9 @@
+# Amplía (sin reemplazar) los criterios tomados de los dashboards de referencia
+# (OBS = aplicabilidad CAPITA, MIG = migrables, RIE = riesgo). Ejemplos comentados:
+aplicabilidad: {}
+#  "601T01": ["NO", "Traslado primario: permanece EVENTO con tope."]
+migrables: {}
+#  "902210": "Hemograma IV automatizado"
+riesgo: {}
+#  "S31308": {servicio: "Traslado intermunicipal <25 km", nivel: "ALTO"}
+tratamiento: {}
