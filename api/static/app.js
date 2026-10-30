@@ -150,7 +150,39 @@ $('bVaciar').onclick = async () => {
 };
 
 // ---------------------------------------------------------------- 3. maestros
+let municipiosRed = [];
+function filaSede(s) {
+  const opts = municipiosRed.map(m => `<option ${m === s.municipio ? 'selected' : ''}>${esc(m)}</option>`).join('');
+  return `<tr><td><input data-k="nombre" size="34" value="${esc(s.nombre)}"></td>
+    <td><select data-k="municipio">${opts}</select></td>
+    <td><input data-k="alias" size="60" value="${esc((s.alias || []).join('; '))}"></td>
+    <td><input data-k="cod_habilitacion" size="16" value="${esc((s.cod_habilitacion || []).join('; '))}"></td>
+    <td><input data-k="verificado" type="checkbox" ${s.verificado ? 'checked' : ''}></td>
+    <td><button class="sec2" onclick="this.closest('tr').remove()">Quitar</button></td></tr>`;
+}
+async function cargarSedes() {
+  const r = await api('/api/sedes'); municipiosRed = r.municipios;
+  $('tbSedes').innerHTML = `<div class="scroll"><table id="tSedes"><thead><tr><th>Sede (nombre oficial)</th><th>Municipio</th>
+    <th>Alias en carpetas de Drive</th><th>Cód. habilitación</th><th>Verificada</th><th></th></tr></thead><tbody>
+    ${r.sedes.map(filaSede).join('')}</tbody></table></div>`;
+}
+$('bSedeNueva').onclick = () => $('tSedes').querySelector('tbody').insertAdjacentHTML('beforeend',
+  filaSede({nombre: '', municipio: municipiosRed[0], alias: [], cod_habilitacion: [], verificado: false}));
+$('bSedesGuardar').onclick = async () => {
+  const lista = [...$('tSedes').querySelectorAll('tbody tr')].map(tr => {
+    const v = k => tr.querySelector(`[data-k="${k}"]`);
+    const sep = x => x.value.split(';').map(a => a.trim()).filter(Boolean);
+    return {nombre: v('nombre').value.trim(), municipio: v('municipio').value, alias: sep(v('alias')),
+            cod_habilitacion: sep(v('cod_habilitacion')), verificado: v('verificado').checked};
+  }).filter(s => s.nombre);
+  try { await api('/api/sedes', {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({sedes: lista})});
+    $('msgSedes').innerHTML = '<span class="ok">✔ Sedes guardadas. Para renombrar lo ya cargado use "Reprocesar todo" en Base de datos y Drive.</span>';
+    cargarSedes();
+  } catch (e) { $('msgSedes').innerHTML = `<span class="err">✖ ${esc(e.message)}</span>`; }
+};
+
 async function cargarMaestros() {
+  cargarSedes();
   const m = await api('/api/maestros');
   const filas = [{nombre: 'informe', fuente: 'INFORME DE SERVICIOS (catálogo + NT COSTOS + NT por municipio)'}, ...m];
   $('tbMae').querySelector('tbody').innerHTML = filas.map(x => `<tr><td><b>${esc(x.nombre)}</b></td><td>${esc(x.fuente || '—')}</td>

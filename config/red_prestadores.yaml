@@ -4,8 +4,8 @@
 # dígitos del código de habilitación del prestador (cod_prestador del RIPS), que
 # corresponden al código DANE del municipio (81 = Arauca). Ejemplos observados:
 #   817940020607 -> 81794 (Tame)   · 812200020604 -> 81220 (Cravo Norte)
-# Si el código no está, se intenta por el nombre de la carpeta (sedes) y por último
-# por la palabra del municipio en la ruta. Corrija aquí o desde la interfaz.
+# El nombre del hospital se toma de la sede reconocida (por código de habilitación o por alias de la
+# carpeta); si no se reconoce, se usa el nombre de la carpeta tal como viene.
 municipios:
   "81065": ARAUQUITA   # municipio de la Nota Técnica Nueva EPS (hoja NOTA TECNICA CAPITA NEPS)
   "81001": ARAUCA      # se conserva por si alguna sede reporta con código de Arauca capital
@@ -14,12 +14,46 @@ municipios:
   "81220": CRAVO NORTE
   "81591": PUERTO RONDON
 
-# Sedes conocidas. Clave = nombre de carpeta normalizado (contiene). Valor = municipio.
-# Agregue aquí cada hospital / centro de salud de la red.
+# Sedes de la red. Cada sede tiene:
+#   nombre:           nombre oficial con el que se guarda en la base (unifica las variantes de las carpetas)
+#   municipio:        municipio de la Nota Técnica
+#   alias:            textos que identifican la sede en el nombre de la carpeta de Drive (sin tildes,
+#                     mayúsculas o minúsculas da igual). Agregue aquí cómo nombra cada hospital su carpeta.
+#   cod_habilitacion: códigos de habilitación (cod_prestador del RIPS, 12 dígitos) de la sede, si se conocen.
+#   verificado:       true cuando el nombre y el código se confirmaron con RIPS reales.
+# Se puede editar también desde la aplicación: pestaña Maestros → Red de sedes.
 sedes:
-  "HOSPITAL SAN JOSE DE CRAVO NORTE": CRAVO NORTE
-  "CENTRO DE SALUD JESUS CORONEL": TAME   # observado: cod_prestador 81794...
-  # Pendiente: agregar las demás sedes de Arauca, Fortul y Puerto Rondón con su nombre exacto de carpeta.
+  - nombre: Hospital San José de Cravo Norte
+    municipio: CRAVO NORTE
+    alias: [HOSPITAL SAN JOSE DE CRAVO NORTE, HOSPITAL CRAVO NORTE, SEDE CRAVO NORTE]
+    cod_habilitacion: ["812200020604"]
+    verificado: true        # RIPS_consolidado (cod. 812200020604)
+  - nombre: Centro de Salud Jesús Coronel
+    municipio: TAME
+    alias: [CENTRO DE SALUD JESUS CORONEL, JESUS CORONEL]
+    cod_habilitacion: ["817940020607"]
+    verificado: true        # ZIP de muestra (cod. 817940020607)
+  - nombre: Hospital San Antonio de Tame
+    municipio: TAME
+    alias: [HOSPITAL SAN ANTONIO DE TAME, HOSPITAL SAN ANTONIO, HOSPITAL TAME, SEDE TAME]
+    cod_habilitacion: []
+    verificado: false       # PENDIENTE: confirmar nombre de carpeta y código de habilitación
+  - nombre: Hospital San Lorenzo de Arauquita
+    municipio: ARAUQUITA
+    alias: [HOSPITAL SAN LORENZO DE ARAUQUITA, HOSPITAL SAN LORENZO, HOSPITAL ARAUQUITA, SEDE ARAUQUITA]
+    cod_habilitacion: []
+    verificado: false       # PENDIENTE: confirmar nombre de carpeta y código de habilitación
+  - nombre: Hospital San Francisco de Fortul
+    municipio: FORTUL
+    alias: [HOSPITAL SAN FRANCISCO DE FORTUL, HOSPITAL SAN FRANCISCO, HOSPITAL FORTUL, SEDE FORTUL]
+    cod_habilitacion: []
+    verificado: false       # PENDIENTE: confirmar nombre de carpeta y código de habilitación
+  - nombre: Hospital San Juan de Dios de Puerto Rondón
+    municipio: PUERTO RONDON
+    alias: [HOSPITAL SAN JUAN DE DIOS DE PUERTO RONDON, HOSPITAL SAN JUAN DE DIOS, HOSPITAL PUERTO RONDON,
+            SEDE PUERTO RONDON]
+    cod_habilitacion: []
+    verificado: false       # PENDIENTE: confirmar nombre de carpeta y código de habilitación
 
 # Códigos de la EPS en alcance (Nueva EPS). EPS037 = contributivo, EPSS37 = subsidiado.
 # SUPUESTO: ambos se tratan como Nueva EPS (EPS037) para el análisis de cápita/evento.

@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import PurePosixPath
 
-from ..config import red_prestadores
+from ..config import red_prestadores, sedes
 from ..constantes import MESES, mes_desde_texto, norm
 
 RE_DRIVE = re.compile(r"-\d{8}T\d{6}Z-\d+-\d+$")          # sufijo que agrega Google Drive al ZIP
@@ -49,11 +49,29 @@ def municipio_por_codigo(cod_prestador: str | None) -> str | None:
     return red_prestadores().get("municipios", {}).get(str(cod_prestador).strip()[:5])
 
 
-def municipio_por_texto(texto: str) -> str | None:
+def sede_por_codigo(cod_prestador: str | None) -> dict | None:
+    if not cod_prestador:
+        return None
+    c = str(cod_prestador).strip()
+    return next((s for s in sedes() if c in s["cod_habilitacion"]), None)
+
+
+def sede_por_texto(texto: str) -> dict | None:
+    """Sede cuyo alias aparece en la ruta (se prefiere el alias más largo, es decir el más específico)."""
     t = norm(texto)
-    for sede, mun in red_prestadores().get("sedes", {}).items():
-        if norm(sede) in t:
-            return mun
+    mejor, largo = None, 0
+    for s in sedes():
+        for a in s["alias"]:
+            if a and len(a) > largo and re.search(rf"(^|[^A-Z0-9]){re.escape(a)}([^A-Z0-9]|$)", t):
+                mejor, largo = s, len(a)
+    return mejor
+
+
+def municipio_por_texto(texto: str) -> str | None:
+    s = sede_por_texto(texto)
+    if s:
+        return s["municipio"]
+    t = norm(texto)
     for mun in red_prestadores().get("municipios", {}).values():
         if re.search(rf"\b{re.escape(mun)}\b", t):
             return mun
@@ -100,6 +118,9 @@ def desde_ruta(ruta: str, anio_defecto: int | None = None) -> Contexto:
         ctx.hospital = partes[idx_mes - 1]
     if ctx.hospital:
         ctx.fuente_hospital = "carpeta"
+    sede = sede_por_texto(" / ".join(partes[:idx_mes] if idx_mes is not None else partes))
+    if sede:
+        ctx.hospital, ctx.fuente_hospital = sede["nombre"], "carpeta (sede)"
     # carpeta de la remisión = la carpeta que contiene el archivo (si no es la del mes)
     if partes and (idx_mes is None or idx_mes < len(partes) - 1):
         ctx.carpeta_envio = partes[-1]
@@ -146,6 +167,10 @@ def completar(ctx: Contexto, registros_af: list[dict], cod_prestador: str | None
             ctx.notas.append(f"Municipio de carpeta ({ctx.municipio}) difiere del código de habilitación "
                              f"{cod_prestador} ({mun}); se usa el código")
         ctx.municipio, ctx.fuente_municipio = mun, "contenido"
+    sede = sede_por_codigo(cod_prestador)
+    if sede and ctx.fuente_hospital != "carpeta (sede)":
+        # el código de habilitación identifica la sede aunque la carpeta tenga otro nombre
+        ctx.hospital, ctx.fuente_hospital = sede["nombre"], "contenido (sede)"
     if not ctx.hospital and cod_prestador:
         ctx.hospital, ctx.fuente_hospital = f"Prestador {cod_prestador}", "contenido"
     if not ctx.modalidad_declarada:

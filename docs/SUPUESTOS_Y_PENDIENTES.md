@@ -88,6 +88,10 @@ Otros hallazgos del libro:
 * "FRE MES SUB CAPITA" suma 678.146 RIPS, distinto de los 910.925 de "FRECUEN NT SUB CAPITA": no se usa
   como fuente de frecuencias.
 * **Tope contractual de traslados** (`traslados.tope_mensual`): no aparece en los artefactos.
-* **Sedes de Arauquita, Fortul y Puerto Rondón**: agregar sus nombres de carpeta en `config/red_prestadores.yaml`.
+* **Sedes de la red** (`config/red_prestadores.yaml`, editable en Maestros → Red de sedes): Cravo Norte
+  (Hospital San José, cód. 812200020604) y Tame (Centro de Salud Jesús Coronel, cód. 817940020607) están
+  verificadas con RIPS reales. Hospital San Antonio de Tame, Hospital San Lorenzo de Arauquita, Hospital San
+  Francisco de Fortul y Hospital San Juan de Dios de Puerto Rondón quedaron registradas **sin verificar**:
+  confirmar el nombre exacto de la carpeta en Drive y el código de habilitación con el primer RIPS de cada una.
 * `RIPS_consolidado.json` se describió como truncado, pero se leyó completo (9 meses, índice coincidente
   con el XLSX). Se usa como modelo y para pruebas opcionales.

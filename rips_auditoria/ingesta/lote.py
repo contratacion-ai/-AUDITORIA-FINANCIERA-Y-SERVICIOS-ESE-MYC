@@ -196,7 +196,7 @@ class _Constructor:
         if not ctx.periodo or "?" in str(ctx.periodo):
             self.inc.add(**base_inc, archivo=directorio, regla="PERIODO_NO_DETERMINADO", severidad="ADVERTENCIA",
                          mensaje="No se pudo determinar el mes; corríjalo manualmente")
-        if ctx.fuente_hospital != "carpeta" and ctx.fuente_hospital != "manual":
+        if not str(ctx.fuente_hospital or "").startswith(("carpeta", "manual", "consolidado", "contenido (sede)")):
             self.inc.add(**base_inc, archivo=directorio, regla="HOSPITAL_NO_DETERMINADO", severidad="ADVERTENCIA",
                          mensaje="Hospital tomado del código del prestador")
         if not ctx.municipio:

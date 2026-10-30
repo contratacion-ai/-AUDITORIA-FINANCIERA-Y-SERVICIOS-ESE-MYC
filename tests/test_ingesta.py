@@ -104,7 +104,7 @@ def test_manual_global_tiene_prioridad(carpeta_rips):
 def test_contexto_desde_ruta_drive():
     c = contexto.desde_ruta("Hospital San Jose de Cravo Norte-20261014T130856Z-1-001/Hospital San Jose de Cravo "
                             "Norte/02. Febrero/NUEVA SUBS/AF009236.txt", 2026)
-    assert c.hospital == "Hospital San Jose de Cravo Norte"
+    assert c.hospital == "Hospital San José de Cravo Norte"
     assert c.periodo == "2026-02"
     assert c.municipio == "CRAVO NORTE"
     assert contexto.municipio_por_codigo("812200020604") == "CRAVO NORTE"

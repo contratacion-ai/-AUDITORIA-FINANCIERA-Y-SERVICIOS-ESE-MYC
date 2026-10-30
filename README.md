@@ -67,7 +67,10 @@ Hospital San Jose de Cravo Norte/
 ```
 
 El municipio sale del código de habilitación del prestador (`81794…` = Tame, `81065…` = Arauquita) y el
-mes de la carpeta `NN. Mes`.
+mes de la carpeta `NN. Mes`. La sede se reconoce por el nombre de la carpeta o por el código de
+habilitación según la **red de sedes** (Maestros → Red de sedes): Hospital San José de Cravo Norte,
+Centro de Salud Jesús Coronel y Hospital San Antonio (Tame), Hospital San Lorenzo (Arauquita),
+Hospital San Francisco (Fortul) y Hospital San Juan de Dios (Puerto Rondón).
 
 ### Escritorio / línea de comandos
 

@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 
 from rips_auditoria import __version__, base, fuentes, maestros
 from rips_auditoria.analisis import Resultado, analizar, controles_referencia
-from rips_auditoria.config import DIR_DATOS, DIR_REFERENCIAS
+from rips_auditoria.config import DIR_DATOS, DIR_REFERENCIAS, guardar_sedes, red_prestadores
 from rips_auditoria.informes import excel, pdf
 from rips_auditoria.ingesta.lote import Lote, corregir, procesar
 
@@ -152,6 +152,26 @@ def borrar_lote(lid: str):
     if p.exists():
         p.unlink()
     return {"borrado": lid}
+
+
+# ------------------------------------------------------------------------- red de sedes
+@app.get("/api/sedes")
+def ver_sedes():
+    crudo = red_prestadores().get("sedes") or []
+    return {"sedes": crudo if isinstance(crudo, list) else [
+        {"nombre": k, "municipio": v, "alias": [k], "cod_habilitacion": [], "verificado": False} for k, v in crudo.items()],
+        "municipios": sorted(set(red_prestadores().get("municipios", {}).values()))}
+
+
+@app.put("/api/sedes")
+def guardar_sedes_api(sedes: list[dict] = Body(..., embed=True)):
+    """Reemplaza la lista de sedes. Las cargas siguientes usan los nuevos nombres; para renombrar lo ya
+    cargado, sincronice con 'Reprocesar todo' o vuelva a cargar las carpetas."""
+    for s in sedes:
+        if not str(s.get("nombre", "")).strip() or not str(s.get("municipio", "")).strip():
+            raise HTTPException(400, "Cada sede necesita nombre y municipio")
+    guardar_sedes(sedes)
+    return ver_sedes()
 
 
 # ------------------------------------------------------------------------- maestros

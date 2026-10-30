@@ -35,6 +35,35 @@ def red_prestadores() -> dict:
         return yaml.safe_load(fh)
 
 
+def sedes() -> list[dict]:
+    """Sedes de la red normalizadas (acepta también el formato antiguo ``{alias: municipio}``)."""
+    from .constantes import norm
+    crudo = red_prestadores().get("sedes") or []
+    if isinstance(crudo, dict):
+        crudo = [{"nombre": k.title(), "municipio": v, "alias": [k]} for k, v in crudo.items()]
+    out = []
+    for s in crudo:
+        alias = [norm(a) for a in (s.get("alias") or [])] + [norm(s["nombre"])]
+        out.append({"nombre": s["nombre"], "municipio": norm(s.get("municipio")),
+                    "alias": sorted(set(alias), key=len, reverse=True),
+                    "cod_habilitacion": [str(c).strip() for c in (s.get("cod_habilitacion") or [])],
+                    "verificado": bool(s.get("verificado"))})
+    return out
+
+
+def guardar_sedes(lista: list[dict]) -> None:
+    """Escribe las sedes en ``red_prestadores.yaml`` (conserva el resto de la configuración)."""
+    datos = dict(red_prestadores())
+    datos["sedes"] = [{"nombre": s["nombre"].strip(), "municipio": str(s.get("municipio") or "").strip().upper(),
+                       "alias": [a.strip() for a in s.get("alias") or [] if a and a.strip()],
+                       "cod_habilitacion": [str(c).strip() for c in s.get("cod_habilitacion") or [] if str(c).strip()],
+                       "verificado": bool(s.get("verificado"))} for s in lista if s.get("nombre", "").strip()]
+    with open(DIR_CONFIG / "red_prestadores.yaml", "w", encoding="utf-8") as fh:
+        fh.write("# Red de prestadores de la E.S.E. Moreno y Clavijo (editado desde la aplicación).\n")
+        yaml.safe_dump(datos, fh, allow_unicode=True, sort_keys=False, width=200)
+    red_prestadores.cache_clear()
+
+
 @lru_cache(maxsize=1)
 def diccionario_rips() -> dict[str, list[CampoRips]]:
     """Estructura de cada archivo RIPS según el Anexo Técnico No. 1 (orden de campos)."""

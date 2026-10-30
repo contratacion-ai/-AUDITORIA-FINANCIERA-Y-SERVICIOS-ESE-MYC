@@ -40,7 +40,7 @@ def test_carpeta_con_rutas_relativas(cliente):
         rutas.append(("rutas", f"Hospital San Jose de Cravo Norte/03. Marzo/NUEVA EPS/{t}000123.txt"))
     r = cliente.post("/api/lotes", files=files, data={"rutas": [x[1] for x in rutas]})
     rem = r.json()["remisiones"][0]
-    assert rem["hospital"] == "Hospital San Jose de Cravo Norte" and rem["periodo"] == "2026-03"
+    assert rem["hospital"] == "Hospital San José de Cravo Norte" and rem["periodo"] == "2026-03"
 
 
 def test_referencia_y_maestros(cliente):

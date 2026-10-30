@@ -125,3 +125,26 @@ Los montos aceptan `1234567.89` o `1.234.567,89`.
   modificación de cada archivo. **Sincronizar** solo reprocesa las unidades nuevas o con cambios.
 * Las carpetas de mes que ya no están en Drive se informan como *ausentes* para que se decida si se
   limpian de la base.
+
+## 9. Red de sedes
+
+Cada carga se asigna a una sede de la red con este orden:
+
+1. Corrección manual.
+2. **Alias de la carpeta**: si la ruta contiene uno de los alias de la sede (sin importar tildes ni
+   mayúsculas), se usa el nombre oficial de la sede (`fuente_hospital = carpeta (sede)`).
+3. **Código de habilitación** del RIPS registrado en la sede (`contenido (sede)`), aunque la carpeta
+   tenga otro nombre.
+4. Nombre de la carpeta tal como viene, o `Prestador <código>` si no hay carpeta.
+
+| Sede | Municipio | Código de habilitación | Estado |
+|---|---|---|---|
+| Hospital San José de Cravo Norte | CRAVO NORTE | 812200020604 | Verificada |
+| Centro de Salud Jesús Coronel | TAME | 817940020607 | Verificada |
+| Hospital San Antonio de Tame | TAME | por confirmar | Sin verificar |
+| Hospital San Lorenzo de Arauquita | ARAUQUITA | por confirmar | Sin verificar |
+| Hospital San Francisco de Fortul | FORTUL | por confirmar | Sin verificar |
+| Hospital San Juan de Dios de Puerto Rondón | PUERTO RONDON | por confirmar | Sin verificar |
+
+Se agregan o corrigen sedes, alias y códigos en *Maestros → Red de sedes* (o en
+`config/red_prestadores.yaml`). Para renombrar lo ya cargado, use *Reprocesar todo* en la sincronización.
