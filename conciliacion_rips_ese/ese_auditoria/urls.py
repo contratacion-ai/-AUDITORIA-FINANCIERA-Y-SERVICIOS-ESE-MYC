@@ -5,7 +5,7 @@ from django.http import HttpResponse
 from django.urls import include, path
 
 # Identificador usado por el lanzador para reconocer su propia instancia (evita conflictos de puerto)
-FIRMA_SALUD = "auditoria-ese-myc-ok"
+FIRMA_SALUD = "conciliacion-rips-ese-myc-ok"
 
 urlpatterns = [
     path("salud/", lambda request: HttpResponse(FIRMA_SALUD, content_type="text/plain")),

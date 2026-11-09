@@ -5,9 +5,9 @@ set -euo pipefail
 
 ORIGEN="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 if [[ "$(uname)" == "Darwin" ]]; then
-  DESTINO="${AUDITORIA_ESE_DESTINO:-$HOME/Library/Application Support/AuditoriaESE}"
+  DESTINO="${CONCILIACION_RIPS_ESE_DESTINO:-$HOME/Library/Application Support/ConciliacionRIPS_ESE}"
 else
-  DESTINO="${AUDITORIA_ESE_DESTINO:-${XDG_DATA_HOME:-$HOME/.local/share}/auditoria-ese}"
+  DESTINO="${CONCILIACION_RIPS_ESE_DESTINO:-${XDG_DATA_HOME:-$HOME/.local/share}/conciliacion-rips-ese}"
 fi
 PYTHON="${PYTHON:-python3}"
 
@@ -33,17 +33,17 @@ find "$DESTINO/app" -name __pycache__ -type d -prune -exec rm -rf {} +
 
 cat > "$DESTINO/iniciar.sh" <<EOF
 #!/usr/bin/env bash
-export AUDITORIA_ESE_DATOS="$DESTINO/datos"
+export CONCILIACION_RIPS_ESE_DATOS="$DESTINO/datos"
 cd "$DESTINO/app" && exec "$DESTINO/venv/bin/python" escritorio/lanzador.py "\$@"
 EOF
 chmod +x "$DESTINO/iniciar.sh"
 
 if [[ "$(uname)" != "Darwin" ]]; then
   mkdir -p "$HOME/.local/share/applications"
-  cat > "$HOME/.local/share/applications/auditoria-ese.desktop" <<EOF
+  cat > "$HOME/.local/share/applications/conciliacion-rips-ese.desktop" <<EOF
 [Desktop Entry]
 Type=Application
-Name=Auditoria ESE
+Name=Conciliacion RIPS ESE
 Comment=Auditoría financiera y de servicios - ESE Moreno y Clavijo
 Exec="$DESTINO/iniciar.sh"
 Terminal=true

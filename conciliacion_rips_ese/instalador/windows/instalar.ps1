@@ -1,7 +1,7 @@
 ﻿<#
   Instalador de la herramienta de Auditoría ESE Moreno y Clavijo para Windows 10/11.
 
-  - NO requiere permisos de administrador: instala en %LOCALAPPDATA%\AuditoriaESE (carpeta del usuario).
+  - NO requiere permisos de administrador: instala en %LOCALAPPDATA%\ConciliacionRIPS_ESE (carpeta del usuario).
   - NO genera conflictos: usa un Python "embebido" propio, aislado; no modifica el PATH, el registro,
     el Python que ya tenga el equipo ni otras herramientas. Los accesos directos se crean solo para el usuario.
   - Si se ejecuta de nuevo, ACTUALIZA la aplicación y conserva los datos (auditorías, archivos cargados).
@@ -9,7 +9,7 @@
     carpeta "offline" junto a este script.
 #>
 param(
-    [string]$Destino = (Join-Path $env:LOCALAPPDATA "AuditoriaESE"),
+    [string]$Destino = (Join-Path $env:LOCALAPPDATA "ConciliacionRIPS_ESE"),
     [switch]$SinAccesos,
     [switch]$NoIniciar
 )
@@ -108,7 +108,7 @@ Get-ChildItem $AppDir -Recurse -Directory -Filter "__pycache__" | Remove-Item -R
 
 # 6. Scripts de inicio y desinstalación
 Paso "Creando accesos de inicio"
-$Iniciar = Join-Path $Destino "Iniciar Auditoria ESE.cmd"
+$Iniciar = Join-Path $Destino "Iniciar Conciliacion RIPS ESE.cmd"
 @"
 @echo off
 title Auditoria ESE Moreno y Clavijo - no cierre esta ventana mientras use la herramienta
@@ -122,14 +122,14 @@ Copy-Item -Force (Join-Path $PSScriptRoot "desinstalar.ps1") (Join-Path $Destino
 @echo off
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0desinstalar.ps1"
 pause
-"@ | Set-Content -Path (Join-Path $Destino "Desinstalar Auditoria ESE.cmd") -Encoding ASCII
+"@ | Set-Content -Path (Join-Path $Destino "Desinstalar Conciliacion RIPS ESE.cmd") -Encoding ASCII
 
 if (-not $SinAccesos) {
     $Shell = New-Object -ComObject WScript.Shell
     $Escritorio = [Environment]::GetFolderPath("Desktop")
-    $MenuInicio = Join-Path ([Environment]::GetFolderPath("Programs")) "Auditoria ESE"
+    $MenuInicio = Join-Path ([Environment]::GetFolderPath("Programs")) "Conciliacion RIPS ESE"
     New-Item -ItemType Directory -Force -Path $MenuInicio | Out-Null
-    foreach ($lnk in @((Join-Path $Escritorio "Auditoria ESE.lnk"), (Join-Path $MenuInicio "Auditoria ESE.lnk"))) {
+    foreach ($lnk in @((Join-Path $Escritorio "Conciliacion RIPS ESE.lnk"), (Join-Path $MenuInicio "Conciliacion RIPS ESE.lnk"))) {
         $a = $Shell.CreateShortcut($lnk)
         $a.TargetPath = $Iniciar
         $a.WorkingDirectory = $Destino
@@ -138,8 +138,8 @@ if (-not $SinAccesos) {
         $a.Description = "Auditoría financiera y de servicios - ESE Moreno y Clavijo"
         $a.Save()
     }
-    $d = $Shell.CreateShortcut((Join-Path $MenuInicio "Desinstalar Auditoria ESE.lnk"))
-    $d.TargetPath = Join-Path $Destino "Desinstalar Auditoria ESE.cmd"
+    $d = $Shell.CreateShortcut((Join-Path $MenuInicio "Desinstalar Conciliacion RIPS ESE.lnk"))
+    $d.TargetPath = Join-Path $Destino "Desinstalar Conciliacion RIPS ESE.cmd"
     $d.WorkingDirectory = $Destino
     $d.Save()
 }
@@ -156,7 +156,7 @@ Write-Host ""
 Write-Host "Instalación terminada." -ForegroundColor Green
 Write-Host "  Aplicación: $AppDir"
 Write-Host "  Datos:      $Datos  (se conservan al actualizar o reinstalar)"
-Write-Host "  Para abrirla use el acceso directo 'Auditoria ESE' del escritorio o del menú Inicio."
+Write-Host "  Para abrirla use el acceso directo 'Conciliacion RIPS ESE' del escritorio o del menú Inicio."
 
 if (-not $NoIniciar) {
     Write-Host "Iniciando la herramienta en su navegador..."

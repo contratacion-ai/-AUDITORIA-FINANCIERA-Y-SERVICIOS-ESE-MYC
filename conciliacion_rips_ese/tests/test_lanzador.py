@@ -23,7 +23,7 @@ def test_otro_programa_no_se_confunde_con_la_herramienta():
 
 
 def test_carpeta_de_datos_configurable(monkeypatch, tmp_path):
-    monkeypatch.setenv("AUDITORIA_ESE_DATOS", str(tmp_path))
+    monkeypatch.setenv("CONCILIACION_RIPS_ESE_DATOS", str(tmp_path))
     assert lanzador.carpeta_datos_por_defecto() == tmp_path
 
 

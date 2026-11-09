@@ -4,12 +4,12 @@
 * No genera conflictos con otras herramientas:
   - usa su propio Python y sus propias librerías (no toca el Python del sistema, el PATH ni el registro);
   - escucha solo en 127.0.0.1 (no se expone en la red ni pide abrir el firewall);
-  - busca un puerto libre a partir del 8765 y nunca toma uno ocupado por otro programa;
+  - busca un puerto libre a partir del 8640 y nunca toma uno ocupado por otro programa;
   - si ya está abierta, reutiliza la instancia en lugar de iniciar otra.
 * Se abre en el navegador predeterminado; la dirección se muestra para usarla en cualquier navegador
   (Chrome, Edge, Firefox, Brave, Opera...).
 
-Uso:  python lanzador.py [--puerto 8765] [--sin-navegador] [--datos CARPETA]
+Uso:  python lanzador.py [--puerto 8640] [--sin-navegador] [--datos CARPETA]
 """
 
 from __future__ import annotations
@@ -26,19 +26,19 @@ import webbrowser
 from pathlib import Path
 
 APP = Path(__file__).resolve().parent.parent          # carpeta con manage.py
-FIRMA_SALUD = "auditoria-ese-myc-ok"
-PUERTO_INICIAL = 8765
+FIRMA_SALUD = "conciliacion-rips-ese-myc-ok"
+PUERTO_INICIAL = 8640
 INTENTOS_PUERTO = 100
 
 
 def carpeta_datos_por_defecto() -> Path:
-    if os.environ.get("AUDITORIA_ESE_DATOS"):
-        return Path(os.environ["AUDITORIA_ESE_DATOS"])
+    if os.environ.get("CONCILIACION_RIPS_ESE_DATOS"):
+        return Path(os.environ["CONCILIACION_RIPS_ESE_DATOS"])
     if os.name == "nt":
-        return Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "AuditoriaESE" / "datos"
+        return Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "ConciliacionRIPS_ESE" / "datos"
     if sys.platform == "darwin":
-        return Path.home() / "Library" / "Application Support" / "AuditoriaESE" / "datos"
-    return Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / "auditoria-ese" / "datos"
+        return Path.home() / "Library" / "Application Support" / "ConciliacionRIPS_ESE" / "datos"
+    return Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / "conciliacion-rips-ese" / "datos"
 
 
 def es_nuestra_instancia(puerto: int) -> bool:
@@ -85,7 +85,7 @@ def abrir_navegador(url: str) -> None:
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="Inicia la herramienta de Auditoría ESE en el navegador")
-    p.add_argument("--puerto", type=int, default=PUERTO_INICIAL, help="Puerto inicial a probar (por defecto 8765)")
+    p.add_argument("--puerto", type=int, default=PUERTO_INICIAL, help="Puerto inicial a probar (por defecto 8640)")
     p.add_argument("--sin-navegador", action="store_true", help="No abrir el navegador automáticamente")
     p.add_argument("--datos", type=Path, default=None, help="Carpeta de datos (base de datos y archivos cargados)")
     args = p.parse_args(argv)
@@ -142,7 +142,7 @@ def main(argv=None) -> int:
 
     try:
         serve(get_wsgi_application(), host="127.0.0.1", port=puerto, threads=8,
-              max_request_body_size=2 * 1024 ** 3, channel_timeout=600, ident="AuditoriaESE")
+              max_request_body_size=2 * 1024 ** 3, channel_timeout=600, ident="ConciliacionRIPS_ESE")
     except KeyboardInterrupt:
         pass
     finally:

@@ -2,7 +2,7 @@
   Desinstala la herramienta de Auditoría ESE (solo lo que creó el instalador, sin permisos de administrador).
   Pregunta antes de borrar los datos (auditorías, conciliaciones y archivos cargados).
 #>
-param([string]$Destino = (Join-Path $env:LOCALAPPDATA "AuditoriaESE"))
+param([string]$Destino = (Join-Path $env:LOCALAPPDATA "ConciliacionRIPS_ESE"))
 $ErrorActionPreference = "Continue"
 
 $PyDir = Join-Path $Destino "python"
@@ -10,10 +10,10 @@ Get-Process -ErrorAction SilentlyContinue | Where-Object {
     $_.Path -and $_.Path.StartsWith($PyDir, [StringComparison]::OrdinalIgnoreCase)
 } | Stop-Process -Force -ErrorAction SilentlyContinue
 
-Remove-Item -Force (Join-Path ([Environment]::GetFolderPath("Desktop")) "Auditoria ESE.lnk") -ErrorAction SilentlyContinue
-Remove-Item -Recurse -Force (Join-Path ([Environment]::GetFolderPath("Programs")) "Auditoria ESE") -ErrorAction SilentlyContinue
+Remove-Item -Force (Join-Path ([Environment]::GetFolderPath("Desktop")) "Conciliacion RIPS ESE.lnk") -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force (Join-Path ([Environment]::GetFolderPath("Programs")) "Conciliacion RIPS ESE") -ErrorAction SilentlyContinue
 Remove-Item -Recurse -Force $PyDir, (Join-Path $Destino "app"), (Join-Path $Destino "temp_instalacion") -ErrorAction SilentlyContinue
-Remove-Item -Force (Join-Path $Destino "Iniciar Auditoria ESE.cmd") -ErrorAction SilentlyContinue
+Remove-Item -Force (Join-Path $Destino "Iniciar Conciliacion RIPS ESE.cmd") -ErrorAction SilentlyContinue
 
 $Datos = Join-Path $Destino "datos"
 if (Test-Path $Datos) {
@@ -27,4 +27,4 @@ if (Test-Path $Datos) {
 }
 Write-Host "La herramienta fue desinstalada."
 # Se elimina a sí mismo y la carpeta si quedó vacía
-Start-Process -WindowStyle Hidden -FilePath "cmd.exe" -ArgumentList "/c timeout /t 2 >nul & del /q `"$Destino\desinstalar.ps1`" `"$Destino\Desinstalar Auditoria ESE.cmd`" & rmdir `"$Destino`" 2>nul"
+Start-Process -WindowStyle Hidden -FilePath "cmd.exe" -ArgumentList "/c timeout /t 2 >nul & del /q `"$Destino\desinstalar.ps1`" `"$Destino\Desinstalar Conciliacion RIPS ESE.cmd`" & rmdir `"$Destino`" 2>nul"
