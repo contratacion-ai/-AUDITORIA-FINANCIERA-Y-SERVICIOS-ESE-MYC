@@ -67,6 +67,9 @@ INSTALAR (Windows 10/11 de 64 bits, NO requiere administrador ni Internet):
 - Para ACTUALIZAR, ejecute de nuevo INSTALAR_WINDOWS.bat de una version nueva:
   sus datos se conservan.
 - Para DESINSTALAR: menu Inicio > Conciliacion RIPS ESE > Desinstalar.
+- La herramienta NO pide usuario ni contrasena. Solo el panel opcional
+  "Administracion" (/admin) los pide, y no trae ninguno de fabrica: creelo con
+  menu Inicio > Conciliacion RIPS ESE > Crear usuario administrador.
 
 Si Windows muestra "Windows protegio su PC", pulse "Mas informacion" y luego
 "Ejecutar de todas formas" (el instalador es un script, no un programa firmado).

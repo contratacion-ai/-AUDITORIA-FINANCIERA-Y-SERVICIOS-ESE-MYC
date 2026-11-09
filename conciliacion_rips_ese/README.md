@@ -46,6 +46,11 @@ El instalador:
 - **Se actualiza volviendo a ejecutarlo.** Reemplaza la aplicación y **conserva los datos**
   (`%LOCALAPPDATA%\ConciliacionRIPS_ESE\datos`: base de datos y archivos cargados).
 - **Se desinstala** desde *Inicio → Conciliacion RIPS ESE → Desinstalar*. Pregunta antes de borrar los datos.
+- **Panel de Administración (opcional):** la herramienta se usa sin iniciar sesión. El panel
+  `/admin/` sí pide usuario y contraseña, y **no trae ninguno de fábrica**. Para crearlo, abra
+  *Inicio → Conciliacion RIPS ESE → Crear usuario administrador*, escriba un nombre y una contraseña
+  (no se ven al escribir). Si olvida la contraseña, ejecútelo de nuevo con el mismo nombre para
+  restablecerla.
 
 **Paquete "todo incluido" (recomendado para distribuir en la ESE):**
 `bash instalador/construir_paquete_windows.sh`, ejecutado en Linux o macOS, genera

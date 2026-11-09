@@ -30,3 +30,18 @@ def test_carpeta_de_datos_configurable(monkeypatch, tmp_path):
 @pytest.mark.django_db
 def test_endpoint_salud(client):
     assert client.get("/salud/").content.decode() == lanzador.FIRMA_SALUD
+
+
+@pytest.mark.django_db
+def test_crear_administrador_sin_preguntas(monkeypatch, tmp_path):
+    import django.conf
+
+    monkeypatch.setenv("DJANGO_SUPERUSER_USERNAME", "auditor")
+    monkeypatch.setenv("DJANGO_SUPERUSER_PASSWORD", "Clave-Segura-2026")
+    monkeypatch.setattr(lanzador, "preparar_entorno", lambda datos: None)   # usa la BD de pruebas
+    assert lanzador.main(["--crear-administrador", "--datos", str(tmp_path)]) == 0
+    from django.contrib.auth import get_user_model
+
+    u = get_user_model().objects.get(username="auditor")
+    assert u.is_superuser and u.is_staff and u.check_password("Clave-Segura-2026")
+    assert django.conf.settings.configured

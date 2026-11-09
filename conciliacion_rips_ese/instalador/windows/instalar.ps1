@@ -135,6 +135,15 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0desinstalar.ps1"
 pause
 "@ | Set-Content -Path (Join-Path $Destino "Desinstalar Conciliacion RIPS ESE.cmd") -Encoding ASCII
 
+# Usuario del panel de Administración (/admin). Opcional: la herramienta se usa sin iniciar sesión.
+@"
+@echo off
+title Crear usuario administrador - Conciliacion RIPS ESE
+cd /d "%~dp0app"
+"%~dp0python\python.exe" "%~dp0app\escritorio\lanzador.py" --crear-administrador
+pause
+"@ | Set-Content -Path (Join-Path $Destino "Crear usuario administrador.cmd") -Encoding ASCII
+
 if (-not $SinAccesos) {
     $Shell = New-Object -ComObject WScript.Shell
     $Escritorio = [Environment]::GetFolderPath("Desktop")
@@ -153,6 +162,10 @@ if (-not $SinAccesos) {
     $d.TargetPath = Join-Path $Destino "Desinstalar Conciliacion RIPS ESE.cmd"
     $d.WorkingDirectory = $Destino
     $d.Save()
+    $u = $Shell.CreateShortcut((Join-Path $MenuInicio "Crear usuario administrador.lnk"))
+    $u.TargetPath = Join-Path $Destino "Crear usuario administrador.cmd"
+    $u.WorkingDirectory = $Destino
+    $u.Save()
 }
 
 # 7. Verificación rápida

@@ -83,15 +83,60 @@ def abrir_navegador(url: str) -> None:
         pass
 
 
+def crear_administrador(datos: Path) -> int:
+    """Crea (o restablece) un usuario del panel de Administración en la base de datos del usuario.
+
+    El panel /admin es opcional: la herramienta se usa sin iniciar sesión. Si existen las variables
+    DJANGO_SUPERUSER_USERNAME y DJANGO_SUPERUSER_PASSWORD se crea sin preguntar.
+    """
+    preparar_entorno(datos)
+    import django
+    from django.core.management import call_command
+
+    django.setup()
+    call_command("migrate", interactive=False, verbosity=0)
+    from django.contrib.auth import get_user_model
+
+    Usuario = get_user_model()
+    print("Creación de usuario para el panel de Administración (opcional).")
+    if os.environ.get("DJANGO_SUPERUSER_USERNAME") and os.environ.get("DJANGO_SUPERUSER_PASSWORD"):
+        nombre = os.environ["DJANGO_SUPERUSER_USERNAME"]
+        clave = os.environ["DJANGO_SUPERUSER_PASSWORD"]
+    else:
+        import getpass
+
+        nombre = input("Nombre de usuario: ").strip()
+        while True:
+            clave = getpass.getpass("Contraseña (no se muestra al escribir): ")
+            if clave and clave == getpass.getpass("Repita la contraseña: "):
+                break
+            print("Las contraseñas no coinciden o están vacías. Intente de nuevo.")
+    if not nombre:
+        print("Debe escribir un nombre de usuario.")
+        return 1
+    usuario, creado = Usuario.objects.get_or_create(username=nombre)
+    usuario.is_staff = usuario.is_superuser = usuario.is_active = True
+    usuario.set_password(clave)
+    usuario.save()
+    print(f"Usuario '{nombre}' {'creado' if creado else 'actualizado (contraseña restablecida)'}. "
+          "Úselo en Administración: http://127.0.0.1:<puerto>/admin/")
+    return 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="Inicia la herramienta de Auditoría ESE en el navegador")
     p.add_argument("--puerto", type=int, default=PUERTO_INICIAL, help="Puerto inicial a probar (por defecto 8640)")
     p.add_argument("--sin-navegador", action="store_true", help="No abrir el navegador automáticamente")
     p.add_argument("--datos", type=Path, default=None, help="Carpeta de datos (base de datos y archivos cargados)")
+    p.add_argument("--crear-administrador", action="store_true",
+                   help="Crea un usuario para el panel de Administración (/admin) y termina")
     args = p.parse_args(argv)
 
     datos = args.datos or carpeta_datos_por_defecto()
     archivo_puerto = datos / "puerto_en_uso.txt"
+
+    if args.crear_administrador:
+        return crear_administrador(datos)
 
     # ¿Ya hay una instancia abierta? Reutilizarla.
     if archivo_puerto.exists():

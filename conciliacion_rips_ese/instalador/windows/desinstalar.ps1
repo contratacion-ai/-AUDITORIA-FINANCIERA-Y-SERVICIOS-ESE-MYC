@@ -14,6 +14,7 @@ Remove-Item -Force (Join-Path ([Environment]::GetFolderPath("Desktop")) "Concili
 Remove-Item -Recurse -Force (Join-Path ([Environment]::GetFolderPath("Programs")) "Conciliacion RIPS ESE") -ErrorAction SilentlyContinue
 Remove-Item -Recurse -Force $PyDir, (Join-Path $Destino "app"), (Join-Path $Destino "temp_instalacion") -ErrorAction SilentlyContinue
 Remove-Item -Force (Join-Path $Destino "Iniciar Conciliacion RIPS ESE.cmd") -ErrorAction SilentlyContinue
+Remove-Item -Force (Join-Path $Destino "Crear usuario administrador.cmd") -ErrorAction SilentlyContinue
 
 $Datos = Join-Path $Destino "datos"
 if (Test-Path $Datos) {
