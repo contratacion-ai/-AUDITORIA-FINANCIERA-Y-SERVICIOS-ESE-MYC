@@ -11,16 +11,61 @@ rips_conciliacion/   Motor en Python/Pandas, independiente de Django (también s
 auditoria/           Herramienta de auditoría: encargos de auditoría y hallazgos
 conciliacion/        App Django: carga y gestión de archivos, procesamiento, tablero y exportación
 templates/           Interfaz web en español
+escritorio/          Lanzador de escritorio (puerto libre, abre el navegador, datos del usuario)
+instalador/          Instaladores sin administrador para Windows y Linux/macOS
 ejemplos/            Archivos de demostración (ZIP 3374, RAR 2275, facturación, catálogo, equivalencias)
 tests/               Pruebas automáticas (pytest)
 ```
 
-## Instalación
+## Instalación para usuarios (sin permisos de administrador)
+
+### Windows 10/11 (64 bits)
+
+1. Descargue el proyecto (botón **Code → Download ZIP** en GitHub) y descomprímalo.
+2. Haga doble clic en **`INSTALAR_WINDOWS.bat`**.
+3. Al terminar, la herramienta se abre en el navegador. Después se abre con el acceso directo
+   **"Auditoria ESE"** del escritorio o del menú Inicio.
+
+El instalador:
+- **No pide permisos de administrador.** Instala todo en `%LOCALAPPDATA%\AuditoriaESE`, la carpeta del
+  usuario.
+- **No interfiere con otras herramientas.** Trae su propio Python aislado (versión "embebida"), así que
+  no modifica el PATH, el registro, el Python que ya tenga el equipo ni otros programas. Los accesos
+  directos son solo del usuario. La herramienta escucha solo en `127.0.0.1` (no se expone en la red ni
+  pide abrir el firewall). Busca un puerto libre a partir del 8765 y nunca usa uno ocupado por otro
+  programa. Si ya está abierta, reutiliza la instancia en lugar de abrir otra.
+- **Funciona en cualquier navegador** (Edge, Chrome, Firefox, Brave, Opera). Se abre en el navegador
+  predeterminado y la ventana de inicio muestra la dirección (por ejemplo, `http://127.0.0.1:8765/`)
+  para pegarla en otro. No usa CDN ni dependencias de Internet al ejecutarse: las gráficas vienen
+  incluidas.
+- **Se actualiza volviendo a ejecutarlo.** Reemplaza la aplicación y **conserva los datos**
+  (`%LOCALAPPDATA%\AuditoriaESE\datos`: base de datos y archivos cargados).
+- **Se desinstala** desde *Inicio → Auditoria ESE → Desinstalar*. Pregunta antes de borrar los datos.
+
+**Equipos sin Internet o con navegación restringida:** en un equipo con Internet ejecute
+`instalador\windows\preparar_offline.ps1` (clic derecho → *Ejecutar con PowerShell*). Eso crea la carpeta
+`instalador\windows\offline` con Python y todas las librerías. Copie el proyecto completo al equipo
+destino y ejecute `INSTALAR_WINDOWS.bat`.
+
+> Si una política de grupo de la ESE bloquea los scripts de PowerShell, el área de sistemas puede
+> permitir este instalador; no requiere privilegios elevados.
+
+### Linux / macOS
+
+```bash
+bash instalador/linux_mac/instalar.sh
+```
+
+Requiere Python 3.11 o superior. Instala en `~/.local/share/auditoria-ese` (Linux) o en
+`~/Library/Application Support/AuditoriaESE` (macOS) con un entorno virtual propio, sin `sudo`.
+Para abrir la herramienta use el script `iniciar.sh` que indica el instalador.
+
+## Instalación para desarrollo
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 python manage.py migrate
 python manage.py createsuperuser   # opcional, para /admin
 python manage.py runserver
@@ -28,10 +73,10 @@ python manage.py runserver
 
 Abra http://127.0.0.1:8000. Para probar con datos de ejemplo: `python manage.py cargar_demo`.
 
-**RAR:** los RAR comprimidos necesitan que el servidor tenga instalado `unrar`, `unar`, `7z` o `bsdtar`
-(`apt install unrar` o `libarchive-tools`; en Windows, 7-Zip o WinRAR en el PATH). Si falta, la
-herramienta informa qué archivo no pudo extraer y sigue con el resto. Los RAR "almacenados" (sin
-compresión) se leen sin herramientas externas.
+**RAR:** los RAR comprimidos se extraen con una herramienta que ya tenga el equipo, sin instalar nada
+más. En Windows se detectan automáticamente WinRAR, 7-Zip o el `tar.exe` que trae Windows 10/11. En
+Linux/macOS se usa `unrar`, `unar`, `7z` o `bsdtar`. Si no hay ninguna, la herramienta informa qué
+archivo no pudo extraer y sigue con el resto. Los RAR "almacenados" (sin compresión) se leen siempre.
 
 ## Uso con los archivos reales de la ESE
 

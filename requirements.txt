@@ -1,6 +1,8 @@
-Django>=5.0
-pandas>=2.1
-openpyxl>=3.1
-rarfile>=4.1
-pytest>=8.0
-pytest-django>=4.8
+# Dependencias de la aplicación (todas con paquetes binarios para Windows, Linux y macOS)
+Django>=5.2,<7
+pandas>=2.2,<4
+openpyxl>=3.1,<4
+rarfile>=4.1,<5
+waitress>=3.0,<4
+whitenoise>=6.6,<7
+tzdata>=2024.1

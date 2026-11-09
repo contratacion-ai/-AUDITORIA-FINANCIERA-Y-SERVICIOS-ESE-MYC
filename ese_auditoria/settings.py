@@ -77,7 +77,7 @@ USE_TZ = True
 USE_THOUSAND_SEPARATOR = True
 
 STATIC_URL = "static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_ROOT = Path(os.environ.get("DJANGO_STATIC_ROOT", BASE_DIR / "staticfiles"))
 MEDIA_URL = "media/"
 MEDIA_ROOT = Path(os.environ.get("DJANGO_MEDIA_ROOT", BASE_DIR / "media"))
 
@@ -88,3 +88,7 @@ DATA_UPLOAD_MAX_NUMBER_FILES = 500
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_URL = "/admin/login/"
+
+# Versión instalada (DEBUG=0): whitenoise sirve los archivos estáticos sin servidor web adicional.
+if not DEBUG:
+    MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")

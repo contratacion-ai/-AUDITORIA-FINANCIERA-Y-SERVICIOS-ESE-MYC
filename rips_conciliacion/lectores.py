@@ -307,12 +307,35 @@ def _leer_zip(
     return res
 
 
+_RAR_CONFIGURADO = False
+
+
+def _configurar_herramientas_rar(rarfile) -> None:
+    """En Windows usa las herramientas que ya tenga el equipo (sin instalar nada):
+    UnRAR de WinRAR, 7-Zip o el ``tar.exe`` (libarchive) incluido en Windows 10/11."""
+    global _RAR_CONFIGURADO
+    if _RAR_CONFIGURADO or os.name != "nt":
+        return
+    _RAR_CONFIGURADO = True
+    carpetas = [os.environ.get(v) for v in ("ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA")]
+    for base in filter(None, carpetas):
+        unrar = Path(base) / "WinRAR" / "UnRAR.exe"
+        if unrar.exists():
+            rarfile.UNRAR_TOOL = str(unrar)
+        siete = Path(base) / "7-Zip" / "7z.exe"
+        if siete.exists():
+            rarfile.SEVENZIP_TOOL = str(siete)
+    rarfile.BSDTAR_TOOL = "tar"
+
+
 def _leer_rar(
     nombre: str, contenido: bytes, ctx: Contexto, profundidad: int
 ) -> ResultadoCarga:
     res = ResultadoCarga(archivo=nombre)
     try:
         import rarfile
+
+        _configurar_herramientas_rar(rarfile)
     except ImportError:  # pragma: no cover
         res.incidencia(
             ERROR, "Para leer RAR instale el paquete 'rarfile' (pip install rarfile)"
