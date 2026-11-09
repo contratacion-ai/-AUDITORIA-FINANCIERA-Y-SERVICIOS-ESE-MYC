@@ -15,7 +15,8 @@ RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"      # carpeta conciliac
 TRABAJO="$(mktemp -d)"
 trap 'rm -rf "$TRABAJO"' EXIT
 FECHA="$(date +%Y%m%d)"
-NOMBRE="Instalador_ConciliacionRIPS_ESE_${FECHA}"
+NOMBRE="ConciliacionRIPS"                                   # carpeta raíz corta (rutas cortas en Windows)
+ZIP_SALIDA="Instalador_ConciliacionRIPS_ESE_${FECHA}.zip"
 SALIDA="$RAIZ/dist"
 DESTINO="$TRABAJO/$NOMBRE"
 
@@ -33,13 +34,13 @@ done
 rm -rf "$DESTINO/instalador/windows/offline" "$DESTINO/dist"
 find "$DESTINO" -name __pycache__ -type d -prune -exec rm -rf {} +
 
-PYDIR="$DESTINO/instalador/windows/offline/python_listo"
+PYDIR="$TRABAJO/python"   # se empaqueta aparte en python.zip
 mkdir -p "$PYDIR"
 cp -R "$TRABAJO/nupkg/tools/." "$PYDIR/"
 
 echo "==> Instalando librerías para Windows de 64 bits dentro del Python portable"
 python3 -m pip install --disable-pip-version-check -q \
-  --target "$PYDIR/Lib/site-packages" --upgrade \
+  --target "$PYDIR/Lib/site-packages" --upgrade --no-compile \
   --platform win_amd64 --python-version "${PY_VERSION%.*}" --implementation cp --only-binary=:all: \
   -r "$RAIZ/requirements.txt"
 
@@ -49,6 +50,17 @@ MAYOR_MENOR="$(echo "$PY_VERSION" | awk -F. '{print $1$2}')"
 printf 'python%s.zip\r\nLib\r\nDLLs\r\nLib\\site-packages\r\n..\\app\r\nimport site\r\n' "$MAYOR_MENOR" \
   > "$PYDIR/python${MAYOR_MENOR}._pth"
 echo "$PY_VERSION" > "$PYDIR/VERSION_CONCILIACION_RIPS_ESE.txt"
+
+# Sin cachés de bytecode (las de este equipo no sirven en Windows y alargan las rutas)
+find "$PYDIR" -name __pycache__ -type d -prune -exec rm -rf {} +
+find "$PYDIR" -name "*.pyc" -delete
+
+# Windows limita las rutas a 260 caracteres al descomprimir con el Explorador. Por eso Python va en un
+# solo archivo (python.zip) que el instalador abre directamente en %LOCALAPPDATA%\ConciliacionRIPS_ESE.
+LARGA="$(cd "$PYDIR" && find . -type f | awk 'length($0)>m{m=length($0)} END{print m+0}')"
+if [ "$LARGA" -gt 150 ]; then echo "Ruta interna demasiado larga ($LARGA)"; exit 1; fi
+mkdir -p "$DESTINO/instalador/windows/offline"
+(cd "$PYDIR" && zip -qr -9 "$DESTINO/instalador/windows/offline/python.zip" .)
 
 cat > "$DESTINO/LEAME_PRIMERO.txt" <<'EOF'
 CONCILIACION FACTURACION vs RIPS - ESE MORENO Y CLAVIJO
@@ -78,6 +90,8 @@ sed -i 's/$/\r/' "$DESTINO/LEAME_PRIMERO.txt"
 
 echo "==> Comprimiendo"
 mkdir -p "$SALIDA"
-rm -f "$SALIDA/$NOMBRE.zip"
-(cd "$TRABAJO" && zip -qr -9 "$SALIDA/$NOMBRE.zip" "$NOMBRE")
-echo "Instalador listo: $SALIDA/$NOMBRE.zip ($(du -h "$SALIDA/$NOMBRE.zip" | cut -f1))"
+rm -f "$SALIDA/$ZIP_SALIDA"
+find "$DESTINO" -name __pycache__ -type d -prune -exec rm -rf {} +
+(cd "$TRABAJO" && zip -qr -9 "$SALIDA/$ZIP_SALIDA" "$NOMBRE")
+MAX_EXTERNA="$(unzip -Z1 "$SALIDA/$ZIP_SALIDA" | awk 'length($0)>m{m=length($0)} END{print m+0}')"
+echo "Instalador listo: $SALIDA/$ZIP_SALIDA ($(du -h "$SALIDA/$ZIP_SALIDA" | cut -f1), $(unzip -Z1 "$SALIDA/$ZIP_SALIDA" | wc -l) archivos, ruta más larga $MAX_EXTERNA caracteres)"

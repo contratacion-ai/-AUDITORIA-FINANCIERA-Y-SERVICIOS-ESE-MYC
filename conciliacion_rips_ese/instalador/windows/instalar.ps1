@@ -49,7 +49,15 @@ Get-Process -ErrorAction SilentlyContinue | Where-Object {
 # 2-4. Python propio (aislado) con sus librerías
 $PythonListo = Join-Path $Offline "python_listo"
 $PythonExe = Join-Path $PyDir "python.exe"
-if (Test-Path (Join-Path $PythonListo "python.exe")) {
+$PythonZipListo = Join-Path $Offline "python.zip"
+if (Test-Path $PythonZipListo) {
+    # Paquete "todo incluido": Python y librerías comprimidos en un solo archivo para evitar el límite
+    # de 260 caracteres de Windows al descomprimir. Se abre directamente en la carpeta de destino (ruta corta).
+    Paso "Copiando Python y librerías incluidos en el paquete (sin Internet, puede tardar un minuto)"
+    if (Test-Path $PyDir) { Remove-Item -Recurse -Force $PyDir }
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($PythonZipListo, $PyDir)
+} elseif (Test-Path (Join-Path $PythonListo "python.exe")) {
     # Paquete "todo incluido" (construir_paquete_windows.sh): Python y librerías ya preparados.
     # Solo se copian archivos: no se descarga nada ni se necesita Internet.
     Paso "Copiando Python y librerías incluidos en el paquete (sin Internet)"

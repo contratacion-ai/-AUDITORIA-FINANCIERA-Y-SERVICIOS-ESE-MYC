@@ -57,7 +57,9 @@ El instalador:
 `dist/Instalador_ConciliacionRIPS_ESE_<fecha>.zip` (unos 70 MB). El paquete trae Python 3.12 oficial
 (paquete NuGet de la Python Software Foundation) con todas las librerías ya instaladas para Windows.
 Se descomprime, se hace doble clic en `INSTALAR_WINDOWS.bat` y el instalador solo copia archivos:
-no descarga nada ni necesita Internet.
+no descarga nada ni necesita Internet. Python va dentro de un único `python.zip` que el instalador abre
+directamente en `%LOCALAPPDATA%`. Así el paquete solo tiene unos 100 archivos con rutas cortas y se puede
+descomprimir con el Explorador de Windows sin el error *"Ruta de acceso demasiado larga" (0x80010135)*.
 
 **Equipos sin Internet o con navegación restringida:** en un equipo con Internet ejecute
 `instalador\windows\preparar_offline.ps1` (clic derecho → *Ejecutar con PowerShell*). Eso crea la carpeta
