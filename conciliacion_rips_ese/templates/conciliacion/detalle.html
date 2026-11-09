@@ -27,25 +27,33 @@
   </p>
 </div>
 
-<h2>1. Archivos cargados</h2>
-<div class="tarjeta">
-  <form method="post" enctype="multipart/form-data" action="{% url 'conciliacion:cargar' c.pk %}" class="fila">
+<h2>1. Cargar archivos</h2>
+<div class="tarjeta" style="border:2px solid var(--azul)">
+  <form method="post" enctype="multipart/form-data" action="{% url 'conciliacion:cargar' c.pk %}">
     {% csrf_token %}
-    <div><label>Tipo</label>{{ form_carga.tipo }}</div>
-    <div><label>Archivos (puede seleccionar varios)</label>{{ form_carga.archivos }}</div>
-    <div><label>Sede (opcional)</label>{{ form_carga.sede }}</div>
-    <div><label>Hospital (opcional)</label>{{ form_carga.hospital }}</div>
-    <div><label>Ámbito (solo facturación)</label>{{ form_carga.ambito }}</div>
-    <div style="align-self:end"><button class="btn" type="submit">Cargar</button></div>
+    <p><strong>Paso 1.</strong> Pulse el botón y seleccione los archivos: RIPS (ZIP, RAR, TXT o JSON) y facturación
+      (Excel o CSV). Puede seleccionar varios a la vez con Ctrl o Shift.</p>
+    <p>{{ form_carga.archivos }}</p>
+    <p><strong>Paso 2.</strong> <button class="btn" type="submit">⬆ Cargar archivos seleccionados</button></p>
+    <details><summary>Opciones (normalmente no hace falta cambiarlas)</summary>
+      <div class="fila">
+        <div><label>Tipo de archivo</label>{{ form_carga.tipo }}</div>
+        <div><label>Sede (opcional)</label>{{ form_carga.sede }}</div>
+        <div><label>Hospital (opcional)</label>{{ form_carga.hospital }}</div>
+        <div><label>Ámbito (solo facturación)</label>{{ form_carga.ambito }}</div>
+      </div>
+    </details>
   </form>
-  <p class="ayuda">RIPS: TXT (Res. 3374/2000), JSON (Res. 2275/2023) o paquetes ZIP/RAR por sede con carpetas por mes.
-    Facturación: CSV/TXT/XLSX con encabezado (una hoja o archivo por ámbito). Si no indica sede/hospital, se infieren
-    del catálogo de sedes o de los nombres de paquete/carpeta. Un archivo idéntico a uno ya cargado no se duplica.</p>
+  <p class="ayuda">El tipo de cada archivo se detecta solo: ZIP, RAR, JSON y TXT con estructura RIPS se cargan como RIPS;
+    Excel y CSV como facturación (si el nombre dice "catalogo"/"sedes" o "equivalencias", como esos). Si no indica
+    sede/hospital, se infieren del catálogo de sedes o de los nombres de paquete/carpeta. Un archivo idéntico a uno ya
+    cargado no se duplica. Después de cargar, pulse <strong>⚙ Procesar conciliación</strong>.</p>
 </div>
 
+<h2>Archivos cargados</h2>
 <div class="tabla-scroll">
 <table>
-  <thead><tr><th>Tipo</th><th>Archivo</th><th class="n">Tamaño</th><th class="n">Versión</th><th>Sede / Hospital / Ámbito / Activo</th>
+  <thead><tr><th>Tipo</th><th>Archivo</th><th class="n">Tamaño</th><th class="n">Versión</th><th>Tipo / Sede / Hospital / Ámbito / Activo</th>
     <th>Reemplazar</th><th></th></tr></thead>
   <tbody>
   {% for a in archivos %}
@@ -56,6 +64,7 @@
       <td class="n">v{{ a.version }}</td>
       <td>
         <form method="post" action="{% url 'conciliacion:actualizar' a.pk %}">{% csrf_token %}
+          <select name="tipo">{% for v, t in tipos %}<option value="{{ v }}" {% if a.tipo == v %}selected{% endif %}>{{ v }}</option>{% endfor %}</select>
           <input name="sede" value="{{ a.sede }}" placeholder="Sede" size="10">
           <input name="hospital" value="{{ a.hospital }}" placeholder="Hospital" size="12">
           <input name="ambito" value="{{ a.ambito }}" placeholder="Ámbito" size="10">

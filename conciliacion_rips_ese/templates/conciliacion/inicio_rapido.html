@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block titulo %}Cargar datos{% endblock %}
+{% block contenido %}
+<h1>Cargar datos para conciliar</h1>
+<form method="post" class="tarjeta" style="border:2px solid var(--azul)">
+  {% csrf_token %}
+  <p>Indique un nombre para esta conciliación y pulse <strong>Continuar</strong>. En la siguiente pantalla
+    seleccionará los archivos de RIPS y de facturación.</p>
+  {{ form.as_p }}
+  <button class="btn" type="submit">Continuar → seleccionar archivos</button>
+</form>
+{% if recientes %}
+<h2>O continúe una conciliación existente</h2>
+<table>
+  <thead><tr><th>Conciliación</th><th>Auditoría</th><th>Estado</th><th class="n">Archivos</th></tr></thead>
+  <tbody>{% for c in recientes %}
+    <tr><td><a href="{{ c.get_absolute_url }}">{{ c.nombre }}</a></td><td>{{ c.auditoria }}</td>
+      <td><span class="chip {{ c.estado }}">{{ c.get_estado_display }}</span></td><td class="n">{{ c.archivos.count }}</td></tr>
+  {% endfor %}</tbody>
+</table>
+{% endif %}
+{% endblock %}

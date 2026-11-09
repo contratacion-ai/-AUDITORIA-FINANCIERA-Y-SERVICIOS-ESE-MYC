@@ -5,6 +5,7 @@ from . import views
 app_name = "conciliacion"
 
 urlpatterns = [
+    path("cargar-datos/", views.inicio_rapido, name="inicio_rapido"),
     path("nueva/", views.crear, name="crear"),
     path("criterio-emparejamiento/", views.criterio, name="criterio"),
     path("<int:pk>/", views.detalle, name="detalle"),

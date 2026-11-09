@@ -121,7 +121,8 @@ def test_reemplazar_actualizar_eliminar_y_limpiar(client, conciliacion):
     # Actualizar sede asignada / desactivar
     rips = c.archivos.get(tipo="RIPS")
     client.post(reverse("conciliacion:actualizar", args=[rips.pk]),
-                {"sede": "SEDE TAME", "hospital": "HOSPITAL SAN ANTONIO", "ambito": "", "activo": "on"})
+                {"tipo": "RIPS", "sede": "SEDE TAME", "hospital": "HOSPITAL SAN ANTONIO", "ambito": "",
+                 "activo": "on"})
     rips.refresh_from_db()
     assert rips.sede == "SEDE TAME"
     assert HistorialArchivo.objects.filter(conciliacion=c, accion="ACTUALIZACION").exists()
@@ -195,3 +196,63 @@ def test_formato_moneda_sin_redondeo():
     assert moneda(Decimal("1234567.505000")) == "1.234.567,505"
     assert moneda("-7500.25") == "-7.500,25"
     assert moneda(Decimal("0")) == "0"
+
+
+def test_carga_con_deteccion_automatica_del_tipo(client, conciliacion):
+    c = conciliacion
+    r = subir(client, c, "AUTO", zip_rips(), rar_rips(), csv_fact(),
+              SimpleUploadedFile("catalogo_sedes.csv", b"codigo_prestador;sede;hospital\n810010000101;TAME;HSA\n"),
+              SimpleUploadedFile("AC000009.txt", archivos_3374()["AC000001.txt"]),
+              SimpleUploadedFile("facturacion_urgencias.txt", b"Factura;Codigo;Valor\nF1;890201;100\n"))
+    tipos = dict(c.archivos.values_list("nombre_original", "tipo"))
+    assert tipos == {
+        "RIPS_SEDE_TAME.zip": "RIPS", "RIPS_SEDE_TAME_FEB.rar": "RIPS", "facturacion.csv": "FACTURACION",
+        "catalogo_sedes.csv": "CATALOGO", "AC000009.txt": "RIPS", "facturacion_urgencias.txt": "FACTURACION",
+    }
+    assert "cargado como" in r.content.decode()
+    procesar(client, c)
+    assert c.estado == Conciliacion.Estado.PROCESADA, c.mensaje_error
+
+
+def test_cambiar_tipo_de_un_archivo(client, conciliacion):
+    subir(client, conciliacion, "RIPS", SimpleUploadedFile("datos.txt", b"Factura;Codigo;Valor\nF1;X;1\n"))
+    a = conciliacion.archivos.get()
+    client.post(reverse("conciliacion:actualizar", args=[a.pk]),
+                {"tipo": "FACTURACION", "sede": "", "hospital": "", "ambito": "", "activo": "on"})
+    a.refresh_from_db()
+    assert a.tipo == "FACTURACION"
+
+
+def test_cargar_sin_archivos_muestra_mensaje(client, conciliacion):
+    r = client.post(reverse("conciliacion:cargar", args=[conciliacion.pk]), {"tipo": "AUTO"}, follow=True)
+    assert "Seleccione al menos un archivo" in r.content.decode()
+
+
+def test_inicio_rapido_crea_auditoria_y_conciliacion(client):
+    assert "Cargar datos" in client.get("/").content.decode()
+    r = client.post(reverse("conciliacion:inicio_rapido"), {"nombre": "Enero", "auditoria": "", "nueva_auditoria": ""},
+                    follow=True)
+    c = Conciliacion.objects.get(nombre="Enero")
+    assert c.auditoria.nombre.startswith("Auditoría general")
+    assert "Cargar archivos seleccionados" in r.content.decode()
+
+
+def test_error_inesperado_muestra_causa(client, conciliacion, monkeypatch, settings):
+    from conciliacion import servicios as srv
+
+    def falla(*a, **k):
+        raise PermissionError("Acceso denegado a la carpeta de datos")
+
+    monkeypatch.setattr(srv, "cargar_archivos", falla)
+    r = subir(client, conciliacion, "AUTO", csv_fact())
+    assert "Acceso denegado a la carpeta de datos" in r.content.decode()
+
+
+def test_pagina_500_con_detalle(rf):
+    from ese_auditoria.errores import error_500
+
+    try:
+        raise OSError("disco lleno")
+    except OSError:
+        r = error_500(rf.get("/"))
+    assert r.status_code == 500 and "disco lleno" in r.content.decode()

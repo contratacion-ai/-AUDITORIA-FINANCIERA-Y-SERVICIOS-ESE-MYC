@@ -72,6 +72,7 @@ def preparar_entorno(datos: Path) -> None:
     os.environ["DJANGO_MEDIA_ROOT"] = str(datos / "archivos")
     os.environ["DJANGO_STATIC_ROOT"] = str(datos / "estaticos")
     os.environ["DJANGO_ALLOWED_HOSTS"] = "127.0.0.1,localhost"
+    os.environ["DJANGO_LOG_FILE"] = str(datos / "registro_errores.log")
     if str(APP) not in sys.path:
         sys.path.insert(0, str(APP))
 

@@ -1,4 +1,5 @@
 import io
+import logging
 from decimal import Decimal, InvalidOperation
 
 import pandas as pd
@@ -11,12 +12,40 @@ from django.views.decorators.http import require_POST
 from rips_conciliacion.emparejamiento import __doc__ as CRITERIO
 
 from . import servicios, tablero
-from .forms import ActualizarArchivoForm, CargaArchivosForm, ConciliacionForm, ReemplazoForm, validar_extension
+from .forms import (ActualizarArchivoForm, CargaArchivosForm, ConciliacionForm, InicioRapidoForm, ReemplazoForm,
+                    validar_extension)
 from .models import ArchivoCargado, Conciliacion
+
+registro = logging.getLogger("conciliacion")
 
 
 def _usuario(request):
     return request.user.get_username() if request.user.is_authenticated else "anónimo"
+
+
+def inicio_rapido(request):
+    """Un solo paso para empezar a cargar datos: crea (o elige) la auditoría y la conciliación."""
+    from django.utils import timezone
+
+    from auditoria.models import Auditoria
+
+    hoy = timezone.localdate()
+    form = InicioRapidoForm(request.POST or None,
+                            initial={"nombre": f"Conciliación RIPS vs facturación {hoy:%Y-%m-%d}",
+                                     "auditoria": Auditoria.objects.first()})
+    if request.method == "POST" and form.is_valid():
+        d = form.cleaned_data
+        auditoria = d["auditoria"]
+        if auditoria is None:
+            nombre = d["nueva_auditoria"].strip() or f"Auditoría general {hoy.year}"
+            auditoria, _ = Auditoria.objects.get_or_create(nombre=nombre)
+        conciliacion = Conciliacion.objects.create(auditoria=auditoria, nombre=d["nombre"])
+        messages.success(request, "Listo. Ahora seleccione los archivos y pulse “Cargar archivos seleccionados”.")
+        return redirect(conciliacion)
+    return render(request, "conciliacion/inicio_rapido.html", {
+        "form": form,
+        "recientes": Conciliacion.objects.select_related("auditoria")[:10],
+    })
 
 
 def crear(request):
@@ -59,6 +88,7 @@ def detalle(request, pk):
         "n_advertencias": conciliacion.incidencias.filter(severidad="ADVERTENCIA").count(),
         "tablas": conciliacion.tablas,
         "hallazgos": conciliacion.hallazgos.count(),
+        "tipos": ArchivoCargado.Tipo.choices,
     })
 
 
@@ -72,10 +102,24 @@ def cargar(request, pk):
                 messages.error(request, e)
         return redirect(conciliacion)
     d = form.cleaned_data
-    creados, duplicados = servicios.cargar_archivos(conciliacion, d["tipo"], d["archivos"], d["sede"],
-                                                    d["hospital"], d["ambito"], _usuario(request))
-    if creados:
-        messages.success(request, f"{len(creados)} archivo(s) cargado(s).")
+    por_tipo: dict[str, list] = {}
+    for tipo, archivo in d["clasificados"]:
+        por_tipo.setdefault(tipo, []).append(archivo)
+    creados, duplicados = [], []
+    for tipo, archivos in por_tipo.items():
+        try:
+            c, dup = servicios.cargar_archivos(conciliacion, tipo, archivos, d["sede"], d["hospital"],
+                                               d["ambito"], _usuario(request))
+        except Exception as exc:  # noqa: BLE001 - se informa al usuario y se registra
+            registro.exception("Error al cargar archivos en la conciliación %s", conciliacion.pk)
+            messages.error(request, f"No se pudieron guardar los archivos ({', '.join(a.name for a in archivos)}): "
+                                    f"{exc.__class__.__name__}: {exc}")
+            continue
+        creados += c
+        duplicados += dup
+    for obj in creados:
+        messages.success(request, f"'{obj.nombre_original}' cargado como {obj.get_tipo_display()}. "
+                                  "Si el tipo no es correcto, cámbielo en la tabla de archivos.")
     for nuevo, existente in duplicados:
         messages.warning(request, f"'{nuevo}' no se cargó: tiene el mismo contenido que '{existente}'.")
     return redirect(conciliacion)
@@ -140,7 +184,8 @@ def procesar(request, pk):
     except ValueError as exc:
         messages.error(request, str(exc))
     except Exception as exc:  # noqa: BLE001 - se informa al usuario
-        messages.error(request, f"Error al procesar: {exc}")
+        registro.exception("Error al procesar la conciliación %s", conciliacion.pk)
+        messages.error(request, f"Error al procesar: {exc.__class__.__name__}: {exc}")
     return redirect(conciliacion)
 
 

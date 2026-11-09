@@ -86,7 +86,7 @@ def reemplazar_archivo(archivo: ArchivoCargado, nuevo, usuario=""):
 
 def actualizar_archivo(archivo: ArchivoCargado, usuario="", **campos):
     cambios = []
-    for campo in ("sede", "hospital", "ambito", "activo"):
+    for campo in ("tipo", "sede", "hospital", "ambito", "activo"):
         if campo in campos and getattr(archivo, campo) != campos[campo]:
             cambios.append(f"{campo}: '{getattr(archivo, campo)}' → '{campos[campo]}'")
             setattr(archivo, campo, campos[campo])

@@ -92,3 +92,28 @@ LOGIN_URL = "/admin/login/"
 # Versión instalada (DEBUG=0): whitenoise sirve los archivos estáticos sin servidor web adicional.
 if not DEBUG:
     MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
+
+
+# Páginas de error comprensibles (la herramienta solo es accesible desde el propio equipo)
+CSRF_FAILURE_VIEW = "ese_auditoria.errores.error_csrf"
+
+# Registro de errores en archivo (la versión instalada lo guarda en la carpeta de datos del usuario)
+ARCHIVO_REGISTRO = os.environ.get("DJANGO_LOG_FILE", "")
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {"simple": {"format": "%(asctime)s %(levelname)s %(name)s: %(message)s"}},
+    "handlers": {"consola": {"class": "logging.StreamHandler", "formatter": "simple"}},
+    "loggers": {
+        "django.request": {"handlers": ["consola"], "level": "ERROR", "propagate": False},
+        "ese_auditoria": {"handlers": ["consola"], "level": "INFO", "propagate": False},
+        "conciliacion": {"handlers": ["consola"], "level": "INFO", "propagate": False},
+    },
+}
+if ARCHIVO_REGISTRO:
+    LOGGING["handlers"]["archivo"] = {
+        "class": "logging.handlers.RotatingFileHandler", "filename": ARCHIVO_REGISTRO,
+        "maxBytes": 2 * 1024 * 1024, "backupCount": 3, "encoding": "utf-8", "formatter": "simple",
+    }
+    for nombre in LOGGING["loggers"]:
+        LOGGING["loggers"][nombre]["handlers"].append("archivo")
