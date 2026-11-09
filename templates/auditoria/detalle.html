@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% load formato %}
+{% block titulo %}{{ a.nombre }}{% endblock %}
+{% block contenido %}
+<h1>{{ a.nombre }} <span class="chip">{{ a.get_estado_display }}</span></h1>
+<div class="tarjeta">
+  <div class="fila">
+    <div><label>Tipo</label>{{ a.tipo }}</div>
+    <div><label>Entidad auditada</label>{{ a.entidad|default:"—" }}</div>
+    <div><label>Periodo</label>{{ a.periodo_inicio|default:"—" }} a {{ a.periodo_fin|default:"—" }}</div>
+    <div><label>Responsable</label>{{ a.responsable|default:"—" }}</div>
+  </div>
+  {% if a.objetivo %}<p>{{ a.objetivo }}</p>{% endif %}
+  <a class="btn sec peq" href="{% url 'auditoria:editar' a.pk %}">Editar</a>
+</div>
+
+<h2>Procedimiento: conciliación Facturación vs RIPS</h2>
+<p><a class="btn" href="{% url 'conciliacion:crear' %}?auditoria={{ a.pk }}">+ Nueva conciliación</a></p>
+<table>
+  <thead><tr><th>Conciliación</th><th>Estado</th><th>Versión RIPS</th><th class="n">Archivos</th><th>Procesada</th><th></th></tr></thead>
+  <tbody>
+  {% for c in conciliaciones %}
+    <tr>
+      <td><a href="{{ c.get_absolute_url }}">{{ c.nombre }}</a></td>
+      <td><span class="chip {{ c.estado }}">{{ c.get_estado_display }}</span></td>
+      <td>{{ c.version_rips|default:"—" }}</td>
+      <td class="n">{{ c.archivos.count }}</td>
+      <td>{{ c.procesada|default:"—" }}</td>
+      <td>{% if c.estado == "PROCESADA" %}<a href="{% url 'conciliacion:tablero' c.pk %}">Tablero</a>{% endif %}</td>
+    </tr>
+  {% empty %}<tr><td colspan="6">Sin conciliaciones.</td></tr>{% endfor %}
+  </tbody>
+</table>
+
+<h2>Hallazgos</h2>
+<div class="fila">
+  {% for tipo, v in por_tipo %}
+    <div class="kpi"><div class="t">{{ tipo|etiqueta_estado }}</div><div class="v">{{ v.0 }}</div>
+      <div class="ayuda">Valor neto: <span class="{% if v.1|negativo %}neg{% endif %}">{{ v.1|moneda }}</span></div></div>
+  {% endfor %}
+</div>
+<form method="get" class="tarjeta fila">
+  <div><label>Estado</label><select name="estado"><option value="">Todos</option>
+    {% for v, t in estados %}<option value="{{ v }}" {% if params.estado == v %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></div>
+  <div><label>Prioridad</label><select name="prioridad"><option value="">Todas</option>
+    {% for v, t in prioridades %}<option value="{{ v }}" {% if params.prioridad == v %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></div>
+  {% for campo, valores in opciones.items %}
+    <div><label>{{ campo|capfirst }}</label><select name="{{ campo }}"><option value="">Todos</option>
+      {% for v in valores %}<option value="{{ v }}" {% if params|obtener:campo == v %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+  {% endfor %}
+  <div><label>Factura</label><input name="factura" value="{{ params.factura|default:'' }}"></div>
+  <div style="align-self:end"><button class="btn" type="submit">Filtrar</button>
+    <a class="btn sec" href="{% url 'auditoria:exportar_hallazgos' a.pk %}?{{ query }}">Exportar Excel</a></div>
+</form>
+<div class="tabla-scroll">
+<table>
+  <thead><tr><th>Prioridad</th><th>Estado</th><th>Tipo</th><th>Factura</th><th>Mes</th><th>Sede</th><th>Hospital</th>
+    <th>Servicio</th><th class="n">Dif. valor</th><th class="n">Dif. cantidad</th><th>Responsable</th><th></th></tr></thead>
+  <tbody>
+  {% for h in hallazgos %}
+    <tr>
+      <td><span class="chip {{ h.prioridad }}">{{ h.get_prioridad_display }}</span></td>
+      <td><span class="chip {{ h.estado }}">{{ h.get_estado_display }}</span></td>
+      <td>{{ h.tipo|etiqueta_estado }}</td><td>{{ h.factura }}</td><td>{{ h.mes }}</td><td>{{ h.sede }}</td>
+      <td>{{ h.hospital }}</td><td>{{ h.servicio }}</td>
+      <td class="n {% if h.valor_diferencia|negativo %}neg{% endif %}">{{ h.valor_diferencia|moneda }}</td>
+      <td class="n">{{ h.cantidad_diferencia|moneda }}</td><td>{{ h.responsable }}</td>
+      <td><a href="{% url 'auditoria:hallazgo' h.pk %}">Gestionar</a></td>
+    </tr>
+  {% empty %}<tr><td colspan="12">Sin hallazgos. Procese una conciliación y use “Generar hallazgos”.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+<p>{% if hallazgos.has_previous %}<a href="?{{ query }}&pagina={{ hallazgos.previous_page_number }}">← Anterior</a>{% endif %}
+  Página {{ hallazgos.number }} de {{ hallazgos.paginator.num_pages }}
+  {% if hallazgos.has_next %}<a href="?{{ query }}&pagina={{ hallazgos.next_page_number }}">Siguiente →</a>{% endif %}</p>
+<p><a class="btn sec" href="{% url 'auditoria:hallazgo_manual' a.pk %}">+ Registrar hallazgo manual</a></p>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load formato %}
+{% block titulo %}Hallazgo{% endblock %}
+{% block contenido %}
+<p><a href="{{ h.auditoria.get_absolute_url }}">← {{ h.auditoria }}</a></p>
+<h1>{{ h.titulo }}</h1>
+<div class="tarjeta">
+  <p><span class="chip {{ h.prioridad }}">Prioridad {{ h.get_prioridad_display }}</span>
+     <span class="chip {{ h.estado }}">{{ h.get_estado_display }}</span>
+     <span class="chip">{{ h.tipo|etiqueta_estado }}</span> <span class="chip">Origen: {{ h.origen }}</span></p>
+  <p>{{ h.descripcion }}</p>
+  <table>
+    <tr><th>Factura</th><td>{{ h.factura }}</td><th>Mes</th><td>{{ h.mes }}</td></tr>
+    <tr><th>Sede</th><td>{{ h.sede }}</td><th>Hospital</th><td>{{ h.hospital }}</td></tr>
+    <tr><th>Servicio</th><td>{{ h.servicio }}</td><th>Códigos</th><td>{{ h.codigos }}</td></tr>
+    <tr><th>Diferencia de valor</th><td class="n {% if h.valor_diferencia|negativo %}neg{% endif %}">{{ h.valor_diferencia|moneda }}</td>
+        <th>Diferencia de cantidad</th><td class="n">{{ h.cantidad_diferencia|moneda }}</td></tr>
+  </table>
+  <h3>Acción recomendada</h3><p>{{ h.accion_recomendada }}</p>
+  {% if h.conciliacion %}<p><a href="{% url 'conciliacion:tablero' h.conciliacion.pk %}?factura={{ h.factura|urlencode }}&solo_diferencias=1">Ver detalle en el tablero de la conciliación →</a></p>{% endif %}
+</div>
+<form method="post" class="tarjeta">
+  {% csrf_token %}
+  <h3>Gestión</h3>
+  {{ form.as_p }}
+  <button class="btn" type="submit">Guardar</button>
+</form>
+{% endblock %}
