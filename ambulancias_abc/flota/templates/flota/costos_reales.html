@@ -1,0 +1,51 @@
+{% extends "flota/base.html" %}{% load formato %}
+{% block titulo %}Costos reales por ambulancia{% endblock %}
+{% block contenido %}
+<h1>Costos reales por ambulancia: mantenimiento y combustible
+  <a class="boton" style="float:right" href="?{{ request.GET.urlencode }}&formato=xlsx">Descargar (Excel)</a></h1>
+<div class="botonera no-imprimir">
+  {% if perms.flota.add_consumo %}<a class="boton-grande az" href="{% url 'flota:cargar_costos_mensuales' %}"><b>Cargar informe mensual</b><span>Mantenimiento y combustible por ambulancia y mes (.xlsx).</span></a>{% endif %}
+  <a class="boton-grande alt" href="{% url 'flota:consumos_tabla' 'mantenimiento' %}"><b>Tabla de mantenimiento</b><span>Registros y carga por plantilla.</span></a>
+  <a class="boton-grande alt" href="{% url 'flota:consumos_tabla' 'combustible' %}"><b>Tabla de combustible</b><span>Registros y carga por plantilla.</span></a>
+</div>
+<form method="get" class="filtros panel no-imprimir">
+  <label>Desde <input type="month" name="desde" value="{{ desde|date:'Y-m' }}"></label>
+  <label>Hasta <input type="month" name="hasta" value="{{ hasta|date:'Y-m' }}"></label>
+  <label>Sede <select name="sede"><option value="">Todas</option>{% for s in sedes %}<option value="{{ s.codigo }}" {% if sede == s.codigo %}selected{% endif %}>{{ s.nombre }}</option>{% endfor %}</select></label>
+  <button>Aplicar</button>
+</form>
+<div class="aviso">Valores reales registrados (informe mensual del parque automotor, tablas de consumo y prorrateos). Un mes sin valor <b>—</b> usa en el costeo el estándar del estudio.
+El <b>costo real por km</b> = (mantenimiento + combustible) ÷ km estimados, solo en los meses con km y combustible real; se compara con el del estudio (combustible + mantenimiento por día ÷ km por día).</div>
+
+<div class="panel"><h2>Por mes – toda la flota</h2><table>
+  <tr><th>Mes</th><th class="n">Mantenimiento</th><th class="n">Combustible asignado</th><th class="n">Viajes</th><th class="n">Km estimados</th>
+    <th class="n">Combustible real toda la flota</th><th class="n">Factor real ÷ esperado</th><th>Periodo del reporte</th></tr>
+  {% for t in total_mes %}<tr><td>{{ t.mes|date:"M Y" }}</td><td class="n">{{ t.mantenimiento|pesos }}</td><td class="n">{% if t.combustible %}{{ t.combustible|pesos }}{% else %}—{% endif %}</td>
+    <td class="n">{{ t.viajes|num }}</td><td class="n">{{ t.km|num }}</td>
+    {% with f=flota %}{% for x in f %}{% if x.mes == t.mes %}<td class="n">{{ x.real_flota|pesos|default:"—" }}</td><td class="n">{{ x.factor|num:2|default:"—" }}</td><td class="suave">{{ x.periodo_reporte }}</td>{% endif %}{% empty %}<td></td><td></td><td></td>{% endfor %}{% endwith %}</tr>{% endfor %}
+</table></div>
+
+<div class="panel"><h2>Por ambulancia</h2><table>
+  <tr><th>Sede</th><th>Placa</th><th class="n">Mantenimiento</th><th class="n">Mant. promedio mes</th><th class="n">Mant. estudio mes</th><th class="n">Combustible</th>
+    <th class="n">Viajes</th><th class="n">Km</th><th class="n">Costo real $/km</th><th class="n">Costo estudio $/km</th><th class="n">Diferencia</th></tr>
+  {% for f in filas %}{% with t=f.total %}
+  <tr><td>{{ f.ambulancia.sede }}</td><td><a href="{% url 'flota:ambulancia' f.ambulancia.placa %}">{{ f.ambulancia.placa }}</a> <span class="suave">{{ f.ambulancia.descripcion|truncatechars:40 }}</span></td>
+    <td class="n">{{ t.mantenimiento|pesos }}</td><td class="n">{{ t.mant_mes_real|pesos }}</td><td class="n suave">{{ t.mant_mes_estudio|pesos }}</td>
+    <td class="n">{% if t.meses_comb %}{{ t.combustible|pesos }}{% else %}—{% endif %}</td><td class="n">{{ t.viajes|num }}</td><td class="n">{{ t.km|num }}</td>
+    <td class="n"><b>{{ t.costo_km_real|pesos|default:"—" }}</b></td><td class="n suave">{{ t.costo_km_estudio|pesos|default:"—" }}</td>
+    <td class="n {% if t.diferencia_pct and t.diferencia_pct > 0 %}neg{% else %}pos{% endif %}">{% if t.diferencia_pct is not None %}{{ t.diferencia_pct|num:1 }} %{% else %}—{% endif %}</td></tr>
+  {% endwith %}{% empty %}<tr><td colspan="11" class="suave">Aún no hay mantenimiento ni combustible real registrado en el periodo. Use «Cargar informe mensual».</td></tr>{% endfor %}
+</table></div>
+
+<div class="panel"><h2>Mantenimiento por ambulancia y mes</h2><div style="overflow-x:auto"><table>
+  <tr><th>Placa</th>{% for m in meses %}<th class="n">{{ m|date:"M y" }}</th>{% endfor %}</tr>
+  {% for f in filas %}<tr><td>{{ f.ambulancia.placa }}</td>{% for c in f.celdas %}<td class="n {% if c.mantenimiento == 0 %}suave{% endif %}" title="{{ c.observacion }}">{% if c.mantenimiento is None %}—{% else %}{{ c.mantenimiento|millones }}{% endif %}</td>{% endfor %}</tr>{% endfor %}
+</table></div></div>
+
+<div class="panel"><h2>Combustible, viajes y km por ambulancia y mes</h2><div style="overflow-x:auto"><table>
+  <tr><th>Placa</th>{% for m in meses %}<th class="n">{{ m|date:"M y" }}</th>{% endfor %}</tr>
+  {% for f in filas %}<tr><td>{{ f.ambulancia.placa }}</td>{% for c in f.celdas %}<td class="n" title="{{ c.observacion }}">
+    {% if c.combustible is not None %}{{ c.combustible|millones }}{% elif c.pendiente %}<span class="etq MEDIA">pendiente</span>{% else %}—{% endif %}
+    {% if c.km %}<br><span class="suave">{{ c.viajes|num }} viajes · {{ c.km|num }} km{% if c.costo_km %} · {{ c.costo_km|pesos }}/km{% endif %}</span>{% endif %}</td>{% endfor %}</tr>{% endfor %}
+</table></div></div>
+{% endblock %}

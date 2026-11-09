@@ -9,6 +9,11 @@
   <a class="boton-grande" href="{% url 'flota:facturacion_ambito' %}"><b>Ver facturación por ámbito</b><span>Mes, hospital, ámbito y unidad funcional.</span></a>
   <a class="boton-grande" href="{% url 'flota:recorridos_sede' %}"><b>Recorridos por sede</b><span>Tarifa, costo y rentabilidad de cada recorrido.</span></a>
 </div>
+<h2>Mantenimiento y combustible reales</h2>
+<div class="botonera">
+  <a class="boton-grande az" href="{% url 'flota:cargar_costos_mensuales' %}"><b>Cargar informe mensual de mantenimiento y combustible</b><span>Libro «Costos por ambulancia y mes» del parque automotor (una hoja por sede).</span></a>
+  <a class="boton-grande" href="{% url 'flota:costos_reales' %}"><b>Costos reales por ambulancia</b><span>Mantenimiento, combustible, viajes, km y costo real por km frente al estudio.</span></a>
+</div>
 <h2>Tablas de consumos por ambulancia</h2>
 <div class="botonera">
   {% for t in tablas %}<a class="boton-grande alt" href="{% url 'flota:consumos_tabla' t.clave %}"><b>{{ t.titulo }}</b><span>Registrar, cargar Excel/CSV y ver la tabla mensual.</span></a>{% endfor %}

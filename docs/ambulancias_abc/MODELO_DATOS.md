@@ -139,6 +139,8 @@ Parametro · PartidaCostoIndirecto · RegistroAuditoria · ClaveAPI
 | `PartidaCostoIndirecto` | (`categoria`, `concepto`) | `incluir_en_abc` en falso por defecto |
 | `HallazgoCalidad` | (`fuente`, `ubicacion`, `tipo`, `descripcion`) | celda o fila exacta del archivo fuente |
 | `RegistroAuditoria` | — | quién, cuándo y qué cambió |
+| `ActividadMensual` | (`ambulancia`, `mes`) | viajes, km estimados, galones y rendimiento esperados del informe mensual; combustible pendiente |
+| `CombustibleFlotaMes` | `mes` | combustible real de toda la flota, esperado, factor y reparto ambulancias / otros vehículos |
 
 Los modelos editables (`Ambulancia`, `Parametro`, `Traslado`, `Consumo`) llevan `version`, `creado_por`, `actualizado_por` y fechas (bloqueo optimista y trazabilidad).
 

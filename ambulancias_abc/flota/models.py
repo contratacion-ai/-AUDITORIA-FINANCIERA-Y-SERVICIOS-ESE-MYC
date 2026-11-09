@@ -398,6 +398,48 @@ class Consumo(VersionadoMixin):
         super().save(*args, **kwargs)
 
 
+class ActividadMensual(models.Model):
+    """Viajes y km de cada ambulancia en el mes (informe mensual de costos del
+    parque automotor). Sirve para el costo real por km y por viaje."""
+
+    ambulancia = models.ForeignKey(Ambulancia, on_delete=models.PROTECT, related_name="actividad_mensual")
+    mes = models.DateField(db_index=True)
+    viajes = models.PositiveIntegerField(null=True, blank=True, help_text="Vacío = sin registro de viajes")
+    km_estimados = models.DecimalField(max_digits=12, decimal_places=1, null=True, blank=True)
+    galones_esperados = models.DecimalField(max_digits=12, decimal_places=1, null=True, blank=True)
+    rendimiento_esperado = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, help_text="km/gal")
+    combustible_pendiente = models.BooleanField(default=False, help_text="El combustible del mes aún no se ha repartido")
+    observacion = models.CharField(max_length=500, blank=True)
+    lote = models.ForeignKey("LoteImportacion", null=True, blank=True, on_delete=models.SET_NULL, related_name="actividades")
+
+    class Meta:
+        unique_together = [("ambulancia", "mes")]
+        ordering = ["mes", "ambulancia__placa"]
+
+    def __str__(self):
+        return f"{self.ambulancia} {self.mes:%Y-%m}"
+
+
+class CombustibleFlotaMes(models.Model):
+    """Combustible real reportado para toda la flota en el mes y su reparto."""
+
+    mes = models.DateField(unique=True)
+    real_flota = models.DecimalField(max_digits=16, decimal_places=2, null=True, blank=True)
+    esperado_flota = models.DecimalField(max_digits=16, decimal_places=2, null=True, blank=True)
+    factor = models.DecimalField(max_digits=8, decimal_places=3, null=True, blank=True)
+    asignado_ambulancias = models.DecimalField(max_digits=16, decimal_places=2, null=True, blank=True)
+    asignado_otros = models.DecimalField(max_digits=16, decimal_places=2, null=True, blank=True)
+    periodo_reporte = models.CharField(max_length=200, blank=True)
+    observacion = models.CharField(max_length=500, blank=True)
+    lote = models.ForeignKey("LoteImportacion", null=True, blank=True, on_delete=models.SET_NULL, related_name="combustible_flota")
+
+    class Meta:
+        ordering = ["mes"]
+
+    def __str__(self):
+        return f"Combustible flota {self.mes:%Y-%m}"
+
+
 # ---------------------------------------------------------------------------
 # Trazabilidad y calidad de datos
 # ---------------------------------------------------------------------------

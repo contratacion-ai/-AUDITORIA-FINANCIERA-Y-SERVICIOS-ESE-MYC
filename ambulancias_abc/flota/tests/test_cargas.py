@@ -361,3 +361,124 @@ class AuditoriaRipsVistaTests(BaseDatos):
         x = self.client.get(reverse("flota:auditoria_rips"), {"desde": "2026-01", "hasta": "2026-02", "formato": "xlsx"})
         wb = load_workbook(io.BytesIO(x.content))
         self.assertEqual(wb.sheetnames, ["Por mes y hospital", "Por recorrido", "Diferencias"])
+
+
+# ---------------------------------------------------------------------------
+# Informe mensual de mantenimiento y combustible del parque automotor
+# ---------------------------------------------------------------------------
+
+ENC_SEDE = ["N°", "Placa", "Vehículo", "Combustible", "Rend. esperado (km/gal)", "Mes", "Mantenimiento ($)", "Viajes",
+            "Km estimados", "Galones esperados", "Combustible asignado ($)", "Observación"]
+
+
+def libro_costos_mensuales(asignado_agosto=5003363):
+    wb = Workbook()
+    r = wb.active
+    r.title = "Resumen"
+    r["A4"] = "COSTOS DE OPERACIÓN DE LAS AMBULANCIAS – ENERO A OCTUBRE DE 2026"
+    r.append([])
+    r.append([])
+    r.append(["CÓMO SE REPARTE EL COMBUSTIBLE REAL"])
+    r.append(["Mes", "Combustible real reportado – toda la flota ($)", "Consumo esperado – toda la flota ($)",
+              "Factor real ÷ esperado", "Asignado a las ambulancias ($)", "Asignado a los demás vehículos ($)", "% ambulancias", "Observación"])
+    r.append(["Agosto", 6000000, 1700000, 3.51, asignado_agosto, 996637, 0.83, "Esperado solo del 19 al 31"])
+    r.append([])
+    r.append(["RESUMEN POR MES – AMBULANCIAS"])
+    r.append(["Mes", "Mantenimiento ambulancias ($)", "Combustible real – toda la flota ($)", "Combustible asignado a las ambulancias ($)",
+              "Mantenimiento + combustible ambulancias ($)", "Viajes", "Km estimados", "Galones esperados", "Período del reporte de combustible real"])
+    r.append(["Julio", 0, 5500000, "—", "—", "sin registro", "sin registro", "sin registro", "Mes completo"])
+    r.append(["Agosto", 10229746, 6000000, asignado_agosto, None, 14, 3322, 77.1, "Mes completo"])
+    r.append(["Octubre", 265576, "Sin reporte", "Pendiente", "—", 31, 6417, 172.5, "Sin reporte de combustible"])
+    t = wb.create_sheet("Tame")
+    t["A4"] = "COSTOS DE OPERACIÓN DE LAS AMBULANCIAS – SEDE TAME"
+    for _ in range(3):
+        t.append([])
+    t.append(ENC_SEDE)
+    t.append([2, "LXS630", "Ambulancia TAB – Chevrolet Nhr 2023", "ACPM", None, "Julio", 0, "sin registro", "sin registro", "sin registro", "—", None])
+    t.append([None, "LXS630", "Ambulancia TAB – Chevrolet Nhr 2023", "ACPM", 43.1, "Agosto", 10229746, 14, 3322, 77.1, 5003363, "Viajes desde el 19/08"])
+    t.append([None, None, None, None, None, "TOTAL SEDE", "=SUM(G9:G10)"])
+    a = wb.create_sheet("Arauquita")
+    a["A4"] = "COSTOS DE OPERACIÓN DE LAS AMBULANCIAS – SEDE ARAUQUITA"
+    for _ in range(3):
+        a.append([])
+    a.append(ENC_SEDE)
+    a.append([1, "KSM549", "Ambulancia TAB – Ford Ranger 2027", "ACPM", 37.2, "Octubre", 265576, 31, 6417, 172.5, "Pendiente",
+              "Ambulancia nueva; Incluye OT de CDMA pendientes de certificar"])
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf
+
+
+class CostosMensualesTests(BaseDatos):
+    def test_lector(self):
+        from flota.importacion.costos_mensuales import leer_costos_mensuales
+
+        d = leer_costos_mensuales(libro_costos_mensuales(), "costos.xlsx")
+        self.assertEqual(d["anio"], 2026)
+        self.assertEqual(len(d["filas"]), 3)
+        ago = next(f for f in d["filas"] if f["mes"] == 8)
+        self.assertEqual((ago["mantenimiento"], ago["viajes"], ago["km"], ago["combustible"]), (10229746, 14, 3322, 5003363))
+        jul = next(f for f in d["filas"] if f["mes"] == 7)
+        self.assertEqual((jul["mantenimiento"], jul["viajes"], jul["combustible"]), (0, None, None))
+        oct_ = next(f for f in d["filas"] if f["mes"] == 10)
+        self.assertEqual(oct_["combustible_estado"], "Pendiente")
+        self.assertEqual(d["flota"][8]["real_flota"], 6000000)
+        self.assertEqual(d["flota"][7]["periodo_reporte"], "Mes completo")
+        self.assertFalse([h for h in d["hallazgos"] if h["tipo"] == "INCONSISTENCIA"])
+        # El Resumen no cuadra con las hojas: se informa
+        d2 = leer_costos_mensuales(libro_costos_mensuales(asignado_agosto=9999999), "costos.xlsx")
+        self.assertTrue(any("Combustible asignado" in h["descripcion"] for h in d2["hallazgos"]))
+
+    def test_carga_consumos_reales_actividad_y_costeo(self):
+        from flota.models import ActividadMensual, Ambulancia, CombustibleFlotaMes
+
+        lote = importar.importar_costos_mensuales(libro_costos_mensuales(), nombre="costos.xlsx")
+        ago, jul, oct_ = dt.date(2026, 8, 1), dt.date(2026, 7, 1), dt.date(2026, 10, 1)
+        mant = Consumo.objects.get(ambulancia__placa="LXS630", mes=ago, tipo=Consumo.MANTENIMIENTO)
+        self.assertEqual(mant.valor, Decimal("10229746"))
+        cero = Consumo.objects.get(ambulancia__placa="LXS630", mes=jul, tipo=Consumo.MANTENIMIENTO)
+        self.assertEqual(cero.valor, 0)  # mes sin mantenimiento: dato real, reemplaza el estándar
+        comb = Consumo.objects.get(ambulancia__placa="LXS630", mes=ago, tipo=Consumo.COMBUSTIBLE)
+        self.assertEqual(comb.valor, Decimal("5003363"))
+        self.assertAlmostEqual(float(comb.cantidad), 5003363 / 18500, places=2)  # galones a precio de ACPM
+        self.assertFalse(Consumo.objects.filter(mes=oct_, tipo=Consumo.COMBUSTIBLE).exists())  # pendiente
+        act = ActividadMensual.objects.get(ambulancia__placa="LXS630", mes=ago)
+        self.assertEqual((act.viajes, act.km_estimados), (14, Decimal("3322.0")))
+        self.assertTrue(ActividadMensual.objects.get(ambulancia__placa="KSM549", mes=oct_).combustible_pendiente)
+        self.assertEqual(CombustibleFlotaMes.objects.get(mes=ago).real_flota, Decimal("6000000"))
+        self.assertEqual(Ambulancia.objects.get(placa="KSM549").sede.codigo, "arauquita")  # nueva: toma la sede del informe
+        self.assertIn("pendientes de certificar", Consumo.objects.get(ambulancia__placa="KSM549", tipo=Consumo.MANTENIMIENTO).descripcion)
+
+        r = calcular_mes(ago)
+        self.assertEqual(r.fuente_pool["LXS630"]["mantenimiento"], "REAL")
+        self.assertAlmostEqual(r.ambulancias["LXS630"]["pool_mantenimiento"], 10229746, places=2)
+        self.assertAlmostEqual(r.ambulancias["LXS630"]["pool_combustible"], 5003363, places=2)
+        self.assertEqual(calcular_mes(jul).fuente_pool["LXS630"]["mantenimiento"], "REAL")
+
+        # Recargar actualiza, no duplica
+        n = Consumo.objects.count()
+        lote2 = importar.importar_costos_mensuales(libro_costos_mensuales(), nombre="costos.xlsx")
+        self.assertEqual((lote2.nuevos, Consumo.objects.count()), (0, n))
+        self.assertEqual(lote.detalle["mantenimiento_total"], 10229746 + 265576)
+
+    def test_modo_promedio(self):
+        importar.importar_costos_mensuales(libro_costos_mensuales(), nombre="costos.xlsx", modo_mantenimiento="PROMEDIO")
+        valores = set(Consumo.objects.filter(ambulancia__placa="LXS630", tipo=Consumo.MANTENIMIENTO).values_list("valor", flat=True))
+        self.assertEqual(valores, {Decimal("5114873.00")})  # (0 + 10.229.746) / 2
+
+    def test_pantallas(self):
+        self.client.force_login(User.objects.create_superuser("cm", "", "Clave-Prueba-1"))
+        r = self.client.post(reverse("flota:cargar_costos_mensuales"), {
+            "archivo": SimpleUploadedFile("costos.xlsx", libro_costos_mensuales().getvalue()), "modo_mantenimiento": "REAL",
+        })
+        self.assertRedirects(r, reverse("flota:costos_reales") + "?desde=2026-07&hasta=2026-10")
+        p = self.client.get(reverse("flota:costos_reales"), {"desde": "2026-07", "hasta": "2026-10"})
+        self.assertContains(p, "LXS630")
+        self.assertEqual(p.context["filas"][0]["total"]["km"], 3322)
+        lxs = next(f for f in p.context["filas"] if f["ambulancia"].placa == "LXS630")
+        self.assertAlmostEqual(lxs["total"]["costo_km_real"], (10229746 + 5003363) / 3322)
+        x = self.client.get(reverse("flota:costos_reales"), {"desde": "2026-07", "hasta": "2026-10", "formato": "xlsx"})
+        self.assertEqual(load_workbook(io.BytesIO(x.content)).sheetnames, ["Por ambulancia", "Por ambulancia y mes", "Combustible flota"])
+        self.assertContains(self.client.get(reverse("flota:cargas")), "Cargar informe mensual de mantenimiento y combustible")
+        self.assertContains(self.client.get(reverse("flota:consumos_tabla", args=["combustible"])), "Cargar informe mensual")

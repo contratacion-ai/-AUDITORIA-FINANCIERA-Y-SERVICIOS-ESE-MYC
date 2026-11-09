@@ -76,6 +76,27 @@ Un hospital y mes se consideran con RIPS cargados cuando sus facturas declaran e
 
 La pantalla trae el estado por mes (*Cuadra*, *Con diferencias*, *Sin RIPS cargado*, *Sin facturación HIS cargada*), la tabla **por recorrido** y la lista de líneas con diferencia (con enlace para corregir cada traslado). **Descargar auditoría (Excel)** trae las tres hojas completas.
 
+## 2c. Mantenimiento y combustible: informe mensual del parque automotor
+
+Botón **Cargar informe mensual de mantenimiento y combustible** (en *Cargas del mes*, en las tablas de Combustible y Mantenimiento y en *Costos reales por ambulancia*). Se sube el libro «Costos por ambulancia y mes» con:
+
+- una **hoja por sede** con una fila por ambulancia y mes: Placa, Vehículo, Combustible, Rend. esperado, Mes, Mantenimiento ($), Viajes, Km estimados, Galones esperados, Combustible asignado ($), Observación (las columnas se reconocen por su nombre);
+- la hoja **Resumen** con el combustible real de toda la flota y su reparto.
+
+| Dato del libro | Dónde queda | Efecto en el costeo ABC |
+|---|---|---|
+| Mantenimiento ($) del mes | Consumo *Mantenimiento* de la ambulancia y mes | Reemplaza el estándar del estudio en ese mes. Un **0** es un mes sin mantenimiento (también reemplaza) |
+| Combustible asignado ($) | Consumo *Combustible* (galones = valor ÷ precio del contrato) | Reemplaza el estándar del mes |
+| «Pendiente» o «—» en combustible | No se registra | Ese mes sigue con el estándar del estudio |
+| Viajes, km estimados, galones esperados | Actividad mensual de la ambulancia | Costo real por km y por viaje |
+| Hoja Resumen | Combustible de la flota por mes (real, esperado, factor, reparto, periodo del reporte) | Informativo |
+
+**Opción de mantenimiento**: *valor real de cada mes* (por defecto) o *promedio mensual de los meses cargados*, que reparte en partes iguales las reparaciones grandes de un solo mes.
+
+Controles: el combustible asignado de las hojas debe sumar lo que dice el Resumen y el mantenimiento por mes también; placas repetidas en un mes; placas que no existen; ambulancias nuevas que el informe ubica en otra sede (se mueven a esa sede) y ambulancias en servicio en una sede distinta (solo se informa); factor real ÷ esperado mayor que 2. Volver a cargar el libro (o una versión corregida) actualiza los valores, no los duplica.
+
+Pantalla **Costos reales por ambulancia** (*Consumos › Costos reales por ambulancia*): por mes (mantenimiento, combustible, viajes, km, combustible real de la flota y factor), por ambulancia (totales, mantenimiento promedio mensual frente al del estudio y **costo real por km** frente al del estudio) y matrices por ambulancia y mes. Botón *Descargar (Excel)*.
+
 ## 3. Tablas de consumos
 
 Menú **Consumos** (o los botones naranjas de *Cargas del mes*). Una pestaña por tabla:

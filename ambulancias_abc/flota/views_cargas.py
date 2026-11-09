@@ -15,12 +15,12 @@ from django.urls import reverse
 from abc_engine.calculo import METODO_REAL
 
 from .exportar import FORMATO_NUM, FORMATO_PESOS, respuesta_xlsx
-from .forms import CargaConsumosForm, CargaFacturacionForm, CargaRipsForm
+from .forms import CargaConsumosForm, CargaCostosMensualesForm, CargaFacturacionForm, CargaRipsForm
 from .models import APH, CATEGORIAS_SERVICIO, Ambulancia, Consumo, LoteImportacion, Sede, Traslado, sumar_meses
 from .servicios import importar
 from .servicios.comunes import registrar
 from .servicios.auditoria_rips import SITUACIONES, auditoria_rips
-from .servicios.costeo import METODOS, facturacion_por_ambito, recorridos_por_sede, tabla_consumos
+from .servicios.costeo import METODOS, costos_reales, facturacion_por_ambito, recorridos_por_sede, tabla_consumos
 from .servicios.importar import COLUMNAS_CONSUMO
 
 
@@ -143,6 +143,59 @@ def rips_cargas(request):
     if request.GET.get("sede"):
         lotes = lotes.filter(sede__codigo=request.GET["sede"])
     return render(request, "flota/rips_cargas.html", {"lotes": lotes[:200], "sedes": Sede.objects.all(), "g": request.GET})
+
+
+@login_required
+@permission_required("flota.add_consumo", raise_exception=True)
+def cargar_costos_mensuales(request):
+    form = CargaCostosMensualesForm(request.POST or None, request.FILES or None)
+    if request.method == "POST" and form.is_valid():
+        f = form.cleaned_data["archivo"]
+        lote = importar.importar_costos_mensuales(f, request.user, f.name, form.cleaned_data["modo_mantenimiento"])
+        registrar(request.user, lote, "importar", {"tipo": "costos_mensuales", "archivo": f.name})
+        messages.success(request, f"Informe cargado. {lote.resumen}")
+        if lote.hallazgos:
+            messages.warning(request, f"{lote.hallazgos} observaciones de calidad: revise la pantalla Calidad.")
+        return redirect(f"{reverse('flota:costos_reales')}?desde={lote.detalle['meses'][0][0]}&hasta={lote.detalle['meses'][-1][0]}"
+                        if lote.detalle.get("meses") else reverse("flota:costos_reales"))
+    return render(request, "flota/cargar.html", {
+        "form": form, "titulo": "Cargar mantenimiento y combustible (informe mensual por ambulancia)",
+        "ayuda": "Carga el informe «Costos por ambulancia y mes» del parque automotor. Por cada ambulancia y mes se registra el "
+                 "mantenimiento y el combustible asignado como consumos reales (reemplazan el estándar del estudio en el costeo "
+                 "de ese mes), y los viajes y km para el costo real por km. Los meses con combustible «Pendiente» siguen con el "
+                 "estándar. Volver a cargar el informe (o una versión corregida) actualiza los valores, no los duplica.",
+        "multipart": True,
+    })
+
+
+@login_required
+def costos_reales_vista(request):
+    desde, hasta = _rango(request, meses_atras=9)
+    sede = request.GET.get("sede") or None
+    datos = costos_reales(desde, hasta, sede)
+    if request.GET.get("formato") == "xlsx":
+        P = FORMATO_PESOS
+        resumen = [[f["ambulancia"].sede.nombre, f["ambulancia"].placa, f["ambulancia"].descripcion, f["total"]["mantenimiento"],
+                    f["total"]["combustible"], f["total"]["viajes"], f["total"]["km"], f["total"]["costo_km_real"],
+                    f["total"]["costo_km_estudio"], f["total"]["diferencia_pct"], f["total"]["mant_mes_real"],
+                    f["total"]["mant_mes_estudio"]] for f in datos["filas"]]
+        detalle = [[f["ambulancia"].sede.nombre, f["ambulancia"].placa, c["mes"], c["mantenimiento"], c["combustible"],
+                    c["viajes"], c["km"], c["costo_km"], "Pendiente" if c["pendiente"] else "", c["observacion"]]
+                   for f in datos["filas"] for c in f["celdas"]]
+        flota = [[x.mes, x.real_flota, x.esperado_flota, x.factor, x.asignado_ambulancias, x.asignado_otros, x.periodo_reporte,
+                  x.observacion] for x in datos["flota"]]
+        return respuesta_xlsx(f"costos_reales_{desde:%Y-%m}_{hasta:%Y-%m}", [
+            ("Por ambulancia", ["Sede", "Placa", "Vehículo", "Mantenimiento", "Combustible", "Viajes", "Km", "Costo real $/km",
+                                "Costo estudio $/km", "Diferencia %", "Mantenimiento promedio mes", "Mantenimiento estudio mes"],
+             resumen, {3: P, 4: P, 7: P, 8: P, 9: FORMATO_NUM, 10: P, 11: P}),
+            ("Por ambulancia y mes", ["Sede", "Placa", "Mes", "Mantenimiento", "Combustible", "Viajes", "Km", "Costo $/km",
+                                      "Combustible", "Observación"], detalle, {3: P, 4: P, 7: P}),
+            ("Combustible flota", ["Mes", "Real toda la flota", "Esperado", "Factor", "Asignado ambulancias", "Asignado otros",
+                                   "Periodo del reporte", "Observación"], flota, {1: P, 2: P, 4: P, 5: P}),
+        ])
+    return render(request, "flota/costos_reales.html", {
+        **datos, "desde": desde, "hasta": hasta, "sede": sede or "", "sedes": Sede.objects.filter(activa=True),
+    })
 
 
 @login_required

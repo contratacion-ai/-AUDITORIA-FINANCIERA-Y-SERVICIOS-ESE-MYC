@@ -149,5 +149,22 @@ class CargaRipsForm(forms.Form):
     )
 
 
+class CargaCostosMensualesForm(forms.Form):
+    archivo = forms.FileField(
+        label="Informe de costos por ambulancia y mes (.xlsx)",
+        widget=forms.ClearableFileInput(attrs={"accept": ".xlsx,.xlsm"}),
+        help_text="Libro del parque automotor: una hoja por sede (Placa, Mes, Mantenimiento ($), Viajes, Km estimados, "
+        "Galones esperados, Combustible asignado ($)) y la hoja Resumen.",
+    )
+    modo_mantenimiento = forms.ChoiceField(
+        label="Mantenimiento en el costeo",
+        choices=[
+            ("REAL", "Valor real de cada mes (un mes en 0 queda sin mantenimiento)"),
+            ("PROMEDIO", "Promedio mensual de los meses cargados (reparte reparaciones grandes)"),
+        ],
+        initial="REAL", widget=forms.RadioSelect,
+    )
+
+
 class CargaConsumosForm(forms.Form):
     archivo = forms.FileField(label="Archivo (.xlsx o .csv)", widget=forms.ClearableFileInput(attrs={"accept": ".xlsx,.csv"}))

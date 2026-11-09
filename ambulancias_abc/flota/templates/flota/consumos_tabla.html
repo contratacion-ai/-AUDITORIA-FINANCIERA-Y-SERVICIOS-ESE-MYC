@@ -2,10 +2,11 @@
 {% block titulo %}Consumos · {{ datos.titulo }}{% endblock %}
 {% block contenido %}
 <h1>Consumos por ambulancia</h1>
-<div class="pestanas">{% for k, t in tablas.items %}<a href="{% url 'flota:consumos_tabla' k %}" class="{% if k == clave %}activo{% endif %}">{{ t.0 }}</a>{% endfor %}<a href="{% url 'flota:consumos' %}">Todos los registros</a></div>
+<div class="pestanas">{% for k, t in tablas.items %}<a href="{% url 'flota:consumos_tabla' k %}" class="{% if k == clave %}activo{% endif %}">{{ t.0 }}</a>{% endfor %}<a href="{% url 'flota:consumos' %}">Todos los registros</a><a href="{% url 'flota:costos_reales' %}">Costos reales por ambulancia</a></div>
 
 <div class="botonera">
   {% if perms.flota.add_consumo %}<a class="boton-grande" href="{% url 'flota:consumo_nuevo' %}?tipo={{ tipo_inicial }}{% if placa %}&placa={{ placa }}{% endif %}"><b>Registrar {{ datos.titulo|lower }}</b><span>Un registro con soporte, valor y odómetro.</span></a>{% endif %}
+  {% if perms.flota.add_consumo and clave == "combustible" or perms.flota.add_consumo and clave == "mantenimiento" %}<a class="boton-grande az" href="{% url 'flota:cargar_costos_mensuales' %}"><b>Cargar informe mensual (mantenimiento y combustible)</b><span>Libro del parque automotor con una hoja por sede.</span></a>{% endif %}
   <a class="boton-grande alt" href="{% url 'flota:plantilla_consumos_tabla' clave %}"><b>Descargar plantilla Excel</b><span>Columnas listas para diligenciar.</span></a>
   {% if perms.flota.add_consumo %}
   <form class="boton-grande az" method="post" enctype="multipart/form-data" action="{% url 'flota:cargar_consumos' clave %}">{% csrf_token %}

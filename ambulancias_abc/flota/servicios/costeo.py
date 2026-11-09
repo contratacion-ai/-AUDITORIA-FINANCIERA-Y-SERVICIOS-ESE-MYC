@@ -564,3 +564,67 @@ def tabla_consumos(clave: str, desde: dt.date, hasta: dt.date, placa=None) -> di
         "titulo": titulo, "tipos": tipos, "meses": meses, "filas": filas, "totales_mes": totales_mes,
         "total": sum(totales_mes), "con_estandar": bool(campo_estandar),
     }
+
+
+# ---------------------------------------------------------------------------
+# Costos reales por ambulancia y mes (mantenimiento, combustible y actividad)
+# ---------------------------------------------------------------------------
+
+
+def costos_reales(desde: dt.date, hasta: dt.date, sede_codigo=None) -> dict:
+    """Mantenimiento y combustible reales (consumos registrados, con su prorrateo)
+    y viajes/km del informe mensual, por ambulancia y mes, frente al estándar del
+    estudio. El costo real por km solo se calcula en los meses que tienen km y
+    combustible real (sin ellos no es comparable)."""
+    from ..models import ActividadMensual, CombustibleFlotaMes
+
+    meses = meses_entre(desde, hasta)
+    perfiles = perfiles_vigentes()
+    ambs = Ambulancia.objects.select_related("sede").exclude(estado=Ambulancia.FUERA).order_by("sede__nombre", "placa")
+    if sede_codigo:
+        ambs = ambs.filter(sede__codigo=sede_codigo)
+    actividad = {(a.ambulancia_id, a.mes): a for a in ActividadMensual.objects.filter(mes__gte=desde, mes__lte=hasta)}
+    reales_mes = {m: consumos_del_mes(m) for m in meses}
+    filas, total_mes = [], {m: {"mantenimiento": 0.0, "combustible": 0.0, "km": 0.0, "viajes": 0} for m in meses}
+    for amb in ambs:
+        celdas, t = [], {"mantenimiento": 0.0, "combustible": 0.0, "km": 0.0, "viajes": 0,
+                         "km_comparable": 0.0, "costo_comparable": 0.0, "meses_mant": 0, "meses_comb": 0}
+        for m in meses:
+            r = reales_mes[m].get(amb.placa, {})
+            act = actividad.get((amb.pk, m))
+            mant, comb = r.get("mantenimiento"), r.get("combustible")
+            km = float(act.km_estimados) if act and act.km_estimados is not None else None
+            viajes = act.viajes if act else None
+            c = {"mes": m, "mantenimiento": mant, "combustible": comb, "km": km, "viajes": viajes,
+                 "pendiente": bool(act and act.combustible_pendiente), "observacion": act.observacion if act else ""}
+            c["costo_km"] = ((mant or 0) + comb) / km if km and comb is not None else None
+            celdas.append(c)
+            if mant is not None:
+                t["mantenimiento"] += mant
+                t["meses_mant"] += 1
+                total_mes[m]["mantenimiento"] += mant
+            if comb is not None:
+                t["combustible"] += comb
+                t["meses_comb"] += 1
+                total_mes[m]["combustible"] += comb
+            if km:
+                t["km"] += km
+                total_mes[m]["km"] += km
+            if viajes:
+                t["viajes"] += viajes
+                total_mes[m]["viajes"] += viajes
+            if c["costo_km"] is not None:
+                t["km_comparable"] += km
+                t["costo_comparable"] += (mant or 0) + comb
+        if not any(x["mantenimiento"] is not None or x["combustible"] is not None or x["km"] for x in celdas):
+            continue
+        p = perfiles.get(amb.placa)
+        t["costo_km_real"] = t["costo_comparable"] / t["km_comparable"] if t["km_comparable"] else None
+        t["costo_km_estudio"] = (p.combustible_dia + p.mantenimiento_dia) / p.km_dia if p and p.km_dia else None
+        t["diferencia_pct"] = ((t["costo_km_real"] / t["costo_km_estudio"] - 1) * 100
+                               if t["costo_km_real"] and t["costo_km_estudio"] else None)
+        t["mant_mes_real"] = t["mantenimiento"] / t["meses_mant"] if t["meses_mant"] else None
+        t["mant_mes_estudio"] = p.mantenimiento_dia * 30 if p else None
+        filas.append({"ambulancia": amb, "celdas": celdas, "total": t})
+    flota = list(CombustibleFlotaMes.objects.filter(mes__gte=desde, mes__lte=hasta))
+    return {"meses": meses, "filas": filas, "total_mes": [dict(total_mes[m], mes=m) for m in meses], "flota": flota}

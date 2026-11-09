@@ -17,10 +17,14 @@ from openpyxl import load_workbook
 from ..importacion import hallazgo, normalizar
 from ..importacion.anexo_tarifas import leer_anexo_traslados
 from ..importacion.costos_ceco import leer_costos_ambulancias
+from ..importacion.costos_mensuales import leer_costos_mensuales
 from ..importacion.facturacion_his import leer_facturacion
 from ..importacion.rips import APH, TRASLADO, leer_rips_archivos, prefijo_factura
 from ..models import (
+    ActividadMensual,
+    Ambulancia,
     CodigoTraslado,
+    CombustibleFlotaMes,
     Consumo,
     HallazgoCalidad,
     LoteImportacion,
@@ -701,3 +705,160 @@ def importar_consumos(archivo, usuario=None, nombre="consumos.csv", tipo_forzado
 def importar_consumos_csv(archivo, usuario=None, nombre="consumos.csv") -> LoteImportacion:
     """Compatibilidad con la versión anterior."""
     return importar_consumos(archivo, usuario, nombre)
+
+
+# ---------------------------------------------------------------------------
+# Informe mensual de costos del parque automotor (mantenimiento y combustible)
+# ---------------------------------------------------------------------------
+
+MANTENIMIENTO_REAL, MANTENIMIENTO_PROMEDIO = "REAL", "PROMEDIO"
+DOC_INFORME = "Informe costos"
+
+
+def importar_costos_mensuales(archivo, usuario=None, nombre="Costos por ambulancia y mes.xlsx",
+                              modo_mantenimiento: str = MANTENIMIENTO_REAL) -> LoteImportacion:
+    """Carga el informe «Costos por ambulancia y mes» (una hoja por sede).
+
+    Por cada ambulancia y mes:
+    * Mantenimiento -> Consumo MANTENIMIENTO del mes. Con ``REAL`` cada mes lleva
+      su valor (un 0 es un mes sin mantenimiento y reemplaza al estándar); con
+      ``PROMEDIO`` cada mes lleva el promedio de los meses cargados de esa
+      ambulancia (suaviza reparaciones grandes en un solo mes).
+    * Combustible asignado -> Consumo COMBUSTIBLE del mes (galones = valor ÷
+      precio del contrato). «Pendiente» o «—» no crean registro: ese mes sigue
+      con el estándar del estudio.
+    * Viajes, km y galones esperados -> ActividadMensual.
+    * Hoja Resumen -> CombustibleFlotaMes (real de toda la flota y su reparto).
+
+    Llave: ambulancia + mes + tipo + documento «Informe costos AAAA-MM»:
+    recargar el informe (o una versión corregida) actualiza, no duplica.
+    """
+    datos = leer_costos_mensuales(archivo, nombre)
+    lote = LoteImportacion.objects.create(tipo="COSTOS_MENSUALES", archivo=nombre[:250], usuario=usuario)
+    hallazgos = list(datos["hallazgos"])
+    if not datos["filas"]:
+        return _cerrar_lote(lote, 0, 0, 0, hallazgos, "No se encontraron filas de ambulancias por mes")
+    res = ResolutorCatalogos()
+    pars = parametros()
+    precio = {Ambulancia.GASOLINA: pars["precio_gasolina"], Ambulancia.ACPM: pars["precio_acpm"]}
+    nuevos = actualizados = omitidos = 0
+    fuente = nombre[:200]
+
+    # promedio mensual de mantenimiento por placa (solo meses con dato)
+    acumulado = defaultdict(lambda: [0.0, 0])
+    for f in datos["filas"]:
+        if f["mantenimiento"] is not None:
+            acumulado[f["placa"]][0] += f["mantenimiento"]
+            acumulado[f["placa"]][1] += 1
+
+    resumen_mes = defaultdict(lambda: {"mantenimiento": 0.0, "combustible": 0.0, "km": 0.0, "viajes": 0, "ambulancias": 0})
+    with transaction.atomic():
+        for f in datos["filas"]:
+            ubic = f"{f['hoja']}!fila {f['fila']}"
+            amb = res.ambulancia(f["placa"])
+            if amb is None:
+                hallazgos.append(hallazgo(fuente, ubic, "FALTANTE", f"Placa {f['placa']} no registrada en la flota; fila omitida", "ALTA"))
+                omitidos += 1
+                continue
+            sede = res.sede(f["hoja"]) or res.sede(f["sede_texto"])
+            if sede and amb.sede_id != sede.pk:
+                if amb.estado == Ambulancia.NUEVA:
+                    hallazgos.append(hallazgo(fuente, ubic, "SUPUESTO",
+                                              f"{amb.placa} pasa de {amb.sede.nombre} a {sede.nombre} según el informe (ambulancia nueva)", "BAJA"))
+                    amb.sede = sede
+                    amb.save(update_fields=["sede"])
+                    res.placas[amb.placa] = amb
+                elif f["mes"] == max(x["mes"] for x in datos["filas"] if x["placa"] == f["placa"]):
+                    hallazgos.append(hallazgo(fuente, ubic, "INCONSISTENCIA",
+                                              f"{amb.placa} está en {amb.sede.nombre} en la aplicación y en la hoja {f['hoja']} del informe", "MEDIA"))
+            tipo_comb = Ambulancia.GASOLINA if f["tipo_combustible"].startswith("GASOLINA") else (
+                Ambulancia.ACPM if f["tipo_combustible"].startswith(("ACPM", "DIESEL")) else None)
+            if tipo_comb and tipo_comb != amb.tipo_combustible and f["mes"] == 1:
+                hallazgos.append(hallazgo(fuente, ubic, "INCONSISTENCIA",
+                                          f"{amb.placa}: combustible {f['tipo_combustible']} en el informe y {amb.tipo_combustible} en la aplicación", "MEDIA"))
+            if not amb.descripcion and f["vehiculo"]:
+                amb.descripcion = f["vehiculo"][:120]
+                amb.save(update_fields=["descripcion"])
+            mes = dt.date(f["anio"], f["mes"], 1)
+            doc = f"{DOC_INFORME} {mes:%Y-%m}"
+            rm = resumen_mes[mes]
+            rm["ambulancias"] += 1
+
+            if f["mantenimiento"] is not None:
+                if modo_mantenimiento == MANTENIMIENTO_PROMEDIO:
+                    total, n = acumulado[f["placa"]]
+                    valor = total / n
+                    desc = f"Promedio mensual del informe ({n} meses, total {total:,.0f}); real del mes {f['mantenimiento']:,.0f}"
+                else:
+                    valor = f["mantenimiento"]
+                    desc = "Mantenimiento del mes (hoja de vida)" if valor else "Sin mantenimiento registrado en el mes"
+                if f["observacion"] and "OT" in f["observacion"].upper():
+                    desc += " · incluye órdenes de trabajo pendientes de certificar"
+                d = {"descripcion": desc[:200], "valor": Decimal(str(round(valor, 2))), "cantidad": Decimal(1),
+                     "unidad": "mes", "proveedor": "Mantenimiento parque automotor", "lote": lote, "actualizado_por": usuario}
+                _, creado = Consumo.objects.update_or_create(
+                    ambulancia=amb, fecha=mes, tipo=Consumo.MANTENIMIENTO, documento_soporte=doc,
+                    defaults=d, create_defaults={**d, "creado_por": usuario},
+                )
+                nuevos, actualizados = (nuevos + 1, actualizados) if creado else (nuevos, actualizados + 1)
+                rm["mantenimiento"] += valor
+
+            if f["combustible"] is not None:
+                galones = Decimal(str(f["combustible"])) / precio[amb.tipo_combustible]
+                d = {"descripcion": "Combustible real de la flota repartido por consumo esperado (informe mensual)",
+                     "valor": Decimal(str(round(f["combustible"], 2))), "cantidad": galones.quantize(Decimal("0.001")),
+                     "unidad": "gal", "proveedor": "Reporte de combustible ESE", "lote": lote, "actualizado_por": usuario}
+                _, creado = Consumo.objects.update_or_create(
+                    ambulancia=amb, fecha=mes, tipo=Consumo.COMBUSTIBLE, documento_soporte=doc,
+                    defaults=d, create_defaults={**d, "creado_por": usuario},
+                )
+                nuevos, actualizados = (nuevos + 1, actualizados) if creado else (nuevos, actualizados + 1)
+                rm["combustible"] += f["combustible"]
+            else:
+                # un dato anterior del mismo informe que ahora viene pendiente se retira
+                Consumo.objects.filter(ambulancia=amb, mes=mes, tipo=Consumo.COMBUSTIBLE, documento_soporte=doc).delete()
+
+            ActividadMensual.objects.update_or_create(
+                ambulancia=amb, mes=mes,
+                defaults={
+                    "viajes": int(f["viajes"]) if f["viajes"] is not None else None,
+                    "km_estimados": Decimal(str(f["km"])) if f["km"] is not None else None,
+                    "galones_esperados": Decimal(str(f["galones_esperados"])) if f["galones_esperados"] is not None else None,
+                    "rendimiento_esperado": Decimal(str(f["rendimiento"])) if f["rendimiento"] is not None else None,
+                    "combustible_pendiente": f["combustible"] is None and normalizar(f["combustible_estado"]) == "PENDIENTE",
+                    "observacion": f["observacion"], "lote": lote,
+                },
+            )
+            rm["km"] += f["km"] or 0
+            rm["viajes"] += int(f["viajes"] or 0)
+
+        for m, d in datos["flota"].items():
+            def dec(v):
+                return Decimal(str(v)) if v is not None else None
+            CombustibleFlotaMes.objects.update_or_create(
+                mes=dt.date(datos["anio"], m, 1),
+                defaults={"real_flota": dec(d.get("real_flota")), "esperado_flota": dec(d.get("esperado_flota")),
+                          "factor": dec(d.get("factor")), "asignado_ambulancias": dec(d.get("asignado_ambulancias")),
+                          "asignado_otros": dec(d.get("asignado_otros")), "periodo_reporte": d.get("periodo_reporte", ""),
+                          "observacion": d.get("observacion", ""), "lote": lote},
+            )
+
+    meses = sorted(resumen_mes)
+    pendientes = sorted({f"{f['anio']}-{f['mes']:02d}" for f in datos["filas"] if normalizar(f["combustible_estado"]) == "PENDIENTE"})
+    if pendientes:
+        hallazgos.append(hallazgo(fuente, "Combustible asignado", "FALTANTE",
+                                  f"Combustible pendiente de reparto en {', '.join(pendientes)}: esos meses siguen con el estándar del estudio", "BAJA"))
+    lote.mes = meses[0] if len(meses) == 1 else None
+    lote.detalle = {
+        "anio": datos["anio"], "modo_mantenimiento": modo_mantenimiento, "hojas": datos["hojas"],
+        "meses": [[f"{m:%Y-%m}", v] for m, v in sorted(resumen_mes.items())],
+        "mantenimiento_total": sum(v["mantenimiento"] for v in resumen_mes.values()),
+        "combustible_total": sum(v["combustible"] for v in resumen_mes.values()),
+    }
+    rango = f"{meses[0]:%Y-%m} a {meses[-1]:%Y-%m}" if meses else ""
+    return _cerrar_lote(
+        lote, nuevos, actualizados, omitidos, hallazgos,
+        f"{len(datos['filas'])} filas ambulancia-mes ({rango}) de {len(datos['hojas'])} sedes: mantenimiento "
+        f"{lote.detalle['mantenimiento_total']:,.0f} ({'promedio mensual' if modo_mantenimiento == MANTENIMIENTO_PROMEDIO else 'real de cada mes'}), "
+        f"combustible asignado {lote.detalle['combustible_total']:,.0f}",
+    )

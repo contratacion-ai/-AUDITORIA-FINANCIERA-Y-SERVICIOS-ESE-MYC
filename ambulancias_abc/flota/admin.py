@@ -1,9 +1,11 @@
 from django.contrib import admin, messages
 
 from .models import (
+    ActividadMensual,
     Ambulancia,
     ClaveAPI,
     CodigoTraslado,
+    CombustibleFlotaMes,
     HallazgoCalidad,
     LoteImportacion,
     Parametro,
@@ -75,6 +77,17 @@ class HallazgoAdmin(admin.ModelAdmin):
     list_display = ("severidad", "fuente", "ubicacion", "tipo", "resuelto")
     list_filter = ("severidad", "tipo", "fuente", "resuelto")
     search_fields = ("descripcion", "ubicacion")
+
+
+@admin.register(ActividadMensual)
+class ActividadMensualAdmin(AuditadoAdmin):
+    list_display = ("mes", "ambulancia", "viajes", "km_estimados", "galones_esperados", "combustible_pendiente")
+    list_filter = ("mes", "ambulancia__sede")
+
+
+@admin.register(CombustibleFlotaMes)
+class CombustibleFlotaMesAdmin(AuditadoAdmin):
+    list_display = ("mes", "real_flota", "esperado_flota", "factor", "asignado_ambulancias", "asignado_otros", "periodo_reporte")
 
 
 @admin.register(LoteImportacion)

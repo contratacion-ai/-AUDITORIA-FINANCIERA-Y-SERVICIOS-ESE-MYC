@@ -140,3 +140,18 @@ ZIP con carpetas por mes (archivos planos Res. 3374), cargado sin indicar mes ni
 Auditoría de septiembre de 2026 contra la facturación HIS cargada: 36 líneas facturadas y 34 en RIPS; **33 coinciden**, 1 facturada que no está en RIPS (FHJD15138, 601T02, $3.009.000), 1 en RIPS que no está en la facturación del mes (FHJD15216, misma ruta y valor, otro paciente) y 2 prefacturas sin número de factura. Los meses de diciembre 2025 a agosto 2026 quedan como *Sin facturación HIS cargada* hasta que se cargue la facturación de esos meses.
 
 Descarga de Salud360 (7 facturas JSON + XML): 2 traslados de mayo de 2026, uno de Arauquita (FHSL) y uno de Fortul (FHSF), reconocidos por el prefijo de la factura; los XML se ignoran.
+
+
+## Informe «Costos por ambulancia y mes 2026» (mantenimiento del parque automotor, 09/11/2026)
+
+| Observación | Tratamiento |
+|---|---|
+| 215 filas ambulancia-mes de 8 sedes (26 ambulancias, enero a octubre). Mantenimiento total $1.406.627.370; cuadra mes a mes con la hoja Resumen | Cargado como consumo real de cada mes |
+| Combustible asignado solo en agosto ($139.777.610) y septiembre ($119.357.687); cuadra con el Resumen. Octubre «Pendiente» del reporte | Agosto y septiembre reales; los demás meses siguen con el estándar del estudio |
+| Factor real ÷ esperado de agosto = 3,51: el registro de viajes empieza el 19/08, pero el combustible real es del mes completo | Se informa; el reparto por vehículo es el del informe |
+| Combustible real de la flota de enero cubre solo del 01 al 20; abril y mayo vienen en dos cortes | Se guarda el periodo del reporte en la tabla de combustible de la flota |
+| Las 5 Ford Ranger nuevas (KSM548–KSM552) estaban todas en Tame; el informe las ubica en Cravo Norte, Arauquita, Puerto Rondón, Fortul y Tame | Se movieron a la sede del informe (son nuevas, sin historial) |
+| El mantenimiento real es muy desigual por mes (junio $356,8 M, mayo $0) | Opción «promedio mensual» al cargar, si se prefiere repartirlo |
+| Octubre incluye órdenes de trabajo de CDMA pendientes de certificar | Queda en la descripción del consumo |
+
+Efecto en septiembre de 2026 (absorción real): el costo de la flota pasa de $590,1 M (estándar del estudio) a **$722,3 M** con el mantenimiento ($250,8 M) y el combustible ($119,4 M) reales; el margen sobre la facturación del mes baja de 30,0 % a 14,6 %.
