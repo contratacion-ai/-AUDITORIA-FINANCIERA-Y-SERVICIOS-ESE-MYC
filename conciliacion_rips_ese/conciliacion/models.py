@@ -66,8 +66,8 @@ class Conciliacion(models.Model):
 
 class ArchivoCargado(models.Model):
     class Tipo(models.TextChoices):
-        RIPS = "RIPS", "RIPS (TXT, JSON, ZIP o RAR)"
-        FACTURACION = "FACTURACION", "Facturación (CSV, TXT, XLSX, XLS)"
+        RIPS = "RIPS", "RIPS (cualquier formato)"
+        FACTURACION = "FACTURACION", "Facturación (cualquier formato)"
         CATALOGO = "CATALOGO", "Catálogo de sedes (código prestador → sede, hospital)"
         EQUIVALENCIAS = "EQUIVALENCIAS", "Equivalencias de códigos (facturación → RIPS)"
 

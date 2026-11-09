@@ -23,25 +23,6 @@ class MultiplesArchivosField(forms.FileField):
         return [limpiar(data, initial)]
 
 
-EXTENSIONES = {
-    ArchivoCargado.Tipo.RIPS: {".txt", ".json", ".zip", ".rar"},
-    ArchivoCargado.Tipo.FACTURACION: {".csv", ".txt", ".xlsx", ".xlsm", ".xls"},
-    ArchivoCargado.Tipo.CATALOGO: {".csv", ".txt", ".xlsx", ".xls"},
-    ArchivoCargado.Tipo.EQUIVALENCIAS: {".csv", ".txt", ".xlsx", ".xls"},
-}
-
-
-def validar_extension(tipo, nombre):
-    from pathlib import PurePosixPath
-
-    ext = PurePosixPath(nombre).suffix.lower()
-    if ext not in EXTENSIONES[tipo]:
-        raise forms.ValidationError(
-            f"'{nombre}': extensión {ext or '(sin extensión)'} no permitida para {tipo}. "
-            f"Permitidas: {', '.join(sorted(EXTENSIONES[tipo]))}"
-        )
-
-
 class ConciliacionForm(forms.ModelForm):
     class Meta:
         model = Conciliacion
@@ -54,32 +35,12 @@ AUTO = "AUTO"
 
 
 def tipo_automatico(archivo) -> str:
-    """Clasifica un archivo por su nombre y contenido.
+    """Clasifica el archivo por su contenido (no por la extensión). Ver ``formatos.clasificar_para_carga``."""
+    from rips_conciliacion.formatos import clasificar_para_carga
 
-    ZIP/RAR/JSON -> RIPS. TXT -> RIPS si tiene estructura RIPS (3374/2275); si no, facturación delimitada.
-    CSV/XLSX/XLS -> facturación, salvo que el nombre indique catálogo de sedes o equivalencias.
-    """
-    from pathlib import PurePosixPath
-
-    from rips_conciliacion.deteccion import detectar
-    from rips_conciliacion.modelos import VERSION_NO_DETERMINADA
-
-    nombre = archivo.name
-    ext = PurePosixPath(nombre).suffix.lower()
-    base = PurePosixPath(nombre).stem.lower()
-    if ext in (".zip", ".rar", ".json"):
-        return ArchivoCargado.Tipo.RIPS
-    if ext == ".txt":
-        inicio = archivo.read(256 * 1024)
-        archivo.seek(0)
-        if detectar(nombre, inicio).version != VERSION_NO_DETERMINADA:
-            return ArchivoCargado.Tipo.RIPS
-        return ArchivoCargado.Tipo.FACTURACION
-    if "catalogo" in base or "catálogo" in base or "sedes" in base:
-        return ArchivoCargado.Tipo.CATALOGO
-    if "equivalen" in base or "homolog" in base:
-        return ArchivoCargado.Tipo.EQUIVALENCIAS
-    return ArchivoCargado.Tipo.FACTURACION
+    contenido = archivo.read()
+    archivo.seek(0)
+    return clasificar_para_carga(archivo.name, contenido)
 
 
 class CargaArchivosForm(forms.Form):
@@ -98,7 +59,6 @@ class CargaArchivosForm(forms.Form):
         clasificados = []
         for archivo in datos.get("archivos") or []:
             tipo_archivo = tipo_automatico(archivo) if tipo == AUTO else tipo
-            validar_extension(tipo_archivo, archivo.name)
             clasificados.append((tipo_archivo, archivo))
         datos["clasificados"] = clasificados
         return datos

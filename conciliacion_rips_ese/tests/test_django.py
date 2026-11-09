@@ -91,10 +91,13 @@ def test_archivo_duplicado_no_se_carga(client, conciliacion):
     assert "mismo contenido" in r.content.decode()
 
 
-def test_extension_no_permitida(client, conciliacion):
-    r = subir(client, conciliacion, "RIPS", SimpleUploadedFile("rips.pdf", b"%PDF"))
-    assert conciliacion.archivos.count() == 0
-    assert "no permitida" in r.content.decode()
+def test_cualquier_archivo_se_acepta_y_lo_no_legible_se_reporta(client, conciliacion):
+    subir(client, conciliacion, "AUTO", zip_rips(), csv_fact(), SimpleUploadedFile("soporte.pdf", b"%PDF-1.4\x00\x01"))
+    assert conciliacion.archivos.count() == 3
+    procesar(client, conciliacion)
+    assert conciliacion.estado == Conciliacion.Estado.PROCESADA, conciliacion.mensaje_error
+    assert conciliacion.incidencias.filter(mensaje__icontains="no es un archivo de datos").exists() or \
+        conciliacion.incidencias.filter(mensaje__icontains="Formato no reconocido").exists()
 
 
 def test_reemplazar_actualizar_eliminar_y_limpiar(client, conciliacion):

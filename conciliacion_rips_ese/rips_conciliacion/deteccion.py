@@ -61,6 +61,11 @@ class Deteccion:
 
 def decodificar(contenido: bytes) -> str:
     """Decodifica UTF-8 (con o sin BOM) y si falla Windows-1252/Latin-1."""
+    if contenido.startswith((b"\xff\xfe", b"\xfe\xff")):  # "Texto Unicode" de Excel (UTF-16)
+        try:
+            return contenido.decode("utf-16")
+        except UnicodeDecodeError:
+            pass
     for codificacion in ("utf-8-sig", "cp1252", "latin-1"):
         try:
             return contenido.decode(codificacion)

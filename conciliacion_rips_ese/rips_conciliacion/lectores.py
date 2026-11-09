@@ -24,12 +24,11 @@ from .esquemas import (
     LLAVES_USUARIO_2275,
 )
 from .fechas import MESES, _sin_tildes, anio_de_nombre, mes_de_nombre, parse_fecha
-from .modelos import ADVERTENCIA, ERROR, VERSION_2275, VERSION_3374, ResultadoCarga
+from .modelos import ADVERTENCIA, ERROR, VERSION_2275, VERSION_3374, VERSION_NO_DETERMINADA, ResultadoCarga
 
 MAGIC_ZIP = b"PK\x03\x04"
 MAGIC_ZIP_VACIO = b"PK\x05\x06"
 MAGIC_RAR = b"Rar!\x1a\x07"
-EXTENSIONES_RIPS = {".txt", ".json", ".csv", ""}
 PROFUNDIDAD_MAXIMA = 4
 _IGNORAR = re.compile(
     r"(^|/)(__MACOSX|\.DS_Store|Thumbs\.db|desktop\.ini)", re.IGNORECASE
@@ -192,6 +191,21 @@ def _leer_carpeta(carpeta: Path, sede, hospital) -> ResultadoCarga:
     return res
 
 
+def _registrar_archivo(res, nombre, ctx, meta, version, tipo, motivo, lineas=None):
+    res.archivos.append({
+        "archivo": nombre,
+        "paquete": ctx.paquete,
+        "version": version,
+        "tipo": tipo,
+        "lineas": lineas,
+        "registros": res.total_registros,
+        "errores": sum(1 for i in res.incidencias if i.severidad == ERROR),
+        "motivo": motivo,
+        "sede_ruta": meta.get("_sede_ruta"),
+        "mes_ruta": meta.get("_mes_ruta"),
+    })
+
+
 def _leer_bytes(
     nombre: str,
     contenido: bytes,
@@ -199,111 +213,66 @@ def _leer_bytes(
     profundidad: int,
     nombre_corto: str | None = None,
 ) -> ResultadoCarga:
+    """Lee un archivo físico de RIPS en cualquier formato, reconocido por su contenido."""
+    from . import formatos
+
     nombre_corto = nombre_corto or PurePosixPath(nombre).name
-    if contenido.startswith(MAGIC_ZIP) or contenido.startswith(MAGIC_ZIP_VACIO):
-        return _leer_zip(nombre, contenido, ctx, profundidad)
-    if contenido.startswith(MAGIC_RAR):
-        return _leer_rar(nombre, contenido, ctx, profundidad)
+    clase = formatos.clasificar(nombre_corto, contenido)
+    if clase in formatos.PAQUETES:
+        return _leer_paquete(nombre, contenido, clase, ctx, profundidad)
 
     res = ResultadoCarga(archivo=nombre)
-    extension = PurePosixPath(nombre_corto).suffix.lower()
-    if extension not in EXTENSIONES_RIPS:
-        res.archivos.append(
-            {
-                "archivo": nombre,
-                "version": "-",
-                "tipo": "IGNORADO",
-                "registros": 0,
-                "errores": 0,
-                "motivo": f"Extensión {extension} no corresponde a RIPS (se ignora)",
-            }
-        )
-        res.incidencia(
-            ADVERTENCIA,
-            f"Archivo ignorado: extensión {extension} no es TXT/JSON de RIPS",
-        )
-        return res
-
-    det = detectar(nombre_corto, contenido)
     meta = {
         "_archivo": nombre,
         "_paquete": ctx.paquete,
-        "_version": det.version,
         "_sede_asignada": ctx.sede_asignada,
         "_hospital_asignado": ctx.hospital_asignado,
     }
     meta.update(inferir_de_ruta(ctx.componentes))
 
+    if clase in (formatos.BINARIO, formatos.DOCUMENTO_OFFICE, formatos.VACIO):
+        motivo = {"vacio": "Archivo vacío"}.get(clase, "No es un archivo de datos (por ejemplo PDF, imagen o Word)")
+        res.incidencia(ADVERTENCIA, f"Archivo ignorado: {motivo}")
+        _registrar_archivo(res, nombre, ctx, meta, "-", "IGNORADO", motivo)
+        return res
+
+    if clase in formatos.HOJAS_CALCULO:
+        _parsear_tabla_rips(nombre, nombre_corto, contenido, clase, meta, res)
+        return res
+
+    det = detectar(nombre_corto, contenido)
+    meta["_version"] = det.version
     if det.version == VERSION_3374:
         _parsear_3374(nombre, det, meta, res)
     elif det.version == VERSION_2275:
         _parsear_2275(nombre, det, meta, res)
     else:
-        res.incidencia(
-            ERROR, f"Versión de RIPS NO DETERMINADA; archivo no procesado. {det.motivo}"
-        )
-
-    errores = sum(1 for i in res.incidencias if i.severidad == ERROR)
-    lineas = (
-        len([ln for ln in (det.texto or "").splitlines() if ln.strip()])
-        if det.texto is not None
-        else None
-    )
-    res.archivos.append(
-        {
-            "archivo": nombre,
-            "paquete": ctx.paquete,
-            "version": det.version,
-            "tipo": det.tipo,
-            "lineas": lineas,
-            "registros": res.total_registros,
-            "errores": errores,
-            "motivo": det.motivo,
-            "sede_ruta": meta["_sede_ruta"],
-            "mes_ruta": meta["_mes_ruta"],
-        }
-    )
+        # No es RIPS oficial: se intenta como tabla con encabezados (CSV/TXT/JSON/XML exportado)
+        _parsear_tabla_rips(nombre, nombre_corto, contenido, clase, meta, res, motivo_previo=det.motivo)
+        return res
+    lineas = len([ln for ln in (det.texto or "").splitlines() if ln.strip()]) if det.texto is not None else None
+    _registrar_archivo(res, nombre, ctx, meta, det.version, det.tipo, det.motivo, lineas)
     return res
 
 
-def _leer_zip(
-    nombre: str, contenido: bytes, ctx: Contexto, profundidad: int
-) -> ResultadoCarga:
+def _leer_paquete(nombre: str, contenido: bytes, clase: str, ctx: Contexto, profundidad: int) -> ResultadoCarga:
+    from .formatos import FormatoNoLegible, expandir_paquete
+
     res = ResultadoCarga(archivo=nombre)
     if profundidad >= PROFUNDIDAD_MAXIMA:
-        res.incidencia(
-            ERROR,
-            f"Paquetes anidados con más de {PROFUNDIDAD_MAXIMA} niveles; no se procesa",
-        )
-        return res
-    try:
-        zf = zipfile.ZipFile(io.BytesIO(contenido))
-    except zipfile.BadZipFile as exc:
-        res.incidencia(ERROR, f"ZIP dañado o inválido: {exc}")
+        res.incidencia(ERROR, f"Paquetes anidados con más de {PROFUNDIDAD_MAXIMA} niveles; no se procesa")
         return res
     hijo = ctx.hijo(PurePosixPath(nombre).stem)
-    with zf:
-        for info in zf.infolist():
-            if info.is_dir() or _IGNORAR.search(info.filename):
+    miembros = miembros_rar(nombre, contenido, res) if clase == "rar" else expandir_paquete(nombre, contenido, clase)
+    try:
+        for ruta_txt, datos in miembros:
+            if _IGNORAR.search(ruta_txt):
                 continue
-            interno = f"{nombre}/{info.filename}"
-            try:
-                datos = zf.read(info)
-            except RuntimeError as exc:  # cifrado
-                res.incidencia(
-                    ERROR,
-                    f"No se pudo leer (¿protegido con contraseña?): {exc}",
-                    archivo=interno,
-                )
-                continue
-            except (zipfile.BadZipFile, OSError, NotImplementedError) as exc:
-                res.incidencia(
-                    ERROR, f"No se pudo descomprimir: {exc}", archivo=interno
-                )
-                continue
-            ruta = PurePosixPath(info.filename)
+            ruta = PurePosixPath(ruta_txt.replace("\\", "/"))
             sub = hijo.hijo(*ruta.parent.parts)
-            res.fusionar(_leer_bytes(interno, datos, sub, profundidad + 1, ruta.name))
+            res.fusionar(_leer_bytes(f"{nombre}/{ruta}", datos, sub, profundidad + 1, ruta.name))
+    except FormatoNoLegible as exc:
+        res.incidencia(ERROR, str(exc))
     return res
 
 
@@ -328,50 +297,178 @@ def _configurar_herramientas_rar(rarfile) -> None:
     rarfile.BSDTAR_TOOL = "tar"
 
 
-def _leer_rar(
-    nombre: str, contenido: bytes, ctx: Contexto, profundidad: int
-) -> ResultadoCarga:
-    res = ResultadoCarga(archivo=nombre)
+def miembros_rar(nombre: str, contenido: bytes, res: ResultadoCarga):
+    """Itera (ruta, bytes) de un RAR; los archivos que no se pueden extraer se reportan y se omiten."""
     try:
         import rarfile
 
         _configurar_herramientas_rar(rarfile)
     except ImportError:  # pragma: no cover
-        res.incidencia(
-            ERROR, "Para leer RAR instale el paquete 'rarfile' (pip install rarfile)"
-        )
-        return res
-    if profundidad >= PROFUNDIDAD_MAXIMA:
-        res.incidencia(
-            ERROR,
-            f"Paquetes anidados con más de {PROFUNDIDAD_MAXIMA} niveles; no se procesa",
-        )
-        return res
+        res.incidencia(ERROR, "Para leer RAR instale el paquete 'rarfile' (pip install rarfile)")
+        return
     try:
         rf = rarfile.RarFile(io.BytesIO(contenido))
     except rarfile.Error as exc:
         res.incidencia(ERROR, f"RAR dañado o inválido: {exc}")
-        return res
-    hijo = ctx.hijo(PurePosixPath(nombre).stem)
+        return
     with rf:
         for info in rf.infolist():
-            if info.is_dir() or _IGNORAR.search(info.filename):
+            if info.is_dir():
                 continue
-            interno = f"{nombre}/{info.filename}"
             try:
                 datos = rf.read(info)
             except rarfile.Error as exc:
                 res.incidencia(
                     ERROR,
                     f"No se pudo descomprimir del RAR ({exc.__class__.__name__}: {exc}). Los RAR comprimidos "
-                    "requieren la herramienta 'unrar', 'unar', '7z' o 'bsdtar' instalada en el servidor.",
-                    archivo=interno,
+                    "requieren 'unrar', 'unar', '7z' o 'bsdtar' en el equipo (en Windows: WinRAR, 7-Zip o el "
+                    "tar.exe de Windows 10/11). También puede descomprimirlo y cargar los archivos o un ZIP.",
+                    archivo=f"{nombre}/{info.filename}",
                 )
                 continue
-            ruta = PurePosixPath(info.filename)
-            sub = hijo.hijo(*ruta.parent.parts)
-            res.fusionar(_leer_bytes(interno, datos, sub, profundidad + 1, ruta.name))
-    return res
+            yield info.filename, datos
+
+
+# ---------------------------------------------------------------------------
+# RIPS en tabla (Excel, ODS, CSV, JSON o XML exportados con encabezados)
+# ---------------------------------------------------------------------------
+
+_COLUMNAS_2275 = {"numfactura", "codconsulta", "codprocedimiento", "codtecnologiasalud", "vrservicio", "codprestador"}
+_COLUMNAS_3374 = {"numero_de_la_factura", "codigo_de_consulta", "codigo_del_procedimiento", "codigo_del_medicamento",
+                  "codigo_del_servicio", "valor_de_la_consulta", "valor_del_procedimiento"}
+_CATEGORIA_POR_COLUMNA = [
+    ({"codconsulta", "codigo_de_consulta", "valor_de_la_consulta"}, "CONSULTA"),
+    ({"codprocedimiento", "codigo_del_procedimiento", "valor_del_procedimiento"}, "PROCEDIMIENTO"),
+    ({"cantidadmedicamento", "codigo_del_medicamento", "valor_total_de_medicamento", "vrunitmedicamento", "cums",
+      "codigo_cums"}, "MEDICAMENTO"),
+    ({"cantidados", "codigo_del_servicio", "valor_total_del_material_e_insumo", "vrunitos"}, "OTRO_SERVICIO"),
+]
+_CATEGORIA_POR_NOMBRE = [
+    (re.compile(r"(^|[^A-Z])(AC|CONSULTA)", re.I), "CONSULTA"),
+    (re.compile(r"(^|[^A-Z])(AP|PROCEDIMIENTO)", re.I), "PROCEDIMIENTO"),
+    (re.compile(r"(^|[^A-Z])(AM|MEDICAMENTO|FARMACIA)", re.I), "MEDICAMENTO"),
+    (re.compile(r"(^|[^A-Z])(AT|OTROS?.?SERVICIO|INSUMO)", re.I), "OTRO_SERVICIO"),
+]
+
+
+def _categoria_tabla(columnas_norm: set[str], *nombres: str) -> str | None:
+    for claves, categoria in _CATEGORIA_POR_COLUMNA:
+        if columnas_norm & claves:
+            return categoria
+    for nombre in nombres:
+        if not nombre:
+            continue
+        for patron, categoria in _CATEGORIA_POR_NOMBRE:
+            if patron.search(PurePosixPath(str(nombre)).stem):
+                return categoria
+    return None
+
+
+def _parsear_tabla_rips(nombre, nombre_corto, contenido, clase, meta, res, motivo_previo=None) -> None:
+    """RIPS exportados como tabla. Si una hoja no tiene encabezado pero sus filas tienen la estructura
+    de la Resolución 3374 (AF, AC, AM...), se procesan como esos archivos."""
+    from .facturacion import _leer_un_archivo, normalizar_nombre
+    from .formatos import FormatoNoLegible, leer_tablas, tabla_a_lineas_csv
+
+    try:
+        hojas = leer_tablas(nombre_corto, contenido, clase)
+    except FormatoNoLegible as exc:
+        mensaje = f"Versión de RIPS NO DETERMINADA; archivo no procesado. {motivo_previo or ''} {exc}".strip()
+        res.incidencia(ERROR, mensaje)
+        _registrar_archivo(res, nombre, _ctx_de(meta), meta, VERSION_NO_DETERMINADA, None, mensaje)
+        return
+
+    procesadas = 0
+    for hoja, crudo in hojas:
+        etiqueta = f"{nombre}" + (f" [{hoja}]" if hoja and len(hojas) > 1 else "")
+        # 1) ¿Hoja con filas de estructura 3374 sin encabezado?
+        texto = tabla_a_lineas_csv(crudo)
+        det = detectar(str(hoja or nombre_corto), texto) if texto else None
+        if det and det.version == VERSION_3374 and not _tiene_encabezado(crudo):
+            sub = ResultadoCarga(archivo=etiqueta)
+            _parsear_3374(etiqueta, det, {**meta, "_archivo": etiqueta, "_version": det.version}, sub)
+            res.fusionar(sub)
+            _registrar_archivo(res, etiqueta, _ctx_de(meta), meta, det.version, det.tipo,
+                               f"Hoja de cálculo con estructura {det.tipo}: {det.motivo}")
+            procesadas += 1
+            continue
+        # 2) Tabla con encabezados
+        sub = ResultadoCarga(archivo=etiqueta)
+        buffer = _hoja_como_csv(crudo)
+        leido = _leer_un_archivo(etiqueta, buffer, None, "auto", None, None, None)
+        registros = leido.registros.get("facturacion", [])
+        if not registros:
+            mensaje = ("Versión de RIPS NO DETERMINADA; no se procesó. "
+                       + (f"{motivo_previo} " if motivo_previo and len(hojas) == 1 else "")
+                       + "Tampoco es una tabla con columnas de factura, código y valor.")
+            sub.incidencia(ERROR if len(hojas) == 1 else ADVERTENCIA, mensaje)
+            res.fusionar(sub)
+            _registrar_archivo(res, etiqueta, _ctx_de(meta), meta, VERSION_NO_DETERMINADA, None, mensaje)
+            continue
+        columnas_norm = {normalizar_nombre(c) for c in registros[0] if not str(c).startswith("_")}
+        if columnas_norm & _COLUMNAS_2275:
+            version = VERSION_2275.replace("(JSON)", "(en tabla)")
+        elif columnas_norm & _COLUMNAS_3374:
+            version = VERSION_3374.replace("(TXT)", "(en tabla)")
+        else:
+            version = VERSION_NO_DETERMINADA + " (tabla sin estructura oficial)"
+            sub.incidencia(ADVERTENCIA, "La tabla no tiene la estructura oficial de RIPS (3374 ni 2275): se procesa por "
+                                        "las columnas reconocidas de factura, código, cantidad y valor.")
+        categoria = _categoria_tabla(columnas_norm, hoja, nombre_corto)
+        for r in registros:
+            r.update({k: v for k, v in meta.items() if k not in r or k.startswith("_")})
+            r["_archivo"] = etiqueta
+            r["_version"] = version
+            r["_tipo"] = "tabla"
+            r["_categoria"] = categoria
+            sub.agregar("tabla", r)
+        for inc in leido.incidencias:
+            inc.archivo = etiqueta
+        sub.incidencias.extend(leido.incidencias)
+        res.fusionar(sub)
+        _registrar_archivo(res, etiqueta, _ctx_de(meta), meta, version, "TABLA" + (f" {categoria}" if categoria else ""),
+                           "Tabla con encabezados")
+        procesadas += 1
+
+
+def _es_fila_titulos(valores) -> bool:
+    """Una línea sin dígitos en el número de factura ni en ningún campo numérico es de títulos."""
+    from .facturacion import _es_encabezado
+
+    return _es_encabezado(valores) or not any(any(ch.isdigit() for ch in v) for v in valores)
+
+
+def _ctx_de(meta: dict) -> Contexto:
+    return Contexto(paquete=meta.get("_paquete"))
+
+
+def _tiene_encabezado(crudo) -> bool:
+    from .facturacion import _es_encabezado
+
+    return any(_es_encabezado(crudo.iloc[i].tolist()) for i in range(min(30, len(crudo))))
+
+
+def _hoja_como_csv(crudo) -> bytes:
+    """Serializa la hoja a CSV con ';' conservando valores exactos para reutilizar el lector tabular."""
+    import csv as _csv
+
+    from .formatos import tabla_a_lineas_csv  # noqa: F401 (misma convención de celdas)
+
+    salida = io.StringIO()
+    escritor = _csv.writer(salida, delimiter=";", quotechar='"', quoting=_csv.QUOTE_MINIMAL, lineterminator="\n")
+    for fila in crudo.itertuples(index=False, name=None):
+        celdas = []
+        for v in fila:
+            if v is None or (isinstance(v, float) and v != v):
+                celdas.append("")
+            elif isinstance(v, float):
+                celdas.append(str(int(v)) if v.is_integer() else repr(v))
+            elif hasattr(v, "strftime"):
+                celdas.append(v.strftime("%Y-%m-%d"))
+            else:
+                celdas.append(str(v))
+        escritor.writerow(celdas)
+    return salida.getvalue().encode("utf-8")
 
 
 # ---------------------------------------------------------------------------
@@ -385,6 +482,9 @@ def _parsear_3374(nombre: str, det: Deteccion, meta: dict, res: ResultadoCarga) 
         if not linea.strip():
             continue
         valores = linea.split(",")
+        if num == 1 and _es_fila_titulos(valores):
+            res.incidencia(ADVERTENCIA, "Primera línea con títulos de columna: se omite", linea=num)
+            continue
         if len(valores) != esquema.num_campos:
             res.incidencia(
                 ERROR,

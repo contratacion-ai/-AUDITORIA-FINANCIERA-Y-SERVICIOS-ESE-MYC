@@ -2,7 +2,10 @@
 Django>=5.2,<7
 pandas>=2.2,<4
 openpyxl>=3.1,<4
+xlrd>=2.0,<3          # Excel 97-2003 (.xls)
+pyxlsb>=1.0.10,<2     # Excel binario (.xlsb)
 rarfile>=4.1,<5
+py7zr>=0.22,<2        # paquetes .7z
 waitress>=3.0,<4
 whitenoise>=6.6,<7
 tzdata>=2024.1

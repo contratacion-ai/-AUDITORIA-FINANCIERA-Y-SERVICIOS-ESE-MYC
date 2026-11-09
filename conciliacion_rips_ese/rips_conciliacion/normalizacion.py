@@ -372,6 +372,33 @@ def lineas_rips(
                 }
             )
 
+    # --- RIPS exportados como tabla (Excel, ODS, CSV, JSON o XML con encabezados)
+    for reg in carga.registros.get("tabla", []):
+        factura = reg["_factura"]
+        fclave = clave_factura(factura, ignorar_ceros)
+        prestador = reg.get("_prestador")
+        ctx = contexto(reg, prestador, reg.get("_fecha"), fclave)
+        if reg.get("_sede") and not reg.get("_sede_asignada"):
+            ctx["sede"] = etiqueta(reg["_sede"]) or ctx["sede"]
+        if reg.get("_hospital") and not reg.get("_hospital_asignado"):
+            ctx["hospital"] = etiqueta(reg["_hospital"]) or ctx["hospital"]
+        if not reg.get("_mes_ruta") and reg.get("_mes"):
+            ctx["mes"], ctx["mes_origen"] = reg["_mes"], reg.get("_mes_origen") or "TABLA"
+        codigo = reg["_codigo"]
+        categoria = reg.get("_categoria") or ("MEDICAMENTO" if _RE_CUMS.match(clave_codigo(codigo)) else "SIN CLASIFICAR")
+        filas.append({
+            "origen": "RIPS", "archivo": reg["_archivo"], "ubicacion": reg["_ubicacion"],
+            "version": reg["_version"], "tipo_archivo": "TABLA" + (f" {reg['_hoja']}" if reg.get("_hoja") else ""),
+            "categoria": categoria, "tipo_codigo": tipo_codigo(codigo, categoria),
+            "factura": factura, "factura_clave": fclave, "codigo": codigo, "codigo_clave": clave_codigo(codigo),
+            "campo_codigo": reg["_campo_codigo"], "descripcion": reg.get("_descripcion"),
+            "cantidad": reg["_cantidad"], "valor": reg["_valor"], "valor_unitario": reg.get("_valor_unitario"),
+            "fecha": reg.get("_fecha"), **ctx,
+            "ambito": reg.get("_ambito"), "servicio": categoria,
+            "farmacia": etiqueta(reg.get("_farmacia")) or (ctx["sede"] if categoria == "MEDICAMENTO" else None),
+            "prestador": prestador, "documento": reg.get("_documento"),
+        })
+
     lineas = pd.DataFrame(filas, columns=COLUMNAS_LINEA)
 
     # Atributos de factura para las facturas RIPS

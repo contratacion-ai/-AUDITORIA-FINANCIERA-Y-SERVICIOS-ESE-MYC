@@ -12,8 +12,7 @@ from django.views.decorators.http import require_POST
 from rips_conciliacion.emparejamiento import __doc__ as CRITERIO
 
 from . import servicios, tablero
-from .forms import (ActualizarArchivoForm, CargaArchivosForm, ConciliacionForm, InicioRapidoForm, ReemplazoForm,
-                    validar_extension)
+from .forms import ActualizarArchivoForm, CargaArchivosForm, ConciliacionForm, InicioRapidoForm, ReemplazoForm
 from .models import ArchivoCargado, Conciliacion
 
 registro = logging.getLogger("conciliacion")
@@ -130,11 +129,6 @@ def reemplazar(request, pk):
     archivo = get_object_or_404(ArchivoCargado, pk=pk)
     form = ReemplazoForm(request.POST, request.FILES)
     if form.is_valid():
-        try:
-            validar_extension(archivo.tipo, form.cleaned_data["archivo"].name)
-        except Exception as exc:  # noqa: BLE001
-            messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
-            return redirect(archivo.conciliacion)
         if servicios.reemplazar_archivo(archivo, form.cleaned_data["archivo"], _usuario(request)):
             messages.success(request, f"Archivo reemplazado (versión {archivo.version}). Reprocese la conciliación.")
         else:

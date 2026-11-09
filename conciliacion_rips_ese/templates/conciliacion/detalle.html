@@ -31,8 +31,9 @@
 <div class="tarjeta" style="border:2px solid var(--azul)">
   <form method="post" enctype="multipart/form-data" action="{% url 'conciliacion:cargar' c.pk %}">
     {% csrf_token %}
-    <p><strong>Paso 1.</strong> Pulse el botón y seleccione los archivos: RIPS (ZIP, RAR, TXT o JSON) y facturación
-      (Excel o CSV). Puede seleccionar varios a la vez con Ctrl o Shift.</p>
+    <p><strong>Paso 1.</strong> Pulse el botón y seleccione los archivos de RIPS y de facturación <strong>en cualquier
+      formato</strong>: comprimidos (ZIP, RAR, 7Z, GZ, TAR), Excel (XLSX, XLS, XLSB), LibreOffice (ODS), CSV o TXT con
+      cualquier separador, JSON o XML. Puede seleccionar varios a la vez con Ctrl o Shift.</p>
     <p>{{ form_carga.archivos }}</p>
     <p><strong>Paso 2.</strong> <button class="btn" type="submit">⬆ Cargar archivos seleccionados</button></p>
     <details><summary>Opciones (normalmente no hace falta cambiarlas)</summary>
@@ -44,10 +45,12 @@
       </div>
     </details>
   </form>
-  <p class="ayuda">El tipo de cada archivo se detecta solo: ZIP, RAR, JSON y TXT con estructura RIPS se cargan como RIPS;
-    Excel y CSV como facturación (si el nombre dice "catalogo"/"sedes" o "equivalencias", como esos). Si no indica
-    sede/hospital, se infieren del catálogo de sedes o de los nombres de paquete/carpeta. Un archivo idéntico a uno ya
-    cargado no se duplica. Después de cargar, pulse <strong>⚙ Procesar conciliación</strong>.</p>
+  <p class="ayuda">El tipo y el formato de cada archivo se reconocen por su contenido, no por la extensión. Se
+    cargan como RIPS: paquetes y archivos con estructura RIPS (Res. 3374 o 2275), RIPS exportados a Excel/CSV con sus
+    columnas y archivos cuyo nombre dice "RIPS". El resto de tablas se cargan como facturación (si el nombre dice
+    "catalogo"/"sedes" o "equivalencias", como esos). Si el tipo no es el correcto, cámbielo en la tabla de archivos.
+    Los PDF o imágenes dentro de un paquete se ignoran con un aviso. Después de cargar, pulse
+    <strong>⚙ Procesar conciliación</strong>.</p>
 </div>
 
 <h2>Archivos cargados</h2>

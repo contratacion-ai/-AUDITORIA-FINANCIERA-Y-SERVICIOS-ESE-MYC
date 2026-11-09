@@ -99,19 +99,29 @@ archivo no pudo extraer y sigue con el resto. Los RAR "almacenados" (sin compres
 
 ## Uso con los archivos reales de la ESE
 
-1. **Crear la auditoría** (por ejemplo, "Auditoría EPS X – vigencia 2024") y dentro de ella una **conciliación**.
-2. **Cargar archivos** en la conciliación (se pueden seleccionar varios a la vez):
-   - **RIPS:** ZIP o RAR por sede, con los meses en carpetas (`RIPS_SEDE_TAME.zip/ENERO_2024/AF000123.txt`,
-     `.../2024-02/FE2001.json`). También se aceptan TXT o JSON sueltos y ZIP anidados (un ZIP por mes dentro
-     del ZIP de la sede).
-   - **Facturación:** CSV, TXT delimitado, XLSX o XLS con encabezado. Puede ser un libro con una hoja por
-     ámbito (Ambulatorio, Urgencias, Hospitalización…) o un archivo por ámbito (indique el ámbito al cargarlo).
-     Las columnas se reconocen por nombre (`Numero Factura`, `Factura`, `CUPS`, `CUMS`, `Codigo`, `Cantidad`,
-     `Valor Total`, `Valor Unitario`, `Fecha Factura`, `Mes`, `Sede`, `Hospital`, `Ambito`, `Farmacia`…),
-     aunque el encabezado no esté en la primera fila. Las filas de "TOTAL" se ignoran.
-   - **Catálogo de sedes (recomendado):** `codigo_prestador;sede;hospital`. Asigna sede y hospital a los
-     RIPS por el código de habilitación.
-   - **Equivalencias (opcional):** `codigo_facturacion;codigo_rips`, para códigos homologados.
+1. Pulse **⬆ Cargar datos** en el inicio. Esto crea la conciliación dentro de una auditoría nueva o de una
+   existente.
+2. **Cargar archivos en cualquier formato.** Se pueden seleccionar varios a la vez; el tipo y el formato se
+   reconocen **por el contenido**, no por la extensión:
+
+   | Qué | Formatos aceptados |
+   |---|---|
+   | Paquetes | ZIP, RAR, 7Z, GZ, TAR (.tar.gz, .tgz, .tar.bz2, .tar.xz), anidados en cualquier combinación |
+   | RIPS oficiales | TXT de la Res. 3374 (AF, US, AC, AP, AU, AH, AN, AM, AT, CT), con cualquier extensión y en UTF-8, ANSI o UTF-16; JSON de la Res. 2275 |
+   | RIPS en hoja de cálculo | Excel o CSV con los nombres de columna oficiales (`numFactura`, `codConsulta`, `vrServicio`… o los del anexo 3374), o un libro con hojas `AC`, `AM`… sin encabezado. Si la tabla no tiene estructura oficial, se procesa por las columnas reconocidas (factura, código, cantidad, valor) y la versión se informa como **NO DETERMINADA** |
+   | Facturación | XLSX, XLSM, XLS (97-2003), XLSB, ODS (LibreOffice), CSV/TXT con `;`, `,`, `|` o tabulador, JSON (lista de registros), XML (registros repetidos) y cualquiera de ellos dentro de un comprimido |
+
+   - **RIPS por sede:** paquetes con los meses en carpetas (`RIPS_SEDE_TAME.zip/ENERO_2024/AF000123.txt`,
+     `.../2024-02/FE2001.json`).
+   - **Facturación por ámbito:** un libro con una hoja por ámbito (Ambulatorio, Urgencias…) o un archivo por
+     ámbito. Las columnas se reconocen por nombre (`Numero Factura`, `Factura`, `CUPS`, `CUMS`, `Codigo`,
+     `Cantidad`, `Valor Total`, `Valor Unitario`, `Fecha Factura`, `Mes`, `Sede`, `Hospital`, `Ambito`,
+     `Farmacia`…), aunque el encabezado no esté en la primera fila. Las filas de "TOTAL" se ignoran.
+   - **Catálogo de sedes (recomendado):** columnas `codigo_prestador`, `sede` y `hospital`, en cualquier
+     formato tabular. Asigna sede y hospital a los RIPS por el código de habilitación.
+   - **Equivalencias (opcional):** columnas `codigo_facturacion` y `codigo_rips`, para códigos homologados.
+   - Los PDF, imágenes o documentos de Word dentro de un paquete se ignoran con un aviso. Si un archivo
+     quedó con un tipo equivocado, se corrige en la tabla de archivos.
 3. Pulsar **Procesar conciliación** y revisar el **reporte general** (archivos, versión detectada, errores).
 4. Explorar el **tablero** con filtros (sede, hospital, mes, estado, servicio, tipo de código, factura,
    código) y exportar.

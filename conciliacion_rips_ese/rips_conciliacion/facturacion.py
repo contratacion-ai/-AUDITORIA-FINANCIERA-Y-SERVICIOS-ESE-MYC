@@ -27,7 +27,9 @@ from .decimales import ValorInvalido, a_decimal, inferir_separador
 from .fechas import mes_de_fecha, mes_de_nombre, parse_fecha
 from .modelos import ADVERTENCIA, ERROR, ResultadoCarga
 
-# Campo canónico -> alias aceptados (normalizados: minúsculas, sin tildes, '_' en lugar de símbolos)
+# Campo canónico -> alias aceptados (normalizados: minúsculas, sin tildes, '_' en lugar de símbolos).
+# Incluye los nombres oficiales de RIPS (anexo de la Res. 3374 y llaves JSON de la Res. 2275) para leer
+# RIPS exportados como tabla.
 ALIAS: dict[str, tuple[str, ...]] = {
     "factura": (
         "numero_factura",
@@ -41,6 +43,10 @@ ALIAS: dict[str, tuple[str, ...]] = {
         "factura_numero",
         "nfactura",
         "documento_factura",
+        "numero_de_la_factura",
+        "no_de_factura",
+        "num_fact",
+        "factura_no",
     ),
     "prefijo": ("prefijo", "prefijo_factura"),
     "consecutivo": ("consecutivo", "consecutivo_factura", "numero"),
@@ -66,6 +72,12 @@ ALIAS: dict[str, tuple[str, ...]] = {
         "codigo_medicamento",
         "codigo_articulo",
         "cod_articulo",
+        "codigo_de_consulta",
+        "codigo_del_procedimiento",
+        "codigo_del_medicamento",
+        "codigo_del_servicio",
+        "cod_cups_cums",
+        "codigo_cups_cums",
     ),
     "valor": (
         "valor_total",
@@ -79,6 +91,11 @@ ALIAS: dict[str, tuple[str, ...]] = {
         "total_facturado",
         "subtotal",
         "valor_bruto",
+        "valor_de_la_consulta",
+        "valor_del_procedimiento",
+        "valor_total_de_medicamento",
+        "valor_total_del_material_e_insumo",
+        "vr_servicio",
     ),
     "valor_unitario": (
         "valor_unitario",
@@ -88,6 +105,10 @@ ALIAS: dict[str, tuple[str, ...]] = {
         "precio",
         "vrunitario",
         "valor_unidad",
+        "valor_unitario_de_medicamento",
+        "valor_unitario_del_material_e_insumo",
+        "vrunitmedicamento",
+        "vrunitos",
     ),
     "cantidad": (
         "cantidad",
@@ -96,6 +117,9 @@ ALIAS: dict[str, tuple[str, ...]] = {
         "cantidad_facturada",
         "numero_unidades",
         "cantidad_total",
+        "numero_de_unidades",
+        "cantidadmedicamento",
+        "cantidados",
     ),
     "fecha": (
         "fecha_factura",
@@ -106,6 +130,12 @@ ALIAS: dict[str, tuple[str, ...]] = {
         "fecha",
         "fecha_servicio",
         "fecha_atencion",
+        "fecha_de_expedicion_de_la_factura",
+        "fecha_de_la_consulta",
+        "fecha_del_procedimiento",
+        "fechainicioatencion",
+        "fechadispensadmon",
+        "fechasuministrotecnologia",
     ),
     "mes": ("mes", "periodo", "mes_facturacion", "mes_factura", "periodo_facturacion"),
     "sede": (
@@ -145,6 +175,9 @@ ALIAS: dict[str, tuple[str, ...]] = {
         "producto",
         "nombre_medicamento",
         "descripcion_servicio",
+        "nomtecnologiasalud",
+        "nombre_generico_del_medicamento",
+        "nombre_del_servicio",
     ),
     "farmacia": ("farmacia", "bodega", "punto_dispensacion", "punto_de_dispensacion"),
     "prestador": (
@@ -153,6 +186,8 @@ ALIAS: dict[str, tuple[str, ...]] = {
         "codigo_habilitacion",
         "codprestador",
         "cod_habilitacion",
+        "codigo_del_prestador_de_servicios_de_salud",
+        "codigo_del_prestador",
     ),
     "documento": (
         "documento_paciente",
@@ -162,6 +197,8 @@ ALIAS: dict[str, tuple[str, ...]] = {
         "documento",
         "numdocumentoidentificacion",
         "cedula",
+        "numero_de_identificacion_del_usuario_en_el_sistema",
+        "numero_de_identificacion_del_usuario",
     ),
     "eps": (
         "eps",
@@ -175,7 +212,6 @@ ALIAS: dict[str, tuple[str, ...]] = {
 }
 
 OBLIGATORIOS = ("factura", "codigo")
-EXTENSIONES_FACTURACION = {".csv", ".txt", ".xlsx", ".xlsm", ".xls"}
 
 
 def normalizar_nombre(nombre) -> str:
@@ -232,46 +268,20 @@ def _es_encabezado(fila) -> bool:
 
 
 def _tablas_de_archivo(
-    nombre: str, contenido: bytes, res: ResultadoCarga
+    nombre: str, contenido: bytes, res: ResultadoCarga, sin_encabezado: list | None = None
 ) -> list[tuple[str | None, pd.DataFrame, int]]:
-    """Devuelve [(hoja, DataFrame de texto, fila_excel_del_encabezado)]."""
-    extension = PurePosixPath(nombre).suffix.lower()
-    tablas: list[tuple[str | None, pd.DataFrame]] = []
-    if extension in (".xlsx", ".xlsm", ".xls"):
-        try:
-            hojas = pd.read_excel(
-                io.BytesIO(contenido), sheet_name=None, header=None, dtype=object
-            )
-        except Exception as exc:  # noqa: BLE001 - se reporta cualquier error de lectura
-            res.incidencia(ERROR, f"No se pudo leer el libro de Excel: {exc}")
-            return []
-        tablas = list(hojas.items())
-    else:
-        from .deteccion import decodificar
+    """Devuelve [(hoja, DataFrame de texto, fila_excel_del_encabezado)].
 
-        texto = decodificar(contenido)
-        muestra = "\n".join(texto.splitlines()[:20])
-        try:
-            separador = csv.Sniffer().sniff(muestra, delimiters=";,|\t").delimiter
-        except csv.Error:
-            separador = ";" if muestra.count(";") > muestra.count(",") else ","
-        try:
-            df = pd.read_csv(
-                io.StringIO(texto),
-                sep=separador,
-                header=None,
-                dtype=str,
-                keep_default_na=False,
-                skip_blank_lines=False,
-                engine="python",
-            )
-        except Exception as exc:  # noqa: BLE001
-            res.incidencia(
-                ERROR,
-                f"No se pudo leer el archivo delimitado (separador '{separador}'): {exc}",
-            )
-            return []
-        tablas = [(None, df)]
+    Acepta cualquier formato tabular (ver ``formatos.leer_tablas``). Si se pasa ``sin_encabezado``,
+    las hojas sin encabezado reconocible se agregan ahí en lugar de reportarse como error.
+    """
+    from .formatos import FormatoNoLegible, leer_tablas
+
+    try:
+        tablas = leer_tablas(nombre, contenido)
+    except FormatoNoLegible as exc:
+        res.incidencia(ERROR, str(exc))
+        return []
 
     salida = []
     for hoja, crudo in tablas:
@@ -280,6 +290,9 @@ def _tablas_de_archivo(
             if _es_encabezado(crudo.iloc[i].tolist()):
                 encabezado = i
                 break
+        if encabezado is None and sin_encabezado is not None:
+            sin_encabezado.append((hoja, crudo))
+            continue
         if encabezado is None:
             res.incidencia(
                 ADVERTENCIA if len(tablas) > 1 else ERROR,
@@ -373,22 +386,25 @@ def _leer_un_archivo(
     nombre, contenido, mapeo, separador_decimal, sede, hospital, ambito
 ) -> ResultadoCarga:
     res = ResultadoCarga(archivo=nombre, version="Facturación")
-    extension = PurePosixPath(nombre).suffix.lower()
-    if extension not in EXTENSIONES_FACTURACION:
-        res.incidencia(
-            ERROR,
-            f"Extensión {extension} no soportada para facturación (use CSV, TXT, XLSX o XLS)",
-        )
-        res.archivos.append(
-            {
-                "archivo": nombre,
-                "version": "Facturación",
-                "tipo": "IGNORADO",
-                "registros": 0,
-                "errores": 1,
-                "motivo": "Extensión no soportada",
-            }
-        )
+    from .formatos import PAQUETES, FormatoNoLegible, clasificar, expandir_paquete
+
+    clase = clasificar(nombre, contenido)
+    if clase in PAQUETES:
+        # Facturación comprimida (ZIP, RAR, 7Z, GZ, TAR): se lee cada archivo interno
+        if clase == "rar":
+            from .lectores import miembros_rar
+
+            miembros = miembros_rar(nombre, contenido, res)
+        else:
+            miembros = expandir_paquete(nombre, contenido, clase)
+        try:
+            for ruta, datos in miembros:
+                if re.search(r"(^|/)(__MACOSX|\.DS_Store|Thumbs\.db|desktop\.ini)", ruta, re.IGNORECASE):
+                    continue
+                res.fusionar(_leer_un_archivo(f"{nombre}/{ruta}", datos, mapeo, separador_decimal,
+                                              sede, hospital, ambito))
+        except FormatoNoLegible as exc:
+            res.incidencia(ERROR, str(exc))
         return res
 
     tablas = _tablas_de_archivo(nombre, contenido, res)
@@ -631,19 +647,7 @@ def leer_catalogo_sedes(entrada) -> tuple[dict[str, dict], list]:
         if isinstance(entrada, tuple)
         else (Path(entrada).name, Path(entrada).read_bytes())
     )
-    extension = PurePosixPath(nombre).suffix.lower()
-    if extension in (".xlsx", ".xlsm", ".xls"):
-        df = pd.read_excel(io.BytesIO(contenido), dtype=str).fillna("")
-    else:
-        from .deteccion import decodificar
-
-        texto = decodificar(contenido)
-        sep = (
-            ";"
-            if texto.splitlines()[0].count(";") >= texto.splitlines()[0].count(",")
-            else ","
-        )
-        df = pd.read_csv(io.StringIO(texto), sep=sep, dtype=str, keep_default_na=False)
+    df = _tabla_simple(nombre, contenido)
     cols = {normalizar_nombre(c): c for c in df.columns}
     col_cod = next((cols[a] for a in ALIAS["prestador"] if a in cols), None)
     col_sede = next((cols[a] for a in ALIAS["sede"] if a in cols), None)
@@ -680,19 +684,7 @@ def leer_equivalencias(entrada) -> dict[str, str]:
         if isinstance(entrada, tuple)
         else (Path(entrada).name, Path(entrada).read_bytes())
     )
-    extension = PurePosixPath(nombre).suffix.lower()
-    if extension in (".xlsx", ".xlsm", ".xls"):
-        df = pd.read_excel(io.BytesIO(contenido), dtype=str).fillna("")
-    else:
-        from .deteccion import decodificar
-
-        texto = decodificar(contenido)
-        sep = (
-            ";"
-            if texto.splitlines()[0].count(";") >= texto.splitlines()[0].count(",")
-            else ","
-        )
-        df = pd.read_csv(io.StringIO(texto), sep=sep, dtype=str, keep_default_na=False)
+    df = _tabla_simple(nombre, contenido)
     cols = {normalizar_nombre(c): c for c in df.columns}
     origen = (
         cols.get("codigo_facturacion") or cols.get("codigo_origen") or df.columns[0]
@@ -703,3 +695,18 @@ def leer_equivalencias(entrada) -> dict[str, str]:
         for a, b in zip(df[origen], df[destino])
         if str(a).strip()
     }
+
+
+def _tabla_simple(nombre: str, contenido: bytes) -> pd.DataFrame:
+    """Primera hoja con datos, con la primera fila como encabezado (cualquier formato tabular)."""
+    from .formatos import leer_tablas
+
+    for _hoja, crudo in leer_tablas(nombre, contenido):
+        crudo = crudo.dropna(how="all")
+        if len(crudo) >= 1:
+            columnas = [str(c).strip() for c in crudo.iloc[0].tolist()]
+            df = crudo.iloc[1:].copy()
+            df.columns = columnas
+            return df.map(lambda v: "" if v is None or (isinstance(v, float) and v != v) else
+                          (str(int(v)) if isinstance(v, float) and v.is_integer() else str(v)))
+    return pd.DataFrame()
