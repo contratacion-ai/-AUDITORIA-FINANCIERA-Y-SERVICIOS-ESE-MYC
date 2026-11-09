@@ -47,6 +47,13 @@ El instalador:
   (`%LOCALAPPDATA%\ConciliacionRIPS_ESE\datos`: base de datos y archivos cargados).
 - **Se desinstala** desde *Inicio → Conciliacion RIPS ESE → Desinstalar*. Pregunta antes de borrar los datos.
 
+**Paquete "todo incluido" (recomendado para distribuir en la ESE):**
+`bash instalador/construir_paquete_windows.sh`, ejecutado en Linux o macOS, genera
+`dist/Instalador_ConciliacionRIPS_ESE_<fecha>.zip` (unos 70 MB). El paquete trae Python 3.12 oficial
+(paquete NuGet de la Python Software Foundation) con todas las librerías ya instaladas para Windows.
+Se descomprime, se hace doble clic en `INSTALAR_WINDOWS.bat` y el instalador solo copia archivos:
+no descarga nada ni necesita Internet.
+
 **Equipos sin Internet o con navegación restringida:** en un equipo con Internet ejecute
 `instalador\windows\preparar_offline.ps1` (clic derecho → *Ejecutar con PowerShell*). Eso crea la carpeta
 `instalador\windows\offline` con Python y todas las librerías. Copie el proyecto completo al equipo

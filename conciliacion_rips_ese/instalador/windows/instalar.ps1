@@ -36,7 +36,7 @@ if (-not [Environment]::Is64BitOperatingSystem) {
     throw "Se requiere Windows de 64 bits."
 }
 
-Write-Host "Instalando Auditoría ESE Moreno y Clavijo en: $Destino"
+Write-Host "Instalando Conciliación RIPS - ESE Moreno y Clavijo en: $Destino"
 Write-Host "(instalación por usuario, sin permisos de administrador)"
 New-Item -ItemType Directory -Force -Path $Destino, $Datos, $Temp | Out-Null
 
@@ -46,54 +46,65 @@ Get-Process -ErrorAction SilentlyContinue | Where-Object {
     $_.Path -and $_.Path.StartsWith($PyDir, [StringComparison]::OrdinalIgnoreCase)
 } | Stop-Process -Force -ErrorAction SilentlyContinue
 
-# 2. Python embebido propio (aislado)
-$MarcaVersion = Join-Path $PyDir "VERSION_AUDITORIA_ESE.txt"
+# 2-4. Python propio (aislado) con sus librerías
+$PythonListo = Join-Path $Offline "python_listo"
 $PythonExe = Join-Path $PyDir "python.exe"
-if (-not (Test-Path $PythonExe) -or -not (Test-Path $MarcaVersion) -or ((Get-Content $MarcaVersion -Raw).Trim() -ne $PyVersion)) {
-    Paso "Preparando Python $PyVersion privado de la herramienta"
+if (Test-Path (Join-Path $PythonListo "python.exe")) {
+    # Paquete "todo incluido" (construir_paquete_windows.sh): Python y librerías ya preparados.
+    # Solo se copian archivos: no se descarga nada ni se necesita Internet.
+    Paso "Copiando Python y librerías incluidos en el paquete (sin Internet)"
     if (Test-Path $PyDir) { Remove-Item -Recurse -Force $PyDir }
-    $ZipLocal = Join-Path $Offline $PyZip
-    $ZipTemp = Join-Path $Temp $PyZip
-    if (Test-Path $ZipLocal) {
-        Copy-Item $ZipLocal $ZipTemp -Force
-    } else {
-        Write-Host "Descargando $PyUrl"
-        Invoke-WebRequest -Uri $PyUrl -OutFile $ZipTemp -UseBasicParsing
+    Copy-Item -Recurse -Force $PythonListo $PyDir
+} else {
+    # 2. Python embebido propio (aislado)
+    $MarcaVersion = Join-Path $PyDir "VERSION_AUDITORIA_ESE.txt"
+    $PythonExe = Join-Path $PyDir "python.exe"
+    if (-not (Test-Path $PythonExe) -or -not (Test-Path $MarcaVersion) -or ((Get-Content $MarcaVersion -Raw).Trim() -ne $PyVersion)) {
+        Paso "Preparando Python $PyVersion privado de la herramienta"
+        if (Test-Path $PyDir) { Remove-Item -Recurse -Force $PyDir }
+        $ZipLocal = Join-Path $Offline $PyZip
+        $ZipTemp = Join-Path $Temp $PyZip
+        if (Test-Path $ZipLocal) {
+            Copy-Item $ZipLocal $ZipTemp -Force
+        } else {
+            Write-Host "Descargando $PyUrl"
+            Invoke-WebRequest -Uri $PyUrl -OutFile $ZipTemp -UseBasicParsing
+        }
+        Expand-Archive -Path $ZipTemp -DestinationPath $PyDir -Force
+
+        # Habilita site-packages y la carpeta de la aplicación. El archivo ._pth aísla este Python:
+        # ignora PYTHONPATH y cualquier otra instalación de Python del equipo.
+        $Pth = Get-ChildItem $PyDir -Filter "python*._pth" | Select-Object -First 1
+        $Zip = (Get-ChildItem $PyDir -Filter "python3*.zip" | Select-Object -First 1).Name
+        $Contenido = @($Zip, ".", "Lib\site-packages", "..\app", "import site")
+        [IO.File]::WriteAllLines($Pth.FullName, $Contenido)
+        Set-Content -Path $MarcaVersion -Value $PyVersion -Encoding ASCII
     }
-    Expand-Archive -Path $ZipTemp -DestinationPath $PyDir -Force
 
-    # Habilita site-packages y la carpeta de la aplicación. El archivo ._pth aísla este Python:
-    # ignora PYTHONPATH y cualquier otra instalación de Python del equipo.
-    $Pth = Get-ChildItem $PyDir -Filter "python*._pth" | Select-Object -First 1
-    $Zip = (Get-ChildItem $PyDir -Filter "python3*.zip" | Select-Object -First 1).Name
-    $Contenido = @($Zip, ".", "Lib\site-packages", "..\app", "import site")
-    [IO.File]::WriteAllLines($Pth.FullName, $Contenido)
-    Set-Content -Path $MarcaVersion -Value $PyVersion -Encoding ASCII
-}
+    # 3. pip dentro del Python propio
+    $PipOpciones = @("--no-warn-script-location", "--disable-pip-version-check")
+    $Wheels = Join-Path $Offline "wheels"
+    $UsarOffline = Test-Path $Wheels
+    if ($UsarOffline) { $PipOpciones += @("--no-index", "--find-links", $Wheels) }
 
-# 3. pip dentro del Python propio
-$PipOpciones = @("--no-warn-script-location", "--disable-pip-version-check")
-$Wheels = Join-Path $Offline "wheels"
-$UsarOffline = Test-Path $Wheels
-if ($UsarOffline) { $PipOpciones += @("--no-index", "--find-links", $Wheels) }
-
-# (Se verifica la carpeta en lugar de ejecutar "pip --version": en PowerShell 5.1 la salida de error
-#  redirigida de un programa externo detendría el script.)
-if (-not (Test-Path (Join-Path $PyDir "Lib\site-packages\pip"))) {
-    Paso "Instalando pip (gestor de paquetes) en el Python privado"
-    $GetPip = Join-Path $Offline "get-pip.py"
-    if (-not (Test-Path $GetPip)) {
-        $GetPip = Join-Path $Temp "get-pip.py"
-        Invoke-WebRequest -Uri $GetPipUrl -OutFile $GetPip -UseBasicParsing
+    # (Se verifica la carpeta en lugar de ejecutar "pip --version": en PowerShell 5.1 la salida de error
+    #  redirigida de un programa externo detendría el script.)
+    if (-not (Test-Path (Join-Path $PyDir "Lib\site-packages\pip"))) {
+        Paso "Instalando pip (gestor de paquetes) en el Python privado"
+        $GetPip = Join-Path $Offline "get-pip.py"
+        if (-not (Test-Path $GetPip)) {
+            $GetPip = Join-Path $Temp "get-pip.py"
+            Invoke-WebRequest -Uri $GetPipUrl -OutFile $GetPip -UseBasicParsing
+        }
+        & $PythonExe $GetPip @PipOpciones
+        if ($LASTEXITCODE -ne 0) { throw "No se pudo instalar pip." }
     }
-    & $PythonExe $GetPip @PipOpciones
-    if ($LASTEXITCODE -ne 0) { throw "No se pudo instalar pip." }
-}
 
-# 4. Librerías de la aplicación (solo paquetes binarios: no requiere compiladores)
-Paso "Instalando librerías (Django, pandas, openpyxl, ...)"
-& $PythonExe -m pip install --upgrade --only-binary=:all: @PipOpciones -r (Join-Path $Origen "requirements.txt")
-if ($LASTEXITCODE -ne 0) { throw "No se pudieron instalar las librerías. Revise la conexión a Internet o use el modo sin Internet (preparar_offline.ps1)." }
+    # 4. Librerías de la aplicación (solo paquetes binarios: no requiere compiladores)
+    Paso "Instalando librerías (Django, pandas, openpyxl, ...)"
+    & $PythonExe -m pip install --upgrade --only-binary=:all: @PipOpciones -r (Join-Path $Origen "requirements.txt")
+    if ($LASTEXITCODE -ne 0) { throw "No se pudieron instalar las librerías. Revise la conexión a Internet o use el modo sin Internet (preparar_offline.ps1)." }
+}
 
 # 5. Copiar/actualizar la aplicación (los datos del usuario NO se tocan)
 Paso "Copiando la aplicación"
@@ -111,7 +122,7 @@ Paso "Creando accesos de inicio"
 $Iniciar = Join-Path $Destino "Iniciar Conciliacion RIPS ESE.cmd"
 @"
 @echo off
-title Auditoria ESE Moreno y Clavijo - no cierre esta ventana mientras use la herramienta
+title Conciliacion RIPS ESE Moreno y Clavijo - no cierre esta ventana mientras use la herramienta
 cd /d "%~dp0app"
 "%~dp0python\python.exe" "%~dp0app\escritorio\lanzador.py" %*
 if errorlevel 1 pause
@@ -135,7 +146,7 @@ if (-not $SinAccesos) {
         $a.WorkingDirectory = $Destino
         $a.WindowStyle = 7   # minimizada: la herramienta se usa desde el navegador
         $a.IconLocation = "$env:SystemRoot\System32\imageres.dll,109"
-        $a.Description = "Auditoría financiera y de servicios - ESE Moreno y Clavijo"
+        $a.Description = "Conciliación Facturación vs RIPS y auditoría - ESE Moreno y Clavijo"
         $a.Save()
     }
     $d = $Shell.CreateShortcut((Join-Path $MenuInicio "Desinstalar Conciliacion RIPS ESE.lnk"))

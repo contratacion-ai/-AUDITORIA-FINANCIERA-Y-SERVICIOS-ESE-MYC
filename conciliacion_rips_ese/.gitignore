@@ -7,3 +7,4 @@ resultados_conciliacion/
 .pytest_cache/
 .venv/
 venv/
+dist/
