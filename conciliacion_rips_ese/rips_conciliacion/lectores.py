@@ -315,8 +315,90 @@ def _configurar_herramientas_rar(rarfile) -> None:
     rarfile.BSDTAR_TOOL = "tar"
 
 
+def herramientas_rar() -> list[tuple[str, str]]:
+    """Programas del equipo capaces de descomprimir RAR, en orden de preferencia: [(tipo, ruta)]."""
+    import shutil
+
+    encontradas: list[tuple[str, str]] = []
+    if os.name == "nt":
+        for base in filter(None, (os.environ.get(v) for v in ("ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"))):
+            for tipo, ruta in (("unrar", Path(base) / "WinRAR" / "UnRAR.exe"), ("7z", Path(base) / "7-Zip" / "7z.exe")):
+                if ruta.exists():
+                    encontradas.append((tipo, str(ruta)))
+    for tipo, programa in (("unrar", "unrar"), ("7z", "7z"), ("7z", "7zz"), ("bsdtar", "bsdtar"), ("unar", "unar")):
+        ruta = shutil.which(programa)
+        if ruta:
+            encontradas.append((tipo, ruta))
+    if os.name == "nt":
+        tar = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32" / "tar.exe"   # libarchive (Win 10/11)
+        if tar.exists():
+            encontradas.append(("bsdtar", str(tar)))
+    vistas, unicas = set(), []
+    for tipo, ruta in encontradas:
+        if ruta.lower() not in vistas:
+            vistas.add(ruta.lower())
+            unicas.append((tipo, ruta))
+    return unicas
+
+
+def _orden_extraer(tipo: str, programa: str, archivo: str, destino: str) -> list[str]:
+    if tipo == "unrar":
+        return [programa, "x", "-y", "-idq", "-o+", archivo, destino + os.sep]
+    if tipo == "7z":
+        return [programa, "x", "-y", "-bd", "-bso0", "-bsp0", f"-o{destino}", archivo]
+    if tipo == "bsdtar":
+        return [programa, "-xf", archivo, "-C", destino]
+    return [programa, "-q", "-f", "-o", destino, archivo]  # unar
+
+
+def _descomprimir_rar_una_vez(nombre: str, ruta_rar: str, destino: str, res: ResultadoCarga) -> bool:
+    """Descomprime el RAR completo con UNA sola ejecución del programa externo.
+
+    Leer archivo por archivo obliga a abrir el programa una vez por cada archivo y, en RAR "sólidos", a
+    descomprimir de nuevo todo lo anterior: con miles de archivos tarda horas. Devuelve True si extrajo algo.
+    """
+    import subprocess
+
+    for tipo, programa in herramientas_rar():
+        orden = _orden_extraer(tipo, programa, ruta_rar, destino)
+        opciones = {"stdout": subprocess.PIPE, "stderr": subprocess.STDOUT, "stdin": subprocess.DEVNULL}
+        if os.name == "nt":
+            opciones["creationflags"] = 0x08000000  # CREATE_NO_WINDOW: sin ventanas emergentes
+        try:
+            proceso = subprocess.Popen(orden, **opciones)
+        except OSError:
+            continue
+        try:
+            while proceso.poll() is None:
+                try:
+                    proceso.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    extraidos = sum(len(f) for _, _, f in os.walk(destino))
+                    progreso.detalle(f"Descomprimiendo {PurePosixPath(nombre).name} con {Path(programa).name}: "
+                                     f"{extraidos:,} archivos".replace(",", "."), forzar=True)
+        except BaseException:
+            proceso.kill()  # cancelado por el usuario u otro error
+            raise
+        salida = (proceso.stdout.read() or b"").decode("utf-8", "ignore").strip() if proceso.stdout else ""
+        if any(f for _, _, f in os.walk(destino)):
+            if proceso.returncode:
+                res.incidencia(ADVERTENCIA, f"{Path(programa).name} terminó con código {proceso.returncode} al "
+                                            f"descomprimir: {salida[-300:]}")
+            return True
+    return False
+
+
 def miembros_rar(nombre: str, contenido: bytes, res: ResultadoCarga):
-    """Itera (ruta, bytes) de un RAR; los archivos que no se pueden extraer se reportan y se omiten."""
+    """Itera (ruta, bytes) de un RAR.
+
+    * RAR sin compresión: lectura directa (no necesita programas externos).
+    * RAR comprimido: se descomprime UNA sola vez en una carpeta temporal con WinRAR/UnRAR, 7-Zip, el tar.exe
+      de Windows 10/11 o bsdtar, y se leen los archivos de ahí. Los que falten se intentan uno por uno.
+    Los archivos que no se pueden extraer se reportan y se omiten.
+    """
+    import shutil
+    import tempfile
+
     try:
         import rarfile
 
@@ -330,21 +412,58 @@ def miembros_rar(nombre: str, contenido: bytes, res: ResultadoCarga):
         res.incidencia(ERROR, f"RAR dañado o inválido: {exc}")
         return
     with rf:
-        for info in rf.infolist():
-            if info.is_dir():
-                continue
-            try:
-                datos = rf.read(info)
-            except rarfile.Error as exc:
-                res.incidencia(
-                    ERROR,
-                    f"No se pudo descomprimir del RAR ({exc.__class__.__name__}: {exc}). Los RAR comprimidos "
-                    "requieren 'unrar', 'unar', '7z' o 'bsdtar' en el equipo (en Windows: WinRAR, 7-Zip o el "
-                    "tar.exe de Windows 10/11). También puede descomprimirlo y cargar los archivos o un ZIP.",
-                    archivo=f"{nombre}/{info.filename}",
-                )
-                continue
-            yield info.filename, datos
+        infos = [i for i in rf.infolist() if not i.is_dir()]
+        if all(i.compress_type == rarfile.RAR_M0 and not i.needs_password() for i in infos):
+            for info in infos:
+                try:
+                    datos = rf.read(info)
+                except rarfile.Error as exc:
+                    res.incidencia(ERROR, f"No se pudo leer del RAR ({exc.__class__.__name__}: {exc}). Puede "
+                                          "descomprimirlo y cargar los archivos o un ZIP; los RAR comprimidos "
+                                          "requieren WinRAR, 7-Zip o el tar.exe de Windows 10/11.",
+                                   archivo=f"{nombre}/{info.filename}")
+                    continue
+                yield info.filename, datos
+            return
+
+        temporal = tempfile.mkdtemp(prefix="rips_rar_")
+        try:
+            ruta_rar = os.path.join(temporal, "paquete.rar")
+            with open(ruta_rar, "wb") as fh:
+                fh.write(contenido)
+            destino = os.path.join(temporal, "x")
+            os.makedirs(destino)
+            progreso.detalle(f"Descomprimiendo {PurePosixPath(nombre).name} (una sola vez)…", forzar=True)
+            extraido = _descomprimir_rar_una_vez(nombre, ruta_rar, destino, res)
+            os.remove(ruta_rar)
+            pendientes = []
+            for info in infos:
+                ruta = os.path.join(destino, *info.filename.replace("\\", "/").split("/"))
+                if extraido and os.path.isfile(ruta):
+                    with open(ruta, "rb") as fh:
+                        datos = fh.read()
+                    os.remove(ruta)  # libera disco a medida que se lee
+                    yield info.filename, datos
+                else:
+                    pendientes.append(info)
+            if pendientes and extraido:
+                res.incidencia(ADVERTENCIA, f"{len(pendientes)} archivo(s) no salieron en la descompresión completa; "
+                                            "se intentan uno por uno")
+            for info in pendientes:  # respaldo: archivo por archivo (lento con RAR sólidos)
+                try:
+                    datos = rf.read(info)
+                except rarfile.Error as exc:
+                    res.incidencia(
+                        ERROR,
+                        f"No se pudo descomprimir del RAR ({exc.__class__.__name__}: {exc}). Los RAR comprimidos "
+                        "requieren WinRAR, 7-Zip o el tar.exe de Windows 10/11 (o unrar/7z/bsdtar en Linux). "
+                        "También puede descomprimirlo y cargar los archivos o un ZIP.",
+                        archivo=f"{nombre}/{info.filename}",
+                    )
+                    continue
+                yield info.filename, datos
+        finally:
+            shutil.rmtree(temporal, ignore_errors=True)
 
 
 # ---------------------------------------------------------------------------

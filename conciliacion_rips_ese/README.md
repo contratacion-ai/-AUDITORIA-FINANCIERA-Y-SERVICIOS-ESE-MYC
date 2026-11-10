@@ -94,10 +94,13 @@ python manage.py runserver
 
 Abra http://127.0.0.1:8000. Para probar con datos de ejemplo: `python manage.py cargar_demo`.
 
-**RAR:** los RAR comprimidos se extraen con una herramienta que ya tenga el equipo, sin instalar nada
-más. En Windows se detectan automáticamente WinRAR, 7-Zip o el `tar.exe` que trae Windows 10/11. En
-Linux/macOS se usa `unrar`, `unar`, `7z` o `bsdtar`. Si no hay ninguna, la herramienta informa qué
-archivo no pudo extraer y sigue con el resto. Los RAR "almacenados" (sin compresión) se leen siempre.
+**RAR:** los RAR sin compresión se leen siempre, sin programas adicionales. Los comprimidos se
+**descomprimen una sola vez** en una carpeta temporal con un programa que ya tenga el equipo: en Windows
+se detectan WinRAR (UnRAR), 7-Zip o el `tar.exe` de Windows 10/11; en Linux/macOS, `unrar`, `7z`,
+`bsdtar` o `unar`. Leerlos archivo por archivo abriría el programa una vez por cada archivo y, en RAR
+"sólidos", obligaría a descomprimir de nuevo todo lo anterior: con miles de JSON tardaba horas. Si la
+extracción completa deja archivos sin sacar, esos se intentan uno por uno y se informan. Si no hay ningún
+programa, la herramienta lo dice y sigue con el resto (también puede convertirse el RAR a ZIP).
 
 ## Uso con los archivos reales de la ESE
 

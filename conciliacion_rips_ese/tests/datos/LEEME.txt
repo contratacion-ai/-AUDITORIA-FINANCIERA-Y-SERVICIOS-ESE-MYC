@@ -1,0 +1,1 @@
+Archivos RAR comprimidos de prueba tomados del proyecto rarfile (licencia ISC, https://github.com/markokr/rarfile).

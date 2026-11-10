@@ -147,7 +147,7 @@ def test_rar_que_requiere_herramienta_externa_se_reporta(monkeypatch):
     monkeypatch.setattr(rarfile.RarFile, "read", falla)
     res = leer_rips(("sede.rar", crear_rar({"AC000001.txt": AC_TXT.encode()})))
     assert "AC" not in res.registros
-    assert "unrar" in res.incidencias[0].mensaje
+    assert "WinRAR, 7-Zip" in res.incidencias[0].mensaje
 
 
 # --- Facturación ------------------------------------------------------------
@@ -222,3 +222,56 @@ def test_sede_y_mes_desde_carpetas_de_drive_y_por_factura(componentes, sede, mes
 
     datos = inferir_de_ruta(componentes)
     assert datos["_sede_ruta"] == sede and datos["_mes_ruta"] == mes
+
+
+# --- RAR comprimidos y sólidos: se descomprimen una sola vez ---------------------
+
+DATOS = __import__("pathlib").Path(__file__).parent / "datos"
+
+
+@pytest.mark.parametrize("archivo,esperados,ejecuciones", [
+    ("rar5-solid.rar", {"stest1.txt", "stest2.txt"}, 1),                     # comprimido y sólido
+    ("rar3-subdirs.rar", {"sub/dir1/file1.txt", "sub/dir2/file2.txt", "sub/with space/long fn.txt"}, 0),
+    ("rar5-subdirs.rar", {"sub/dir1/file1.txt", "sub/dir2/file2.txt", "sub/with space/long fn.txt"}, 0),
+])
+def test_rar_comprimido_se_descomprime_una_sola_vez(archivo, esperados, ejecuciones, monkeypatch):
+    import subprocess
+
+    from rips_conciliacion import lectores
+    from rips_conciliacion.modelos import ResultadoCarga
+
+    if not lectores.herramientas_rar():
+        pytest.skip("No hay unrar/7z/bsdtar en este equipo")
+    llamadas = []
+    original = subprocess.Popen
+
+    def contar(*a, **k):
+        llamadas.append(a[0])
+        return original(*a, **k)
+
+    monkeypatch.setattr(subprocess, "Popen", contar)
+    res = ResultadoCarga(archivo=archivo)
+    nombres = {n.replace("\\", "/") for n, _ in lectores.miembros_rar(archivo, (DATOS / archivo).read_bytes(), res)}
+    assert esperados <= nombres
+    assert len(llamadas) == ejecuciones      # 1 sola ejecución para todo un RAR comprimido; 0 si no lo está
+    assert not [i for i in res.incidencias if i.severidad == "ERROR"]
+
+
+def test_rar_sin_herramientas_lo_informa(monkeypatch):
+    from rips_conciliacion import lectores
+    from rips_conciliacion.modelos import ResultadoCarga
+
+    monkeypatch.setattr(lectores, "herramientas_rar", lambda: [])
+    import rarfile
+    monkeypatch.setattr(rarfile, "UNRAR_TOOL", "no-existe-unrar")
+    monkeypatch.setattr(rarfile, "SEVENZIP_TOOL", "no-existe-7z")
+    monkeypatch.setattr(rarfile, "SEVENZIP2_TOOL", "no-existe-7zz", raising=False)
+    monkeypatch.setattr(rarfile, "BSDTAR_TOOL", "no-existe-bsdtar")
+    monkeypatch.setattr(rarfile, "UNAR_TOOL", "no-existe-unar", raising=False)
+    try:
+        rarfile.tool_setup(force=True)
+    except Exception:  # noqa: BLE001
+        pass
+    res = ResultadoCarga(archivo="x.rar")
+    list(lectores.miembros_rar("x.rar", (DATOS / "rar5-solid.rar").read_bytes(), res))
+    assert any("WinRAR, 7-Zip" in i.mensaje for i in res.incidencias)
