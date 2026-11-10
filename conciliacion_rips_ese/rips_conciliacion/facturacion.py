@@ -456,11 +456,11 @@ def _leer_un_archivo(
                 res.incidencia(ADVERTENCIA, aviso, campo=hoja)
 
         leidos = 0
-        for posicion, (_, fila) in enumerate(df.iterrows()):
-            numero_fila = (
-                fila_encabezado + posicion + 1
-            )  # fila real en Excel / línea en CSV
-            valores = fila.to_dict()
+        nombres_columnas = list(df.columns)
+        # itertuples es mucho más rápido que iterrows en archivos de cientos de miles de filas
+        for posicion, tupla in enumerate(df.itertuples(index=False, name=None)):
+            numero_fila = fila_encabezado + posicion + 1  # fila real en Excel / línea en CSV
+            valores = dict(zip(nombres_columnas, tupla))
             if all(_texto(v) == "" for v in valores.values()):
                 continue
 

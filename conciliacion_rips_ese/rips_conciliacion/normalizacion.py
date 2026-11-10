@@ -499,17 +499,21 @@ def clasificar_facturacion(fact: pd.DataFrame, rips: pd.DataFrame) -> pd.DataFra
     )
     fact = fact.copy()
 
-    def categoria(fila):
-        if fila["codigo_clave"] in categorias:
-            return categorias[fila["codigo_clave"]]
-        texto = f"{fila['servicio'] or ''} {fila['ambito'] or ''} {fila['tipo_archivo'] or ''}".upper()
-        if "MEDICAMENT" in texto or "FARMAC" in texto or fila["farmacia"]:
+    def categoria(codigo, servicio, ambito, tipo_archivo, farmacia):
+        if codigo in categorias:
+            return categorias[codigo]
+        texto = f"{servicio or ''} {ambito or ''} {tipo_archivo or ''}".upper()
+        if "MEDICAMENT" in texto or "FARMAC" in texto or (farmacia and farmacia == farmacia):
             return "MEDICAMENTO"
-        if _RE_CUMS.match(fila["codigo_clave"]):
+        if _RE_CUMS.match(codigo):
             return "MEDICAMENTO"
         return "SIN CLASIFICAR"
 
-    fact["categoria"] = fact.apply(categoria, axis=1)
+    # zip sobre columnas en lugar de DataFrame.apply(axis=1): mucho más rápido con cientos de miles de filas
+    fact["categoria"] = [
+        categoria(*fila)
+        for fila in zip(fact["codigo_clave"], fact["servicio"], fact["ambito"], fact["tipo_archivo"], fact["farmacia"])
+    ]
     fact["tipo_codigo"] = [
         tipo_codigo(c, k) for c, k in zip(fact["codigo_clave"], fact["categoria"])
     ]

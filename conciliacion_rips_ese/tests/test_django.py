@@ -19,6 +19,7 @@ pytestmark = pytest.mark.django_db
 @pytest.fixture(autouse=True)
 def media_temporal(settings, tmp_path):
     settings.MEDIA_ROOT = tmp_path / "media"
+    settings.CONCILIACION_SEGUNDO_PLANO = False   # las pruebas procesan en la misma petición
 
 
 @pytest.fixture
@@ -259,3 +260,52 @@ def test_pagina_500_con_detalle(rf):
     except OSError:
         r = error_500(rf.get("/"))
     assert r.status_code == 500 and "disco lleno" in r.content.decode()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_procesamiento_en_segundo_plano_con_avance(client, settings):
+    from conciliacion import servicios as srv
+
+    settings.CONCILIACION_SEGUNDO_PLANO = True
+    auditoria = Auditoria.objects.create(nombre="A")
+    c = Conciliacion.objects.create(auditoria=auditoria, nombre="C")
+    subir(client, c, "AUTO", zip_rips(), csv_fact())
+    r = client.post(reverse("conciliacion:procesar", args=[c.pk]), follow=True)
+    assert "Procesando" in r.content.decode()
+    hilo = srv._EN_CURSO.get(c.pk)
+    if hilo:
+        hilo.join(timeout=120)
+    c.refresh_from_db()
+    assert c.estado == Conciliacion.Estado.PROCESADA, c.mensaje_error
+    assert c.progreso_pct == 100 and c.diferencias.exists()
+
+
+def test_procesamiento_interrumpido_se_informa(client, conciliacion, settings):
+    settings.CONCILIACION_SEGUNDO_PLANO = True
+    Conciliacion.objects.filter(pk=conciliacion.pk).update(estado=Conciliacion.Estado.PROCESANDO)
+    r = client.get(reverse("conciliacion:detalle", args=[conciliacion.pk]))
+    conciliacion.refresh_from_db()
+    assert conciliacion.estado == Conciliacion.Estado.ERROR and "interrumpió" in r.content.decode()
+
+
+def test_pagina_de_avance_se_actualiza_sola(client, conciliacion):
+    Conciliacion.objects.filter(pk=conciliacion.pk).update(estado=Conciliacion.Estado.PROCESANDO,
+                                                           progreso_texto="Leyendo facturación: ABRIL.xlsx",
+                                                           progreso_pct=35)
+    from conciliacion import servicios as srv
+    import threading
+    srv._EN_CURSO[conciliacion.pk] = threading.Thread(target=lambda: None)
+    srv._EN_CURSO[conciliacion.pk].is_alive = lambda: True
+    try:
+        html = client.get(reverse("conciliacion:detalle", args=[conciliacion.pk])).content.decode()
+    finally:
+        srv._EN_CURSO.pop(conciliacion.pk, None)
+    assert 'http-equiv="refresh"' in html and "Leyendo facturación: ABRIL.xlsx" in html and "35%" in html
+
+
+def test_filtros_del_tablero_muestran_valores_distintos(client, conciliacion):
+    subir(client, conciliacion, "AUTO", zip_rips(), csv_fact())
+    procesar(client, conciliacion)
+    r = client.get(reverse("conciliacion:tablero", args=[conciliacion.pk]))
+    assert r.context["opciones"]["sede"] == ["TAME"]
+    assert len(r.context["opciones"]["estado"]) == len(set(r.context["opciones"]["estado"]))

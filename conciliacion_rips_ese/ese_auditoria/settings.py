@@ -62,6 +62,12 @@ DATABASES = {
         "PORT": os.environ.get("DJANGO_DB_PORT", ""),
     }
 }
+if DATABASES["default"]["ENGINE"].endswith("sqlite3"):
+    # WAL: la página puede leer el avance mientras el proceso escribe resultados; espera hasta 60 s
+    DATABASES["default"]["OPTIONS"] = {"timeout": 60, "init_command": "PRAGMA journal_mode=WAL;"}
+
+# Procesar las conciliaciones en segundo plano (la página muestra el avance). Las pruebas lo desactivan.
+CONCILIACION_SEGUNDO_PLANO = os.environ.get("CONCILIACION_SEGUNDO_PLANO", "1") == "1"
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

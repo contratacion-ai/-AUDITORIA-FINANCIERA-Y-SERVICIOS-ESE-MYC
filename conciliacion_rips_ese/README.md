@@ -190,6 +190,20 @@ como error. Un paquete puede tener ambas versiones y el reporte las muestra.
   modifican; la comparación usa una llave normalizada (mayúsculas y sin espacios) y el reporte muestra el
   código original y el **campo de origen** (`Código del medicamento`, `codTecnologiaSalud`, `CUMS`…).
 
+## Archivos grandes
+
+- El procesamiento corre **en segundo plano**: la página muestra la etapa (leyendo, emparejando, generando
+  Excel, guardando), una barra de avance y el tiempo transcurrido, y se actualiza sola. Mientras procesa no
+  se pueden modificar los archivos de esa conciliación. Si se cierra la herramienta a mitad del proceso, la
+  conciliación queda marcada como *interrumpida* y basta con procesarla de nuevo.
+- Las hojas de cálculo se leen con *calamine* (unas 7 veces más rápido que openpyxl) y el Excel de
+  resultados se escribe con *xlsxwriter*.
+- Prueba de referencia con 400.000 líneas de facturación (Excel de 28 MB) y 388.000 de RIPS: el
+  procesamiento completo tarda unos **2 minutos** (antes más de 25) y el tablero abre en 2 a 6 segundos.
+- En conciliaciones grandes, las tablas *Detalle factura-código*, *Líneas facturación* y *Líneas RIPS* con más
+  de 150.000 filas van **solo en el CSV**. El Excel trae todas las diferencias y los resúmenes (unos 10 MB
+  en lugar de 170 MB) y una hoja *Solo en CSV* que lo explica.
+
 ## Exactitud de los cálculos
 
 - Todo valor y cantidad se convierte a `Decimal`, nunca a `float`. Los JSON se leen con

@@ -26,7 +26,7 @@ def filtrar(qs, params):
 
 
 def opciones(qs_base):
-    return {campo: sorted(v for v in qs_base.values_list(campo, flat=True).distinct() if v) for campo in FILTROS}
+    return {campo: sorted(v for v in qs_base.order_by(campo).values_list(campo, flat=True).distinct() if v) for campo in FILTROS}
 
 
 def agregados(qs) -> dict:

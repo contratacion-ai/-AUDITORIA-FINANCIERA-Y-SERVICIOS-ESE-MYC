@@ -5,6 +5,19 @@
 <p><a href="{{ c.auditoria.get_absolute_url }}">← Auditoría: {{ c.auditoria }}</a></p>
 <h1>{{ c.nombre }} <span class="chip {{ c.estado }}">{{ c.get_estado_display }}</span></h1>
 {% if c.estado == "ERROR" %}<div class="tarjeta error">{{ c.mensaje_error }}</div>{% endif %}
+{% if c.estado == "PROCESANDO" %}
+<div class="tarjeta" style="border:2px solid var(--azul)">
+  <h3 style="margin-top:0">⏳ Procesando la conciliación…</h3>
+  <p><strong>{{ c.progreso_texto|default:"Iniciando" }}</strong></p>
+  <div style="background:#e6ebf1;border-radius:6px;height:22px;overflow:hidden">
+    <div style="background:var(--azul);height:22px;width:{{ c.progreso_pct }}%;color:#fff;font-size:12px;
+                line-height:22px;text-align:right;padding-right:6px">{{ c.progreso_pct }}%</div>
+  </div>
+  <p class="ayuda">Iniciado {{ c.proceso_inicio|date:"H:i:s" }} · hace {{ c.proceso_inicio|timesince }}. Esta página se
+    actualiza sola cada 3 segundos. Con archivos de cientos de miles de filas puede tardar algunos minutos.
+    Puede seguir usando el navegador, pero <strong>no cierre la ventana negra de la herramienta</strong>.</p>
+</div>
+{% endif %}
 
 <div class="tarjeta">
   <div class="fila">
@@ -16,7 +29,8 @@
   </div>
   <p>
     <form class="en-linea" method="post" action="{% url 'conciliacion:procesar' c.pk %}">{% csrf_token %}
-      <button class="btn" type="submit">⚙ Procesar conciliación</button></form>
+      <button class="btn" type="submit" {% if c.estado == "PROCESANDO" %}disabled style="opacity:.5"{% endif %}
+        onclick="this.disabled=true;this.innerText='⏳ Iniciando…';this.form.submit()">⚙ Procesar conciliación</button></form>
     <a class="btn sec" href="{% url 'conciliacion:editar' c.pk %}">Parámetros</a>
     {% if c.estado == "PROCESADA" %}
       <a class="btn" href="{% url 'conciliacion:tablero' c.pk %}">📊 Tablero interactivo</a>
@@ -25,6 +39,10 @@
       <a class="btn sec" href="{% url 'conciliacion:exportar' c.pk %}?formato=ambos">Excel + CSV</a>
     {% endif %}
   </p>
+  {% if c.estado == "PROCESADA" and c.hojas_solo_csv %}
+  <p class="ayuda">Por su tamaño, estas tablas van solo en el CSV (el Excel incluye todas las diferencias y los
+    resúmenes): {{ c.hojas_solo_csv|join:", " }}.
+  </p>{% endif %}
 </div>
 
 <h2>1. Cargar archivos</h2>

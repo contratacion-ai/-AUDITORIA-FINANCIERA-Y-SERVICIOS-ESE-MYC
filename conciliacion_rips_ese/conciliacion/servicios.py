@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import io
+import threading
 import zipfile
 from decimal import Decimal
 
 import pandas as pd
+from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.utils import timezone
@@ -114,6 +116,7 @@ def limpiar_resultados(conciliacion: Conciliacion):
     conciliacion.resumen = []
     conciliacion.tablas = {}
     conciliacion.version_rips = ""
+    conciliacion.hojas_solo_csv = []
     conciliacion.procesada = None
     conciliacion.estado = Conciliacion.Estado.BORRADOR
     conciliacion.save()
@@ -196,7 +199,7 @@ def configuracion_de(conciliacion: Conciliacion) -> ConfiguracionConciliacion:
     )
 
 
-def ejecutar_motor(conciliacion: Conciliacion):
+def ejecutar_motor(conciliacion: Conciliacion, avance=None):
     activos = conciliacion.archivos.filter(activo=True)
     rips = [{"entrada": _leer(a), "sede": a.sede, "hospital": a.hospital}
             for a in activos.filter(tipo=ArchivoCargado.Tipo.RIPS)]
@@ -208,52 +211,155 @@ def ejecutar_motor(conciliacion: Conciliacion):
         rips, fact, configuracion_de(conciliacion),
         catalogo_sedes=_leer(catalogo) if catalogo else None,
         equivalencias=_leer(equivalencias) if equivalencias else None,
+        avance=avance,
     )
 
 
-def procesar(conciliacion: Conciliacion):
-    """Ejecuta la conciliación y guarda resultados, tablas y archivos de exportación."""
+def registrar_avance(pk: int, mensaje: str, fraccion: float) -> None:
+    """Guarda la etapa actual para que la página la muestre mientras se procesa."""
+    Conciliacion.objects.filter(pk=pk).update(progreso_texto=mensaje[:300],
+                                              progreso_pct=max(0, min(100, int(fraccion * 100))))
+
+
+def validar_para_procesar(conciliacion: Conciliacion) -> None:
     activos = conciliacion.archivos.filter(activo=True)
     if not activos.filter(tipo=ArchivoCargado.Tipo.RIPS).exists() or not activos.filter(
             tipo=ArchivoCargado.Tipo.FACTURACION).exists():
         raise ValueError("Se requiere al menos un archivo de RIPS y uno de facturación activos")
+
+
+def procesar(conciliacion: Conciliacion, avance=None):
+    """Ejecuta la conciliación y guarda resultados, tablas y archivos de exportación.
+
+    ``avance(mensaje, fraccion)`` informa la etapa. Las etapas lentas (lectura, emparejamiento y
+    generación de Excel/CSV) ocurren fuera de transacciones para que la página pueda leer el avance.
+    """
+    avisar = avance or (lambda mensaje, fraccion: None)
+    validar_para_procesar(conciliacion)
     try:
-        resultado = ejecutar_motor(conciliacion)
+        resultado = ejecutar_motor(conciliacion, avisar)
+        avisar("Generando el Excel de resultados", 0.75)
+        xlsx = io.BytesIO()
+        solo_csv = exportar_excel(resultado, xlsx, avance=lambda m, f: avisar(m, 0.75 + 0.1 * f))
+        avisar("Generando los archivos CSV", 0.86)
+        csv_zip = exportar_zip(resultado, "csv")
+        avisar(f"Guardando {len(resultado.detalle):,} filas de resultados".replace(",", "."), 0.9)
         with transaction.atomic():
             limpiar_resultados(conciliacion)
-            _guardar(conciliacion, resultado)
+            _guardar(conciliacion, resultado, xlsx.getvalue(), csv_zip, solo_csv)
+        avisar("Terminado", 1)
     except Exception as exc:
-        conciliacion.estado = Conciliacion.Estado.ERROR
-        conciliacion.mensaje_error = f"{exc.__class__.__name__}: {exc}"
-        conciliacion.save(update_fields=["estado", "mensaje_error", "actualizada"])
+        Conciliacion.objects.filter(pk=conciliacion.pk).update(
+            estado=Conciliacion.Estado.ERROR, mensaje_error=f"{exc.__class__.__name__}: {exc}",
+            actualizada=timezone.now())
+        conciliacion.refresh_from_db()
         raise
     return resultado
 
 
-def _guardar(conciliacion: Conciliacion, r):
-    filas = []
-    for d in r.detalle.to_dict("records"):
-        filas.append(Diferencia(
-            conciliacion=conciliacion,
-            estado=d["estado"], factura=_txt(d["factura"], 60), factura_clave=_txt(d["factura_clave"], 60),
-            mes=_txt(d["mes"], 10), sede=_txt(d["sede"], 120), hospital=_txt(d["hospital"], 120),
-            categoria=_txt(d["categoria"], 40), servicio=_txt(d["servicio"], 120),
-            tipo_codigo=_txt(d["tipo_codigo"], 10), codigo=_txt(d["codigo"], 60),
-            descripcion=_txt(d["descripcion"], 300),
-            cantidad_fact=_exacto(d["cantidad_fact"], "cantidad_fact"),
-            cantidad_rips=_exacto(d["cantidad_rips"], "cantidad_rips"),
-            dif_cantidad=_exacto(d["dif_cantidad"], "dif_cantidad"),
-            valor_fact=_exacto(d["valor_fact"], "valor_fact"),
-            valor_rips=_exacto(d["valor_rips"], "valor_rips"),
-            dif_valor=_exacto(d["dif_valor"], "dif_valor"),
-            sede_fact=_txt(d["sede_fact"], 120), sede_rips=_txt(d["sede_rips"], 120),
-            mes_fact=_txt(d["mes_fact"], 10), mes_rips=_txt(d["mes_rips"], 10),
-            campo_codigo_fact=_txt(d["campo_codigo_fact"], 120), campo_codigo_rips=_txt(d["campo_codigo_rips"], 120),
-            ubicacion_fact=_txt(f"{_txt(d['archivo_fact'], 150)} {_txt(d['ubicacion_fact'], 100)}".strip(), 300),
-            ubicacion_rips=_txt(d["ubicacion_rips"], 300), archivo_rips=_txt(d["archivo_rips"], 300),
-            posible_homologacion=_txt(d["posible_homologacion"], 60),
-        ))
-    Diferencia.objects.bulk_create(filas, batch_size=2000)
+# --- Procesamiento en segundo plano (la página muestra el avance y no queda esperando) ---------
+
+_EN_CURSO: dict[int, threading.Thread] = {}
+_CANDADO = threading.Lock()
+
+
+def en_curso(pk: int) -> bool:
+    hilo = _EN_CURSO.get(pk)
+    return bool(hilo and hilo.is_alive())
+
+
+def iniciar_procesamiento(conciliacion: Conciliacion) -> bool:
+    """Inicia el procesamiento. Devuelve False si ya estaba en curso.
+
+    Con ``CONCILIACION_SEGUNDO_PLANO = False`` (pruebas) se procesa en la misma petición.
+    """
+    validar_para_procesar(conciliacion)
+    with _CANDADO:
+        if en_curso(conciliacion.pk):
+            return False
+        Conciliacion.objects.filter(pk=conciliacion.pk).update(
+            estado=Conciliacion.Estado.PROCESANDO, progreso_texto="En cola", progreso_pct=0,
+            proceso_inicio=timezone.now(), mensaje_error="")
+        if not getattr(settings, "CONCILIACION_SEGUNDO_PLANO", True):
+            conciliacion.refresh_from_db()
+            procesar(conciliacion, lambda m, f: registrar_avance(conciliacion.pk, m, f))
+            return True
+        hilo = threading.Thread(target=_tarea, args=(conciliacion.pk,), daemon=True,
+                                name=f"conciliacion-{conciliacion.pk}")
+        _EN_CURSO[conciliacion.pk] = hilo
+        hilo.start()
+    return True
+
+
+def _tarea(pk: int) -> None:
+    import logging
+
+    from django.db import connection
+
+    try:
+        conciliacion = Conciliacion.objects.get(pk=pk)
+        procesar(conciliacion, lambda m, f: registrar_avance(pk, m, f))
+    except Exception:  # noqa: BLE001 - el error queda en la conciliación y en el registro
+        logging.getLogger("conciliacion").exception("Error al procesar la conciliación %s", pk)
+    finally:
+        _EN_CURSO.pop(pk, None)
+        connection.close()
+
+
+def verificar_interrumpida(conciliacion: Conciliacion) -> None:
+    """Si figura 'procesando' pero no hay proceso activo (se cerró la herramienta), lo informa."""
+    if conciliacion.estado == Conciliacion.Estado.PROCESANDO and not en_curso(conciliacion.pk) \
+            and getattr(settings, "CONCILIACION_SEGUNDO_PLANO", True):
+        Conciliacion.objects.filter(pk=conciliacion.pk).update(
+            estado=Conciliacion.Estado.ERROR,
+            mensaje_error="El procesamiento se interrumpió (la herramienta se cerró antes de terminar). "
+                          "Pulse de nuevo “Procesar conciliación”.")
+        conciliacion.refresh_from_db()
+
+
+def _insertar_diferencias(conciliacion: Conciliacion, detalle: pd.DataFrame, lote: int = 10_000) -> None:
+    """Inserción masiva directa (executemany): con cientos de miles de filas es varias veces más rápida que
+    crear objetos del ORM. Los valores se guardan exactos (ver ``_exacto``)."""
+    from django.db import connection
+
+    campos = ["conciliacion_id", "estado", "factura", "factura_clave", "mes", "sede", "hospital", "categoria",
+              "servicio", "tipo_codigo", "codigo", "descripcion", "cantidad_fact", "cantidad_rips", "dif_cantidad",
+              "valor_fact", "valor_rips", "dif_valor", "sede_fact", "sede_rips", "mes_fact", "mes_rips",
+              "campo_codigo_fact", "campo_codigo_rips", "ubicacion_fact", "ubicacion_rips", "archivo_rips",
+              "posible_homologacion"]
+    tabla = connection.ops.quote_name(Diferencia._meta.db_table)
+    sql = (f"INSERT INTO {tabla} ({', '.join(connection.ops.quote_name(c) for c in campos)}) "
+           f"VALUES ({', '.join(['%s'] * len(campos))})")
+    numericos = ("cantidad_fact", "cantidad_rips", "dif_cantidad", "valor_fact", "valor_rips", "dif_valor")
+    largos = {"estado": 40, "factura": 60, "factura_clave": 60, "mes": 10, "sede": 120, "hospital": 120,
+              "categoria": 40, "servicio": 120, "tipo_codigo": 10, "codigo": 60, "descripcion": 300,
+              "sede_fact": 120, "sede_rips": 120, "mes_fact": 10, "mes_rips": 10, "campo_codigo_fact": 120,
+              "campo_codigo_rips": 120, "ubicacion_rips": 300, "archivo_rips": 300, "posible_homologacion": 60}
+    columnas = {c: detalle[c].tolist() for c in detalle.columns}
+    n = len(detalle)
+
+    def valor(campo, i):
+        if campo == "ubicacion_fact":
+            return _txt(f"{_txt(columnas['archivo_fact'][i], 150)} {_txt(columnas['ubicacion_fact'][i], 100)}".strip(), 300)
+        if campo in numericos:
+            return _decimal_bd(_exacto(columnas[campo][i], campo))
+        return _txt(columnas[campo][i], largos[campo])
+
+    with connection.cursor() as cursor:
+        for inicio in range(0, n, lote):
+            filas = [[conciliacion.pk] + [valor(c, i) for c in campos[1:]] for i in range(inicio, min(n, inicio + lote))]
+            cursor.executemany(sql, filas)
+
+
+def _decimal_bd(v: Decimal):
+    """Representación que cada motor guarda sin redondeo (texto exacto en SQLite, Decimal en PostgreSQL)."""
+    from django.db import connection
+
+    return str(v) if connection.vendor == "sqlite" else v
+
+
+def _guardar(conciliacion: Conciliacion, r, xlsx: bytes, csv_zip: bytes, solo_csv: list[str]):
+    _insertar_diferencias(conciliacion, r.detalle)
     Incidencia.objects.bulk_create([
         Incidencia(conciliacion=conciliacion, archivo=_txt(i["archivo"], 500), severidad=i["severidad"],
                    mensaje=i["mensaje"], linea=int(i["linea"]) if pd.notna(i["linea"]) else None,
@@ -276,15 +382,14 @@ def _guardar(conciliacion: Conciliacion, r):
     conciliacion.version_rips = r.carga_rips.version[:200]
     conciliacion.mensaje_error = ""
 
-    xlsx = io.BytesIO()
-    exportar_excel(r, xlsx)
     sello = timezone.localtime().strftime("%Y%m%d_%H%M%S")
-    conciliacion.archivo_excel.save(f"conciliacion_{conciliacion.pk}_{sello}.xlsx", ContentFile(xlsx.getvalue()),
-                                    save=False)
-    conciliacion.archivo_csv.save(f"conciliacion_{conciliacion.pk}_{sello}_csv.zip",
-                                  ContentFile(exportar_zip(r, "csv")), save=False)
+    conciliacion.archivo_excel.save(f"conciliacion_{conciliacion.pk}_{sello}.xlsx", ContentFile(xlsx), save=False)
+    conciliacion.archivo_csv.save(f"conciliacion_{conciliacion.pk}_{sello}_csv.zip", ContentFile(csv_zip), save=False)
+    conciliacion.hojas_solo_csv = solo_csv
     conciliacion.estado = Conciliacion.Estado.PROCESADA
     conciliacion.procesada = timezone.now()
+    conciliacion.progreso_texto = "Terminado"
+    conciliacion.progreso_pct = 100
     conciliacion.save()
 
 

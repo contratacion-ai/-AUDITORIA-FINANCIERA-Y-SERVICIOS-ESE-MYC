@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from datetime import date, datetime
+from functools import lru_cache
 
 _FORMATOS = (
     "%d/%m/%Y",
@@ -73,7 +74,12 @@ def parse_fecha(valor) -> date | None:
         return valor.date()
     if isinstance(valor, date):
         return valor
-    texto = str(valor).strip()
+    return _parse_texto(str(valor).strip())
+
+
+@lru_cache(maxsize=200_000)
+def _parse_texto(texto: str) -> date | None:
+    """Las fechas se repiten mucho en archivos grandes: se guarda el resultado de cada texto ya visto."""
     if not texto or texto.lower() in ("nan", "nat", "none", "null"):
         return None
     for fmt in _FORMATOS:

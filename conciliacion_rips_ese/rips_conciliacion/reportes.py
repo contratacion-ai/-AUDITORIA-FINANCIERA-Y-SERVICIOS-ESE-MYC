@@ -63,34 +63,60 @@ def _nombre_hoja(nombre: str, usados: set[str]) -> str:
     return candidato
 
 
-def exportar_excel(
-    resultado: ResultadoConciliacion, destino, incluir_lineas: bool = True
-) -> None:
-    """Escribe el libro .xlsx en ``destino`` (ruta o buffer)."""
-    from openpyxl.utils import get_column_letter
+# Hojas que en conciliaciones grandes solo se entregan en CSV (Excel las haría lentas e inmanejables)
+HOJAS_PESADAS = ("Detalle factura-código", "Líneas facturación", "Líneas RIPS")
+LIMITE_HOJA_PESADA = 150_000
 
+
+def exportar_excel(
+    resultado: ResultadoConciliacion, destino, incluir_lineas: bool = True, avance=None
+) -> list[str]:
+    """Escribe el libro .xlsx en ``destino`` (ruta o buffer). Devuelve las hojas que quedaron solo en CSV.
+
+    Usa ``xlsxwriter`` (varias veces más rápido que openpyxl) con formato numérico por columna. Las hojas
+    de detalle completo y de líneas con más de ``LIMITE_HOJA_PESADA`` filas no se escriben en Excel:
+    quedan en el CSV y una hoja "Solo en CSV" lo explica. Las diferencias siempre van en Excel.
+    """
+    try:
+        import xlsxwriter  # noqa: F401
+
+        motor = "xlsxwriter"
+    except ImportError:  # pragma: no cover
+        motor = "openpyxl"
+
+    tablas = hojas(resultado, incluir_lineas)
+    solo_csv = [n for n in HOJAS_PESADAS if n in tablas and len(tablas[n]) > LIMITE_HOJA_PESADA]
     usados: set[str] = set()
-    with pd.ExcelWriter(destino, engine="openpyxl") as writer:
-        for nombre, df in hojas(resultado, incluir_lineas).items():
-            partes = [
-                df.iloc[i : i + LIMITE_FILAS_EXCEL]
-                for i in range(0, max(len(df), 1), LIMITE_FILAS_EXCEL)
-            ]
-            for parte in partes:
+    with pd.ExcelWriter(destino, engine=motor) as writer:
+        formato = writer.book.add_format({"num_format": FORMATO_MONEDA}) if motor == "xlsxwriter" else None
+        if solo_csv:
+            pd.DataFrame({
+                "hoja": solo_csv,
+                "filas": [len(tablas[n]) for n in solo_csv],
+                "dónde encontrarla": ["En el paquete CSV de esta conciliación (botón CSV)"] * len(solo_csv),
+            }).to_excel(writer, sheet_name=_nombre_hoja("Solo en CSV", usados), index=False)
+        total = len(tablas)
+        for k, (nombre, df) in enumerate(tablas.items(), start=1):
+            if nombre in solo_csv:
+                continue
+            if avance:
+                avance(f"Generando Excel: hoja '{nombre}' ({len(df):,} filas)".replace(",", "."), k / total)
+            for inicio in range(0, max(len(df), 1), LIMITE_FILAS_EXCEL):
+                parte = df.iloc[inicio:inicio + LIMITE_FILAS_EXCEL]
                 hoja = _nombre_hoja(nombre, usados)
                 parte.to_excel(writer, sheet_name=hoja, index=False)
                 ws = writer.sheets[hoja]
-                ws.freeze_panes = "A2"
+                if motor != "xlsxwriter":  # pragma: no cover - respaldo sin formato por celda
+                    continue
+                ws.freeze_panes(1, 0)
                 if len(parte.columns):
-                    ws.auto_filter.ref = ws.dimensions
-                for j, col in enumerate(parte.columns, start=1):
-                    letra = get_column_letter(j)
+                    ws.autofilter(0, 0, max(len(parte), 1), len(parte.columns) - 1)
+                for j, col in enumerate(parte.columns):
                     muestra = parte[col].head(200)
-                    ancho = max([len(str(col))] + [len(str(v)) for v in muestra]) + 2
-                    ws.column_dimensions[letra].width = min(max(ancho, 10), 60)
-                    if any(isinstance(v, Decimal) for v in muestra):
-                        for celda in ws[letra][1:]:
-                            celda.number_format = FORMATO_MONEDA
+                    ancho = min(max([len(str(col))] + [len(str(v)) for v in muestra]) + 2, 60)
+                    es_numero = any(isinstance(v, Decimal) for v in muestra)
+                    ws.set_column(j, j, max(ancho, 10), formato if es_numero else None)
+    return solo_csv
 
 
 def _csv_bytes(df: pd.DataFrame) -> bytes:

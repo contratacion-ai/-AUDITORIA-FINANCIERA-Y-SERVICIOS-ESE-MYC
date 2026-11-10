@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from decimal import Decimal
+from pathlib import Path
 
 import pandas as pd
 
@@ -33,6 +34,12 @@ class ConfiguracionConciliacion:
     tolerancia_valor: Decimal = CERO  # por defecto exacto (sin redondeo)
     tolerancia_cantidad: Decimal = CERO
     top_n: int = 20  # tamaño de los rankings de consumo
+
+
+def _nombre_entrada(entrada) -> str:
+    if isinstance(entrada, tuple):
+        return str(entrada[0])
+    return Path(str(entrada)).name
 
 
 def _entrada(e) -> tuple:
@@ -76,19 +83,24 @@ def conciliar(
     configuracion: ConfiguracionConciliacion | None = None,
     catalogo_sedes=None,
     equivalencias=None,
+    avance=None,
 ) -> ResultadoConciliacion:
     """Ejecuta la conciliación completa.
 
     ``rips`` y ``facturacion``: listas de rutas, tuplas ``(nombre, bytes)`` o
     dicts ``{"entrada": ..., "sede": ..., "hospital": ..., "ambito": ...}``.
+    ``avance(mensaje, fraccion)``: función opcional para informar el progreso (0 a 1).
     """
+    avisar = avance or (lambda mensaje, fraccion: None)
     cfg = configuracion or ConfiguracionConciliacion()
     rips = rips if isinstance(rips, list) else [rips]
     facturacion = facturacion if isinstance(facturacion, list) else [facturacion]
 
     carga_rips = ResultadoCarga(archivo="RIPS")
-    for e in rips:
+    total_archivos = max(len(rips) + len(facturacion), 1)
+    for i, e in enumerate(rips):
         entrada, sede, hospital, _ = _entrada(e)
+        avisar(f"Leyendo RIPS: {_nombre_entrada(entrada)}", 0.05 + 0.45 * i / total_archivos)
         carga_rips.fusionar(leer_rips(entrada, sede=sede, hospital=hospital))
     versiones = sorted(
         {a["version"] for a in carga_rips.archivos if a.get("tipo") != "IGNORADO"}
@@ -96,8 +108,10 @@ def conciliar(
     carga_rips.version = " + ".join(versiones) if versiones else "SIN ARCHIVOS"
 
     carga_fact = ResultadoCarga(archivo="FACTURACION", version="Facturación")
-    for e in facturacion:
+    for i, e in enumerate(facturacion):
         entrada, sede, hospital, ambito = _entrada(e)
+        avisar(f"Leyendo facturación: {_nombre_entrada(entrada)}",
+               0.05 + 0.45 * (len(rips) + i) / total_archivos)
         carga_fact.fusionar(
             leer_facturacion(
                 entrada,
@@ -118,6 +132,8 @@ def conciliar(
         leer_equivalencias(equivalencias) if equivalencias is not None else {}
     )
 
+    avisar(f"Preparando líneas: {carga_rips.total_registros:,} registros RIPS y "
+           f"{len(carga_fact.registros.get('facturacion', [])):,} de facturación".replace(",", "."), 0.5)
     l_rips, facturas_rips, otros, inc = lineas_rips(
         carga_rips, catalogo, cfg.ignorar_ceros_factura
     )
@@ -141,6 +157,7 @@ def conciliar(
     claves_facturas_rips = (
         set(facturas_rips["factura_clave"]) if not facturas_rips.empty else set()
     )
+    avisar("Emparejando facturación con RIPS por factura y código", 0.6)
     detalle = emparejar(
         l_fact,
         l_rips,
@@ -158,6 +175,7 @@ def conciliar(
     )
     archivos = pd.DataFrame(carga_rips.archivos + carga_fact.archivos)
 
+    avisar("Calculando comparativos, cruce de códigos y consumo", 0.7)
     facturas = _comparar_facturas(l_fact, l_rips, facturas_rips)
     cruce, cruce_sede = _cruce_codigos(l_fact, l_rips)
     comparativos = {
@@ -318,20 +336,14 @@ def _comparar_facturas(
     ]
 
     # Consistencia interna RIPS 3374: detalle - copago - comisión - descuentos = neto AF
-    def neto_calc(fila):
-        if not isinstance(fila["AF_valor_neto"], Decimal):
-            return None
-        dec = lambda v: v if isinstance(v, Decimal) else CERO  # noqa: E731
-        return (
-            fila["valor_rips"]
-            - dec(fila["AF_copago"])
-            - dec(fila["AF_comision"])
-            - dec(fila["AF_descuentos"])
-        )
+    def dec(v):
+        return v if isinstance(v, Decimal) else CERO
 
-    df["neto_calculado_detalle_rips"] = (
-        df.apply(neto_calc, axis=1) if not df.empty else []
-    )
+    df["neto_calculado_detalle_rips"] = [
+        (vr - dec(cop) - dec(com) - dec(des)) if isinstance(neto, Decimal) else None
+        for neto, vr, cop, com, des in zip(df["AF_valor_neto"], df["valor_rips"], df["AF_copago"],
+                                           df["AF_comision"], df["AF_descuentos"])
+    ]
     df["dif_AF_neto_vs_detalle"] = [
         (n - c) if isinstance(n, Decimal) and isinstance(c, Decimal) else None
         for n, c in zip(df["AF_valor_neto"], df["neto_calculado_detalle_rips"])

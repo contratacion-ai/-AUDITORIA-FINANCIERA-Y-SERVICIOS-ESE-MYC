@@ -61,6 +61,8 @@ def crear(request):
 
 def editar(request, pk):
     conciliacion = get_object_or_404(Conciliacion, pk=pk)
+    if _bloqueada(request, conciliacion):
+        return redirect(conciliacion)
     form = ConciliacionForm(request.POST or None, instance=conciliacion)
     if request.method == "POST" and form.is_valid():
         form.save()
@@ -70,8 +72,17 @@ def editar(request, pk):
     return render(request, "conciliacion/form.html", {"form": form, "titulo": f"Parámetros – {conciliacion}"})
 
 
+def _bloqueada(request, conciliacion) -> bool:
+    """Mientras se procesa no se permiten cambios de archivos ni de parámetros."""
+    if conciliacion.estado == Conciliacion.Estado.PROCESANDO and servicios.en_curso(conciliacion.pk):
+        messages.warning(request, "Espere a que termine el procesamiento en curso para hacer cambios.")
+        return True
+    return False
+
+
 def detalle(request, pk):
     conciliacion = get_object_or_404(Conciliacion.objects.select_related("auditoria"), pk=pk)
+    servicios.verificar_interrumpida(conciliacion)
     incidencias = conciliacion.incidencias.all()
     severidad = request.GET.get("severidad")
     if severidad:
@@ -94,6 +105,8 @@ def detalle(request, pk):
 @require_POST
 def cargar(request, pk):
     conciliacion = get_object_or_404(Conciliacion, pk=pk)
+    if _bloqueada(request, conciliacion):
+        return redirect(conciliacion)
     form = CargaArchivosForm(request.POST, request.FILES)
     if not form.is_valid():
         for errores in form.errors.values():
@@ -127,6 +140,8 @@ def cargar(request, pk):
 @require_POST
 def reemplazar(request, pk):
     archivo = get_object_or_404(ArchivoCargado, pk=pk)
+    if _bloqueada(request, archivo.conciliacion):
+        return redirect(archivo.conciliacion)
     form = ReemplazoForm(request.POST, request.FILES)
     if form.is_valid():
         if servicios.reemplazar_archivo(archivo, form.cleaned_data["archivo"], _usuario(request)):
@@ -141,6 +156,8 @@ def reemplazar(request, pk):
 @require_POST
 def actualizar(request, pk):
     archivo = get_object_or_404(ArchivoCargado, pk=pk)
+    if _bloqueada(request, archivo.conciliacion):
+        return redirect(archivo.conciliacion)
     form = ActualizarArchivoForm(request.POST, instance=ArchivoCargado.objects.get(pk=pk))
     if form.is_valid():
         cambios = servicios.actualizar_archivo(archivo, _usuario(request), **form.cleaned_data)
@@ -151,6 +168,8 @@ def actualizar(request, pk):
 @require_POST
 def eliminar(request, pk):
     archivo = get_object_or_404(ArchivoCargado, pk=pk)
+    if _bloqueada(request, archivo.conciliacion):
+        return redirect(archivo.conciliacion)
     conciliacion = archivo.conciliacion
     nombre = archivo.nombre_original
     servicios.eliminar_archivo(archivo, _usuario(request))
@@ -161,6 +180,8 @@ def eliminar(request, pk):
 @require_POST
 def limpiar(request, pk):
     conciliacion = get_object_or_404(Conciliacion, pk=pk)
+    if _bloqueada(request, conciliacion):
+        return redirect(conciliacion)
     alcance = request.POST.get("alcance", "")
     if alcance not in ("RIPS", "FACTURACION", "CATALOGO", "EQUIVALENCIAS", "ARCHIVOS", "RESULTADOS", "TODO"):
         raise Http404
@@ -173,8 +194,15 @@ def limpiar(request, pk):
 def procesar(request, pk):
     conciliacion = get_object_or_404(Conciliacion, pk=pk)
     try:
-        servicios.procesar(conciliacion)
-        messages.success(request, "Conciliación procesada.")
+        if servicios.iniciar_procesamiento(conciliacion):
+            conciliacion.refresh_from_db()
+            if conciliacion.estado == Conciliacion.Estado.PROCESADA:
+                messages.success(request, "Conciliación procesada.")
+            elif conciliacion.estado == Conciliacion.Estado.PROCESANDO:
+                messages.info(request, "Procesando… Esta página muestra el avance y se actualiza sola. Con archivos "
+                                       "grandes puede tardar algunos minutos; no cierre la ventana de la herramienta.")
+        else:
+            messages.info(request, "La conciliación ya se está procesando.")
     except ValueError as exc:
         messages.error(request, str(exc))
     except Exception as exc:  # noqa: BLE001 - se informa al usuario

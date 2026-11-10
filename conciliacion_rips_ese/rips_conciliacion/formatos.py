@@ -240,13 +240,35 @@ def _tabla_ods(contenido: bytes) -> list[tuple[str, pd.DataFrame]]:
     return hojas
 
 
-def leer_tablas(nombre: str, contenido: bytes, clase: str | None = None) -> list[tuple[str | None, pd.DataFrame]]:
-    """Devuelve [(hoja, DataFrame crudo sin encabezado)]. Lanza FormatoNoLegible."""
+def _calamine_disponible() -> bool:
+    try:
+        import python_calamine  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
+def leer_tablas(nombre: str, contenido: bytes, clase: str | None = None,
+                max_filas: int | None = None) -> list[tuple[str | None, pd.DataFrame]]:
+    """Devuelve [(hoja, DataFrame crudo sin encabezado)]. Lanza FormatoNoLegible.
+
+    Las hojas de cálculo se leen con *calamine* (lector en Rust, unas 10 veces más rápido que openpyxl
+    en archivos grandes) y, si no está instalado, con el lector propio de cada formato.
+    ``max_filas`` limita la lectura (para clasificar un archivo sin leerlo completo).
+    """
     clase = clase or clasificar(nombre, contenido)
     try:
+        if clase in HOJAS_CALCULO and _calamine_disponible():
+            try:
+                hojas = pd.read_excel(io.BytesIO(contenido), sheet_name=None, header=None, dtype=object,
+                                      engine="calamine", nrows=max_filas)
+                return list(hojas.items())
+            except Exception:  # noqa: BLE001 - se intenta con el lector específico del formato
+                pass
         if clase in (XLSX, XLS, XLSB):
             motor = {XLSX: "openpyxl", XLS: "xlrd", XLSB: "pyxlsb"}[clase]
-            hojas = pd.read_excel(io.BytesIO(contenido), sheet_name=None, header=None, dtype=object, engine=motor)
+            hojas = pd.read_excel(io.BytesIO(contenido), sheet_name=None, header=None, dtype=object, engine=motor,
+                                  nrows=max_filas)
             return list(hojas.items())
         if clase == ODS:
             return _tabla_ods(contenido)
@@ -404,7 +426,7 @@ def clasificar_para_carga(nombre: str, contenido: bytes) -> str:
     if clase in (TEXTO, JSON, XML) and detectar(nombre, contenido).version != VERSION_NO_DETERMINADA:
         return "RIPS"
     try:
-        hojas = leer_tablas(nombre, contenido, clase)
+        hojas = leer_tablas(nombre, contenido, clase, max_filas=40)
     except FormatoNoLegible:
         return "FACTURACION"
     from .facturacion import normalizar_nombre

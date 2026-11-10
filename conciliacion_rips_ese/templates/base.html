@@ -45,6 +45,7 @@
     pre { white-space:pre-wrap; background:#fff; padding:14px; border:1px solid var(--borde); border-radius:8px; }
   </style>
   {% block cabecera %}{% endblock %}
+  {% if c.estado == "PROCESANDO" %}<meta http-equiv="refresh" content="3">{% endif %}
 </head>
 <body>
 <header>

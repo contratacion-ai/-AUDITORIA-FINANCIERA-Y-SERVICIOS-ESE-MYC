@@ -16,6 +16,7 @@ def ruta_archivo(instancia, nombre):
 class Conciliacion(models.Model):
     class Estado(models.TextChoices):
         BORRADOR = "BORRADOR", "Sin procesar"
+        PROCESANDO = "PROCESANDO", "Procesando…"
         DESACTUALIZADA = "DESACTUALIZADA", "Archivos modificados: debe reprocesarse"
         PROCESADA = "PROCESADA", "Procesada"
         ERROR = "ERROR", "Error al procesar"
@@ -41,6 +42,10 @@ class Conciliacion(models.Model):
     resumen = models.JSONField(default=list, blank=True)       # reporte general
     tablas = models.JSONField(default=dict, blank=True)        # comparativos y rankings (texto exacto)
     mensaje_error = models.TextField(blank=True)
+    progreso_texto = models.CharField(max_length=300, blank=True)
+    progreso_pct = models.PositiveSmallIntegerField(default=0)
+    proceso_inicio = models.DateTimeField(null=True, blank=True)
+    hojas_solo_csv = models.JSONField(default=list, blank=True)
     archivo_excel = models.FileField(upload_to="resultados/", blank=True)
     archivo_csv = models.FileField(upload_to="resultados/", blank=True)
     procesada = models.DateTimeField(null=True, blank=True)
@@ -59,7 +64,7 @@ class Conciliacion(models.Model):
         return reverse("conciliacion:detalle", args=[self.pk])
 
     def marcar_desactualizada(self):
-        if self.estado in (self.Estado.PROCESADA, self.Estado.ERROR):
+        if self.estado in (self.Estado.PROCESADA, self.Estado.ERROR):  # no interrumpe uno en curso
             self.estado = self.Estado.DESACTUALIZADA
             self.save(update_fields=["estado", "actualizada"])
 

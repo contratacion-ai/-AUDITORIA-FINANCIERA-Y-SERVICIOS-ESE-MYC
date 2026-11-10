@@ -64,7 +64,7 @@ def detalle(request, pk):
         por_tipo[tipo][0] += 1
         por_tipo[tipo][1] += valor
     base = auditoria.hallazgos.all()
-    opciones = {c: sorted(v for v in base.values_list(c, flat=True).distinct() if v)
+    opciones = {c: sorted(v for v in base.order_by(c).values_list(c, flat=True).distinct() if v)
                 for c in ("tipo", "sede", "hospital", "mes")}
     params = request.GET.copy()
     params.pop("pagina", None)
