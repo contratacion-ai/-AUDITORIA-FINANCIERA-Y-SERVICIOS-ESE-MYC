@@ -1,0 +1,17 @@
+{% load formato %}
+{% if tabla and tabla.filas %}
+<div class="tabla-scroll">
+<table>
+  <thead><tr>{% for c in tabla.columnas %}<th>{{ c }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for fila in tabla.filas %}
+    <tr>{% for v in fila %}
+      {% if v|es_numero %}<td class="n {% if v|negativo %}neg{% endif %}">{{ v|moneda }}</td>
+      {% else %}<td>{% if v is None %}{% else %}{{ v }}{% endif %}</td>{% endif %}
+    {% endfor %}</tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="ayuda">{{ tabla.filas|length }} fila(s).</p>
+{% else %}<p class="ayuda">Sin datos.</p>{% endif %}

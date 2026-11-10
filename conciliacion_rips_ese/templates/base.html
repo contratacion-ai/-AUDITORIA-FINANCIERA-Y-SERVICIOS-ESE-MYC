@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}Auditoría ESE{% endblock %} · ESE Moreno y Clavijo</title>
+  <style>
+    :root { --azul:#0b4f8a; --azul2:#e8f1fa; --verde:#1d7a46; --rojo:#b42318; --ambar:#a15c00; --gris:#5b6470;
+            --borde:#d9dee5; --fondo:#f6f8fb; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--fondo);
+           color:#1f2933; font-size:14px; }
+    header { background:var(--azul); color:#fff; padding:10px 20px; display:flex; gap:20px; align-items:center; flex-wrap:wrap; }
+    header a { color:#fff; text-decoration:none; }
+    header .marca { font-weight:700; font-size:16px; }
+    main { padding:18px 20px; max-width:1500px; margin:0 auto; }
+    h1 { font-size:22px; margin:6px 0 14px; } h2 { font-size:17px; margin:22px 0 10px; } h3 { font-size:15px; }
+    .tarjeta { background:#fff; border:1px solid var(--borde); border-radius:8px; padding:14px 16px; margin-bottom:14px; }
+    .fila { display:flex; gap:14px; flex-wrap:wrap; }
+    .fila > * { flex:1 1 220px; }
+    .kpi { background:#fff; border:1px solid var(--borde); border-radius:8px; padding:12px 14px; }
+    .kpi .v { font-size:20px; font-weight:700; } .kpi .t { color:var(--gris); font-size:12px; text-transform:uppercase; }
+    table { border-collapse:collapse; width:100%; background:#fff; }
+    th, td { border-bottom:1px solid var(--borde); padding:6px 8px; text-align:left; vertical-align:top; }
+    th { background:var(--azul2); font-size:12px; position:sticky; top:0; }
+    td.n, th.n { text-align:right; font-variant-numeric: tabular-nums; white-space:nowrap; }
+    .tabla-scroll { overflow:auto; max-height:520px; border:1px solid var(--borde); border-radius:6px; }
+    .neg { color:var(--rojo); }
+    .btn { display:inline-block; border:1px solid var(--azul); background:var(--azul); color:#fff; border-radius:6px;
+           padding:6px 12px; text-decoration:none; cursor:pointer; font-size:13px; }
+    .btn.sec { background:#fff; color:var(--azul); } .btn.peligro { background:var(--rojo); border-color:var(--rojo); }
+    .btn.peq { padding:3px 8px; font-size:12px; }
+    form.en-linea { display:inline; }
+    input, select, textarea { font:inherit; padding:5px 7px; border:1px solid var(--borde); border-radius:5px; max-width:100%; }
+    label { font-size:12px; color:var(--gris); display:block; }
+    .mensajes { list-style:none; padding:0; } .mensajes li { padding:8px 12px; border-radius:6px; margin-bottom:6px; }
+    .success { background:#e6f4ea; } .error { background:#fdecea; } .warning { background:#fff4e0; } .info { background:var(--azul2); }
+    .chip { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; background:#eef1f5; white-space:nowrap; }
+    .chip.COINCIDE, .chip.PROCESADA, .chip.SUBSANADO, .chip.CERRADO { background:#e6f4ea; color:var(--verde); }
+    .chip.ERROR, .chip.ALTA, .chip.ABIERTO { background:#fdecea; color:var(--rojo); }
+    .chip.DESACTUALIZADA, .chip.ADVERTENCIA, .chip.MEDIA, .chip.EN_GESTION { background:#fff4e0; color:var(--ambar); }
+    .ayuda { color:var(--gris); font-size:12px; }
+    details > summary { cursor:pointer; font-weight:600; margin:6px 0; }
+    .grafica { position:relative; height:280px; }
+    pre { white-space:pre-wrap; background:#fff; padding:14px; border:1px solid var(--borde); border-radius:8px; }
+  </style>
+  {% block cabecera %}{% endblock %}
+  {% if c.estado == "PROCESANDO" %}<meta http-equiv="refresh" content="3">{% endif %}
+</head>
+<body>
+<header>
+  <a class="marca" href="{% url 'auditoria:inicio' %}">ESE Moreno y Clavijo · Auditoría financiera y de servicios</a>
+  <a href="{% url 'conciliacion:inicio_rapido' %}"><strong>⬆ Cargar datos</strong></a>
+  <a href="{% url 'auditoria:inicio' %}">Auditorías</a>
+  <a href="{% url 'conciliacion:criterio' %}">Criterio de emparejamiento</a>
+  <a href="/admin/">Administración</a>
+</header>
+<main>
+  {% if messages %}<ul class="mensajes">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
+  {% block contenido %}{% endblock %}
+</main>
+{% block scripts %}{% endblock %}
+</body>
+</html>

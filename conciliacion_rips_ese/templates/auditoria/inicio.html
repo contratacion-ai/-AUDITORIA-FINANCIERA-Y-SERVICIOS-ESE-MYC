@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% load formato %}
+{% block titulo %}Auditorías{% endblock %}
+{% block contenido %}
+<div class="tarjeta" style="border:2px solid var(--azul)">
+  <h2 style="margin-top:0">Conciliar facturación vs RIPS</h2>
+  <p>1) Pulse <strong>Cargar datos</strong> · 2) seleccione los archivos de RIPS y de facturación · 3) pulse
+    <strong>Procesar</strong> · 4) revise el tablero y genere los hallazgos.</p>
+  <a class="btn" style="font-size:16px;padding:10px 18px" href="{% url 'conciliacion:inicio_rapido' %}">⬆ Cargar datos</a>
+</div>
+<h1>Auditorías</h1>
+<p><a class="btn sec" href="{% url 'auditoria:crear' %}">+ Nueva auditoría</a></p>
+<table>
+  <thead><tr><th>Auditoría</th><th>Entidad</th><th>Estado</th><th class="n">Conciliaciones</th>
+    <th class="n">Hallazgos</th><th class="n">Abiertos</th><th class="n">Valor abierto (abs.)</th></tr></thead>
+  <tbody>
+  {% for r in resumen %}
+    <tr>
+      <td><a href="{{ r.a.get_absolute_url }}">{{ r.a.nombre }}</a></td>
+      <td>{{ r.a.entidad }}</td>
+      <td><span class="chip">{{ r.a.get_estado_display }}</span></td>
+      <td class="n">{{ r.conciliaciones }}</td><td class="n">{{ r.hallazgos }}</td><td class="n">{{ r.abiertos }}</td>
+      <td class="n">{{ r.valor_abierto|moneda }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="7">Aún no hay auditorías. Cree una para empezar a conciliar facturación vs RIPS.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

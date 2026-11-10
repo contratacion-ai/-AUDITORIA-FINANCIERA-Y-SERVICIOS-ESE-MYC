@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% load formato %}
+{% block titulo %}{{ c.nombre }}{% endblock %}
+{% block contenido %}
+<p><a href="{{ c.auditoria.get_absolute_url }}">← Auditoría: {{ c.auditoria }}</a></p>
+<h1>{{ c.nombre }} <span class="chip {{ c.estado }}">{{ c.get_estado_display }}</span></h1>
+{% if c.estado == "ERROR" %}<div class="tarjeta error">{{ c.mensaje_error }}</div>{% endif %}
+{% if c.estado == "PROCESANDO" %}
+<div class="tarjeta" style="border:2px solid var(--azul)">
+  <h3 style="margin-top:0">⏳ Procesando la conciliación…</h3>
+  <p><strong>{{ c.progreso_texto|default:"Iniciando" }}</strong></p>
+  <div style="background:#e6ebf1;border-radius:6px;height:22px;overflow:hidden">
+    <div style="background:var(--azul);height:22px;width:{{ c.progreso_pct }}%;color:#fff;font-size:12px;
+                line-height:22px;text-align:right;padding-right:6px">{{ c.progreso_pct }}%</div>
+  </div>
+  <p class="ayuda">Iniciado {{ c.proceso_inicio|date:"H:i:s" }} · hace {{ c.proceso_inicio|timesince }}. Esta página se
+    actualiza sola cada 3 segundos. Con archivos de cientos de miles de filas puede tardar algunos minutos.
+    Puede seguir usando el navegador, pero <strong>no cierre la ventana negra de la herramienta</strong>.</p>
+  <form method="post" action="{% url 'conciliacion:cancelar' c.pk %}" onsubmit="return confirm('¿Cancelar el procesamiento?')">
+    {% csrf_token %}<button class="btn peligro peq" type="submit">✖ Cancelar procesamiento</button></form>
+</div>
+{% endif %}
+
+<div class="tarjeta">
+  <div class="fila">
+    <div><label>Versión RIPS detectada</label>{{ c.version_rips|default:"(sin procesar)" }}</div>
+    <div><label>Separador decimal facturación</label>{{ c.get_separador_decimal_display }}</div>
+    <div><label>Ceros a la izquierda en factura</label>{{ c.ignorar_ceros_factura|yesno:"Se ignoran,Se respetan" }}</div>
+    <div><label>Tolerancia de valor</label>{{ c.tolerancia_valor|moneda }}</div>
+    <div><label>Procesada</label>{{ c.procesada|default:"—" }}</div>
+  </div>
+  <p>
+    <form class="en-linea" method="post" action="{% url 'conciliacion:procesar' c.pk %}">{% csrf_token %}
+      <button class="btn" type="submit" {% if c.estado == "PROCESANDO" %}disabled style="opacity:.5"{% endif %}
+        onclick="this.disabled=true;this.innerText='⏳ Iniciando…';this.form.submit()">⚙ Procesar conciliación</button></form>
+    <a class="btn sec" href="{% url 'conciliacion:editar' c.pk %}">Parámetros</a>
+    {% if c.estado == "PROCESADA" %}
+      <a class="btn" href="{% url 'conciliacion:tablero' c.pk %}">📊 Tablero interactivo</a>
+      <a class="btn sec" href="{% url 'conciliacion:exportar' c.pk %}?formato=excel">Excel (.xlsx)</a>
+      <a class="btn sec" href="{% url 'conciliacion:exportar' c.pk %}?formato=csv">CSV (.zip)</a>
+      <a class="btn sec" href="{% url 'conciliacion:exportar' c.pk %}?formato=ambos">Excel + CSV</a>
+    {% endif %}
+  </p>
+  {% if c.estado == "PROCESADA" and c.hojas_solo_csv %}
+  <p class="ayuda">Por su tamaño, el Excel no trae todo (máximo 100.000 filas por hoja); el CSV sí:
+    {{ c.hojas_solo_csv|join:" · " }}.</p>{% endif %}
+</div>
+
+<h2>1. Cargar archivos</h2>
+<div class="tarjeta" style="border:2px solid var(--azul)">
+  <form method="post" enctype="multipart/form-data" action="{% url 'conciliacion:cargar' c.pk %}">
+    {% csrf_token %}
+    <p><strong>Paso 1.</strong> Pulse el botón y seleccione los archivos de RIPS y de facturación <strong>en cualquier
+      formato</strong>: comprimidos (ZIP, RAR, 7Z, GZ, TAR), Excel (XLSX, XLS, XLSB), LibreOffice (ODS), CSV o TXT con
+      cualquier separador, JSON o XML. Puede seleccionar varios a la vez con Ctrl o Shift.</p>
+    <p>{{ form_carga.archivos }}</p>
+    <p><strong>Paso 2.</strong> <button class="btn" type="submit">⬆ Cargar archivos seleccionados</button></p>
+    <details><summary>Opciones (normalmente no hace falta cambiarlas)</summary>
+      <div class="fila">
+        <div><label>Tipo de archivo</label>{{ form_carga.tipo }}</div>
+        <div><label>Sede (opcional)</label>{{ form_carga.sede }}</div>
+        <div><label>Hospital (opcional)</label>{{ form_carga.hospital }}</div>
+        <div><label>Ámbito (solo facturación)</label>{{ form_carga.ambito }}</div>
+      </div>
+    </details>
+  </form>
+  <p class="ayuda">El tipo y el formato de cada archivo se reconocen por su contenido, no por la extensión. Se
+    cargan como RIPS: paquetes y archivos con estructura RIPS (Res. 3374 o 2275), RIPS exportados a Excel/CSV con sus
+    columnas y archivos cuyo nombre dice "RIPS". El resto de tablas se cargan como facturación (si el nombre dice
+    "catalogo"/"sedes" o "equivalencias", como esos). Si el tipo no es el correcto, cámbielo en la tabla de archivos.
+    Los PDF o imágenes dentro de un paquete se ignoran con un aviso. Después de cargar, pulse
+    <strong>⚙ Procesar conciliación</strong>.</p>
+</div>
+
+<h2>Archivos cargados</h2>
+<div class="tabla-scroll">
+<table>
+  <thead><tr><th>Tipo</th><th>Archivo</th><th class="n">Tamaño</th><th class="n">Versión</th><th>Tipo / Sede / Hospital / Ámbito / Activo</th>
+    <th>Reemplazar</th><th></th></tr></thead>
+  <tbody>
+  {% for a in archivos %}
+    <tr {% if not a.activo %}style="opacity:.55"{% endif %}>
+      <td><span class="chip">{{ a.tipo }}</span></td>
+      <td>{{ a.nombre_original }}<div class="ayuda">Cargado {{ a.cargado|date:"Y-m-d H:i" }} · actualizado {{ a.actualizado|date:"Y-m-d H:i" }}</div></td>
+      <td class="n">{{ a.tamano|filesizeformat }}</td>
+      <td class="n">v{{ a.version }}</td>
+      <td>
+        <form method="post" action="{% url 'conciliacion:actualizar' a.pk %}">{% csrf_token %}
+          <select name="tipo">{% for v, t in tipos %}<option value="{{ v }}" {% if a.tipo == v %}selected{% endif %}>{{ v }}</option>{% endfor %}</select>
+          <input name="sede" value="{{ a.sede }}" placeholder="Sede" size="10">
+          <input name="hospital" value="{{ a.hospital }}" placeholder="Hospital" size="12">
+          <input name="ambito" value="{{ a.ambito }}" placeholder="Ámbito" size="10">
+          <label style="display:inline"><input type="checkbox" name="activo" {% if a.activo %}checked{% endif %}> activo</label>
+          <button class="btn sec peq" type="submit">Actualizar</button>
+        </form>
+      </td>
+      <td>
+        <form method="post" enctype="multipart/form-data" action="{% url 'conciliacion:reemplazar' a.pk %}">{% csrf_token %}
+          <input type="file" name="archivo" required style="width:190px">
+          <button class="btn sec peq" type="submit">Reemplazar</button>
+        </form>
+      </td>
+      <td>
+        <form method="post" action="{% url 'conciliacion:eliminar_archivo' a.pk %}" onsubmit="return confirm('¿Eliminar {{ a.nombre_original|escapejs }}?')">{% csrf_token %}
+          <button class="btn peligro peq" type="submit">Eliminar</button></form>
+      </td>
+    </tr>
+  {% empty %}<tr><td colspan="7">No hay archivos cargados.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+
+<details class="tarjeta">
+  <summary>Limpiar archivos o resultados</summary>
+  <form method="post" action="{% url 'conciliacion:limpiar' c.pk %}" onsubmit="return confirm('Esta acción elimina definitivamente lo seleccionado. ¿Continuar?')">
+    {% csrf_token %}
+    <select name="alcance">
+      <option value="RIPS">Solo archivos RIPS</option>
+      <option value="FACTURACION">Solo archivos de facturación</option>
+      <option value="CATALOGO">Solo catálogo de sedes</option>
+      <option value="EQUIVALENCIAS">Solo equivalencias</option>
+      <option value="ARCHIVOS">Todos los archivos (conserva resultados)</option>
+      <option value="RESULTADOS">Solo resultados (conserva archivos)</option>
+      <option value="TODO">Todo: archivos y resultados</option>
+    </select>
+    <button class="btn peligro" type="submit">Limpiar</button>
+  </form>
+  <p class="ayuda">Los hallazgos ya generados en la auditoría se conservan.</p>
+</details>
+
+{% if historial %}
+<details class="tarjeta"><summary>Historial de cambios de archivos ({{ historial|length }})</summary>
+  <table><thead><tr><th>Fecha</th><th>Acción</th><th>Tipo</th><th>Archivo</th><th>Detalle</th><th>Usuario</th></tr></thead>
+  <tbody>{% for h in historial %}<tr><td>{{ h.fecha|date:"Y-m-d H:i" }}</td><td>{{ h.get_accion_display }}</td><td>{{ h.tipo }}</td>
+    <td>{{ h.nombre }}</td><td>{{ h.detalle }}</td><td>{{ h.usuario }}</td></tr>{% endfor %}</tbody></table>
+</details>
+{% endif %}
+
+{% if c.resumen %}
+<h2>2. Reporte general de revisión</h2>
+<div class="tarjeta">
+  <table>
+    {% for fila in c.resumen %}
+      {% ifchanged fila.0 %}<tr><th colspan="2">{{ fila.0 }}</th></tr>{% endifchanged %}
+      <tr><td>{{ fila.1 }}</td><td class="n {% if fila.2|negativo %}neg{% endif %}">{% if fila.2|es_numero %}{{ fila.2|moneda }}{% else %}{{ fila.2 }}{% endif %}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<details class="tarjeta" open><summary>Archivos leídos y versión detectada</summary>
+  {% include "conciliacion/_tabla.html" with tabla=tablas|obtener:"Archivos" %}</details>
+
+<h2>3. Incidencias de estructura ({{ n_errores }} errores, {{ n_advertencias }} advertencias)</h2>
+<p><a href="?severidad=ERROR">Ver solo errores</a> · <a href="?severidad=ADVERTENCIA">Ver advertencias</a> · <a href="?">Todas</a></p>
+<div class="tabla-scroll">
+<table>
+  <thead><tr><th>Severidad</th><th>Archivo</th><th class="n">Línea/fila</th><th>Campo</th><th>Mensaje</th><th>Valor</th></tr></thead>
+  <tbody>
+  {% for i in incidencias %}
+    <tr><td><span class="chip {{ i.severidad }}">{{ i.severidad }}</span></td><td>{{ i.archivo }}</td>
+      <td class="n">{{ i.linea|default_if_none:"" }}</td><td>{{ i.campo }}</td><td>{{ i.mensaje }}</td><td>{{ i.valor|truncatechars:80 }}</td></tr>
+  {% empty %}<tr><td colspan="6">Sin incidencias.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% if incidencias.has_other_pages %}<p>
+  {% if incidencias.has_previous %}<a href="?pinc={{ incidencias.previous_page_number }}&severidad={{ request.GET.severidad|default:'' }}">← Anterior</a>{% endif %}
+  Página {{ incidencias.number }} de {{ incidencias.paginator.num_pages }}
+  {% if incidencias.has_next %}<a href="?pinc={{ incidencias.next_page_number }}&severidad={{ request.GET.severidad|default:'' }}">Siguiente →</a>{% endif %}</p>{% endif %}
+
+<h2>4. Vínculo con la auditoría</h2>
+<form method="post" action="{% url 'conciliacion:hallazgos' c.pk %}" class="tarjeta">{% csrf_token %}
+  <p>Convierte las diferencias en hallazgos de la auditoría <strong>{{ c.auditoria }}</strong> (uno por factura y tipo
+    de diferencia) con prioridad y acción recomendada. Al reprocesar, los hallazgos se actualizan y los que ya no
+    presentan diferencia se marcan como subsanados. Hallazgos actuales de esta conciliación: {{ hallazgos }}.</p>
+  <label>Valor mínimo absoluto de la diferencia para generar hallazgo (las facturas faltantes siempre generan hallazgo)</label>
+  <input name="valor_minimo" value="0">
+  <button class="btn" type="submit">Generar / actualizar hallazgos</button>
+</form>
+{% endif %}
+
+<form method="post" action="{% url 'conciliacion:eliminar' c.pk %}" onsubmit="return confirm('¿Eliminar la conciliación completa con sus archivos y resultados?')">
+  {% csrf_token %}<button class="btn peligro peq" type="submit">Eliminar conciliación</button></form>
+{% endblock %}

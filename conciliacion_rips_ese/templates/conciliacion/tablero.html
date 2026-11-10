@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% load formato %}
+{% block titulo %}Tablero – {{ c.nombre }}{% endblock %}
+{% block contenido %}
+<p><a href="{{ c.get_absolute_url }}">← {{ c.nombre }}</a> · <a href="{{ c.auditoria.get_absolute_url }}">Auditoría: {{ c.auditoria }}</a></p>
+<h1>Tablero de diferencias Facturación vs RIPS</h1>
+
+<form method="get" class="tarjeta fila" id="filtros">
+  {% for campo, valores in opciones.items %}
+    <div><label>{{ campo|capfirst }}</label>
+      <select name="{{ campo }}" onchange="this.form.submit()"><option value="">Todos</option>
+        {% for v in valores %}<option value="{{ v }}" {% if params|obtener:campo == v %}selected{% endif %}>{{ v|etiqueta_estado|default:v }}</option>{% endfor %}
+      </select></div>
+  {% endfor %}
+  <div><label>Factura</label><input name="factura" value="{{ params.factura|default:'' }}"></div>
+  <div><label>Código o descripción (CUPS/CUMS)</label><input name="codigo" value="{{ params.codigo|default:'' }}"></div>
+  <div><label>Mostrar</label><select name="solo_diferencias" onchange="this.form.submit()">
+      <option value="1" {% if params.solo_diferencias == "1" %}selected{% endif %}>Solo diferencias</option>
+      <option value="0" {% if params.solo_diferencias == "0" %}selected{% endif %}>Todo (incluye coincidencias)</option></select></div>
+  <div><label>Ordenar</label><select name="orden" onchange="this.form.submit()">
+      <option value="">Original</option>
+      <option value="dif_desc" {% if params.orden == "dif_desc" %}selected{% endif %}>Mayor diferencia (+)</option>
+      <option value="dif_asc" {% if params.orden == "dif_asc" %}selected{% endif %}>Mayor diferencia (−)</option>
+      <option value="valor_fact" {% if params.orden == "valor_fact" %}selected{% endif %}>Mayor valor facturado</option>
+      <option value="factura" {% if params.orden == "factura" %}selected{% endif %}>Factura</option>
+      <option value="mes" {% if params.orden == "mes" %}selected{% endif %}>Mes</option></select></div>
+  <div style="align-self:end"><button class="btn" type="submit">Aplicar</button>
+    <a class="btn sec" href="?">Limpiar filtros</a></div>
+</form>
+
+<div class="fila">
+  <div class="kpi"><div class="t">Facturado (filtro)</div><div class="v">{{ datos.kpi.valor_fact|moneda }}</div></div>
+  <div class="kpi"><div class="t">Reportado en RIPS</div><div class="v">{{ datos.kpi.valor_rips|moneda }}</div></div>
+  <div class="kpi"><div class="t">Diferencia neta</div><div class="v {% if datos.kpi.dif_valor|negativo %}neg{% endif %}">{{ datos.kpi.dif_valor|moneda }}</div></div>
+  <div class="kpi"><div class="t">Diferencia absoluta</div><div class="v">{{ datos.kpi.dif_abs|moneda }}</div></div>
+  <div class="kpi"><div class="t">Pares factura-código / facturas</div><div class="v">{{ datos.kpi.filas }} / {{ datos.kpi.facturas }}</div></div>
+</div>
+
+<div class="fila" style="margin-top:14px">
+  <div class="tarjeta"><h3>Facturado vs RIPS por sede</h3><div class="grafica"><canvas id="g_sede"></canvas></div></div>
+  <div class="tarjeta"><h3>Facturado vs RIPS por mes</h3><div class="grafica"><canvas id="g_mes"></canvas></div></div>
+</div>
+<div class="fila">
+  <div class="tarjeta"><h3>Por hospital</h3><div class="grafica"><canvas id="g_hospital"></canvas></div></div>
+  <div class="tarjeta"><h3>Por servicio</h3><div class="grafica"><canvas id="g_categoria"></canvas></div></div>
+</div>
+<div class="fila">
+  <div class="tarjeta"><h3>Pares por tipo de diferencia</h3><div class="grafica"><canvas id="g_estado"></canvas></div></div>
+  <div class="tarjeta"><h3>Top 15 códigos con mayor diferencia absoluta</h3><div class="grafica"><canvas id="g_codigos"></canvas></div></div>
+</div>
+
+<h2>Detalle por factura, mes, sede y servicio</h2>
+<p><a class="btn sec" href="{% url 'conciliacion:exportar_filtro' c.pk %}?{{ query }}&formato=xlsx">Exportar filtro a Excel</a>
+   <a class="btn sec" href="{% url 'conciliacion:exportar_filtro' c.pk %}?{{ query }}&formato=csv">Exportar filtro a CSV</a></p>
+<div class="tabla-scroll">
+<table>
+  <thead><tr><th>Estado</th><th>Factura</th><th>Mes</th><th>Sede</th><th>Hospital</th><th>Servicio</th><th>Código</th>
+    <th>Descripción</th><th class="n">Cant. fact.</th><th class="n">Cant. RIPS</th><th class="n">Dif. cant.</th>
+    <th class="n">Valor fact.</th><th class="n">Valor RIPS</th><th class="n">Dif. valor</th><th>Origen (campo / ubicación)</th></tr></thead>
+  <tbody>
+  {% for d in pagina %}
+    <tr>
+      <td><span class="chip {{ d.estado }}">{{ d.estado|etiqueta_estado }}</span>
+        {% if d.posible_homologacion %}<div class="ayuda">¿Homologación con {{ d.posible_homologacion }}?</div>{% endif %}</td>
+      <td>{{ d.factura }}</td><td>{{ d.mes }}</td><td>{{ d.sede }}{% if d.sede_fact and d.sede_rips and d.sede_fact != d.sede_rips %}<div class="ayuda">RIPS: {{ d.sede_rips }}</div>{% endif %}</td>
+      <td>{{ d.hospital }}</td><td>{{ d.categoria }}</td><td>{{ d.codigo }}<div class="ayuda">{{ d.tipo_codigo }}</div></td>
+      <td>{{ d.descripcion|truncatechars:40 }}</td>
+      <td class="n">{{ d.cantidad_fact|moneda }}</td><td class="n">{{ d.cantidad_rips|moneda }}</td>
+      <td class="n {% if d.dif_cantidad|negativo %}neg{% endif %}">{{ d.dif_cantidad|moneda }}</td>
+      <td class="n">{{ d.valor_fact|moneda }}</td><td class="n">{{ d.valor_rips|moneda }}</td>
+      <td class="n {% if d.dif_valor|negativo %}neg{% endif %}"><strong>{{ d.dif_valor|moneda }}</strong></td>
+      <td class="ayuda">{% if d.campo_codigo_fact %}Fact: {{ d.campo_codigo_fact }} · {{ d.ubicacion_fact }}<br>{% endif %}
+        {% if d.campo_codigo_rips %}RIPS: {{ d.campo_codigo_rips }} · {{ d.archivo_rips }} {{ d.ubicacion_rips }}{% endif %}</td>
+    </tr>
+  {% empty %}<tr><td colspan="15">Sin filas para los filtros seleccionados.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+<p>{% if pagina.has_previous %}<a href="?{{ query }}&pagina={{ pagina.previous_page_number }}">← Anterior</a>{% endif %}
+  Página {{ pagina.number }} de {{ pagina.paginator.num_pages }} ({{ pagina.paginator.count }} filas)
+  {% if pagina.has_next %}<a href="?{{ query }}&pagina={{ pagina.next_page_number }}">Siguiente →</a>{% endif %}</p>
+
+<h2>Comparativos y consumo (conciliación completa, sin filtros)</h2>
+{% for nombre, tabla in tablas.items %}
+  {% if nombre != "Archivos" %}
+  <details class="tarjeta"><summary>{{ nombre }}</summary>{% include "conciliacion/_tabla.html" with tabla=tabla %}</details>
+  {% endif %}
+{% endfor %}
+{{ graficas|json_script:"datos-graficas" }}
+{% endblock %}
+
+{% block scripts %}
+{% load static %}<script src="{% static 'conciliacion/chart.umd.min.js' %}"></script>
+<script>
+(function () {
+  if (!window.Chart) return;
+  const g = JSON.parse(document.getElementById("datos-graficas").textContent);
+  const num = (a) => a.map(Number);   // solo para dibujar; las cifras exactas están en las tablas
+  const fmt = new Intl.NumberFormat("es-CO");
+  const opciones = {responsive: true, maintainAspectRatio: false,
+    plugins: {tooltip: {callbacks: {label: (c) => `${c.dataset.label}: ${fmt.format(c.raw)}`}}},
+    scales: {y: {ticks: {callback: (v) => fmt.format(v)}}}};
+  const barras = (id, s, tipo) => new Chart(document.getElementById(id), {
+    type: tipo || "bar",
+    data: {labels: s.etiquetas, datasets: [
+      {label: "Facturado", data: num(s.facturado), backgroundColor: "#0b4f8a", borderColor: "#0b4f8a"},
+      {label: "RIPS", data: num(s.rips), backgroundColor: "#f0a202", borderColor: "#f0a202"}]},
+    options: opciones});
+  barras("g_sede", g.sede); barras("g_mes", g.mes, "line"); barras("g_hospital", g.hospital); barras("g_categoria", g.categoria);
+  new Chart(document.getElementById("g_estado"), {type: "doughnut",
+    data: {labels: g.estado.etiquetas.map((e) => e.replaceAll("_", " ").toLowerCase()), datasets: [{data: g.estado.conteo}]},
+    options: {responsive: true, maintainAspectRatio: false}});
+  new Chart(document.getElementById("g_codigos"), {type: "bar",
+    data: {labels: g.codigos.etiquetas, datasets: [{label: "Diferencia absoluta", data: num(g.codigos.valor), backgroundColor: "#b42318"}]},
+    options: {...opciones, indexAxis: "y", scales: {x: {ticks: {callback: (v) => fmt.format(v)}}}}});
+})();
+</script>
+{% endblock %}

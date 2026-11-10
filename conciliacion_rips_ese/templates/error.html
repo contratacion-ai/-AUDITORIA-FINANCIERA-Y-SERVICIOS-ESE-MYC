@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block titulo %}{{ titulo }}{% endblock %}
+{% block contenido %}
+<h1>{{ titulo }}</h1>
+<div class="tarjeta error">
+  <p><strong>{{ mensaje }}</strong></p>
+  <p><a class="btn" href="javascript:history.back()">← Volver</a> <a class="btn sec" href="/">Ir al inicio</a></p>
+</div>
+{% if detalle %}
+<details class="tarjeta"><summary>Detalle técnico (para soporte)</summary><pre>{{ detalle }}</pre></details>
+{% endif %}
+{% if archivo_registro %}<p class="ayuda">El error quedó guardado en: <code>{{ archivo_registro }}</code>. Envíe ese archivo
+  o una captura de esta página a soporte.</p>{% endif %}
+{% endblock %}

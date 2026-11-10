@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block titulo %}Criterio de emparejamiento{% endblock %}
+{% block contenido %}
+<h1>Propuesta de emparejamiento Facturación ↔ RIPS</h1>
+<p class="ayuda">Este es el criterio implementado. Valídelo con las áreas de facturación y sistemas de la ESE;
+los parámetros (ceros a la izquierda en la factura, tabla de equivalencias, tolerancia) se ajustan por conciliación.</p>
+<pre>{{ criterio }}</pre>
+{% endblock %}

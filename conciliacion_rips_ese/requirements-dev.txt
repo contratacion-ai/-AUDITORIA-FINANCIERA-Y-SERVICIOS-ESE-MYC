@@ -1,0 +1,4 @@
+-r requirements.txt
+pytest>=8.0
+pytest-django>=4.8
+xlwt>=1.3             # solo para generar .xls en las pruebas
