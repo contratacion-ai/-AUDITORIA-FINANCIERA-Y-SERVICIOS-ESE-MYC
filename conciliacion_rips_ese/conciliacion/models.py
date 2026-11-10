@@ -46,6 +46,7 @@ class Conciliacion(models.Model):
     progreso_pct = models.PositiveSmallIntegerField(default=0)
     proceso_inicio = models.DateTimeField(null=True, blank=True)
     hojas_solo_csv = models.JSONField(default=list, blank=True)
+    cancelar_solicitado = models.BooleanField(default=False)
     archivo_excel = models.FileField(upload_to="resultados/", blank=True)
     archivo_csv = models.FileField(upload_to="resultados/", blank=True)
     procesada = models.DateTimeField(null=True, blank=True)

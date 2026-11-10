@@ -92,6 +92,16 @@ def conciliar(
     ``avance(mensaje, fraccion)``: función opcional para informar el progreso (0 a 1).
     """
     avisar = avance or (lambda mensaje, fraccion: None)
+    from . import progreso
+
+    token = progreso.establecer(avisar)
+    try:
+        return _conciliar(rips, facturacion, configuracion, catalogo_sedes, equivalencias, avisar)
+    finally:
+        progreso.restablecer(token)
+
+
+def _conciliar(rips, facturacion, configuracion, catalogo_sedes, equivalencias, avisar) -> ResultadoConciliacion:
     cfg = configuracion or ConfiguracionConciliacion()
     rips = rips if isinstance(rips, list) else [rips]
     facturacion = facturacion if isinstance(facturacion, list) else [facturacion]
@@ -107,40 +117,34 @@ def conciliar(
     )
     carga_rips.version = " + ".join(versiones) if versiones else "SIN ARCHIVOS"
 
-    carga_fact = ResultadoCarga(archivo="FACTURACION", version="Facturación")
-    for i, e in enumerate(facturacion):
-        entrada, sede, hospital, ambito = _entrada(e)
-        avisar(f"Leyendo facturación: {_nombre_entrada(entrada)}",
-               0.05 + 0.45 * (len(rips) + i) / total_archivos)
-        carga_fact.fusionar(
-            leer_facturacion(
-                entrada,
-                cfg.mapeo_facturacion,
-                cfg.separador_decimal,
-                sede=sede,
-                hospital=hospital,
-                ambito=ambito,
-            )
-        )
+    import gc
 
     incidencias_extra = []
     catalogo = {}
     if catalogo_sedes is not None:
         catalogo, inc = leer_catalogo_sedes(catalogo_sedes)
         incidencias_extra.extend(inc)
-    tabla_equivalencias = (
-        leer_equivalencias(equivalencias) if equivalencias is not None else {}
-    )
+    tabla_equivalencias = leer_equivalencias(equivalencias) if equivalencias is not None else {}
 
-    avisar(f"Preparando líneas: {carga_rips.total_registros:,} registros RIPS y "
-           f"{len(carga_fact.registros.get('facturacion', [])):,} de facturación".replace(",", "."), 0.5)
-    l_rips, facturas_rips, otros, inc = lineas_rips(
-        carga_rips, catalogo, cfg.ignorar_ceros_factura
-    )
+    # RIPS: a líneas y se liberan los registros crudos ANTES de leer la facturación (menos memoria)
+    avisar(f"Preparando líneas de RIPS: {carga_rips.total_registros:,} registros".replace(",", "."), 0.3)
+    l_rips, facturas_rips, otros, inc = lineas_rips(carga_rips, catalogo, cfg.ignorar_ceros_factura)
     incidencias_extra.extend(inc)
-    l_fact = lineas_facturacion(
-        carga_fact, catalogo, tabla_equivalencias, cfg.ignorar_ceros_factura
-    )
+    carga_rips.liberar()
+    gc.collect()
+
+    carga_fact = ResultadoCarga(archivo="FACTURACION", version="Facturación")
+    for i, e in enumerate(facturacion):
+        entrada, sede, hospital, ambito = _entrada(e)
+        avisar(f"Leyendo facturación: {_nombre_entrada(entrada)}",
+               0.05 + 0.45 * (len(rips) + i) / total_archivos)
+        carga_fact.fusionar(leer_facturacion(entrada, cfg.mapeo_facturacion, cfg.separador_decimal,
+                                             sede=sede, hospital=hospital, ambito=ambito))
+
+    avisar(f"Preparando líneas de facturación: {carga_fact.conteo('facturacion'):,} filas".replace(",", "."), 0.5)
+    l_fact = lineas_facturacion(carga_fact, catalogo, tabla_equivalencias, cfg.ignorar_ceros_factura)
+    carga_fact.liberar()
+    gc.collect()
     l_fact = clasificar_facturacion(l_fact, l_rips)
     for sede in completar_hospital_desde_facturacion(l_rips, facturas_rips, l_fact):
         incidencias_extra.append(
@@ -594,13 +598,13 @@ def _resumen_general(r: ResultadoConciliacion) -> list[tuple[str, str, object]]:
     filas.append((sec, "Archivos con versión NO DETERMINADA", len(no_det)))
     for a in no_det[:20]:
         filas.append((sec, "  · Sin versión", a))
-    for tipo, regs in sorted(r.carga_rips.registros.items()):
-        filas.append((sec, f"Registros RIPS válidos tipo {tipo}", len(regs)))
+    for tipo, cantidad in sorted(r.carga_rips.conteos_por_tipo().items()):
+        filas.append((sec, f"Registros RIPS válidos tipo {tipo}", cantidad))
     filas.append(
         (
             sec,
             "Registros de facturación válidos",
-            len(r.carga_facturacion.registros.get("facturacion", [])),
+            r.carga_facturacion.conteo("facturacion"),
         )
     )
     sec = "2. Calidad de datos"

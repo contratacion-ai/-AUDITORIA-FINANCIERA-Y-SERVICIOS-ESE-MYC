@@ -23,8 +23,9 @@ from .esquemas import (
     LLAVES_RAIZ_2275,
     LLAVES_USUARIO_2275,
 )
+from . import progreso
 from .fechas import MESES, _sin_tildes, anio_de_nombre, mes_de_nombre, parse_fecha
-from .modelos import ADVERTENCIA, ERROR, VERSION_2275, VERSION_3374, VERSION_NO_DETERMINADA, ResultadoCarga
+from .modelos import ADVERTENCIA, ERROR, VERSION_2275, VERSION_3374, VERSION_NO_DETERMINADA, Registro, ResultadoCarga
 
 MAGIC_ZIP = b"PK\x03\x04"
 MAGIC_ZIP_VACIO = b"PK\x05\x06"
@@ -80,8 +81,19 @@ class Contexto:
         )
 
 
+# Sufijo que agrega Google Drive a las descargas: "Carpeta-20261027T135526Z-1-001"
+_RE_SUFIJO_DRIVE = re.compile(r"-\d{8}T\d{6}Z(-\d+)*$", re.IGNORECASE)
+_RE_ANIO_O_MES = re.compile(r"(?<!\d)20\d{2}[-_ .]?(0[1-9]|1[0-2])?(?!\d)")
+
+
+def _parece_documento(nombre: str) -> bool:
+    """Carpetas con nombre de factura, documento o código (HSA202213, FE1001, 810010000101): no son sedes."""
+    return bool(re.search(r"\d{4,}", _RE_ANIO_O_MES.sub(" ", _RE_SUFIJO_DRIVE.sub("", nombre))))
+
+
 def _limpiar_sede(nombre: str) -> str:
-    texto = re.sub(r"(?<!\d)20\d{2}[-_ .]?(0[1-9]|1[0-2])?(?!\d)", " ", nombre)
+    nombre = _RE_SUFIJO_DRIVE.sub("", nombre)
+    texto = _RE_ANIO_O_MES.sub(" ", nombre)
     palabras = re.split(r"[\s_\-.]+", texto)
     utiles = [
         p
@@ -111,6 +123,8 @@ def inferir_de_ruta(componentes: list[str]) -> dict:
             anio = anio_de_nombre(parte)
     sede = None
     for parte in reversed(componentes):
+        if _parece_documento(parte):
+            continue  # p. ej. una carpeta por factura dentro de la carpeta del hospital
         candidato = _limpiar_sede(parte)
         if candidato.upper() not in _PALABRAS_NO_SEDE:
             sede = candidato
@@ -264,10 +278,14 @@ def _leer_paquete(nombre: str, contenido: bytes, clase: str, ctx: Contexto, prof
         return res
     hijo = ctx.hijo(PurePosixPath(nombre).stem)
     miembros = miembros_rar(nombre, contenido, res) if clase == "rar" else expandir_paquete(nombre, contenido, clase)
+    leidos = 0
     try:
         for ruta_txt, datos in miembros:
             if _IGNORAR.search(ruta_txt):
                 continue
+            leidos += 1
+            progreso.detalle(f"Leyendo RIPS: {PurePosixPath(nombre).name} → {ruta_txt} "
+                             f"({leidos:,} archivos leídos del paquete)".replace(",", "."))
             ruta = PurePosixPath(ruta_txt.replace("\\", "/"))
             sub = hijo.hijo(*ruta.parent.parts)
             res.fusionar(_leer_bytes(f"{nombre}/{ruta}", datos, sub, profundidad + 1, ruta.name))
@@ -415,12 +433,12 @@ def _parsear_tabla_rips(nombre, nombre_corto, contenido, clase, meta, res, motiv
             sub.incidencia(ADVERTENCIA, "La tabla no tiene la estructura oficial de RIPS (3374 ni 2275): se procesa por "
                                         "las columnas reconocidas de factura, código, cantidad y valor.")
         categoria = _categoria_tabla(columnas_norm, hoja, nombre_corto)
+        ctx_hoja = {**meta, "_archivo": etiqueta, "_version": version, "_tipo": "tabla", "_categoria": categoria}
         for r in registros:
-            r.update({k: v for k, v in meta.items() if k not in r or k.startswith("_")})
-            r["_archivo"] = etiqueta
-            r["_version"] = version
-            r["_tipo"] = "tabla"
-            r["_categoria"] = categoria
+            # datos comunes de la hoja compartidos (los propios de la fila tienen prioridad)
+            for llave in ("_archivo", "_hoja"):
+                r.pop(llave, None)
+            r["_ctx"] = ctx_hoja
             sub.agregar("tabla", r)
         for inc in leido.incidencias:
             inc.archivo = etiqueta
@@ -481,6 +499,8 @@ def _parsear_3374(nombre: str, det: Deteccion, meta: dict, res: ResultadoCarga) 
     for num, linea in enumerate(det.texto.splitlines(), start=1):
         if not linea.strip():
             continue
+        if num % 20000 == 0:
+            progreso.detalle(f"Leyendo RIPS: {PurePosixPath(nombre).name}: {num:,} líneas".replace(",", "."))
         valores = linea.split(",")
         if num == 1 and _es_fila_titulos(valores):
             res.incidencia(ADVERTENCIA, "Primera línea con títulos de columna: se omite", linea=num)
@@ -494,7 +514,7 @@ def _parsear_3374(nombre: str, det: Deteccion, meta: dict, res: ResultadoCarga) 
                 valor=linea[:200],
             )
             continue
-        registro = {campo: v.strip() for campo, v in zip(esquema.campos, valores)}
+        registro = Registro(zip(esquema.campos, map(str.strip, valores)))
         valido = True
         for campo in esquema.campos_obligatorios:
             if not registro[campo]:
@@ -529,7 +549,7 @@ def _parsear_3374(nombre: str, det: Deteccion, meta: dict, res: ResultadoCarga) 
                     valor=registro[campo],
                 )
         if valido:
-            registro.update(meta)
+            registro["_ctx"] = meta  # datos comunes del archivo (compartidos, no copiados)
             registro["_tipo"] = esquema.codigo
             registro["_linea"] = num
             registro["_ubicacion"] = f"línea {num}"
@@ -583,7 +603,21 @@ def _vacio(v) -> bool:
     return v is None or (isinstance(v, str) and not v.strip())
 
 
+_CAMPOS_2275: dict[str, tuple[str, ...]] = {}
+
+
+def _campos_2275(esquema) -> tuple[str, ...]:
+    campos = {esquema.campo_codigo, esquema.campo_valor, esquema.campo_cantidad, esquema.campo_valor_unitario,
+              esquema.campo_fecha, "codPrestador", "nomTecnologiaSalud", "grupoServicios",
+              "modalidadGrupoServicioTecSal", "codServicio", "numAutorizacion", "tipoDocumentoIdentificacion",
+              "numDocumentoIdentificacion", "consecutivo", "valorPagoModerador",
+              *esquema.campos_codigos_adicionales, *esquema.campos_obligatorios}
+    _CAMPOS_2275[esquema.servicio] = tuple(sorted(c for c in campos if c))
+    return _CAMPOS_2275[esquema.servicio]
+
+
 def _parsear_2275(nombre: str, det: Deteccion, meta: dict, res: ResultadoCarga) -> None:
+    meta_json = {**meta, "_linea": None}
     documentos = (
         det.contenido_json
         if isinstance(det.contenido_json, list)
@@ -599,16 +633,7 @@ def _parsear_2275(nombre: str, det: Deteccion, meta: dict, res: ResultadoCarga) 
             )
             continue
         raiz = {k: doc.get(k) for k in LLAVES_RAIZ_2275 if k != "usuarios"}
-        res.agregar(
-            "transaccion",
-            {
-                **raiz,
-                **meta,
-                "_tipo": "transaccion",
-                "_linea": None,
-                "_ubicacion": prefijo or "raíz",
-            },
-        )
+        res.agregar("transaccion", Registro(raiz, _ctx=meta_json, _tipo="transaccion", _ubicacion=prefijo or "raíz"))
         usuarios = doc.get("usuarios")
         if not isinstance(usuarios, list):
             res.incidencia(
@@ -624,22 +649,11 @@ def _parsear_2275(nombre: str, det: Deteccion, meta: dict, res: ResultadoCarga) 
                     ERROR, "Usuario inválido (no es objeto JSON)", campo=ubic_u
                 )
                 continue
-            datos_usuario = {
-                f"usuarios.{k}": usuario.get(k)
-                for k in LLAVES_USUARIO_2275
-                if k != "servicios"
-            }
-            res.agregar(
-                "usuarios",
-                {
-                    "numFactura": doc.get("numFactura"),
-                    **datos_usuario,
-                    **meta,
-                    "_tipo": "usuarios",
-                    "_linea": None,
-                    "_ubicacion": ubic_u,
-                },
-            )
+            # Datos del usuario compartidos por todos sus servicios (no se copian en cada uno)
+            datos_usuario = {f"usuarios.{k}": usuario.get(k) for k in LLAVES_USUARIO_2275 if k != "servicios"}
+            datos_usuario["numFactura"] = doc.get("numFactura")
+            res.agregar("usuarios", Registro(_usuario=datos_usuario, _ctx=meta_json, _tipo="usuarios",
+                                             _ubicacion=ubic_u))
             servicios = usuario.get("servicios") or {}
             if not isinstance(servicios, dict):
                 res.incidencia(
@@ -705,18 +719,11 @@ def _parsear_2275(nombre: str, det: Deteccion, meta: dict, res: ResultadoCarga) 
                             )
                     if not valido:
                         continue
-                    plano = {
-                        k: v for k, v in item.items() if not isinstance(v, (dict, list))
-                    }
-                    res.agregar(
-                        servicio,
-                        {
-                            "numFactura": doc.get("numFactura"),
-                            **datos_usuario,
-                            **plano,
-                            **meta,
-                            "_tipo": servicio,
-                            "_linea": None,
-                            "_ubicacion": ubic,
-                        },
-                    )
+                    # Solo los campos que usa la conciliación (con su nombre original): menos memoria
+                    conservar = _CAMPOS_2275.get(servicio) or _campos_2275(esquema)
+                    registro = Registro((k, item[k]) for k in conservar if k in item)
+                    registro["_usuario"] = datos_usuario
+                    registro["_ctx"] = meta_json
+                    registro["_tipo"] = servicio
+                    registro["_ubicacion"] = ubic
+                    res.agregar(servicio, registro)

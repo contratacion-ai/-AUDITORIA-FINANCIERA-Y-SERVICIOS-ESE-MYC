@@ -58,6 +58,51 @@ class ResultadoCarga:
         self.incidencias.extend(otro.incidencias)
         self.archivos.extend(otro.archivos)
 
+    def liberar(self) -> None:
+        """Libera los registros crudos (ya convertidos en líneas) y conserva solo sus conteos."""
+        self.conteos = {tipo: len(regs) for tipo, regs in self.registros.items()}
+        self.registros = {}
+
+    def conteo(self, tipo: str) -> int:
+        if tipo in self.registros:
+            return len(self.registros[tipo])
+        return getattr(self, "conteos", {}).get(tipo, 0)
+
+    def conteos_por_tipo(self) -> dict[str, int]:
+        if self.registros:
+            return {tipo: len(regs) for tipo, regs in self.registros.items()}
+        return dict(getattr(self, "conteos", {}))
+
     @property
     def total_registros(self) -> int:
         return sum(len(v) for v in self.registros.values())
+
+
+class Registro(dict):
+    """Registro leído de un archivo, con poca memoria.
+
+    Los datos comunes (archivo, paquete, sede y mes de la ruta, versión…) van en un diccionario compartido
+    ``_ctx`` y los del usuario del JSON 2275 en ``_usuario``, en lugar de copiarse en cada registro. Al leer
+    una llave que no está en el registro se busca en ``_usuario`` y luego en ``_ctx``. Con cientos de miles
+    de servicios esto reduce la memoria a menos de la mitad.
+    """
+
+    __slots__ = ()
+
+    def __missing__(self, llave):
+        for compartido in ("_usuario", "_ctx"):
+            datos = dict.get(self, compartido)
+            if datos is not None and llave in datos:
+                return datos[llave]
+        raise KeyError(llave)
+
+    def get(self, llave, defecto=None):
+        try:
+            return self[llave]
+        except KeyError:
+            return defecto
+
+    def __contains__(self, llave):
+        if dict.__contains__(self, llave):
+            return True
+        return any(llave in (dict.get(self, c) or {}) for c in ("_usuario", "_ctx"))

@@ -16,6 +16,8 @@
   <p class="ayuda">Iniciado {{ c.proceso_inicio|date:"H:i:s" }} · hace {{ c.proceso_inicio|timesince }}. Esta página se
     actualiza sola cada 3 segundos. Con archivos de cientos de miles de filas puede tardar algunos minutos.
     Puede seguir usando el navegador, pero <strong>no cierre la ventana negra de la herramienta</strong>.</p>
+  <form method="post" action="{% url 'conciliacion:cancelar' c.pk %}" onsubmit="return confirm('¿Cancelar el procesamiento?')">
+    {% csrf_token %}<button class="btn peligro peq" type="submit">✖ Cancelar procesamiento</button></form>
 </div>
 {% endif %}
 
@@ -40,9 +42,8 @@
     {% endif %}
   </p>
   {% if c.estado == "PROCESADA" and c.hojas_solo_csv %}
-  <p class="ayuda">Por su tamaño, estas tablas van solo en el CSV (el Excel incluye todas las diferencias y los
-    resúmenes): {{ c.hojas_solo_csv|join:", " }}.
-  </p>{% endif %}
+  <p class="ayuda">Por su tamaño, el Excel no trae todo (máximo 100.000 filas por hoja); el CSV sí:
+    {{ c.hojas_solo_csv|join:" · " }}.</p>{% endif %}
 </div>
 
 <h2>1. Cargar archivos</h2>

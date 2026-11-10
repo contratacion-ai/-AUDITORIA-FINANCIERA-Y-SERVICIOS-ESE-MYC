@@ -166,3 +166,30 @@ def test_cli(tmp_path):
     assert main(["--rips", f"{rips}@TAME", "--facturacion", str(fact), "--salida", str(tmp_path / "out"),
                  "--formato", "csv"]) == 0
     assert (tmp_path / "out" / "csv").is_dir()
+
+
+def test_avance_detalla_archivos_internos_de_los_paquetes(monkeypatch):
+    from rips_conciliacion import progreso
+
+    monkeypatch.setattr(progreso, "INTERVALO", 0)
+    mensajes = []
+    paquete = crear_zip({f"2024-01/{n}": c for n, c in archivos_3374().items()})
+    conciliar([("RIPS_SEDE_TAME.zip", paquete)], [("facturacion.csv", FACTURACION_CSV.encode())],
+              avance=lambda m, f: mensajes.append((m, f)))
+    internos = [m for m, f in mensajes if f is None]
+    assert any("RIPS_SEDE_TAME.zip → 2024-01/AC000001.txt" in m for m in internos)
+    assert mensajes[-1][1] is not None
+
+
+def test_excel_recorta_hojas_grandes_y_conserva_las_mayores_diferencias(resultado, monkeypatch):
+    from rips_conciliacion import reportes
+
+    monkeypatch.setattr(reportes, "LIMITE_HOJA_EXCEL", 2)
+    buffer = io.BytesIO()
+    avisos = reportes.exportar_excel(resultado, buffer)
+    libro = pd.read_excel(buffer, sheet_name=None)
+    assert "Solo en CSV" in libro and "Detalle factura-código" not in libro
+    difs = libro["Diferencias"]
+    assert len(difs) == 2
+    assert set(difs["dif_valor"].abs()) == {45000, 30000}      # las dos mayores en valor absoluto
+    assert any("Diferencias" in a for a in avisos)

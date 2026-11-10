@@ -63,19 +63,29 @@ def _nombre_hoja(nombre: str, usados: set[str]) -> str:
     return candidato
 
 
-# Hojas que en conciliaciones grandes solo se entregan en CSV (Excel las haría lentas e inmanejables)
+# En conciliaciones grandes Excel se vuelve lento e inmanejable: ninguna hoja supera LIMITE_HOJA_EXCEL filas.
+# Las hojas de detalle completo y de líneas grandes van solo en CSV; las demás se recortan (las diferencias,
+# a las de mayor valor absoluto). El CSV siempre trae todo.
 HOJAS_PESADAS = ("Detalle factura-código", "Líneas facturación", "Líneas RIPS")
-LIMITE_HOJA_PESADA = 150_000
+LIMITE_HOJA_EXCEL = 100_000
+LIMITE_HOJA_PESADA = LIMITE_HOJA_EXCEL  # compatibilidad
+
+
+def _recortar(nombre: str, df: pd.DataFrame) -> pd.DataFrame:
+    if "dif_valor" in df.columns:
+        valores = [abs(v) if isinstance(v, Decimal) else 0 for v in df["dif_valor"].tolist()]
+        orden = sorted(range(len(valores)), key=valores.__getitem__, reverse=True)[:LIMITE_HOJA_EXCEL]
+        return df.iloc[sorted(orden)]
+    return df.head(LIMITE_HOJA_EXCEL)
 
 
 def exportar_excel(
     resultado: ResultadoConciliacion, destino, incluir_lineas: bool = True, avance=None
 ) -> list[str]:
-    """Escribe el libro .xlsx en ``destino`` (ruta o buffer). Devuelve las hojas que quedaron solo en CSV.
+    """Escribe el libro .xlsx en ``destino`` (ruta o buffer).
 
-    Usa ``xlsxwriter`` (varias veces más rápido que openpyxl) con formato numérico por columna. Las hojas
-    de detalle completo y de líneas con más de ``LIMITE_HOJA_PESADA`` filas no se escriben en Excel:
-    quedan en el CSV y una hoja "Solo en CSV" lo explica. Las diferencias siempre van en Excel.
+    Devuelve la lista de avisos sobre hojas que quedaron solo en CSV o recortadas. Usa ``xlsxwriter``
+    (varias veces más rápido que openpyxl) con formato numérico por columna.
     """
     try:
         import xlsxwriter  # noqa: F401
@@ -85,38 +95,46 @@ def exportar_excel(
         motor = "openpyxl"
 
     tablas = hojas(resultado, incluir_lineas)
-    solo_csv = [n for n in HOJAS_PESADAS if n in tablas and len(tablas[n]) > LIMITE_HOJA_PESADA]
+    avisos: list[str] = []
+    resumen_csv = []
+    for nombre, df in tablas.items():
+        if len(df) > LIMITE_HOJA_EXCEL:
+            if nombre in HOJAS_PESADAS:
+                avisos.append(f"{nombre} ({len(df):,} filas): solo en CSV".replace(",", "."))
+                resumen_csv.append((nombre, len(df), 0, "Completa solo en el CSV"))
+            else:
+                criterio = "las de mayor diferencia absoluta" if "dif_valor" in df.columns else "las primeras"
+                avisos.append(f"{nombre}: {LIMITE_HOJA_EXCEL:,} de {len(df):,} filas en Excel ({criterio}); "
+                              f"completa en CSV".replace(",", "."))
+                resumen_csv.append((nombre, len(df), LIMITE_HOJA_EXCEL, f"En Excel {criterio}; completa en el CSV"))
     usados: set[str] = set()
     with pd.ExcelWriter(destino, engine=motor) as writer:
         formato = writer.book.add_format({"num_format": FORMATO_MONEDA}) if motor == "xlsxwriter" else None
-        if solo_csv:
-            pd.DataFrame({
-                "hoja": solo_csv,
-                "filas": [len(tablas[n]) for n in solo_csv],
-                "dónde encontrarla": ["En el paquete CSV de esta conciliación (botón CSV)"] * len(solo_csv),
-            }).to_excel(writer, sheet_name=_nombre_hoja("Solo en CSV", usados), index=False)
+        if resumen_csv:
+            pd.DataFrame(resumen_csv, columns=["hoja", "filas totales", "filas en este Excel", "dónde está completa"]) \
+                .to_excel(writer, sheet_name=_nombre_hoja("Solo en CSV", usados), index=False)
         total = len(tablas)
         for k, (nombre, df) in enumerate(tablas.items(), start=1):
-            if nombre in solo_csv:
-                continue
+            if len(df) > LIMITE_HOJA_EXCEL:
+                if nombre in HOJAS_PESADAS:
+                    continue
+                df = _recortar(nombre, df)
             if avance:
                 avance(f"Generando Excel: hoja '{nombre}' ({len(df):,} filas)".replace(",", "."), k / total)
-            for inicio in range(0, max(len(df), 1), LIMITE_FILAS_EXCEL):
-                parte = df.iloc[inicio:inicio + LIMITE_FILAS_EXCEL]
-                hoja = _nombre_hoja(nombre, usados)
-                parte.to_excel(writer, sheet_name=hoja, index=False)
-                ws = writer.sheets[hoja]
-                if motor != "xlsxwriter":  # pragma: no cover - respaldo sin formato por celda
-                    continue
-                ws.freeze_panes(1, 0)
-                if len(parte.columns):
-                    ws.autofilter(0, 0, max(len(parte), 1), len(parte.columns) - 1)
-                for j, col in enumerate(parte.columns):
-                    muestra = parte[col].head(200)
-                    ancho = min(max([len(str(col))] + [len(str(v)) for v in muestra]) + 2, 60)
-                    es_numero = any(isinstance(v, Decimal) for v in muestra)
-                    ws.set_column(j, j, max(ancho, 10), formato if es_numero else None)
-    return solo_csv
+            hoja = _nombre_hoja(nombre, usados)
+            df.to_excel(writer, sheet_name=hoja, index=False)
+            ws = writer.sheets[hoja]
+            if motor != "xlsxwriter":  # pragma: no cover - respaldo sin formato por celda
+                continue
+            ws.freeze_panes(1, 0)
+            if len(df.columns):
+                ws.autofilter(0, 0, max(len(df), 1), len(df.columns) - 1)
+            for j, col in enumerate(df.columns):
+                muestra = df[col].head(200)
+                ancho = min(max([len(str(col))] + [len(str(v)) for v in muestra]) + 2, 60)
+                es_numero = any(isinstance(v, Decimal) for v in muestra)
+                ws.set_column(j, j, max(ancho, 10), formato if es_numero else None)
+    return avisos
 
 
 def _csv_bytes(df: pd.DataFrame) -> bytes:

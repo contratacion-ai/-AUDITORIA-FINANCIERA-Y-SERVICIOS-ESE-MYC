@@ -23,9 +23,10 @@ from pathlib import Path, PurePosixPath
 
 import pandas as pd
 
+from . import progreso
 from .decimales import ValorInvalido, a_decimal, inferir_separador
 from .fechas import mes_de_fecha, mes_de_nombre, parse_fecha
-from .modelos import ADVERTENCIA, ERROR, ResultadoCarga
+from .modelos import ADVERTENCIA, ERROR, Registro, ResultadoCarga
 
 # Campo canónico -> alias aceptados (normalizados: minúsculas, sin tildes, '_' en lugar de símbolos).
 # Incluye los nombres oficiales de RIPS (anexo de la Res. 3374 y llaves JSON de la Res. 2275) para leer
@@ -399,6 +400,7 @@ def _leer_un_archivo(
             miembros = expandir_paquete(nombre, contenido, clase)
         try:
             for ruta, datos in miembros:
+                progreso.detalle(f"Leyendo facturación: {PurePosixPath(nombre).name} → {ruta}")
                 if re.search(r"(^|/)(__MACOSX|\.DS_Store|Thumbs\.db|desktop\.ini)", ruta, re.IGNORECASE):
                     continue
                 res.fusionar(_leer_un_archivo(f"{nombre}/{ruta}", datos, mapeo, separador_decimal,
@@ -456,10 +458,14 @@ def _leer_un_archivo(
                 res.incidencia(ADVERTENCIA, aviso, campo=hoja)
 
         leidos = 0
+        ctx_tabla = {"_archivo": nombre, "_hoja": hoja}   # compartido por todas las filas de la hoja
         nombres_columnas = list(df.columns)
         # itertuples es mucho más rápido que iterrows en archivos de cientos de miles de filas
         for posicion, tupla in enumerate(df.itertuples(index=False, name=None)):
             numero_fila = fila_encabezado + posicion + 1  # fila real en Excel / línea en CSV
+            if posicion % 20000 == 0 and posicion:
+                progreso.detalle(f"Leyendo facturación: {PurePosixPath(nombre).name}"
+                                 + (f" [{hoja}]" if hoja else "") + f": {posicion:,} filas".replace(",", "."))
             valores = dict(zip(nombres_columnas, tupla))
             if all(_texto(v) == "" for v in valores.values()):
                 continue
@@ -585,14 +591,12 @@ def _leer_un_archivo(
             if mes is None and mes_por_nombre:
                 mes, mes_origen = mes_por_nombre, "NOMBRE_ARCHIVO"
 
-            registro = {
-                k: (v if not (isinstance(v, float) and v != v) else None)
-                for k, v in valores.items()
-            }
+            registro = Registro(
+                (k, (v if not (isinstance(v, float) and v != v) else None)) for k, v in valores.items()
+            )
+            registro["_ctx"] = ctx_tabla
             registro.update(
                 {
-                    "_archivo": nombre,
-                    "_hoja": hoja,
                     "_linea": numero_fila,
                     "_ubicacion": (f"hoja '{hoja}' " if hoja else "")
                     + f"fila {numero_fila}",

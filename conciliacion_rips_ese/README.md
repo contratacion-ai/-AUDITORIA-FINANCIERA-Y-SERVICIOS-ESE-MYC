@@ -192,17 +192,30 @@ como error. Un paquete puede tener ambas versiones y el reporte las muestra.
 
 ## Archivos grandes
 
-- El procesamiento corre **en segundo plano**: la página muestra la etapa (leyendo, emparejando, generando
-  Excel, guardando), una barra de avance y el tiempo transcurrido, y se actualiza sola. Mientras procesa no
-  se pueden modificar los archivos de esa conciliación. Si se cierra la herramienta a mitad del proceso, la
-  conciliación queda marcada como *interrumpida* y basta con procesarla de nuevo.
-- Las hojas de cálculo se leen con *calamine* (unas 7 veces más rápido que openpyxl) y el Excel de
-  resultados se escribe con *xlsxwriter*.
-- Prueba de referencia con 400.000 líneas de facturación (Excel de 28 MB) y 388.000 de RIPS: el
-  procesamiento completo tarda unos **2 minutos** (antes más de 25) y el tablero abre en 2 a 6 segundos.
-- En conciliaciones grandes, las tablas *Detalle factura-código*, *Líneas facturación* y *Líneas RIPS* con más
-  de 150.000 filas van **solo en el CSV**. El Excel trae todas las diferencias y los resúmenes (unos 10 MB
-  en lugar de 170 MB) y una hoja *Solo en CSV* que lo explica.
+- El procesamiento corre **en segundo plano**. La página se actualiza sola y muestra:
+  - la etapa y el archivo que se está leyendo, también **dentro de los ZIP** (por ejemplo,
+    `Hospital.zip → OCTUBRE/HSA1234.json (12.982 archivos leídos)`) y las filas leídas de cada Excel;
+  - la **memoria en uso y libre** del equipo, con un aviso si se está agotando;
+  - una barra de avance y el tiempo transcurrido;
+  - el botón **Cancelar procesamiento**.
+- Mientras procesa no se pueden modificar los archivos de esa conciliación. Si se cierra la herramienta a
+  mitad del proceso, la conciliación queda como *interrumpida* y se procesa de nuevo.
+- Uso de memoria reducido:
+  - los datos comunes (archivo, usuario del JSON) se comparten en lugar de copiarse en cada registro;
+  - de cada servicio del JSON se conservan solo los campos que usa la conciliación;
+  - los registros crudos se liberan apenas se convierten en líneas (los RIPS antes de leer la facturación).
+- Las hojas de cálculo se leen con *calamine* y el Excel de resultados se escribe con *xlsxwriter*.
+- **Límite por hoja de Excel:** ninguna hoja pasa de 100.000 filas. *Diferencias* trae las de mayor valor
+  absoluto; el detalle completo y las líneas grandes van solo en el CSV, que siempre trae todo. Una hoja
+  *Solo en CSV* lo explica.
+- Las descargas de Google Drive (`Carpeta-20261027T135526Z-1-001.zip`) y las carpetas por factura se
+  reconocen: la sede se toma de la carpeta del hospital, no de la carpeta de cada factura.
+- Mediciones de referencia:
+  - 400.000 líneas de facturación (Excel de 28 MB) más 388.000 de RIPS: unos **2 minutos**, antes más
+    de 25;
+  - ZIP de Drive con 20.000 facturas JSON, PDF y archivos CUV, más esa facturación (519.758 pares
+    factura-código): **3 minutos y medio**.
+- Los tiempos de cada etapa quedan en `datos/registro_errores.log`.
 
 ## Exactitud de los cálculos
 

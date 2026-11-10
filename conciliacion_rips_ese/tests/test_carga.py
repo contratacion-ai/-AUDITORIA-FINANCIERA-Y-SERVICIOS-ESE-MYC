@@ -208,3 +208,17 @@ def test_decimales_exactos(texto, sep, esperado):
     from rips_conciliacion.decimales import a_decimal
 
     assert a_decimal(texto, sep) == esperado
+
+
+@pytest.mark.parametrize("componentes,sede,mes", [
+    (["Hospital San Antonio-20261027T135526Z-1-001", "Hospital San Antonio", "OCTUBRE 2026", "HSA202213"],
+     "HOSPITAL SAN ANTONIO", "2026-10"),
+    (["RIPS_SEDE_TAME_2024", "ENERO"], "TAME", "2024-01"),
+    (["CONSOLIDADO", "FORTUL", "2024-03", "FE1001"], "FORTUL", "2024-03"),
+    (["Hospital Sarare-20261101T101010Z-2-003"], "HOSPITAL SARARE", None),
+])
+def test_sede_y_mes_desde_carpetas_de_drive_y_por_factura(componentes, sede, mes):
+    from rips_conciliacion.lectores import inferir_de_ruta
+
+    datos = inferir_de_ruta(componentes)
+    assert datos["_sede_ruta"] == sede and datos["_mes_ruta"] == mes

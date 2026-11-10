@@ -212,6 +212,16 @@ def procesar(request, pk):
 
 
 @require_POST
+def cancelar(request, pk):
+    conciliacion = get_object_or_404(Conciliacion, pk=pk)
+    if servicios.solicitar_cancelacion(conciliacion):
+        messages.info(request, "Cancelando… El procesamiento se detendrá en unos segundos.")
+    else:
+        messages.info(request, "No hay un procesamiento en curso.")
+    return redirect(conciliacion)
+
+
+@require_POST
 def hallazgos(request, pk):
     conciliacion = get_object_or_404(Conciliacion, pk=pk)
     if conciliacion.estado != Conciliacion.Estado.PROCESADA:

@@ -21,6 +21,7 @@ from rips_conciliacion.reportes import exportar_excel, exportar_zip
 from .models import ArchivoCargado, Conciliacion, Diferencia, HistorialArchivo, Incidencia
 
 DECIMALES_BD = 6
+registro_tiempos = __import__('logging').getLogger("conciliacion.tiempos")
 LIMITE_TABLA = 5000
 
 
@@ -215,10 +216,23 @@ def ejecutar_motor(conciliacion: Conciliacion, avance=None):
     )
 
 
-def registrar_avance(pk: int, mensaje: str, fraccion: float) -> None:
-    """Guarda la etapa actual para que la página la muestre mientras se procesa."""
-    Conciliacion.objects.filter(pk=pk).update(progreso_texto=mensaje[:300],
-                                              progreso_pct=max(0, min(100, int(fraccion * 100))))
+def registrar_avance(pk: int, mensaje: str, fraccion: float | None) -> None:
+    """Guarda la etapa actual (con la memoria en uso) para que la página la muestre.
+
+    Si el usuario pidió cancelar, lanza ``ProcesoCancelado`` y el procesamiento se detiene.
+    ``fraccion`` None = subetapa: cambia el texto pero no el porcentaje.
+    """
+    from rips_conciliacion.progreso import ProcesoCancelado, memoria
+
+    if Conciliacion.objects.filter(pk=pk, cancelar_solicitado=True).exists():
+        raise ProcesoCancelado("Cancelado por el usuario")
+    texto = mensaje if not memoria() else f"{mensaje} · {memoria()}"
+    campos = {"progreso_texto": texto[:300]}
+    if fraccion is not None:
+        campos["progreso_pct"] = max(0, min(100, int(fraccion * 100)))
+    Conciliacion.objects.filter(pk=pk).update(**campos)
+    if fraccion is not None:
+        registro_tiempos.info("Conciliación %s · %s", pk, mensaje)
 
 
 def validar_para_procesar(conciliacion: Conciliacion) -> None:
@@ -234,8 +248,11 @@ def procesar(conciliacion: Conciliacion, avance=None):
     ``avance(mensaje, fraccion)`` informa la etapa. Las etapas lentas (lectura, emparejamiento y
     generación de Excel/CSV) ocurren fuera de transacciones para que la página pueda leer el avance.
     """
+    from rips_conciliacion.progreso import ProcesoCancelado
+
     avisar = avance or (lambda mensaje, fraccion: None)
     validar_para_procesar(conciliacion)
+    inicio = timezone.now()
     try:
         resultado = ejecutar_motor(conciliacion, avisar)
         avisar("Generando el Excel de resultados", 0.75)
@@ -248,6 +265,15 @@ def procesar(conciliacion: Conciliacion, avance=None):
             limpiar_resultados(conciliacion)
             _guardar(conciliacion, resultado, xlsx.getvalue(), csv_zip, solo_csv)
         avisar("Terminado", 1)
+        registro_tiempos.info("Conciliación %s procesada en %s s (%s filas de detalle)", conciliacion.pk,
+                              round((timezone.now() - inicio).total_seconds()), len(resultado.detalle))
+    except ProcesoCancelado:
+        Conciliacion.objects.filter(pk=conciliacion.pk).update(
+            estado=Conciliacion.Estado.ERROR, cancelar_solicitado=False,
+            mensaje_error="Procesamiento cancelado por el usuario. Puede ajustar los archivos y procesar de nuevo.",
+            actualizada=timezone.now())
+        conciliacion.refresh_from_db()
+        return None
     except Exception as exc:
         Conciliacion.objects.filter(pk=conciliacion.pk).update(
             estado=Conciliacion.Estado.ERROR, mensaje_error=f"{exc.__class__.__name__}: {exc}",
@@ -278,7 +304,7 @@ def iniciar_procesamiento(conciliacion: Conciliacion) -> bool:
         if en_curso(conciliacion.pk):
             return False
         Conciliacion.objects.filter(pk=conciliacion.pk).update(
-            estado=Conciliacion.Estado.PROCESANDO, progreso_texto="En cola", progreso_pct=0,
+            estado=Conciliacion.Estado.PROCESANDO, progreso_texto="En cola", progreso_pct=0, cancelar_solicitado=False,
             proceso_inicio=timezone.now(), mensaje_error="")
         if not getattr(settings, "CONCILIACION_SEGUNDO_PLANO", True):
             conciliacion.refresh_from_db()
@@ -304,6 +330,15 @@ def _tarea(pk: int) -> None:
     finally:
         _EN_CURSO.pop(pk, None)
         connection.close()
+
+
+def solicitar_cancelacion(conciliacion: Conciliacion) -> bool:
+    """Pide detener el procesamiento en curso; se detiene en la siguiente actualización de avance."""
+    if not en_curso(conciliacion.pk):
+        return False
+    Conciliacion.objects.filter(pk=conciliacion.pk).update(cancelar_solicitado=True,
+                                                           progreso_texto="Cancelando…")
+    return True
 
 
 def verificar_interrumpida(conciliacion: Conciliacion) -> None:

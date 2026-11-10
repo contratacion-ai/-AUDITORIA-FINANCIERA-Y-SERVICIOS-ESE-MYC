@@ -14,6 +14,7 @@ urlpatterns = [
     path("<int:pk>/cargar/", views.cargar, name="cargar"),
     path("<int:pk>/limpiar/", views.limpiar, name="limpiar"),
     path("<int:pk>/procesar/", views.procesar, name="procesar"),
+    path("<int:pk>/cancelar/", views.cancelar, name="cancelar"),
     path("<int:pk>/hallazgos/", views.hallazgos, name="hallazgos"),
     path("<int:pk>/exportar/", views.exportar, name="exportar"),
     path("<int:pk>/tablero/", views.tablero_view, name="tablero"),

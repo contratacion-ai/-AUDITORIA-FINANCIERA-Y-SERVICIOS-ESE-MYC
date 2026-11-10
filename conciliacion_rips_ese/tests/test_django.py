@@ -309,3 +309,24 @@ def test_filtros_del_tablero_muestran_valores_distintos(client, conciliacion):
     r = client.get(reverse("conciliacion:tablero", args=[conciliacion.pk]))
     assert r.context["opciones"]["sede"] == ["TAME"]
     assert len(r.context["opciones"]["estado"]) == len(set(r.context["opciones"]["estado"]))
+
+
+def test_cancelar_procesamiento(client, conciliacion):
+    from conciliacion import servicios as srv
+
+    subir(client, conciliacion, "AUTO", zip_rips(), csv_fact())
+    Conciliacion.objects.filter(pk=conciliacion.pk).update(cancelar_solicitado=True)
+    conciliacion.refresh_from_db()
+    assert srv.procesar(conciliacion, lambda m, f: srv.registrar_avance(conciliacion.pk, m, f)) is None
+    conciliacion.refresh_from_db()
+    assert conciliacion.estado == Conciliacion.Estado.ERROR and "cancelado" in conciliacion.mensaje_error
+    assert not conciliacion.cancelar_solicitado and not conciliacion.diferencias.exists()
+
+
+def test_avance_muestra_memoria_y_subetapas(conciliacion):
+    from conciliacion import servicios as srv
+
+    srv.registrar_avance(conciliacion.pk, "Leyendo RIPS: x.zip → a/AC.txt (10 archivos leídos)", None)
+    conciliacion.refresh_from_db()
+    assert conciliacion.progreso_texto.startswith("Leyendo RIPS: x.zip → a/AC.txt")
+    assert "memoria" in conciliacion.progreso_texto and conciliacion.progreso_pct == 0
