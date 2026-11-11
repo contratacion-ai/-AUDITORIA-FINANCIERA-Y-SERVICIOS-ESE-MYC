@@ -10,3 +10,4 @@ privado/
 *.db-wal
 *.db-shm
 datos_demo/
+dist/
