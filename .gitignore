@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+# Base de datos, archivos cargados y cualquier dato real de la ESE: nunca a git
+datos/
+privado/
+*.db
+*.db-wal
+*.db-shm
+datos_demo/

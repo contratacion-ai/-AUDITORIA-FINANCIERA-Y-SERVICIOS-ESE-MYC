@@ -1,0 +1,47 @@
+sede_id,hospital,sede,municipio,tipo,es_principal,activo,validado,observacion
+TAM-01,Hospital San Antonio de Tame,Hospital San Antonio de Tame,Tame,Hospital,SI,SI,SI,
+TAM-02,Hospital San Antonio de Tame,Casa Médica Tame (Cra 14 No 12-58),Tame,Casa médica,NO,SI,SI,
+TAM-03,Hospital San Antonio de Tame,Sede B. 20 de Julio - Calle 15 (Tame),Tame,Por confirmar,NO,SI,NO,Dirección tomada del cuadro de energía/acueducto; confirmar a qué sede corresponde.
+TAM-04,Hospital San Antonio de Tame,Sede CL 15 N 33-78 La Libertad (Tame),Tame,Por confirmar,NO,SI,NO,Dirección tomada del cuadro de energía/acueducto; confirmar a qué sede corresponde.
+TAM-05,Hospital San Antonio de Tame,Casa Médica Caserío Puerto Nidia,Tame,Casa médica,NO,SI,SI,
+TAM-06,Hospital San Antonio de Tame,Puesto de Salud Vereda Puerto Nidia,Tame,Puesto de salud,NO,SI,SI,
+TAM-07,Hospital San Antonio de Tame,Puesto de Salud Vereda Corocito,Tame,Puesto de salud,NO,SI,SI,
+TAM-08,Hospital San Antonio de Tame,Puesto de Salud Vereda La Horqueta,Tame,Puesto de salud,NO,SI,SI,
+TAM-09,Hospital San Antonio de Tame,Puesto de Salud Vereda Mapoy,Tame,Puesto de salud,NO,SI,SI,
+TAM-10,Hospital San Antonio de Tame,Puesto de Salud Vereda Alto Cauca,Tame,Puesto de salud,NO,SI,NO,Dos cuentas de energía con el mismo nombre; confirmar.
+TAM-11,Hospital San Antonio de Tame,Puesto de Salud Vereda Las Malvinas,Tame,Puesto de salud,NO,SI,SI,
+TAM-12,Hospital San Antonio de Tame,Puesto de Salud Vereda La Arabia,Tame,Puesto de salud,NO,SI,SI,
+TAM-13,Hospital San Antonio de Tame,Puesto de Salud Vereda Angosturas,Tame,Puesto de salud,NO,SI,NO,En el cuadro figura solo como «Vereda Angosturas».
+TAM-14,Hospital San Antonio de Tame,Puesto de Salud Banco Purare,Tame,Puesto de salud,NO,SI,SI,
+TAM-15,Hospital San Antonio de Tame,Puesto de Salud Vereda Betoyes,Tame,Puesto de salud,NO,SI,SI,
+TAM-16,Hospital San Antonio de Tame,Puesto de Salud Vereda Puerto Miranda,Tame,Puesto de salud,NO,SI,SI,
+TAM-17,Hospital San Antonio de Tame,Puesto de Salud Puerto Gaitán,Tame,Puesto de salud,NO,SI,SI,
+TAM-18,Hospital San Antonio de Tame,Puesto de Salud Vereda San Lope,Tame,Puesto de salud,NO,SI,SI,
+FOR-01,Hospital San Francisco de Fortul,Hospital San Francisco de Fortul,Fortul,Hospital,SI,SI,SI,Cuenta de energía a nombre de «B. Ramírez Calle 7 Carrera 15 y 16».
+FOR-02,Hospital San Francisco de Fortul,Casa Médica Fortul,Fortul,Casa médica,NO,SI,SI,
+FOR-03,Hospital San Francisco de Fortul,Puesto de Salud Nuevo Caranal,Fortul,Puesto de salud,NO,SI,SI,
+FOR-04,Hospital San Francisco de Fortul,Puesto de Salud Vereda La 20,Fortul,Puesto de salud,NO,SI,SI,
+FOR-05,Hospital San Francisco de Fortul,Puesto de Salud Vereda Puerto Gloria,Fortul,Puesto de salud,NO,SI,SI,
+FOR-06,Hospital San Francisco de Fortul,Puesto de Salud Vereda San Francisco,Fortul,Puesto de salud,NO,SI,SI,
+FOR-07,Hospital San Francisco de Fortul,Puesto de Salud Vereda Salem,Fortul,Puesto de salud,NO,SI,SI,
+FOR-08,Hospital San Francisco de Fortul,Puesto de Salud Vereda El Milagro,Fortul,Puesto de salud,NO,SI,SI,
+ARQ-01,Hospital San Lorenzo de Arauquita,Hospital San Lorenzo de Arauquita,Arauquita,Hospital,SI,SI,SI,Cuenta de energía a nombre de «B. San Martín Calle 4 No. 3-78».
+ARQ-02,Hospital San Lorenzo de Arauquita,Sede CLL 4 N 3-50 (Arauquita),Arauquita,Por confirmar,NO,SI,NO,Dirección tomada del cuadro de energía/acueducto; confirmar a qué sede corresponde.
+ARQ-03,Hospital San Lorenzo de Arauquita,Puesto de Salud La Pesquera,Arauquita,Puesto de salud,NO,SI,SI,
+ARQ-04,Hospital San Lorenzo de Arauquita,Puesto de Salud Vereda La Paz,Arauquita,Puesto de salud,NO,SI,SI,
+ARQ-05,Hospital San Lorenzo de Arauquita,Puesto de Salud Vereda La Primavera,Arauquita,Puesto de salud,NO,SI,SI,
+ARQ-06,Hospital San Lorenzo de Arauquita,Puesto de Salud San Miguel,Arauquita,Puesto de salud,NO,SI,SI,
+ARQ-07,Hospital San Lorenzo de Arauquita,Puesto de Salud El Oasis,Arauquita,Puesto de salud,NO,SI,SI,
+ARQ-08,Hospital San Lorenzo de Arauquita,Puesto de Salud Filipinas,Arauquita,Puesto de salud,NO,SI,NO,Prefijo AR en el cuadro de energía; el informe de ambulancias lo asocia a Puerto Jordán. Confirmar.
+ARQ-09,Hospital San Lorenzo de Arauquita,Puesto de Salud Vereda Aguachica,Arauquita,Puesto de salud,NO,SI,SI,
+ESM-01,Hospital San Ricardo Pampuri (La Esmeralda),Hospital San Ricardo Pampuri (La Esmeralda),Arauquita,Hospital,SI,SI,SI,
+CRN-01,Hospital San José de Cravo Norte,Hospital San José de Cravo Norte,Cravo Norte,Hospital,SI,SI,SI,Cuenta de energía a nombre de «B. Centro Carrera 6 No. 3-62».
+CRN-02,Hospital San José de Cravo Norte,Casa Médica No. 1 (Cravo Norte),Cravo Norte,Casa médica,NO,SI,NO,Cuenta de acueducto a nombre de «Casa Médica Cravo Norte»; confirmar que es la No. 1.
+CRN-03,Hospital San José de Cravo Norte,Casa Médica No. 2 Calle 4a 6-7 (Cravo Norte),Cravo Norte,Casa médica,NO,SI,SI,
+CRN-04,Hospital San José de Cravo Norte,Sede Calle 4 No. 6-30 (Cravo Norte),Cravo Norte,Por confirmar,NO,SI,NO,Dirección tomada del cuadro de energía/acueducto; confirmar a qué sede corresponde.
+PRN-01,Hospital San Juan de Dios de Puerto Rondón,Hospital San Juan de Dios de Puerto Rondón,Puerto Rondón,Hospital,SI,SI,SI,
+PAN-01,Centro de Salud Panamá de Arauca,Centro de Salud Panamá de Arauca,Arauquita,Centro de salud,SI,SI,SI,En el cuadro de energía figura como «Hospital Panamá de Arauca».
+PAN-02,Centro de Salud Panamá de Arauca,Casa Médica Panamá,Arauquita,Casa médica,NO,SI,SI,
+PAN-03,Centro de Salud Panamá de Arauca,Casa Médica 2 Panamá,Arauquita,Casa médica,NO,SI,SI,
+PJO-01,Centro de Salud Juan de Jesús Coronel (Puerto Jordán),Centro de Salud Juan de Jesús Coronel (Puerto Jordán),Tame,Centro de salud,SI,SI,SI,
+ADM-01,Sede Administrativa,Sede Administrativa,Tame,Administrativa,SI,SI,SI,
