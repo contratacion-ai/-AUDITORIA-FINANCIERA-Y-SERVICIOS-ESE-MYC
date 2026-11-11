@@ -59,7 +59,13 @@ def _barras_mes(df, por: str, colores: dict | list, titulo: str, valor: str = "v
                     marker=dict(color=color, line=dict(color="white", width=1.5)),
                     hovertemplate=(HOVER_PESOS if moneda else "%{y:,.0f}") + "<extra>" + ITEMS.get(serie, serie) + "</extra>")
     fig.update_layout(barmode="stack")
-    grafico(estilo(fig, titulo, moneda_y=moneda, leyenda=len(g.columns) > 1), clave)
+    total = g.sum(axis=1)
+    fig.add_scatter(x=[nombre_periodo(p) for p in g.index], y=total, mode="text", showlegend=False, hoverinfo="skip",
+                    text=[pesos(v, True) if moneda else numero(v) for v in total], textposition="top center",
+                    textfont=dict(size=11, color=TINTA_SUAVE), cliponaxis=False)
+    fig = estilo(fig, titulo, moneda_y=moneda, leyenda=len(g.columns) > 1)
+    fig.update_yaxes(range=[0, float(total.max()) * 1.15] if total.max() > 0 else None)
+    grafico(fig, clave)
 
 
 def _barras_h(serie: pd.Series, titulo: str, moneda: bool = True, n: int = 12, clave=None):
@@ -120,12 +126,17 @@ def pagina_tablero(u):
     t = st.tabs(["Resumen", "Servicios públicos", "Combustible", "Mantenimientos", "Gráfico de control", "Datos"])
     with t[0]:
         _barras_mes(f, "item", COLOR_ITEM, "Gasto mensual por ítem", clave="r1")
+        nivel = "sede" if hosp else "hospital"
         c1, c2 = st.columns(2)
         with c1:
-            nivel = "sede" if hosp else "hospital"
+            _cambio_por_nivel(f, control, previo, nivel, "r4")
+        with c2:
+            _composicion(f, nivel, "r5")
+        c1, c2 = st.columns(2)
+        with c1:
             _barras_h(f.groupby(nivel)["valor"].sum(), f"Gasto por {nivel} en el rango seleccionado", clave="r2")
         with c2:
-            _mapa_calor(f, "sede" if hosp else "hospital")
+            _mapa_calor(f, nivel)
     with t[1]:
         _tab_servicios(f[f["item"] == SERVICIOS], control)
     with t[2]:
@@ -140,6 +151,100 @@ def pagina_tablero(u):
         tabla(vista, moneda=("valor", "total_a_pagar"), height=460)
         st.download_button("Descargar estos datos (CSV)", vista.to_csv(index=False, sep=";", decimal=",").encode("utf-8-sig"),
                            "datos_control.csv", "text/csv")
+
+
+def _cambio_por_nivel(f: pd.DataFrame, control: str, previo: str, nivel: str, clave: str):
+    """Barras divergentes: quién explica el cambio del gasto frente al mes anterior."""
+    a = f[f["periodo"] == control].groupby(nivel)["valor"].sum()
+    b = f[f["periodo"] == previo].groupby(nivel)["valor"].sum()
+    d = a.sub(b, fill_value=0)
+    d = d[d.abs() > 0]
+    if d.empty:
+        return
+    d = pd.concat([d.nsmallest(5), d.nlargest(5)]).drop_duplicates().sort_values()
+    colores = [COLOR_SEVERIDAD["Alta"] if v > 0 else AZUL for v in d.values]
+    fig = go.Figure(go.Bar(x=d.values, y=[corto(i) for i in d.index], orientation="h", marker_color=colores,
+                           customdata=[str(i) for i in d.index], text=[("+" if v > 0 else "−") + pesos(abs(v), True) for v in d.values],
+                           textposition="outside", cliponaxis=False,
+                           hovertemplate="%{customdata}<br>%{x:$,.0f}<extra></extra>"))
+    fig = estilo(fig, f"Cambio frente a {nombre_periodo(previo)}: sube (rojo) / baja (azul)",
+                 alto=max(240, 34 * len(d) + 90), leyenda=False)
+    fig.update_layout(hovermode="closest", margin=dict(r=90, b=16))
+    margen_etiquetas(fig, [corto(i) for i in d.index])
+    fig.update_xaxes(type="linear", showticklabels=False, showgrid=True, gridcolor=REJILLA, zeroline=True,
+                     zerolinecolor=TINTA_SUAVE)
+    fig.update_yaxes(type="category", showgrid=False, tickprefix="", tickformat="")
+    grafico(fig, clave)
+
+
+def _composicion(f: pd.DataFrame, nivel: str, clave: str):
+    """Cómo se reparte el gasto de cada hospital entre ítems (barras apiladas horizontales)."""
+    p = f.pivot_table(index=nivel, columns="item", values="valor", aggfunc="sum", fill_value=0)
+    p = p.loc[p.sum(axis=1).sort_values().index].tail(14)
+    fig = go.Figure()
+    for item in [i for i in ITEMS if i in p.columns]:
+        fig.add_bar(y=[corto(i) for i in p.index], x=p[item], name=ITEMS[item], orientation="h",
+                    marker=dict(color=COLOR_ITEM[item], line=dict(color="white", width=1.5)),
+                    customdata=[str(i) for i in p.index],
+                    hovertemplate="%{customdata}<br>" + ITEMS[item] + ": %{x:$,.0f}<extra></extra>")
+    fig.update_layout(barmode="stack", hovermode="closest")
+    fig = estilo(fig, f"Composición del gasto por {nivel}", alto=max(260, 34 * len(p) + 110))
+    margen_etiquetas(fig, [corto(i) for i in p.index])
+    fig.update_xaxes(type="linear", showgrid=True, gridcolor=REJILLA, tickprefix="$", tickformat="~s")
+    fig.update_yaxes(type="category", showgrid=False, tickprefix="", tickformat="")
+    grafico(fig, clave)
+
+
+def _pareto(m: pd.DataFrame, clave: str):
+    """Activos ordenados por gasto con el porcentaje acumulado: pocos activos suelen explicar casi todo."""
+    ref = m[m["referencia"].notna()].groupby("referencia")["valor"].sum().sort_values(ascending=False).head(15)
+    if len(ref) < 3:
+        return
+    acum = ref.cumsum() / ref.sum() * 100
+    fig = go.Figure()
+    fig.add_bar(x=list(ref.index), y=ref.values, name="Gasto acumulado", marker_color=AZUL,
+                hovertemplate="%{x}: %{y:$,.0f}<extra></extra>")
+    fig.add_scatter(x=list(ref.index), y=acum, name="% acumulado", yaxis="y2", mode="lines+markers",
+                    line=dict(color=COLOR_SERIES[1], width=2), marker=dict(size=7, line=dict(color="white", width=1.5)),
+                    hovertemplate="%{x}: %{y:.0f}%<extra></extra>")
+    fig = estilo(fig, "Pareto de activos por gasto de mantenimiento", moneda_y=True)
+    fig.update_layout(yaxis2=dict(overlaying="y", side="right", range=[0, 105], ticksuffix="%", showgrid=False),
+                      margin=dict(r=56))
+    grafico(fig, clave)
+
+
+def _rendimiento_grafico(r: pd.DataFrame, control: str, clave: str):
+    """km/galón de cada vehículo (barra) frente al esperado (rombo)."""
+    r = r[(r["periodo"] == control) & r["km_por_galon"].notna()].sort_values("km_por_galon")
+    if r.empty:
+        return
+    fig = go.Figure(go.Bar(x=r["km_por_galon"], y=r["placa"], orientation="h", marker_color=AZUL, name="Real",
+                           hovertemplate="%{y}: %{x:.1f} km/gal<extra>Real</extra>"))
+    esp = r[r["rendimiento_esperado"].notna()]
+    fig.add_scatter(x=esp["rendimiento_esperado"], y=esp["placa"], mode="markers", name="Esperado",
+                    marker=dict(symbol="diamond", size=11, color=COLOR_SERIES[1], line=dict(color="white", width=1.5)),
+                    hovertemplate="%{y}: %{x:.1f} km/gal<extra>Esperado</extra>")
+    fig = estilo(fig, f"Rendimiento por vehículo en {nombre_periodo(control)} (km por galón)", alto=max(280, 26 * len(r) + 110))
+    fig.update_layout(hovermode="closest")
+    fig.update_xaxes(type="linear", showgrid=True, gridcolor=REJILLA, tickprefix="", tickformat=",.0f")
+    fig.update_yaxes(type="category", showgrid=False, tickprefix="", tickformat="")
+    grafico(fig, clave)
+
+
+def _precio_galon(c: pd.DataFrame, clave: str):
+    d = c[c["cantidad"].notna() & (c["cantidad"] > 0) & (c["concepto"] != "Urea (AdBlue)")]
+    if d["periodo"].nunique() < 2:
+        return
+    g = d.groupby(["periodo", "concepto"]).agg(v=("valor", "sum"), q=("cantidad", "sum")).reset_index()
+    g["p"] = g["v"] / g["q"]
+    g = g[g["q"] >= 30]            # un puñado de galones no representa un precio
+    fig = go.Figure()
+    for i, (conc, h) in enumerate(g.groupby("concepto")):
+        fig.add_scatter(x=[nombre_periodo(p) for p in h["periodo"]], y=h["p"], name=conc, mode="lines+markers",
+                        line=dict(color=COLOR_SERIES[i], width=2), marker=dict(size=8, line=dict(color="white", width=2)),
+                        hovertemplate="%{y:$,.0f}<extra>" + conc + "</extra>")
+    if len(g):
+        grafico(estilo(fig, "Precio medio por galón", moneda_y=True), clave)
 
 
 def _mapa_calor(f: pd.DataFrame, nivel: str):
@@ -211,6 +316,7 @@ def _tab_combustible(f: pd.DataFrame, despl: pd.DataFrame, veh: pd.DataFrame, co
         _barras_h(c.groupby("referencia")["valor"].sum(), "Vehículos y equipos con mayor gasto", clave="c3")
     with c2:
         _barras_h(c.groupby("hospital")["valor"].sum(), "Combustible por hospital", clave="c4")
+    _precio_galon(c, "c5")
     r = analisis.rendimiento(f, despl, veh)
     r = r[r["periodo"].isin(c["periodo"].unique())]
     if len(r) and r["km"].sum() > 0:
@@ -219,6 +325,8 @@ def _tab_combustible(f: pd.DataFrame, despl: pd.DataFrame, veh: pd.DataFrame, co
         st.caption("Kilómetros del cuadro de desplazamientos frente a galones tanqueados. "
                    + " · ".join(f"{nombre_periodo(p)}: desplazamientos de {d} días" for p, d in sorted(dias.items())
                                 if p in set(r["periodo"])))
+        if dias.get(control, 0) >= 25:
+            _rendimiento_grafico(r, control, "c6")
         r = r.assign(Periodo=r["periodo"].map(nombre_periodo))
         tabla(r[["Periodo", "hospital", "placa", "descripcion", "tanqueos", "galones", "valor", "viajes", "km",
                  "km_por_galon", "rendimiento_esperado", "pct_esperado"]].rename(columns={
@@ -240,9 +348,7 @@ def _tab_mantenimiento(m: pd.DataFrame):
     with c1:
         _barras_h(m.groupby("hospital")["valor"].sum(), "Mantenimiento por hospital", clave="m2")
     with c2:
-        ref = m[m["referencia"].notna()].groupby("referencia")["valor"].sum()
-        if len(ref):
-            _barras_h(ref, "Activos con mayor gasto acumulado", clave="m3")
+        _pareto(m, "m3")
     tipos = m.groupby("concepto")["valor"].sum()
     if set(tipos.index) - {"Sin clasificar"}:
         prev, corr = tipos.get("Preventivo", 0), tipos.get("Correctivo", 0)

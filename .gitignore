@@ -11,3 +11,4 @@ privado/
 *.db-shm
 datos_demo/
 dist/
+.cache_instalador/
