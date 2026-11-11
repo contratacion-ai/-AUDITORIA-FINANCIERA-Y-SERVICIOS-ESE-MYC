@@ -1,0 +1,34 @@
+CONTROL DE SERVICIOS PUBLICOS, COMBUSTIBLE Y MANTENIMIENTOS - ESE MORENO Y CLAVIJO
+====================================================================================
+
+PARA PROBAR LA APLICACION (Windows)
+  1. Descomprima TODO el ZIP en una carpeta, por ejemplo C:\ESE_Control
+     (no ejecute el instalador desde dentro del ZIP).
+  2. Doble clic en  instalar.bat
+       - Necesita internet la primera vez para descargar las librerias.
+       - Si no tiene Python, ofrece instalarlo.
+       - Responda S a "cargar datos de demostracion" para ver el tablero con cifras ficticias.
+  3. Responda S a "iniciar la aplicacion". Se abre el navegador en http://localhost:8501
+  4. Ingrese con:   admin / Demo2026*     (area central: ve toda la ESE, catalogo, usuarios)
+                    fortul / Demo2026*    (usuario de sede: solo el Hospital de Fortul)
+  Despues use el acceso directo "Control ESE Moreno y Clavijo" del escritorio, o iniciar_app.bat.
+
+QUE PROBAR
+  - Tablero de control y Alertas y analisis (con los datos de demostracion).
+  - Plantillas: descargue una, diligenciela y cargela en "Cargar datos".
+  - Cargar datos con sus archivos reales (energia, acueducto, tanqueos, mantenimientos...).
+    Antes, en "Catalogo", suba el catalogo de sedes/codigos/placas de la ESE; sin el, las
+    filas se rechazan con el motivo "sede no reconocida" (es el comportamiento esperado).
+  - Historial de cargues: reemplazar y eliminar.
+  - Informe en Excel.
+
+IMPORTANTE
+  - Los datos de demostracion son FICTICIOS. Para trabajar con datos reales, borre la carpeta
+    "datos" (se crea al instalar con demo) antes del primer uso real, o instale en otra carpeta.
+  - Las contrasenas admin/fortul son solo de prueba: cambielas o cree usuarios nuevos en
+    Administracion antes de un uso real.
+  - Use la aplicacion solo dentro de la red interna de la ESE (no hay cifrado HTTPS).
+  - La carpeta "datos" contiene toda la informacion cargada: respaldela.
+
+Linux/macOS:  ./instalar.sh  y luego  ./iniciar_app.sh
+Documentacion completa: README.md y docs/GUIA_USO.md

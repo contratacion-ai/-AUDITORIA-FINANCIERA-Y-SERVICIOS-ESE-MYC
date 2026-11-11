@@ -1,0 +1,32 @@
+CONTROL DE SERVICIOS PUBLICOS, COMBUSTIBLE Y MANTENIMIENTOS - ESE MORENO Y CLAVIJO
+Instalador para Windows 10/11 de 64 bits  (no necesita internet ni Python)
+====================================================================================
+
+INSTALAR
+  1. Descomprima TODO el ZIP en una carpeta (por ejemplo, el Escritorio). No ejecute desde dentro del ZIP.
+  2. Doble clic en  instalar.bat
+  3. Responda S a "cargar datos de demostracion" para ver el tablero con cifras ficticias.
+  4. Responda S a "iniciar la aplicacion". Se abre el navegador en http://localhost:8501
+  5. Ingrese con:   admin / Demo2026*     (area central: toda la ESE, catalogo, usuarios)
+                    fortul / Demo2026*    (usuario de sede: solo el Hospital de Fortul)
+  Despues, abra la aplicacion con el acceso directo "Control ESE Moreno y Clavijo" del escritorio.
+  Se instala en  %LOCALAPPDATA%\ControlESE  (no requiere administrador).
+
+SI ALGO FALLA
+  - "las librerias no cargan": instale  https://aka.ms/vs/17/release/vc_redist.x64.exe  y repita.
+  - El antivirus bloquea python.exe: es el Python oficial; permita la carpeta ControlESE.
+  - Puerto ocupado: cierre otra ventana de la aplicacion y vuelva a abrirla.
+
+ACTUALIZAR
+  Descomprima el ZIP nuevo y ejecute instalar.bat otra vez: actualiza el programa y CONSERVA la carpeta de
+  datos (%LOCALAPPDATA%\ControlESE\datos).
+
+USO REAL
+  - Los datos de demostracion son FICTICIOS. Para trabajar con datos reales NO cargue la demostracion, o borre
+    %LOCALAPPDATA%\ControlESE\datos\control_ese.db antes del primer uso real.
+  - Cambie las contrasenas de prueba o cree usuarios nuevos en Administracion.
+  - Antes de cargar sus archivos, suba el catalogo de sedes/codigos/placas en el menu Catalogo.
+  - Use la aplicacion solo dentro de la red interna de la ESE (no hay cifrado HTTPS).
+  - Respalde la carpeta  %LOCALAPPDATA%\ControlESE\datos .
+
+DESINSTALAR:  desinstalar.bat dentro de %LOCALAPPDATA%\ControlESE

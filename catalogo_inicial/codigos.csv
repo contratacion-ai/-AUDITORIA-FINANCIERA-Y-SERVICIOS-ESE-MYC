@@ -1,0 +1,41 @@
+tipo,codigo,sede_id,descripcion,validado
+ALIAS,Tame,TAM-01,Nombre con el que aparece en los archivos,SI
+ALIAS,San Antonio de Tame,TAM-01,Nombre con el que aparece en los archivos,SI
+ALIAS,HSAT,TAM-01,Nombre con el que aparece en los archivos,SI
+ALIAS,Hospital San Antonio,TAM-01,Nombre con el que aparece en los archivos,SI
+ALIAS,Fortul,FOR-01,Nombre con el que aparece en los archivos,SI
+ALIAS,San Francisco de Fortul,FOR-01,Nombre con el que aparece en los archivos,SI
+ALIAS,HSFF,FOR-01,Nombre con el que aparece en los archivos,SI
+ALIAS,Hospital San Francisco Fortul,FOR-01,Nombre con el que aparece en los archivos,SI
+ALIAS,Puesto de Salud Caranal,FOR-03,Nombre con el que aparece en los archivos,SI
+ALIAS,Arauquita,ARQ-01,Nombre con el que aparece en los archivos,SI
+ALIAS,San Lorenzo de Arauquita,ARQ-01,Nombre con el que aparece en los archivos,SI
+ALIAS,HSLA,ARQ-01,Nombre con el que aparece en los archivos,SI
+ALIAS,La Esmeralda,ESM-01,Nombre con el que aparece en los archivos,SI
+ALIAS,Esmeralda,ESM-01,Nombre con el que aparece en los archivos,SI
+ALIAS,San Ricardo Pampuri,ESM-01,Nombre con el que aparece en los archivos,SI
+ALIAS,San Ricardo Pampuri Esmeralda,ESM-01,Nombre con el que aparece en los archivos,SI
+ALIAS,Hospital San Ricardo Pampuri,ESM-01,Nombre con el que aparece en los archivos,SI
+ALIAS,Cravo Norte,CRN-01,Nombre con el que aparece en los archivos,SI
+ALIAS,San José de Cravo Norte,CRN-01,Nombre con el que aparece en los archivos,SI
+ALIAS,HSJC,CRN-01,Nombre con el que aparece en los archivos,SI
+ALIAS,Puerto Rondón,PRN-01,Nombre con el que aparece en los archivos,SI
+ALIAS,Pto Rondón,PRN-01,Nombre con el que aparece en los archivos,SI
+ALIAS,San Juan de Dios Pto Rondón,PRN-01,Nombre con el que aparece en los archivos,SI
+ALIAS,San Juan de Dios de Puerto Rondón,PRN-01,Nombre con el que aparece en los archivos,SI
+ALIAS,Hospital San Juan de Dios,PRN-01,Nombre con el que aparece en los archivos,SI
+ALIAS,HSJD,PRN-01,Nombre con el que aparece en los archivos,SI
+ALIAS,Panamá,PAN-01,Nombre con el que aparece en los archivos,SI
+ALIAS,Panamá de Arauca,PAN-01,Nombre con el que aparece en los archivos,SI
+ALIAS,Hospital Panamá de Arauca,PAN-01,Nombre con el que aparece en los archivos,SI
+ALIAS,Centro de Salud Panamá,PAN-01,Nombre con el que aparece en los archivos,SI
+ALIAS,Puerto Jordán,PJO-01,Nombre con el que aparece en los archivos,SI
+ALIAS,Pto Jordán,PJO-01,Nombre con el que aparece en los archivos,SI
+ALIAS,Juan de Jesús Coronel,PJO-01,Nombre con el que aparece en los archivos,SI
+ALIAS,Centro de Salud Puerto Jordán,PJO-01,Nombre con el que aparece en los archivos,SI
+ALIAS,Puerto Jordán-Filipinas,PJO-01,Nombre con el que aparece en los archivos,SI
+ALIAS,Centro de Salud Juan de Jesús Coronel,PJO-01,Nombre con el que aparece en los archivos,SI
+ALIAS,Sede Administrativa E.S.E M&C,ADM-01,Nombre con el que aparece en los archivos,SI
+ALIAS,Administración,ADM-01,Nombre con el que aparece en los archivos,SI
+ALIAS,Sede Central,ADM-01,Nombre con el que aparece en los archivos,SI
+ALIAS,Nivel central,ADM-01,Nombre con el que aparece en los archivos,SI
