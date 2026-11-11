@@ -73,6 +73,32 @@ def _crlf(datos: bytes) -> bytes:
     return datos.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
 
 
+def construir_exe(py: Path, bd_demo: Path) -> Path | None:
+    """Setup.exe con asistente (NSIS). Requiere `makensis` (apt install nsis)."""
+    import subprocess
+
+    if not shutil.which("makensis"):
+        print("makensis no está instalado: se omite el Setup.exe (apt install nsis).")
+        return None
+    prep = CACHE / "staging"
+    shutil.rmtree(prep, ignore_errors=True)
+    for f in INCLUIR:
+        (prep / "app" / f).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(RAIZ / f, prep / "app" / f)
+    for c in CARPETAS:
+        shutil.copytree(RAIZ / c, prep / "app" / c, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+    shutil.copytree(py, prep / "python")
+    (prep / "demo").mkdir()
+    shutil.copy2(bd_demo, prep / "demo" / "control_ese.db")
+    (prep / "iniciar_app.bat").write_bytes(_crlf((RAIZ / "instalador" / "windows_iniciar.bat").read_bytes()))
+    (prep / "LEEME_PRIMERO.txt").write_bytes(_crlf((RAIZ / "instalador" / "windows_LEEME_exe.txt").read_bytes()))
+    salida = RAIZ / "dist" / "ESE_Control_Setup.exe"
+    subprocess.run(["makensis", "-V2", f"-DORIGEN={prep}", f"-DSALIDA={salida}", "-DVERSION=1.0.0",
+                    str(RAIZ / "instalador" / "windows_setup.nsi")], check=True)
+    print(f"Setup.exe creado: {salida} ({salida.stat().st_size / 1e6:.0f} MB)")
+    return salida
+
+
 def construir_windows(bd_demo: Path) -> Path:
     salida = RAIZ / "dist" / "ESE_Control_Windows_Instalador.zip"
     salida.parent.mkdir(exist_ok=True)
@@ -94,7 +120,8 @@ def construir_windows(bd_demo: Path) -> Path:
         for f in sorted(py.rglob("*")):
             if f.is_file():
                 z.write(f, f"{base}/python/{f.relative_to(py)}")
-    print(f"Instalador Windows creado: {salida} ({salida.stat().st_size / 1e6:.0f} MB)")
+    print(f"Instalador Windows (ZIP) creado: {salida} ({salida.stat().st_size / 1e6:.0f} MB)")
+    construir_exe(py, bd_demo)
     return salida
 
 
