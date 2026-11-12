@@ -1,6 +1,6 @@
 """Persistencia (SQLite), parámetros de auditoría, identidad del documento y consulta a DataFrame.
 
-Versión 5.0 — Preparado por Winston Gerlein Gutiérrez Pastrana, Profesional de Costos.
+Versión 5.1 — Preparado por Winston Gerlein Gutiérrez Pastrana, Profesional de Costos.
 Las bases creadas con versiones anteriores se migran automáticamente (``_migrar``) sin perder datos.
 """
 import os, sqlite3
@@ -18,7 +18,7 @@ CARGO = "Profesional de Costos"
 IDENTIDAD = f"{AUTOR} – {CARGO}"
 INSTITUCION = "ESE Departamental de Primer Nivel Moreno y Clavijo"
 NIT = "900034131"
-VERSION = "5.0"
+VERSION = "5.1"
 # Paleta sobria y coherente (hex sin #) para Excel y dashboard
 AZUL, AZUL_MED, AZUL_CLARO, GRIS, GRIS_CLARO = "1F4E79", "2E75B6", "DDEBF7", "595959", "F2F2F2"
 FUENTE = "Calibri"
@@ -93,6 +93,9 @@ CREATE TABLE IF NOT EXISTS nota(carga_id INT, eps TEXT, modalidad TEXT, contrato
   tarifa REAL, eventos_mes REAL, tope_valor REAL, vigencia TEXT);
 CREATE TABLE IF NOT EXISTS medins(carga_id INT, mes TEXT, clase TEXT, sede TEXT, eps_nombre TEXT, contrato TEXT, modalidad TEXT, servicio TEXT,
   ambito TEXT, codigo TEXT, descripcion TEXT, cantidad REAL, valor REAL, lineas INT, vu_min REAL, vu_max REAL, cant_max REAL, lineas_cero INT);
+CREATE TABLE IF NOT EXISTS med_det(carga_id INT, mes TEXT, clase TEXT, sede TEXT, eps_nombre TEXT, contrato TEXT, modalidad TEXT,
+  unidad_funcional TEXT, ambito TEXT, servicio TEXT, codigo TEXT, cod_med TEXT, descripcion TEXT, factura TEXT, paciente_id TEXT,
+  diagnostico TEXT, fecha TEXT, cantidad REAL, valor_actividad REAL, valor REAL);
 CREATE TABLE IF NOT EXISTS farmacia(carga_id INT, mes TEXT, sede TEXT, codigo TEXT, descripcion TEXT, clase TEXT, concepto TEXT,
   cantidad REAL, costo_unitario REAL, valor_costo REAL);
 CREATE TABLE IF NOT EXISTS fac_gen(carga_id INT, mes TEXT, factura TEXT, ingreso TEXT, ambito TEXT, estado_factura TEXT, estado_auditoria TEXT,
@@ -108,7 +111,7 @@ CREATE INDEX IF NOT EXISTS i_fact ON fact(mes); CREATE INDEX IF NOT EXISTS i_fac
 CREATE INDEX IF NOT EXISTS i_rips ON rips(mes); CREATE INDEX IF NOT EXISTS i_ripsf ON rips_factura(mes, factura);
 CREATE INDEX IF NOT EXISTS i_val ON carga_validacion(carga_id); CREATE INDEX IF NOT EXISTS i_cu ON costo_unitario(cups);
 CREATE INDEX IF NOT EXISTS i_dim ON dim(mes, dim); CREATE INDEX IF NOT EXISTS i_med ON medins(mes, sede);
-CREATE INDEX IF NOT EXISTS i_far ON farmacia(mes, sede); CREATE INDEX IF NOT EXISTS i_fg ON fac_gen(mes, factura); CREATE INDEX IF NOT EXISTS i_lin ON linea(mes);
+CREATE INDEX IF NOT EXISTS i_far ON farmacia(mes, sede); CREATE INDEX IF NOT EXISTS i_mdet ON med_det(mes, codigo); CREATE INDEX IF NOT EXISTS i_fg ON fac_gen(mes, factura); CREATE INDEX IF NOT EXISTS i_lin ON linea(mes);
 """
 
 def conn():

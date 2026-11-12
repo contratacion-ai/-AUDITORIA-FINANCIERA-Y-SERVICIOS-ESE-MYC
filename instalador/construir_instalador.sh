@@ -21,6 +21,10 @@ echo "▶ Librerías (ruedas win_amd64 · cp312)…"
 python3 -m pip install -q --disable-pip-version-check --target "$STAGE/python/Lib/site-packages" --platform win_amd64 \
   --python-version 3.12 --implementation cp --abi cp312 --only-binary=:all: -r "$RAIZ/instalador/requirements-windows.txt"
 
+echo "▶ odfpy (lectura de .ods; paquete Python puro distribuido solo como código fuente)…"
+python3 -m pip download -q --disable-pip-version-check --no-deps --no-binary :all: odfpy==1.4.1 -d "$TMP/odf"
+tar xzf "$TMP"/odf/odfpy-*.tar.gz -C "$TMP/odf" && cp -r "$TMP"/odf/odfpy-*/odf "$STAGE/python/Lib/site-packages/"
+
 echo "▶ Limpieza (pruebas de Python, Tk, cachés)…"
 rm -rf "$STAGE/python/Lib/test" "$STAGE/python/Lib/idlelib" "$STAGE/python/Lib/tkinter" "$STAGE/python/Lib/turtledemo" \
        "$STAGE/python/tcl" "$STAGE/python/include" "$STAGE/python/libs" "$STAGE/python/Lib/site-packages/bin"

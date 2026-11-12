@@ -29,6 +29,10 @@ DESCRIPCION = {
     "MED_Insumos_x_Sede": "Insumos: ítem × sede (valor).", "MED_Suplementos_x_Sede": "Suplementos: ítem × sede (valor).",
     "MED_Precios_Sede": "Valor unitario por sede y homogeneidad de precios.", "MED_EPS": "Medicamentos e insumos por EPS y modalidad.",
     "MED_Farmacia": "Dispensación de farmacia vs facturación (fuga de ingresos, margen).",
+    "MED_Contrato": "Medicamentos por contrato: cantidad, valor, usuarios únicos y facturas.", "MED_Codigo_360_ATC_CUM": "Por código 360 con código ATC/CUM, CUM homologado y alertas.",
+    "MED_Servicio": "Por unidad funcional (servicio) y ámbito.", "MED_Usuario": "Consumo por usuario anonimizado (consumo atípico).",
+    "MED_Diagnostico": "Medicamentos por diagnóstico principal.", "MED_Grupo_ATC": "Por grupo terapéutico ATC.",
+    "MED_Cruce_RIPS": "Medicamentos facturados en 360 vs RIPS por factura y código.", "MED_Homologacion_CUM": "Códigos que no homologan: 360 sin CUM y CUM del RIPS sin código 360.",
 }
 
 def _hojas_v5(mes=None):
@@ -46,6 +50,10 @@ def _hojas_v5(mes=None):
             t = MD.por_sede(mes, c)
             if not t.empty: h[f"MED_{n}_x_Sede"] = t
         h["MED_Precios_Sede"] = MD.precios_sede(mes); h["MED_EPS"] = MD.por_eps(mes); h["MED_Farmacia"] = MD.cruce_farmacia(mes)
+        for n, t in (("contrato", "MED_Contrato"), ("codigo", "MED_Codigo_360_ATC_CUM"), ("servicio", "MED_Servicio"), ("usuario", "MED_Usuario"),
+                     ("diagnostico", "MED_Diagnostico"), ("atc", "MED_Grupo_ATC")):
+            h[t] = MD.agrupado(n, mes)
+        h["MED_Cruce_RIPS"] = MD.cruce_rips(mes); h["MED_Homologacion_CUM"] = MD.homologacion_cum(mes)
     return h
 
 def hojas(mes=None):

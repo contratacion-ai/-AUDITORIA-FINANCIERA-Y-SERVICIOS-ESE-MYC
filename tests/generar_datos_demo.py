@@ -83,10 +83,53 @@ def farmacia(path, seed=13):
                 ws.append([mes, sede, code, desc, tipo, "DISPENSACION", rnd.randint(5, 120), round(precio * rnd.uniform(.55, 1.05), 2), None])
     wb.save(path)
 
+# Medicamentos como los exporta 360 filtrando SERVICIO = MEDICAMENTOS: hoja «ENERO» (sin año), COD. PROCEDIMIENTO = código interno
+# (G-xxxx) y COD. MEDICAMENTO = código ATC. Los CUM del RIPS se relacionan con el código 360 mediante la tabla de homologación.
+MEDS_360 = [("G-0052", "B05CB01", "CLORURO DE SODIO 0.9% SOLUCION INYECTABLE 500ML", 4180, "19942561-6"),
+            ("G-0067", "M01AB05", "DICLOFENACO SODICO SOLUCION INYECTABLE 75MG/3ML", 1450, "20012345-1"),
+            ("G-0105", "B05XA30", "LACTATO DE RINGER SOLUCION INYECTABLE 500ML", 3410, "19911111-3"),
+            ("G-0002", "N02BE01", "ACETAMINOFEN TABLETA 500MG", 66, "19900001-2")]       # G-0002: su CUM queda SIN homologar a propósito
+HDR_MED = ["UNIDAD FUNCIONAL", "CONTRATO", "TIPO IDE.", "NUMERO IDE.", "PRIMER APELLIDO", "SEDE", "SERVICIO", "AGENDA", "COD. PROCEDIMIENTO",
+           "COD. MEDICAMENTO", "ACTIVIDAD", "CANTIDAD", "COD. DIAGNÓSTICO", "NOMBRE DIAGNÓSTICO", "FECHA DE FACTURACION", "FACTURA NRO",
+           "VALOR ACTIVIDAD", "VALOR TOTAL", "REGIMEN DEL PACIENTE", "AMBITO", "NOMBRE EPS", "CÓDIGO EPS"]
+
+def medicamentos_360(path, facturas=40, seed=17):
+    """Devuelve las líneas generadas [(factura, codigo_360, cum, cantidad, valor)] para construir el RIPS de prueba."""
+    rnd = random.Random(seed); wb = Workbook(write_only=True); ws = wb.create_sheet("ENERO"); ws.append(HDR_MED); out = []
+    for n in range(facturas):
+        cod, eps_n, _ = rnd.choice(EPS); contrato, modal = rnd.choice(CONTRATOS[eps_n]); sede = rnd.choice(SEDES)
+        fn = f"FM{n:05d}"; f = date(2026, 1, rnd.randint(1, 28)); ide = str(20_000_000 + rnd.randint(1, 25))
+        uf = rnd.choice(["URGENCIAS", "HOSPITALIZACIÓN", "CONSULTA EXTERNA"])
+        for g, atc, desc, pr, cum in rnd.sample(MEDS_360, rnd.randint(1, 3)):
+            cant = rnd.randint(1, 4); vt = pr * cant
+            ws.append([uf, contrato, "CC", ide, "DEMO", sede, "MEDICAMENTOS", "MEDICAMENTOS", g, atc, desc, cant, "R509", "FIEBRE, NO ESPECIFICADA",
+                       f, fn, pr, vt, "SUBSIDIADO", "Urgencias" if uf != "CONSULTA EXTERNA" else "Ambulatorio", eps_n, cod])
+            out.append((fn, g, cum, cant, vt, eps_n, contrato, modal, sede))
+    wb.save(path); return out
+
+def rips_medicamentos(path, lineas, seed=19):
+    """RIPS (plantilla homologada) con CUM: omite algunas líneas y cambia cantidades para que el cruce tenga hallazgos."""
+    rnd = random.Random(seed); wb = Workbook(write_only=True); ws = wb.create_sheet("RIPS")
+    ws.append(["MES", "EPS", "CONTRATO", "MODALIDAD", "SEDE", "FACTURA_FEV", "TIPO_SERVICIO", "CODIGO_CUPS_CUMS", "CANTIDAD", "VALOR_SERVICIO", "VALOR_FACTURA_FEV"])
+    tot = {}
+    for fn, g, cum, cant, vt, *_ in lineas: tot[fn] = tot.get(fn, 0) + vt
+    for i, (fn, g, cum, cant, vt, eps_n, contrato, modal, sede) in enumerate(lineas):
+        if i % 11 == 5: continue                                        # facturado sin RIPS
+        c = cant + 1 if i % 13 == 7 else cant                           # cantidad difiere
+        ws.append(["2026-01", eps_n, contrato, modal, sede, fn, "Medicamentos", cum, c, vt, tot[fn]])
+    wb.save(path)
+
+def codigos(path):
+    wb = Workbook(write_only=True); ws = wb.create_sheet("PLANTILLA"); ws.append(["CODIGO_RIPS", "CODIGO_SOFTWARE360", "DESCRIPCION"])
+    for g, atc, desc, pr, cum in MEDS_360[:3]: ws.append([cum, g, desc])
+    wb.save(path)
+
 def generar(carpeta):
     os.makedirs(carpeta, exist_ok=True)
     rutas = {k: os.path.join(carpeta, k) for k in ("facturacion_ambito_demo.xlsx", "facturas_generadas_demo.xlsx", "farmacia_demo.xlsx")}
     fact = facturacion(rutas["facturacion_ambito_demo.xlsx"]); facturas_generadas(rutas["facturas_generadas_demo.xlsx"], fact); farmacia(rutas["farmacia_demo.xlsx"])
+    for k in ("medicamentos_360_demo.xlsx", "rips_medicamentos_demo.xlsx", "homologacion_codigos_demo.xlsx"): rutas[k] = os.path.join(carpeta, k)
+    lin = medicamentos_360(rutas["medicamentos_360_demo.xlsx"]); rips_medicamentos(rutas["rips_medicamentos_demo.xlsx"], lin); codigos(rutas["homologacion_codigos_demo.xlsx"])
     return rutas
 
 if __name__ == "__main__":

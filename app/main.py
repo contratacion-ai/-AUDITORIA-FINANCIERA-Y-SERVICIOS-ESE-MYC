@@ -9,9 +9,10 @@ from fastapi.staticfiles import StaticFiles
 from openpyxl import Workbook
 from . import analysis as A, costos as C, exporter, facturas as F, gerencial as G, medicamentos as MD, plantillas as PL, processing as P
 from .db import UPLOADS, df, init
-from .loaders import ALIAS, _shared, hojas_mensuales, parse_mes
+from .loaders import ALIAS, _shared, es_facturacion_360, hojas_mensuales, parse_mes, todas_hojas
+from .formatos import ACEPTADOS, EXT_COMPRIMIDO, EXT_TABLA, abrir_libro, extension, extraer
 
-app = FastAPI(title="Auditoría de facturación · ESE Moreno y Clavijo", version="5.0",
+app = FastAPI(title="Auditoría de facturación · ESE Moreno y Clavijo", version="5.1",
               description="Carga mensual de facturación por ámbito (Software 360), RIPS, costos y notas técnicas; conciliación y reportes.")
 init()
 TIPOS = ("facturacion", "facturas", "rips", "costos", "notas", "parametros", "codigos", "farmacia")
@@ -45,31 +46,59 @@ def filtros():
                 clases=list(MD.CLASES))
 
 # ── 1. Carga ──
-@app.post("/api/cargas/{tipo}", tags=["cargas"], summary="Subir archivo (facturacion | rips | costos | notas)")
+def _cargar_archivo(tipo, path, nombre, mes, bg):
+    """Registra y programa el procesamiento de UNA hoja de cálculo o texto. Devuelve (cargas, nota)."""
+    nota = None
+    if tipo in ("farmacia", "costos"):
+        # el reporte de 360 (facturación por ámbito, p. ej. filtrado a MEDICAMENTOS) cargado en otro tipo se procesa como facturación
+        try:
+            if es_facturacion_360(abrir_libro(path)):
+                tipo, nota = "facturacion", f"«{nombre}» tiene el formato de facturación por ámbito de Software 360: se cargó como Facturación (medicamentos e insumos incluidos)."
+        except Exception: pass
+    if tipo == "facturacion":
+        try:
+            z = abrir_libro(path); hojas = hojas_mensuales(z, anio=mes[:4] if mes else None); nombres = list(todas_hojas(z))
+        except Exception as e: raise ValueError(f"«{nombre}»: no se pudo leer ({type(e).__name__}: {e}).")
+        sel = [m for m in sorted(hojas) if not mes or m == mes]
+        if not sel: raise ValueError(f"«{nombre}»: no se encontraron hojas mensuales ('ENERO 2026', 'ENERO' o una hoja con FECHA DE FACTURACION). Hojas: {nombres or 'ninguna'}")
+        jobs = [(P.registrar(tipo, m, nombre), m) for m in sel]
+        bg.add_task(P.procesar_facturacion, path, jobs)
+        return [{"id": i, "mes": m, "archivo": nombre} for i, m in jobs], nota
+    cid = P.registrar(tipo, mes, nombre)
+    bg.add_task(P.procesar_parametros, cid, path) if tipo == "parametros" else bg.add_task(P.procesar_tabla, cid, tipo, path, mes)
+    return [{"id": cid, "mes": mes, "archivo": nombre}], nota
+
+@app.post("/api/cargas/{tipo}", tags=["cargas"], summary="Subir archivo (facturacion | facturas | rips | costos | notas | farmacia | codigos | parametros)")
 def cargar(tipo: str, bg: BackgroundTasks, file: UploadFile = File(...), mes: str | None = Form(None, description="AAAA-MM (opcional si el archivo ya trae el mes)")):
-    """facturacion: xlsx de Software 360 con hojas 'ENERO 2026', 'FEBRERO 2026'… (una carga por mes detectado).
-    facturas: «Informe de facturas generadas» de Software 360 (una fila por factura). farmacia: dispensación/consumo por sede y código.
-    rips/costos: Excel/CSV con columna de mes, hojas nombradas por mes, o parámetro `mes`. notas: tarifas/topes por EPS."""
+    """Acepta Excel (.xlsx .xlsm .xls .xlsb .ods y .xls en HTML), texto (.csv .txt .tsv) y comprimidos (.zip .rar .7z .gz .tar .tgz).
+    Un comprimido puede traer varios archivos: cada uno se carga por separado con el tipo elegido.
+    facturacion: facturación por ámbito de Software 360 (hojas 'ENERO 2026', 'ENERO' o un CSV; una carga por mes detectado).
+    facturas: «Informe de facturas generadas» de 360. farmacia: dispensación/consumo. rips/costos/notas/codigos: formato nativo o plantilla."""
     if tipo not in TIPOS: raise HTTPException(404, f"Tipo inválido. Use: {TIPOS}")
-    ext = Path(file.filename).suffix.lower()
-    if ext not in (".xlsx", ".xlsm", ".xls", ".csv") or (tipo in ("facturacion", "parametros") and ext not in (".xlsx", ".xlsm")):
-        raise HTTPException(422, "Formato no soportado (xlsx/xlsm/xls/csv; facturación solo xlsx).")
+    ext = extension(file.filename)
+    if ext not in ACEPTADOS: raise HTTPException(422, f"Formato no soportado ({ext or 'sin extensión'}). Formatos aceptados: {' '.join(ACEPTADOS)}")
     if mes and not parse_mes(mes): raise HTTPException(422, "El mes debe tener formato AAAA-MM.")
     mes = parse_mes(mes) if mes else None
     path = os.path.join(UPLOADS, f"{datetime.now():%Y%m%d_%H%M%S}_{Path(file.filename).name}")
     with open(path, "wb") as o: shutil.copyfileobj(file.file, o, 1 << 20)
-    if tipo == "facturacion":
+    archivos = [(path, Path(file.filename).name)]
+    if ext in EXT_COMPRIMIDO or ext == ".tar.gz":
+        try: tablas = extraer(path, path + "_extraido")
+        except Exception as e: raise HTTPException(422, f"No se pudo descomprimir «{file.filename}»: {e}")
+        if not tablas: raise HTTPException(422, f"El comprimido no contiene archivos Excel, CSV o texto ({' '.join(sorted(EXT_TABLA))}).")
+        archivos = [(t, f"{Path(file.filename).name} › {os.path.relpath(t, path + '_extraido')}") for t in tablas]
+    cargas, notas, errores = [], [], []
+    for ruta, nombre in archivos:
         try:
-            with zipfile.ZipFile(path) as z: hojas = hojas_mensuales(z)
-        except Exception as e: raise HTTPException(422, "El archivo no es un Excel (.xlsx) válido o está dañado.")
-        sel = [m for m in sorted(hojas) if not mes or m == mes]
-        if not sel: raise HTTPException(422, f"No se encontraron hojas mensuales ('ENERO 2026'…). Hojas: {[h for h in hojas] or 'ninguna'}")
-        jobs = [(P.registrar(tipo, m, file.filename), m) for m in sel]
-        bg.add_task(P.procesar_facturacion, path, jobs)
-        return {"cargas": [{"id": i, "mes": m} for i, m in jobs]}
-    cid = P.registrar(tipo, mes, file.filename)
-    bg.add_task(P.procesar_parametros, cid, path) if tipo == "parametros" else bg.add_task(P.procesar_tabla, cid, tipo, path, mes)
-    return {"cargas": [{"id": cid, "mes": mes}]}
+            c, n = _cargar_archivo(tipo, ruta, nombre, mes, bg); cargas += c
+            if n: notas.append(n)
+        except ValueError as e: errores.append(str(e))
+    if not cargas: raise HTTPException(422, " | ".join(errores))
+    meses = [c["mes"] for c in cargas if c["mes"]]
+    if len(meses) != len(set(meses)) and tipo == "facturacion":
+        notas.append("Varios archivos traen el mismo mes: cada carga reemplaza la anterior de ese mes (cargue el mes completo en un solo archivo).")
+    if len(archivos) > 1: notas.insert(0, f"Comprimido con {len(archivos)} archivo(s): {', '.join(n.split(' › ')[-1] for _, n in archivos)}.")
+    return {"cargas": cargas, "nota": " ".join(notas + [f"No se cargaron: {' | '.join(errores)}" if errores else ""]).strip() or None}
 
 @app.get("/api/cargas", tags=["cargas"], summary="Historial de cargas")
 def cargas(): return _json(df("SELECT * FROM carga ORDER BY id DESC"))
@@ -92,6 +121,11 @@ def homologar(tipo: str, file: UploadFile = File(...), mes: str | None = Form(No
     if tipo not in ("rips", "costos", "notas"): raise HTTPException(404, "Tipos: rips, costos, notas")
     path = os.path.join(UPLOADS, f"hom_{datetime.now():%Y%m%d_%H%M%S}_{Path(file.filename).name}")
     with open(path, "wb") as o: shutil.copyfileobj(file.file, o, 1 << 20)
+    if extension(file.filename) in EXT_COMPRIMIDO or extension(file.filename) == ".tar.gz":
+        try: tablas = extraer(path, path + "_extraido")
+        except Exception as e: raise HTTPException(422, f"No se pudo descomprimir: {e}")
+        if not tablas: raise HTTPException(422, "El comprimido no contiene archivos Excel, CSV o texto.")
+        path = tablas[0]
     try: ruta, n = PL.homologar(tipo, path, parse_mes(mes) if mes else None, P.eps_alias())
     except zipfile.BadZipFile: raise HTTPException(422, "El archivo no es un Excel (.xlsx) válido o está dañado.")
     except Exception as e: raise HTTPException(422, f"{type(e).__name__}: {e}")
@@ -103,9 +137,9 @@ def codigos_pendientes(mes: str | None = None):
     d = df(f"""SELECT cups CODIGO_RIPS, servicio TIPO_SERVICIO, SUM(cantidad) FRECUENCIA FROM rips WHERE cups<>'' AND cups NOT IN (SELECT cups FROM fact)
                AND cups NOT IN (SELECT codigo_rips FROM hom_codigo){w} GROUP BY 1,2 ORDER BY 3 DESC""", (mes,) if mes else ())
     d["CODIGO_SOFTWARE360"] = ""; d["DESCRIPCION"] = ""
-    ruta = os.path.join(tempfile.mkdtemp(), "codigos_pendientes.xlsx"); wb = PL.plantilla("codigos"); ws = wb["PLANTILLA"]; ws.delete_rows(2)
+    ruta = os.path.join(tempfile.mkdtemp(), "codigos_pendientes.xlsx"); wb = PL.plantilla("codigos"); ws = wb["PLANTILLA"]; ws.delete_rows(5, ws.max_row)   # encabezado en la fila 4; se quita el ejemplo
     for r in d[["CODIGO_RIPS", "CODIGO_SOFTWARE360", "DESCRIPCION", "TIPO_SERVICIO", "FRECUENCIA"]].itertuples(index=False): ws.append(list(r))
-    ws["D1"], ws["E1"] = "TIPO_SERVICIO (referencia)", "FRECUENCIA (referencia)"; wb.save(ruta)
+    ws["D4"], ws["E4"] = "TIPO_SERVICIO (referencia)", "FRECUENCIA (referencia)"; wb.save(ruta)
     return FileResponse(ruta, filename="codigos_pendientes_por_homologar.xlsx")
 
 @app.get("/api/parametros", tags=["datos"], summary="PARAM CONTRATO (modalidad) y PARAM SERVICIO vigentes")
@@ -187,7 +221,8 @@ def fg_fact(mes: str | None = None, sede: str | None = None, eps: str | None = N
 def fg_cruce(mes: str | None = None, limit: int = 3000): return _json(F.cruce(mes), limit)
 
 @app.get("/api/medicamentos/resumen", tags=["medicamentos e insumos"], summary="KPIs por sede y clase, top ítems, ABC")
-def md_resumen(mes: str | None = None, sede: str | None = None, clase: str | None = None, eps: str | None = None): return _limpio(MD.resumen(mes, sede, clase, eps))
+def md_resumen(mes: str | None = None, sede: str | None = None, clase: str | None = None, eps: str | None = None, contrato: str | None = None):
+    r = MD.resumen(mes, sede, clase, eps); r["detalle"] = MD.resumen_detalle(mes, sede, clase, eps, contrato); return _limpio(r)
 
 @app.get("/api/medicamentos/items", tags=["medicamentos e insumos"], summary="Ítems con ABC, valor unitario y alertas")
 def md_items(mes: str | None = None, sede: str | None = None, clase: str | None = None, eps: str | None = None, limit: int = 3000):
@@ -206,6 +241,34 @@ def md_eps(mes: str | None = None, sede: str | None = None): return _json(MD.por
 
 @app.get("/api/medicamentos/farmacia", tags=["medicamentos e insumos"], summary="Dispensación de farmacia vs facturación")
 def md_farm(mes: str | None = None, sede: str | None = None, limit: int = 3000): return _json(MD.cruce_farmacia(mes, sede), limit)
+
+@app.get("/api/medicamentos/agrupado", tags=["medicamentos e insumos"],
+         summary="Medicamentos por contrato | codigo (360/ATC/CUM) | servicio | sede | eps | diagnostico | atc | usuario (anonimizado)")
+def md_agr(nivel: str = "contrato", mes: str | None = None, sede: str | None = None, clase: str | None = None, eps: str | None = None,
+           contrato: str | None = None, limit: int = 3000):
+    if nivel not in MD.NIVELES: raise HTTPException(422, f"nivel: {'|'.join(MD.NIVELES)}")
+    return _json(MD.agrupado(nivel, mes, sede, clase, eps, contrato), limit)
+
+@app.get("/api/medicamentos/rips", tags=["medicamentos e insumos"], summary="Cruce medicamentos facturados (360) ↔ RIPS por factura y código")
+def md_rips(mes: str | None = None, sede: str | None = None, eps: str | None = None, contrato: str | None = None, estado: str | None = None, limit: int = 3000):
+    d = MD.cruce_rips(mes, sede, eps, contrato)
+    if estado and len(d): d = d[d.estado.str.contains(estado, regex=False)]
+    return _json(d, limit)
+
+@app.get("/api/medicamentos/homologacion", tags=["medicamentos e insumos"], summary="Códigos que no homologan: 360 sin CUM y CUM del RIPS sin código 360")
+def md_hom(mes: str | None = None, limit: int = 3000): return _json(MD.homologacion_cum(mes), limit)
+
+@app.get("/api/medicamentos/homologacion/plantilla", tags=["medicamentos e insumos"], summary="Excel para completar la homologación CUM ↔ código 360 (se carga como tipo «codigos»)")
+def md_hom_xlsx(mes: str | None = None):
+    h = MD.homologacion_cum(mes); h = h[h.estado != "OK"] if len(h) else h
+    ruta = os.path.join(tempfile.mkdtemp(), "homologacion_cum.xlsx"); wb = PL.plantilla("codigos"); ws = wb["PLANTILLA"]; ws.delete_rows(5, ws.max_row)
+    for c, t in zip("DEFGH", ("COD_MEDICAMENTO_360 (ATC, referencia)", "ORIGEN (referencia)", "CANTIDAD (referencia)", "VALOR (referencia)", "ESTADO (referencia)")):
+        ws[f"{c}4"] = t
+    for r in h.itertuples(index=False):
+        sug = r.cod_med if r.tipo_cod_medicamento == "CUM" else ""
+        ws.append([r.codigo_rips or sug, r.codigo, r.descripcion, r.cod_med, r.origen, r.cantidad, r.valor, r.estado])
+    wb.save(ruta)
+    return FileResponse(ruta, filename=f"homologacion_cum_{mes or 'todos'}.xlsx")
 
 @app.get("/api/gerencial", tags=["informe gerencial"], summary="Informe gerencial: indicadores, riesgos, narrativa y plan de acción")
 def gerencial(mes: str | None = None): return _limpio(G.informe(mes))

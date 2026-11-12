@@ -2,10 +2,11 @@
 import zipfile
 from datetime import datetime
 from .db import conn, TOL_COSTO_UNIT
+from .formatos import abrir_libro
 import pandas as pd
 from .loaders import (_shared, hojas_mensuales, param_hojas, procesar_hoja, leer_tabla, leer_rips, leer_facturas_generadas, norm, ALIAS)
 
-TABLAS = {"facturacion": ["fact", "linea", "dim", "factura", "hallazgo", "medins"], "rips": ["rips", "rips_factura"], "costos": ["costo"],
+TABLAS = {"facturacion": ["fact", "linea", "dim", "factura", "hallazgo", "medins", "med_det"], "rips": ["rips", "rips_factura"], "costos": ["costo"],
           "farmacia": ["farmacia"], "facturas": ["fac_gen"]}
 
 def registrar(tipo, mes, archivo, estado="en cola"):
@@ -72,10 +73,10 @@ def _reemplazar(c, tipo, cid, meses):
 def procesar_facturacion(path, jobs, limit=None):
     """jobs: [(carga_id, 'AAAA-MM')]. Abre el xlsx una sola vez; toma PARAM CONTRATO/SERVICIO del libro y procesa cada mes."""
     try:
-        z = zipfile.ZipFile(path); ss = _shared(z); hojas = hojas_mensuales(z)
+        z = abrir_libro(path); ss = _shared(z); hojas = hojas_mensuales(z, ss, jobs[0][1][:4] if jobs else None)
         guardar_param(*param_hojas(z, ss))
     except Exception as e:
-        for cid, _ in jobs: estado(cid, "error", f"El archivo no es un Excel (.xlsx) válido o está dañado: {e}")
+        for cid, _ in jobs: estado(cid, "error", f"No se pudo leer el archivo (Excel, CSV o texto) o está dañado: {e}")
         return
     param = cargar_param()
     for cid, mes in jobs:
@@ -94,14 +95,15 @@ def procesar_facturacion(path, jobs, limit=None):
                               ((cid, mes, fn, x[0], x[1], x[2], x[3], x[4], len(x[7]), x[5], x[6]) for fn, x in R["fac"].items()))
                 c.executemany("INSERT INTO hallazgo VALUES(?,?,?,?,?,?)", ((cid, mes, k[0], k[1], *v) for k, v in R["hal"].items()))
                 c.executemany("INSERT INTO medins VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ((cid, mes, *r) for r in R["medins"]))
-            estado(cid, "ok", f"{len(R['fac'])} facturas, {len(R['fact'])} combinaciones agregadas", R["filas"])
+                c.executemany("INSERT INTO med_det VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ((cid, mes, *r) for r in R["med_det"]))
+            estado(cid, "ok", f"{len(R['fac'])} facturas, {len(R['fact'])} combinaciones agregadas, {len(R['med_det'])} líneas de medicamentos/insumos", R["filas"])
         except Exception as e:
             estado(cid, "error", f"{type(e).__name__}: {e}")
 
 def procesar_parametros(cid, path):
     estado(cid, "procesando", "Leyendo parámetros…")
     try:
-        z = zipfile.ZipFile(path); contratos, servicios = param_hojas(z, _shared(z))
+        z = abrir_libro(path); contratos, servicios = param_hojas(z, _shared(z))
         if not contratos and not servicios: raise ValueError("No se encontraron las hojas 'PARAM CONTRATO' / 'PARAM SERVICIO'.")
         guardar_param(contratos, servicios)
         estado(cid, "ok", f"{len(contratos)} contratos, {len(servicios)} servicios parametrizados", len(contratos) + len(servicios))

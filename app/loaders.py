@@ -5,6 +5,7 @@ from datetime import date, timedelta
 from functools import lru_cache
 import pandas as pd
 from .db import SEDES
+from .formatos import Libro, es_xlsx
 
 MESES = {m: i + 1 for i, m in enumerate(
     "ENERO FEBRERO MARZO ABRIL MAYO JUNIO JULIO AGOSTO SEPTIEMBRE OCTUBRE NOVIEMBRE DICIEMBRE".split())}
@@ -50,20 +51,29 @@ def parse_mes_flex(x, anio=None):
     return None
 
 def num(x):
+    """Número desde texto: 4180 · 4180.5 · 4.180,50 · 4,180.50 · $ 4.180 (CSV con formato colombiano)."""
     try: return float(x)
-    except (TypeError, ValueError): return 0.0
+    except (TypeError, ValueError):
+        s = re.sub(r"[$\s]", "", str(x or ""))
+        if "," in s and "." in s: s = s.replace(".", "").replace(",", ".") if s.rfind(",") > s.rfind(".") else s.replace(",", "")
+        elif "," in s: s = s.replace(",", ".") if re.fullmatch(r"-?\d+,\d{1,2}", s) else s.replace(",", "")
+        elif s.count(".") > 1: s = s.replace(".", "")
+        try: return float(s)
+        except ValueError: return 0.0
 
 # ───────────── Facturación por ámbito: lectura streaming del XML (archivos de cientos de MB) ─────────────
 CELL = re.compile(rb'<c r="([A-Z]+)\d+"([^>]*?)(?:/>|>(?:<f[^>]*?(?:/>|>.*?</f>))?(?:<v>([^<]*)</v>)?(?:<is>(.*?)</is>)?</c>)', re.S)
 
 def _shared(z):
+    if isinstance(z, Libro): return []
     try: data = z.read("xl/sharedStrings.xml").decode("utf8")
     except KeyError: return []
     return [html.unescape("".join(re.findall(r"<t[^>]*>(.*?)</t>", m[1] or "", re.S)))
             for m in re.finditer(r"<si>(.*?)</si>|<si/>", data, re.S)]
 
 def todas_hojas(z):
-    """{nombre_hoja: ruta_xml}"""
+    """{nombre_hoja: ruta_xml} (o {nombre: nombre} para CSV, XLS, XLSB, ODS y HTML)"""
+    if isinstance(z, Libro): return z.hojas()
     wb = z.read("xl/workbook.xml").decode("utf8"); rels = z.read("xl/_rels/workbook.xml.rels").decode("utf8")
     tgt = {re.search(r'Id="([^"]+)"', t)[1]: re.search(r'Target="([^"]+)"', t)[1]
            for t in re.findall(r"<Relationship [^>]*>", rels)}
@@ -73,9 +83,46 @@ def todas_hojas(z):
         out[nm] = p if p.startswith("xl/") else "xl/" + p
     return out
 
-def hojas_mensuales(z):
-    """{'2026-01': (nombre_hoja, ruta_xml)} para hojas llamadas 'ENERO 2026', etc."""
-    return {parse_mes(n): (n, p) for n, p in todas_hojas(z).items() if parse_mes(n)}
+def _encabezado_360(z, path, ss, filas=25):
+    """(fila_encabezado {col: nombre}, índice) si la hoja tiene el formato de facturación por ámbito de 360; si no, (None, None)."""
+    for i, r in enumerate(iter_rows(z, path, ss, limit=filas)):
+        if {"CONTRATO", "VALOR TOTAL"} <= {norm(v) for v in r.values()}: return r, i
+    return None, None
+
+def _fecha_hoja(z, path, ss):
+    """Primera FECHA DE FACTURACION ('AAAA-MM-DD') de una hoja con formato 360, para deducir el mes cuando el nombre no lo trae."""
+    hdr, hi = _encabezado_360(z, path, ss)
+    if hdr is None: return None
+    col = {norm(v): k for k, v in hdr.items()}.get("FECHA DE FACTURACION")
+    for i, r in enumerate(iter_rows(z, path, ss, limit=hi + 200)):
+        if i > hi and col and _ymd(r.get(col, "")): return _ymd(r[col])
+    return None
+
+def hojas_mensuales(z, ss=None, anio=None):
+    """{'2026-01': (nombre_hoja, ruta)} para hojas 'ENERO 2026'…, solo 'ENERO' (año de `anio` o de FECHA DE FACTURACION) o, si ninguna hoja
+    trae el mes en el nombre (CSV «facturacion.csv», «Hoja1»), el mes de la FECHA DE FACTURACION de cada hoja con formato 360."""
+    out, sin_mes = {}, []
+    ss = _shared(z) if ss is None else ss
+    for n, p in todas_hojas(z).items():
+        m = parse_mes(n)
+        if not m and any(w in MESES for w in norm(n).split()):
+            f = None if anio else _fecha_hoja(z, p, ss); y = anio or (f[:4] if f else None)
+            m = parse_mes_flex(n, y) if y else None
+        if m: out[m] = (n, p)
+        else: sin_mes.append((n, p))
+    if not out:
+        for n, p in sin_mes:
+            f = _fecha_hoja(z, p, ss)
+            if f and f[:7] not in out: out[f[:7]] = (n, p)
+    return out
+
+def es_facturacion_360(z, ss=None):
+    """True si alguna hoja del libro tiene el formato de facturación por ámbito de Software 360 (CONTRATO, VALOR TOTAL, FACTURA NRO)."""
+    ss = _shared(z) if ss is None else ss
+    for p in todas_hojas(z).values():
+        hdr, _ = _encabezado_360(z, p, ss)
+        if hdr and "FACTURA NRO" in {norm(v) for v in hdr.values()}: return True
+    return False
 
 def param_contrato(z, ss):
     """Hoja PARAM CONTRATO → [(contrato, modalidad)]."""
@@ -88,6 +135,8 @@ def param_contrato(z, ss):
     return [(r[h["CONTRATO"]], r.get(h["MODALIDAD"], "")) for r in rows[hi + 1:] if h["CONTRATO"] in r]
 
 def iter_rows(z, path, ss, cols=None, limit=None):
+    if isinstance(z, Libro):
+        yield from z.filas(path, limit); return
     rx = CELL if not cols else re.compile(
         CELL.pattern.replace(rb"([A-Z]+)", b"(" + b"|".join(c.encode() for c in cols) + b")", 1), re.S)
     buf, n = b"", 0
@@ -133,8 +182,13 @@ CAMPOS = dict(contrato="CONTRATO", sede="SEDE", servicio="SERVICIO", ambito="AMB
               cups="COD PROCEDIMIENTO", med="COD MEDICAMENTO", cant="CANTIDAD", va="VALOR ACTIVIDAD", vt="VALOR TOTAL",
               factura="FACTURA NRO", fecha="FECHA DE FACTURACION", eps="CODIGO EPS", eps_n="NOMBRE EPS",
               ide="NUMERO IDE", esp="ESPECIALIDAD", agenda="AGENDA", prof="PROFESIONAL", reg="REGULADO",
-              diag="NOMBRE DIAGNOSTICO", act="ACTIVIDAD", tipo_pac="TIPO DE PACIENTE")
-OPCIONALES = {"med", "eps_n", "ide", "esp", "agenda", "prof", "regimen", "reg", "diag", "act", "tipo_pac"}
+              diag="NOMBRE DIAGNOSTICO", act="ACTIVIDAD", tipo_pac="TIPO DE PACIENTE", uf="UNIDAD FUNCIONAL", diag_cod="COD DIAGNOSTICO")
+OPCIONALES = {"med", "eps_n", "ide", "esp", "agenda", "prof", "regimen", "reg", "diag", "act", "tipo_pac", "uf", "diag_cod"}
+
+def modalidad_por_nombre(contrato):
+    """Modalidad deducida del nombre del contrato cuando no está en PARAM CONTRATO («…CAPITA…» → CAPITA, «…EVENTO…» → EVENTO, «…PGP…» → PGP)."""
+    n = norm(contrato).split()
+    return next((m for m in ("CAPITA", "EVENTO", "PGP") if m in n), "")
 
 def clase_item(servicio, cod_proc="", cod_med=""):
     """Clasifica una línea de facturación como MEDICAMENTO, INSUMO o SUPLEMENTO (None si es un procedimiento).
@@ -181,6 +235,7 @@ def procesar_hoja(z, path, ss, mes, param, limit=None):
     fac, hal = {}, defaultdict(lambda: [0, 0.0])
     # Medicamentos / insumos / suplementos: [cantidad, valor, líneas, vu_min, vu_max, cant_max, líneas en cero]
     med, mdesc = defaultdict(lambda: [0.0, 0.0, 0, float("inf"), 0.0, 0.0, 0]), {}
+    mdet = []      # detalle por línea de medicamentos/insumos (paciente con hash): contrato, CUPS/código 360, ATC/CUM, usuarios, cruces
     # Regla de actividad: ACTIVIDAD normalizada → {código: nº de líneas}. Se usa para identificar el CUPS de las líneas que
     # llegan sin código (ver docstring de `identificar_cups`). `huerf` acumula esas líneas hasta conocer el mapa completo.
     amap, atxt, huerf = defaultdict(lambda: defaultdict(int)), {}, defaultdict(lambda: [0.0, 0.0, 0])
@@ -191,7 +246,7 @@ def procesar_hoja(z, path, ss, mes, param, limit=None):
         cont = g(c["contrato"], "SIN CONTRATO"); sede = g(c["sede"], "SIN SEDE"); serv = g(c["servicio"], "SIN SERVICIO")
         amb = g(c["ambito"], "SIN AMBITO"); eps = g(c["eps"], ""); vt = num(g(c["vt"])); va = num(g(c["va"])); cant = num(g(c["cant"]))
         code = (g(c["cups"]) or g(c["med"]) or "").strip(); fn = (g(c["factura"]) or "").strip()
-        modal = pc.get(norm(cont), "SIN PARAMETRIZAR") if pc else ""
+        modal = pc.get(norm(cont)) or modalidad_por_nombre(cont) or ("SIN PARAMETRIZAR" if pc else "")
         fl = []
         if not fn: fl.append("R01")
         if vt <= 0: fl.append("R02")
@@ -219,6 +274,9 @@ def procesar_hoja(z, path, ss, mes, param, limit=None):
             a[0] += cant; a[1] += vt; a[2] += 1; a[5] = max(a[5], cant)
             if va > 0: a[3] = min(a[3], va); a[4] = max(a[4], va)
             if vt <= 0: a[6] += 1
+            ide_m = (g(c["ide"]) or "").strip()
+            mdet.append((clase, sede, epsn, cont, modal, g(c["uf"], ""), amb, serv, cm, (g(c["med"]) or "").strip(), (g(c["act"]) or "").strip(), fn,
+                         hashlib.sha1(ide_m.encode()).hexdigest()[:12] if ide_m else "", g(c["diag_cod"], ""), _ymd(f) if f else "", cant, va, vt))
         a = lin[(_ymd(f) if f else "", serv, g(c["agenda"], ""), g(c["reg"], ""), g(c["cups"], ""), g(c["med"], ""), g(c["act"], ""),
                  g(c["diag"], ""), fn, va, g(c["tipo_pac"], ""), g(c["regimen"], ""), modal)]; a[0] += cant; a[1] += vt
         ide = g(c["ide"])
@@ -240,7 +298,7 @@ def procesar_hoja(z, path, ss, mes, param, limit=None):
         a[0] += v[0]; a[1] += v[1]; a[2] += v[2]
     reglas = [(a, atxt.get(a, ""), code, nl) for a, d in amap.items() for code, nl in d.items()]
     medins = [(*k[:8], mdesc.get(k[7], ""), v[0], v[1], v[2], (v[3] if v[3] != float("inf") else 0.0), v[4], v[5], v[6]) for k, v in med.items()]
-    return dict(fact=fact, dim=dim, lin=lin, fac=fac, hal=hal, filas=n, reglas=reglas, medins=medins)
+    return dict(fact=fact, dim=dim, lin=lin, fac=fac, hal=hal, filas=n, reglas=reglas, medins=medins, med_det=mdet)
 
 # ───────────── RIPS / costos / notas técnicas: formato homologado + lectura del consolidado nativo ─────────────
 ALIAS = {
@@ -322,13 +380,8 @@ def _colidx(l):
     return n
 
 def hojas_df(path, filtro=None):
-    """Hojas como DataFrames sin encabezado. xlsx se lee en streaming (rápido y con poca memoria)."""
-    low = path.lower()
-    if low.endswith(".csv"):
-        return {"csv": pd.read_csv(path, sep=None, engine="python", dtype=str, header=None, encoding_errors="replace")}
-    if low.endswith(".xls"):
-        return {n: d for n, d in pd.read_excel(path, sheet_name=None, header=None, dtype=str).items()}
-    z = zipfile.ZipFile(path); ss = _shared(z); hs = todas_hojas(z); out = {}
+    """Hojas como DataFrames sin encabezado. xlsx se lee en streaming (rápido y con poca memoria); CSV/TXT, XLS, XLSB, ODS y HTML con formatos.Libro."""
+    z = zipfile.ZipFile(path) if es_xlsx(path) else Libro(path); ss = _shared(z); hs = todas_hojas(z); out = {}
     for n, p in hs.items():
         if filtro and not filtro(n, list(hs)): continue
         rows = list(iter_rows(z, p, ss))

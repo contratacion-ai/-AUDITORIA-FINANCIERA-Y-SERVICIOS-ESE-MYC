@@ -10,3 +10,8 @@ python-multipart==0.0.32
 pydantic==2.14.1
 colorama==0.4.6
 tzdata==2026.5
+# v5.1: formatos de carga (.xlsb, .7z, .xls en HTML). odfpy (.ods) solo se publica como código fuente: el script copia su paquete «odf».
+pyxlsb==1.0.10
+py7zr==1.1.4
+lxml==6.1.3
+defusedxml==0.7.1

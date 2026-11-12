@@ -71,7 +71,7 @@ Endpoints nuevos: `GET /api/comparativos`, `GET /api/comparativo/mensual?nivel=`
 Las gráficas usan Chart.js desde cdnjs (se necesita internet al abrir el dashboard).
 
 ## Instalador de Windows (recomendado)
-Requisito: Windows 10 u 11 de 64 bits. Ejecute **`Instalador_Auditoria_ESE_MyC_v5.0.exe`** (doble clic → Siguiente → Instalar). No requiere internet, Python ni permisos de
+Requisito: Windows 10 u 11 de 64 bits. Ejecute **`Instalador_Auditoria_ESE_MyC_v5.1.exe`** (doble clic → Siguiente → Instalar). No requiere internet, Python ni permisos de
 administrador: incluye Python 3.12 oficial y todas las librerías. Crea accesos en el **Escritorio** y en el **menú Inicio**
 («Auditoría ESE MyC», «Carpeta de datos», «Guía rápida», «Desinstalar») y queda en *Agregar o quitar programas*.
 
@@ -83,6 +83,21 @@ administrador: incluye Python 3.12 oficial y todas las librerías. Crea accesos 
 - Construir el instalador (desde Linux/macOS, sin Windows): `bash instalador/construir_instalador.sh` → `dist/`.
   Versiones empaquetadas en `instalador/requirements-windows.txt`.
 - Windows SmartScreen puede advertir que el instalador no está firmado: «Más información» → «Ejecutar de todas formas».
+
+## Novedades v5.1
+
+| Tema | Qué cambió |
+|---|---|
+| **Formatos de carga** | Todas las cargas aceptan Excel (.xlsx .xlsm .xls .xlsb .ods y el «.xls» que en realidad es HTML), texto (.csv .txt .tsv, separador y codificación detectados, números con formato colombiano 4.180,50) y comprimidos (.zip .rar .7z .gz .tar .tgz, anidados un nivel; cada archivo del comprimido se carga por separado). El .rar se abre con el «tar» de Windows 10/11, 7-Zip o WinRAR. |
+| **Reporte de 360 filtrado a medicamentos** | Se reconoce la hoja «ENERO» sin año (el año sale de FECHA DE FACTURACION) o un CSV sin mes en el nombre. Si se sube en «Farmacia» o «Costos», se detecta el formato de 360 y se carga como facturación. |
+| **Medicamentos por línea** (`med_det`) | Por contrato, código 360 (COD. PROCEDIMIENTO, p. ej. G-0052) con su código ATC (COD. MEDICAMENTO) y grupo terapéutico, servicio (UNIDAD FUNCIONAL), sede, EPS, diagnóstico y usuario anonimizado: cantidades, valor, **usuarios únicos**, facturas, valor por usuario, consumo atípico (percentil 99). |
+| **Cruce con RIPS** | Por factura y código 360 (los CUM del RIPS se llevan al código 360 con la homologación): FACTURA SIN RIPS, MEDICAMENTO FACTURADO SIN RIPS, CANTIDAD/VALOR DIFIERE, CUM DEL RIPS SIN HOMOLOGAR, EN RIPS NO FACTURADO. |
+| **Homologación CUM** | Lista los códigos 360 sin CUM y los CUM del RIPS sin código 360, con plantilla Excel para completarla y cargarla como «códigos». |
+| **Modalidad** | Si el contrato no está en PARAM CONTRATO se deduce del nombre («…CAPITA…», «…EVENTO…», «…PGP…»). |
+| **Excel** | Hojas MED_Contrato, MED_Codigo_360_ATC_CUM, MED_Servicio, MED_Usuario, MED_Diagnostico, MED_Grupo_ATC, MED_Cruce_RIPS, MED_Homologacion_CUM. |
+
+Supuesto a validar: en el reporte de 360 por ámbito de medicamentos, **COD. MEDICAMENTO es el código ATC**, no el CUM; por eso el cruce con el RIPS
+(que usa CUM) necesita la tabla de homologación CUM ↔ código 360.
 
 ## Novedades v5.0
 
