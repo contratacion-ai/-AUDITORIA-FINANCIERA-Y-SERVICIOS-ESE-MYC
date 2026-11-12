@@ -121,7 +121,11 @@ def conn():
     return c
 
 # Columnas agregadas después de la v2/v3: se añaden con ALTER TABLE si la base ya existía
-COLUMNAS_NUEVAS = {"fact": [("origen_cups", "TEXT")], "rips": [("descripcion", "TEXT")], "costo": [("tipo_costo", "TEXT")]}
+COLUMNAS_NUEVAS = {"fact": [("origen_cups", "TEXT")], "rips": [("descripcion", "TEXT")], "costo": [("tipo_costo", "TEXT")], "carga": [("ruta", "TEXT")]}
+# Tablas con datos de una carga (columna carga_id): se borran al eliminar la carga o limpiar un mes
+TABLAS_DATOS = ["fact", "linea", "dim", "factura", "hallazgo", "medins", "med_det", "rips", "rips_factura", "costo", "costo_unitario",
+                "carga_validacion", "nota", "fac_gen", "farmacia"]
+CONSERVAR_ARCHIVOS = os.environ.get("AUDIT_CONSERVAR_ARCHIVOS") == "1"   # por defecto el archivo subido se borra una vez procesado
 
 def _migrar(c):
     """Agrega las columnas nuevas a bases creadas con versiones anteriores (idempotente)."""

@@ -1,7 +1,7 @@
 """Procesamiento: transforma archivos cargados en tablas agregadas y registra el historial de cargas."""
-import zipfile
+import os, shutil, zipfile
 from datetime import datetime
-from .db import conn, TOL_COSTO_UNIT
+from .db import conn, df, TOL_COSTO_UNIT, TABLAS_DATOS, CONSERVAR_ARCHIVOS, UPLOADS
 from .formatos import abrir_libro
 import pandas as pd
 from .loaders import (_shared, hojas_mensuales, param_hojas, procesar_hoja, leer_tabla, leer_rips, leer_facturas_generadas, norm, ALIAS)
@@ -9,10 +9,58 @@ from .loaders import (_shared, hojas_mensuales, param_hojas, procesar_hoja, leer
 TABLAS = {"facturacion": ["fact", "linea", "dim", "factura", "hallazgo", "medins", "med_det"], "rips": ["rips", "rips_factura"], "costos": ["costo"],
           "farmacia": ["farmacia"], "facturas": ["fac_gen"]}
 
-def registrar(tipo, mes, archivo, estado="en cola"):
+def registrar(tipo, mes, archivo, estado="en cola", ruta=None):
     with conn() as c:
-        return c.execute("INSERT INTO carga(tipo,mes,archivo,fecha,estado) VALUES(?,?,?,?,?)",
-                         (tipo, mes, archivo, datetime.now().isoformat(timespec="seconds"), estado)).lastrowid
+        return c.execute("INSERT INTO carga(tipo,mes,archivo,fecha,estado,ruta) VALUES(?,?,?,?,?,?)",
+                         (tipo, mes, archivo, datetime.now().isoformat(timespec="seconds"), estado, ruta)).lastrowid
+
+# ───────── limpieza: archivos subidos y datos por carga / mes ─────────
+def borrar_archivo(ruta):
+    """Borra el archivo subido (y la carpeta «_extraido» de un comprimido) si ninguna carga pendiente lo sigue usando."""
+    if not ruta or CONSERVAR_ARCHIVOS: return
+    pend = df("SELECT COUNT(*) n FROM carga WHERE ruta=? AND estado IN ('en cola','procesando')", (ruta,)).n.iloc[0]
+    if pend: return
+    raiz = ruta.split("_extraido")[0]                     # archivo dentro de un comprimido: se borra el comprimido y lo extraído
+    for p in {ruta, raiz}:
+        if os.path.isfile(p): os.remove(p)
+    if os.path.isdir(raiz + "_extraido"):
+        pend = df("SELECT COUNT(*) n FROM carga WHERE ruta LIKE ? AND estado IN ('en cola','procesando')", (raiz + "_extraido%",)).n.iloc[0]
+        if not pend: shutil.rmtree(raiz + "_extraido", ignore_errors=True)
+
+def eliminar_carga(cid):
+    """Elimina los datos de una carga (todas las tablas) y su archivo; el historial la conserva con estado «eliminada»."""
+    with conn() as c:
+        r = c.execute("SELECT tipo, mes, ruta, estado FROM carga WHERE id=?", (cid,)).fetchone()
+        if r is None: raise KeyError(cid)
+        filas = sum(c.execute(f"DELETE FROM {t} WHERE carga_id=?", (cid,)).rowcount for t in TABLAS_DATOS)
+        if r["tipo"] == "facturacion" and r["mes"] and r["estado"] == "ok":
+            c.execute("DELETE FROM regla_actividad WHERE mes=?", (r["mes"],))
+        c.execute("UPDATE carga SET estado='eliminada', mensaje=? WHERE id=?", (f"Eliminada el {datetime.now():%d/%m/%Y %H:%M} ({filas:,} registros borrados)", cid))
+    borrar_archivo(r["ruta"])
+    return filas
+
+def limpiar(mes=None, tipo=None, todo=False, incluir_parametros=False):
+    """Borra datos: de un mes (y opcionalmente de un tipo de carga) o todo. Devuelve {cargas, registros}."""
+    cond, p = ["estado NOT IN ('eliminada','en cola','procesando')"], []
+    if tipo: cond.append("tipo=?"); p.append(tipo)
+    if mes and not todo: cond.append("(',' || mes || ',') LIKE ?"); p.append(f"%,{mes},%")
+    if not (mes or tipo or todo): raise ValueError("Indique un mes, un tipo de carga o «todo».")
+    ids = df("SELECT id FROM carga WHERE " + " AND ".join(cond), tuple(p)).id.tolist()
+    registros = sum(eliminar_carga(i) for i in ids)
+    with conn() as c:                                      # filas del mes que hubieran quedado de cargas antiguas
+        if mes and not todo:
+            tablas = TABLAS.get(tipo, []) if tipo else [t for v in TABLAS.values() for t in v]
+            registros += sum(c.execute(f"DELETE FROM {t} WHERE mes=?", (mes,)).rowcount for t in tablas)
+            if not tipo or tipo == "facturacion": c.execute("DELETE FROM regla_actividad WHERE mes=?", (mes,))
+        if todo:
+            registros += sum(c.execute(f"DELETE FROM {t}").rowcount for t in TABLAS_DATOS + ["regla_actividad"])
+            if incluir_parametros:
+                for t in ("param_contrato", "param_servicio", "hom_codigo"): c.execute(f"DELETE FROM {t}")
+    if todo and not CONSERVAR_ARCHIVOS:
+        for e in os.scandir(UPLOADS):
+            if df("SELECT COUNT(*) n FROM carga WHERE ruta LIKE ? AND estado IN ('en cola','procesando')", (e.path + "%",)).n.iloc[0]: continue
+            shutil.rmtree(e.path, ignore_errors=True) if e.is_dir() else os.remove(e.path)
+    return dict(cargas=len(ids), registros=int(registros))
 
 def estado(cid, est, mensaje="", filas=0, mes=None):
     with conn() as c:
@@ -68,9 +116,17 @@ def _reemplazar(c, tipo, cid, meses):
     """Una recarga del mismo mes reemplaza los datos anteriores; el historial conserva ambas cargas."""
     for t in TABLAS[tipo]:
         c.executemany(f"DELETE FROM {t} WHERE mes=?", [(m,) for m in meses])
-    c.execute("UPDATE carga SET estado='reemplazada' WHERE tipo=? AND id<>? AND estado='ok' AND mes=?", (tipo, cid, ",".join(meses)))
+    previas = c.execute("SELECT id, mes, ruta FROM carga WHERE tipo=? AND id<>? AND estado='ok'", (tipo, cid)).fetchall()
+    for r in previas:
+        ms = set((r["mes"] or "").split(",")) - {""}
+        if ms and ms <= set(meses):
+            c.execute("UPDATE carga SET estado='reemplazada', mensaje=COALESCE(mensaje,'') || ' · reemplazada por la carga ' || ? WHERE id=?", (cid, r["id"]))
+            c.execute("DELETE FROM carga_validacion WHERE carga_id=?", (r["id"],))
+        elif ms & set(meses):
+            c.execute("UPDATE carga SET mensaje=COALESCE(mensaje,'') || ' · meses ' || ? || ' reemplazados por la carga ' || ? WHERE id=?",
+                      (",".join(sorted(ms & set(meses))), cid, r["id"]))
 
-def procesar_facturacion(path, jobs, limit=None):
+def _procesar_facturacion(path, jobs, limit=None):
     """jobs: [(carga_id, 'AAAA-MM')]. Abre el xlsx una sola vez; toma PARAM CONTRATO/SERVICIO del libro y procesa cada mes."""
     try:
         z = abrir_libro(path); ss = _shared(z); hojas = hojas_mensuales(z, ss, jobs[0][1][:4] if jobs else None)
@@ -100,7 +156,7 @@ def procesar_facturacion(path, jobs, limit=None):
         except Exception as e:
             estado(cid, "error", f"{type(e).__name__}: {e}")
 
-def procesar_parametros(cid, path):
+def _procesar_parametros(cid, path):
     estado(cid, "procesando", "Leyendo parámetros…")
     try:
         z = abrir_libro(path); contratos, servicios = param_hojas(z, _shared(z))
@@ -110,7 +166,7 @@ def procesar_parametros(cid, path):
     except Exception as e:
         estado(cid, "error", f"{type(e).__name__}: {e}")
 
-def procesar_tabla(cid, tipo, path, mes_param=None):
+def _procesar_tabla(cid, tipo, path, mes_param=None):
     """RIPS, costos o notas técnicas (formato homologado o consolidado nativo). Reemplaza por mes (o por EPS+modalidad en notas)."""
     estado(cid, "procesando", "Leyendo archivo…")
     try:
@@ -167,3 +223,18 @@ def procesar_tabla(cid, tipo, path, mes_param=None):
         estado(cid, "ok", msg, len(srv) if tipo == "rips" else len(t), ",".join(meses) or None)
     except Exception as e:
         estado(cid, "error", f"{type(e).__name__}: {e}")
+
+def procesar_facturacion(path, jobs, limit=None):
+    """Procesa y, al terminar (bien o con error), borra el archivo subido: los datos quedan en la base (AUDIT_CONSERVAR_ARCHIVOS=1 lo conserva)."""
+    try: _procesar_facturacion(path, jobs, limit)
+    finally: borrar_archivo(path)
+
+def procesar_parametros(cid, path):
+    """Procesa y, al terminar (bien o con error), borra el archivo subido: los datos quedan en la base (AUDIT_CONSERVAR_ARCHIVOS=1 lo conserva)."""
+    try: _procesar_parametros(cid, path)
+    finally: borrar_archivo(path)
+
+def procesar_tabla(cid, tipo, path, mes_param=None):
+    """Procesa y, al terminar (bien o con error), borra el archivo subido: los datos quedan en la base (AUDIT_CONSERVAR_ARCHIVOS=1 lo conserva)."""
+    try: _procesar_tabla(cid, tipo, path, mes_param)
+    finally: borrar_archivo(path)

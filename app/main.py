@@ -61,10 +61,10 @@ def _cargar_archivo(tipo, path, nombre, mes, bg):
         except Exception as e: raise ValueError(f"«{nombre}»: no se pudo leer ({type(e).__name__}: {e}).")
         sel = [m for m in sorted(hojas) if not mes or m == mes]
         if not sel: raise ValueError(f"«{nombre}»: no se encontraron hojas mensuales ('ENERO 2026', 'ENERO' o una hoja con FECHA DE FACTURACION). Hojas: {nombres or 'ninguna'}")
-        jobs = [(P.registrar(tipo, m, nombre), m) for m in sel]
+        jobs = [(P.registrar(tipo, m, nombre, ruta=path), m) for m in sel]
         bg.add_task(P.procesar_facturacion, path, jobs)
         return [{"id": i, "mes": m, "archivo": nombre} for i, m in jobs], nota
-    cid = P.registrar(tipo, mes, nombre)
+    cid = P.registrar(tipo, mes, nombre, ruta=path)
     bg.add_task(P.procesar_parametros, cid, path) if tipo == "parametros" else bg.add_task(P.procesar_tabla, cid, tipo, path, mes)
     return [{"id": cid, "mes": mes, "archivo": nombre}], nota
 
@@ -101,7 +101,19 @@ def cargar(tipo: str, bg: BackgroundTasks, file: UploadFile = File(...), mes: st
     return {"cargas": cargas, "nota": " ".join(notas + [f"No se cargaron: {' | '.join(errores)}" if errores else ""]).strip() or None}
 
 @app.get("/api/cargas", tags=["cargas"], summary="Historial de cargas")
-def cargas(): return _json(df("SELECT * FROM carga ORDER BY id DESC"))
+def cargas(): return _json(df("SELECT id, tipo, mes, archivo, fecha, estado, filas, mensaje FROM carga ORDER BY id DESC"))
+
+@app.delete("/api/cargas/{cid}", tags=["cargas"], summary="Elimina los datos de una carga y su archivo (el historial la conserva como «eliminada»)")
+def borrar_carga(cid: int):
+    try: return {"ok": True, "registros": P.eliminar_carga(cid)}
+    except KeyError: raise HTTPException(404, "Carga no encontrada")
+
+@app.post("/api/limpiar", tags=["cargas"], summary="Limpia datos: de un mes, de un tipo de carga, o todo (opcionalmente también parámetros y homologaciones)")
+def limpiar(mes: str | None = Form(None), tipo: str | None = Form(None), todo: bool = Form(False), incluir_parametros: bool = Form(False)):
+    if mes and not parse_mes(mes): raise HTTPException(422, "El mes debe tener formato AAAA-MM.")
+    if tipo and tipo not in TIPOS: raise HTTPException(422, f"Tipo inválido. Use: {TIPOS}")
+    try: return P.limpiar(parse_mes(mes) if mes else None, tipo, todo, incluir_parametros)
+    except ValueError as e: raise HTTPException(422, str(e))
 
 @app.get("/api/cargas/{cid}", tags=["cargas"])
 def carga(cid: int):
@@ -261,13 +273,8 @@ def md_hom(mes: str | None = None, limit: int = 3000): return _json(MD.homologac
 @app.get("/api/medicamentos/homologacion/plantilla", tags=["medicamentos e insumos"], summary="Excel para completar la homologación CUM ↔ código 360 (se carga como tipo «codigos»)")
 def md_hom_xlsx(mes: str | None = None):
     h = MD.homologacion_cum(mes); h = h[h.estado != "OK"] if len(h) else h
-    ruta = os.path.join(tempfile.mkdtemp(), "homologacion_cum.xlsx"); wb = PL.plantilla("codigos"); ws = wb["PLANTILLA"]; ws.delete_rows(5, ws.max_row)
-    for c, t in zip("DEFGH", ("COD_MEDICAMENTO_360 (ATC, referencia)", "ORIGEN (referencia)", "CANTIDAD (referencia)", "VALOR (referencia)", "ESTADO (referencia)")):
-        ws[f"{c}4"] = t
-    for r in h.itertuples(index=False):
-        sug = r.cod_med if r.tipo_cod_medicamento == "CUM" else ""
-        ws.append([r.codigo_rips or sug, r.codigo, r.descripcion, r.cod_med, r.origen, r.cantidad, r.valor, r.estado])
-    wb.save(ruta)
+    if not len(h): raise HTTPException(404, "No hay códigos pendientes de homologar (o no hay medicamentos cargados para el periodo).")
+    ruta = os.path.join(tempfile.mkdtemp(), "homologacion_cum.xlsx"); PL.plantilla_homologacion_cum(h, mes).save(ruta)
     return FileResponse(ruta, filename=f"homologacion_cum_{mes or 'todos'}.xlsx")
 
 @app.get("/api/gerencial", tags=["informe gerencial"], summary="Informe gerencial: indicadores, riesgos, narrativa y plan de acción")

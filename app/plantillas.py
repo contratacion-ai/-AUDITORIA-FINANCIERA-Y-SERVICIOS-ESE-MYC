@@ -153,3 +153,41 @@ def homologar(tipo, path, mes_param=None, eps_alias=()):
     ws.delete_rows(5)
     for r in d.itertuples(index=False): ws.append([None if x != x else x for x in r])
     wb.save(out); return out, len(d)
+
+def plantilla_homologacion_cum(h, mes=None):
+    """Plantilla para homologar CUM ↔ código interno de Software 360, prellenada con los códigos que no homologan.
+
+    Columnas A-C son las que lee la carga «codigos» (CODIGO_RIPS = CUM, CODIGO_SOFTWARE360, DESCRIPCION); D en adelante son de referencia."""
+    from openpyxl.styles import PatternFill as _PF
+    from .medicamentos import grupo_atc
+    wb = _wb("codigos", []); ws = wb["PLANTILLA"]; ws.title = "PLANTILLA"
+    for c in ws[5]: c.value = None
+    ws.delete_rows(5, ws.max_row)
+    ws["A4"].comment = None
+    ws["A4"] = "CODIGO_RIPS"; ws["A4"].comment = Comment("Escriba aquí el CUM (p. ej. 19942561-6). Un código 360 con varios CUM: una fila por CUM.", IDENTIDAD)
+    ref = ["COD_ATC (referencia)", "GRUPO_ATC (referencia)", "ORIGEN (referencia)", "CANTIDAD (referencia)", "VALOR (referencia)", "USUARIOS (referencia)", "ESTADO (referencia)"]
+    for j, t in enumerate(ref, start=4):
+        c = ws.cell(4, j, t); c.font = Font(name=FUENTE, bold=True); c.fill = PatternFill("solid", fgColor="D9D9D9")
+        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True); ws.column_dimensions[c.column_letter].width = 18
+    ws.column_dimensions["A"].width = 20; ws.column_dimensions["B"].width = 20; ws.column_dimensions["C"].width = 60
+    amarillo = _PF("solid", fgColor="FFF2CC")
+    for r in h.sort_values("valor", ascending=False).itertuples(index=False):
+        sug = r.cod_med if r.tipo_cod_medicamento == "CUM" else ""
+        ws.append([r.codigo_rips or sug or None, r.codigo or None, r.descripcion, r.cod_med or None, grupo_atc(r.cod_med) if r.cod_med else None, r.origen,
+                   r.cantidad, r.valor, None if r.usuarios != r.usuarios else r.usuarios, r.estado])
+        fila = ws.max_row
+        for col in ("A", "B"):
+            if ws[f"{col}{fila}"].value in (None, ""): ws[f"{col}{fila}"].fill = amarillo
+        ws[f"H{fila}"].number_format = "#,##0"; ws[f"G{fila}"].number_format = "#,##0"
+    ws.auto_filter.ref = f"A4:J{max(ws.max_row, 5)}"
+    wl = wb["LEEME"]
+    pasos = [("Qué es", f"Códigos que no homologan{' en ' + mes if mes else ''}: medicamentos de Software 360 sin CUM (columna A vacía) y CUM del RIPS sin código 360 (columna B vacía). Celdas amarillas = por diligenciar."),
+             ("Dónde está el CUM", "Base «Código Único de Medicamentos vigentes» del INVIMA (datos.gov.co), factura de compra del proveedor o registro sanitario del producto. COD_ATC y la descripción ayudan a ubicarlo."),
+             ("Varios CUM", "Si un código 360 corresponde a varios CUM (laboratorios o presentaciones), copie la fila y escriba un CUM por fila."),
+             ("Cargar", "Guarde el archivo y súbalo en «Cargas» → «5 · Homologación de códigos». Solo se cargan las filas con columna A y B completas; puede cargarlo varias veces."),
+             ("Después", "En «Medicamentos e insumos» → «Cruce con RIPS» los CUM del RIPS ya se cruzan con lo facturado en 360.")]
+    for i, (k, v) in enumerate(pasos, start=12):
+        a = wl.cell(i, 1, k); a.font = Font(name=FUENTE, bold=True, color=AZUL); a.alignment = Alignment(vertical="top")
+        b = wl.cell(i, 2, v); b.font = Font(name=FUENTE); b.alignment = Alignment(wrap_text=True, vertical="top"); wl.row_dimensions[i].height = 34
+    wb.active = wb.sheetnames.index("PLANTILLA")
+    return wb

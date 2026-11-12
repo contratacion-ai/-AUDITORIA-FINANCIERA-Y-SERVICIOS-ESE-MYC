@@ -96,6 +96,9 @@ administrador: incluye Python 3.12 oficial y todas las librerías. Crea accesos 
 | **Modalidad** | Si el contrato no está en PARAM CONTRATO se deduce del nombre («…CAPITA…», «…EVENTO…», «…PGP…»). |
 | **Excel** | Hojas MED_Contrato, MED_Codigo_360_ATC_CUM, MED_Servicio, MED_Usuario, MED_Diagnostico, MED_Grupo_ATC, MED_Cruce_RIPS, MED_Homologacion_CUM. |
 
+| **Limpieza de cargas** | Recargar un mes **reemplaza** los datos de ese mes y tipo (la carga anterior queda «reemplazada»). En «Cargas»: 🗑 por carga, «Borrar datos del mes» (por tipo o todos) y «Borrar TODO» (conserva parámetros y homologación). El archivo subido se borra al terminar de procesarse (`AUDIT_CONSERVAR_ARCHIVOS=1` lo conserva). API: `DELETE /api/cargas/{id}`, `POST /api/limpiar`. |
+| **Plantilla CUM** | `GET /api/medicamentos/homologacion/plantilla?mes=`: códigos que no homologan ordenados por valor, columna CUM resaltada, ATC y grupo terapéutico de referencia. |
+
 Supuesto a validar: en el reporte de 360 por ámbito de medicamentos, **COD. MEDICAMENTO es el código ATC**, no el CUM; por eso el cruce con el RIPS
 (que usa CUM) necesita la tabla de homologación CUM ↔ código 360.
 
