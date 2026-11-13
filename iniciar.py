@@ -11,10 +11,28 @@ if BASE not in sys.path: sys.path.insert(0, BASE)
 if os.name == "nt" and "AUDIT_DATA_DIR" not in os.environ:
     os.environ["AUDIT_DATA_DIR"] = os.path.join(os.environ.get("LOCALAPPDATA", BASE), "AuditoriaESE_MyC", "data")
 
+def _version_instalada():
+    import re
+    try: return re.search(r'VERSION = "([^"]+)"', open(os.path.join(BASE, "app", "db.py"), encoding="utf-8").read())[1]
+    except Exception: return None
+
 def _nuestro(puerto):
+    """None si el puerto no tiene el aplicativo; si lo tiene, la versión que está corriendo ('' si es anterior a la 5.1)."""
     try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{puerto}/api/health", timeout=2) as r: return json.load(r).get("ok") is True
-    except Exception: return False
+        with urllib.request.urlopen(f"http://127.0.0.1:{puerto}/api/health", timeout=2) as r:
+            j = json.load(r)
+            return (j.get("version") or "") if j.get("ok") is True else None
+    except Exception: return None
+
+def _apagar(puerto):
+    try:
+        urllib.request.urlopen(urllib.request.Request(f"http://127.0.0.1:{puerto}/api/apagar", data=b"", method="POST"), timeout=3)
+        import time
+        for _ in range(20):
+            time.sleep(0.25)
+            if _libre(puerto): return True
+    except Exception: pass
+    return False
 
 def _libre(puerto):
     with socket.socket() as s:
@@ -22,9 +40,16 @@ def _libre(puerto):
         except OSError: return False
 
 def main():
+    version = _version_instalada()
     for puerto in range(int(os.environ.get("AUDIT_PORT", "8000")), 8011):
-        if _nuestro(puerto):
-            webbrowser.open(f"http://localhost:{puerto}"); return
+        v = _nuestro(puerto)
+        if v is not None:
+            if v == version:                                  # ya está abierto y es esta versión: solo abre el navegador
+                webbrowser.open(f"http://localhost:{puerto}"); return
+            # quedó abierta una versión anterior (p. ej. tras actualizar): se cierra; si no responde, se usa otro puerto
+            print(f"Cerrando la versión anterior del aplicativo ({v or 'anterior a 5.1'})…")
+            if _apagar(puerto): break
+            continue
         if _libre(puerto): break
     else:
         input("No hay un puerto libre entre 8000 y 8010. Cierre otros programas y vuelva a intentar. [Enter]"); return

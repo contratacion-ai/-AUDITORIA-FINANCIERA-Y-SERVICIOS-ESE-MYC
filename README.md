@@ -71,7 +71,7 @@ Endpoints nuevos: `GET /api/comparativos`, `GET /api/comparativo/mensual?nivel=`
 Las gráficas usan Chart.js desde cdnjs (se necesita internet al abrir el dashboard).
 
 ## Instalador de Windows (recomendado)
-Requisito: Windows 10 u 11 de 64 bits. Ejecute **`Instalador_Auditoria_ESE_MyC_v5.1.exe`** (doble clic → Siguiente → Instalar). No requiere internet, Python ni permisos de
+Requisito: Windows 10 u 11 de 64 bits. Ejecute **`Instalador_Auditoria_ESE_MyC_v5.2.exe`** (doble clic → Siguiente → Instalar). No requiere internet, Python ni permisos de
 administrador: incluye Python 3.12 oficial y todas las librerías. Crea accesos en el **Escritorio** y en el **menú Inicio**
 («Auditoría ESE MyC», «Carpeta de datos», «Guía rápida», «Desinstalar») y queda en *Agregar o quitar programas*.
 
@@ -83,6 +83,16 @@ administrador: incluye Python 3.12 oficial y todas las librerías. Crea accesos 
 - Construir el instalador (desde Linux/macOS, sin Windows): `bash instalador/construir_instalador.sh` → `dist/`.
   Versiones empaquetadas en `instalador/requirements-windows.txt`.
 - Windows SmartScreen puede advertir que el instalador no está firmado: «Más información» → «Ejecutar de todas formas».
+
+## Novedades v5.2
+
+| Tema | Qué cambió |
+|---|---|
+| **«Not Found» tras actualizar** | Causa: al instalar encima seguía abierto el servidor de la versión anterior. Ahora el instalador cierra el aplicativo antes de copiar, el lanzador detecta la versión que está corriendo y la reemplaza (`/api/health` informa la versión; `/api/apagar` solo desde el mismo equipo) y la pantalla avisa si quedó una versión anterior abierta. |
+| **Facturación generada por actividad** (carga «1c») | Reporte de 360 con una línea por actividad (hoja con cualquier nombre; mes desde FECHA DE FACTURACION). No trae EPS: se deduce del contrato con lo aprendido de cargas anteriores (facturación con NOMBRE EPS, facturas generadas) o por el nombre. Usa VALOR FACTURA (regla **R10**: Σ líneas ≠ valor de la factura, excepto cápita), FECHA RADICADO, CODIGO DX. Alimenta todas las pestañas. |
+| **RIPS JSON / TXT** (carga «2b», pestaña 🔗) | JSON de la Res. 2275 de 2023 (uno por factura) y TXT de la Res. 3374 de 2000 (AF, US, AC, AP, AM, AT, AU, AH), sueltos o en .zip/.rar/.7z; lee también respuestas de validación (CUV). Cruce factura a factura (VALOR DIFIERE, SIN RIPS, RIPS SIN FACTURA EN 360, PACIENTE DIFERENTE, RECHAZADO), por factura y código (cantidad/valor; CUM por homologación) y reglas de estructura RV01–RV08. Los RIPS también alimentan Facturación vs RIPS, Radicación y Medicamentos. Un RIPS JSON/TXT reemplaza al RIPS en Excel del mismo mes y viceversa. |
+| **Medicamentos · Mes a mes** | Por contrato, código, servicio, sede, EPS, diagnóstico o grupo ATC, en valor, cantidad o usuarios únicos, con variación del último mes (NUEVO, SIN CONSUMO, ↑/↓ > 30 %). |
+| **Seguridad de archivos** | El borrado automático solo actúa dentro de la carpeta de cargas de la aplicación. |
 
 ## Novedades v5.1
 

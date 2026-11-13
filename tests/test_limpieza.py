@@ -54,3 +54,9 @@ def test_limpiar_mes_y_todo():
     r = cli.post("/api/limpiar", data={"todo": "true"}).json()
     assert _n("farmacia") == 0 and _n("farmacia", "2026-02") == 0
     assert cli.post("/api/limpiar", data={}).status_code == 422
+
+def test_no_borra_archivos_fuera_de_la_carpeta_de_cargas():
+    from app import processing as P
+    ruta = os.path.join(CARPETA, "mio.xlsx"); open(ruta, "w").write("x")
+    P.borrar_archivo(ruta)
+    assert os.path.exists(ruta)

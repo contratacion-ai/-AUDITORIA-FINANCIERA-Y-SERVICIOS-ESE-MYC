@@ -2,7 +2,7 @@ AUDITORIA DE FACTURACION - ESE MORENO Y CLAVIJO
 ==============================================
 Preparado por: Winston Gerlein Gutierrez Pastrana - Profesional de Costos   (version 5.0)
 
-OPCION RECOMENDADA - INSTALADOR: doble clic en "Instalador_Auditoria_ESE_MyC_v5.1.exe" > Siguiente > Instalar.
+OPCION RECOMENDADA - INSTALADOR: doble clic en "Instalador_Auditoria_ESE_MyC_v5.2.exe" > Siguiente > Instalar.
   No necesita internet, Python ni administrador. Luego abra "Auditoria ESE MyC" desde el Escritorio o el menu Inicio.
   Si Windows muestra "Windows protegio su equipo": "Mas informacion" > "Ejecutar de todas formas".
 

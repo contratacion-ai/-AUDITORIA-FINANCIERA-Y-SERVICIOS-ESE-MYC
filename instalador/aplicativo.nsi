@@ -54,6 +54,10 @@ FunctionEnd
 
 Section "Aplicativo" SecApp
   SectionIn RO
+  ; cierra el aplicativo si está abierto: la versión anterior bloquearía los archivos y seguiría respondiendo en el navegador
+  nsExec::ExecToLog 'powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Process python,pythonw -ErrorAction SilentlyContinue | Where-Object { $$_.Path -like \"$INSTDIR\*\" } | Stop-Process -Force"'
+  Pop $0
+  Sleep 1000
   ; una actualización reemplaza el programa pero NO toca los datos (están en %LOCALAPPDATA%\${APPID}\data)
   RMDir /r "$INSTDIR\app"
   RMDir /r "$INSTDIR\static"
@@ -82,6 +86,10 @@ Section "Aplicativo" SecApp
 SectionEnd
 
 Section "Uninstall"
+  ; cierra el aplicativo si está abierto: la versión anterior bloquearía los archivos y seguiría respondiendo en el navegador
+  nsExec::ExecToLog 'powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Process python,pythonw -ErrorAction SilentlyContinue | Where-Object { $$_.Path -like \"$INSTDIR\*\" } | Stop-Process -Force"'
+  Pop $0
+  Sleep 1000
   Delete "$DESKTOP\Auditoría ESE MyC.lnk"
   RMDir /r "$SMPROGRAMS\${APPNAME}"
   RMDir /r "$INSTDIR"

@@ -321,3 +321,25 @@ def resumen_detalle(mes=None, sede=None, clase=None, eps=None, contrato=None):
                 por_atc=agrupado("atc", mes, sede, clase, eps, contrato)[["grupo_atc", "valor", "usuarios"]].to_dict("records"),
                 por_contrato=agrupado("contrato", mes, sede, clase, eps, contrato).head(12)[["contrato", "modalidad", "valor", "usuarios", "lineas"]].to_dict("records"),
                 por_servicio=agrupado("servicio", mes, sede, clase, eps, contrato)[["unidad_funcional", "ambito", "valor", "usuarios"]].to_dict("records"))
+
+def mes_a_mes(nivel="contrato", metrica="valor", sede=None, clase=None, eps=None, contrato=None):
+    """Medicamentos e insumos por mes (columnas AAAA-MM) para el nivel elegido, con variación del último mes frente al anterior."""
+    d = det(None, sede, clase, eps, contrato)
+    if d.empty: return d
+    por = NIVELES[nivel]
+    if nivel == "codigo": d["descripcion"] = d.groupby("codigo").descripcion.transform("first"); por = por + ["descripcion"]
+    if metrica == "usuarios":
+        g = d[d.paciente_id != ""].groupby(por + ["mes"]).paciente_id.nunique()
+        tot = d[d.paciente_id != ""].groupby(por).paciente_id.nunique()
+    else:
+        g = d.groupby(por + ["mes"])[metrica].sum(); tot = d.groupby(por)[metrica].sum()
+    pv = g.unstack("mes", fill_value=0); ms = sorted(pv.columns); pv = pv[ms]; pv.columns.name = None
+    pv["total"] = tot.reindex(pv.index).values
+    if len(ms) >= 2:
+        a, b = pv[ms[-2]], pv[ms[-1]]
+        pv["var_abs"] = b - a; pv["pct_var"] = (pv.var_abs / a.replace(0, np.nan)).fillna(0)
+        pv["estado"] = np.select([(a == 0) & (b > 0), (a > 0) & (b == 0), pv.pct_var > 0.3, pv.pct_var < -0.3],
+                                 [f"NUEVO EN {ms[-1]}", f"SIN CONSUMO EN {ms[-1]}", "↑ AUMENTO > 30 %", "↓ DISMINUCIÓN > 30 %"], "OK")
+    else:
+        pv["estado"] = "INFO: cargue al menos 2 meses para comparar"
+    return pv.reset_index().sort_values("total", ascending=False).reset_index(drop=True)

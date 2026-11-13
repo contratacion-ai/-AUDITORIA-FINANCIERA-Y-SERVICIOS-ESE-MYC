@@ -124,6 +124,72 @@ def codigos(path):
     for g, atc, desc, pr, cum in MEDS_360[:3]: ws.append([cum, g, desc])
     wb.save(path)
 
+# ───── Facturación generada POR ACTIVIDAD (360) + RIPS JSON (Res. 2275/2023) y TXT (Res. 3374/2000) del mismo mes ─────
+HDR_ACT = ["UNIDAD FUNCIONAL", "CONTRATO", "TIPO IDE.", "NUMERO IDE.", "SEDE", "SERVICIO", "COD. PROCEDIMIENTO", "COD. MEDICAMENTO", "ACTIVIDAD",
+           "CANTIDAD", "CODIGO DX", "NOMBRE DX", "FECHA DE FACTURACION", "VALOR ACTIVIDAD", "VALOR TOTAL", "FACTURA NRO", "VALOR FACTURA",
+           "REGIMEN DEL PACIENTE", "AMBITO", "FECHA RADICADO", "NRO. RADICADO EPS"]
+ACT_SERV = [("CONSULTAS", "890201", "", "CONSULTA DE PRIMERA VEZ POR MEDICINA GENERAL", 32200, "Consultas"),
+            ("LABORATORIO CLINICO", "903841", "", "GLUCOSA EN SUERO", 9800, "Procedimientos"),
+            ("MEDICAMENTOS", "G-0052", "B05CB01", "CLORURO DE SODIO 0.9% SOLUCION INYECTABLE 500ML", 4180, "Medicamentos"),
+            ("MATERIALES E INSUMOS MEDICOS", "D-0082", "", "JERINGA DESECHABLE 10 ML", 350, "Otros servicios")]
+CUM = {"G-0052": "19942561-6"}
+
+def actividad_y_rips(carpeta, facturas=30, seed=23):
+    """Devuelve (rutas, esperado): esperado documenta los hallazgos sembrados para las pruebas."""
+    import json, zipfile
+    rnd = random.Random(seed); os.makedirs(carpeta, exist_ok=True)
+    rutas = {k: os.path.join(carpeta, k) for k in ("ENERO_actividad.xlsx", "rips_json.zip", "rips_txt.zip", "una_factura.json")}
+    wb = Workbook(write_only=True); ws = wb.create_sheet("_var_lib_tomcat8_webapps_salud3"); ws.append(HDR_ACT)
+    facs = []
+    for n in range(facturas):
+        fn = f"FA{n:05d}"; f = date(2026, 1, rnd.randint(2, 27)); ide = str(30_000_000 + n); contrato = rnd.choice(["NUEVA EPS EVENTO SUBSIDIADO", "SANITAS CONTRIBUTIVO EVENTO"])
+        items = [(sv, rnd.randint(1, 3) if sv[0] in ("MEDICAMENTOS", "MATERIALES E INSUMOS MEDICOS") else 1) for sv in ACT_SERV[:1] + rnd.sample(ACT_SERV[1:], 2)]
+        total = sum(sv[4] * c for sv, c in items); vfac = total + (5000 if n == 7 else 0)          # R10 sembrado en FA00007
+        for sv, cant in items:
+            ws.append(["URGENCIAS", contrato, "CC", ide, "HOSPITAL SAN ANTONIO", sv[0], sv[1], sv[2], sv[3], f"{cant:10.2f}", "R509", "FIEBRE",
+                       f, sv[4], sv[4] * cant, fn, f"{vfac:16.2f}", "SUBSIDIADO", "Urgencias", f + timedelta(days=10), "LOTE 1"])
+        facs.append((fn, f, ide, contrato, items, total))
+    wb.save(rutas["ENERO_actividad.xlsx"])
+    esperado = dict(sin_rips="FA00003", cantidad="FA00005", paciente="FA00009", sin_dx="FA00011", cero="FA00013", r10="FA00007")
+    def rips_json(fn, f, ide, items):
+        serv = {"consultas": [], "procedimientos": [], "medicamentos": [], "otrosServicios": []}
+        for sv, cant in items:
+            if fn == esperado["cantidad"] and sv[5] in ("Medicamentos", "Otros servicios"): cant += 1
+            val = 0 if (fn == esperado["cero"] and sv[5] == "Consultas") else sv[4] * cant
+            fecha = f"{f.isoformat()} 08:00"; dx = "" if fn == esperado["sin_dx"] else "R509"
+            if sv[5] == "Consultas": serv["consultas"].append({"codConsulta": sv[1], "fechaInicioAtencion": fecha, "codDiagnosticoPrincipal": dx, "vrServicio": val})
+            elif sv[5] == "Procedimientos": serv["procedimientos"].append({"codProcedimiento": sv[1], "fechaInicioAtencion": fecha, "codDiagnosticoPrincipal": dx, "vrServicio": val})
+            elif sv[5] == "Medicamentos": serv["medicamentos"].append({"codTecnologiaSalud": CUM[sv[1]], "nomTecnologiaSalud": sv[3], "cantidadMedicamento": cant,
+                                                                       "vrUnitMedicamento": sv[4], "vrServicio": val, "fechaDispensAdmon": fecha})
+            else: serv["otrosServicios"].append({"codTecnologiaSalud": sv[1], "nomTecnologiaSalud": sv[3], "cantidadOS": cant, "vrUnitOS": sv[4], "vrServicio": val,
+                                                 "fechaSuministroTecnologia": fecha})
+        doc = "99999999" if fn == esperado["paciente"] else ide
+        return {"numDocumentoIdObligado": "900034131", "numFactura": fn, "tipoNota": None, "numNota": None,
+                "usuarios": [{"tipoDocumentoIdentificacion": "CC", "numDocumentoIdentificacion": doc, "tipoUsuario": "04", "codSexo": "F", "servicios": serv}]}
+    with zipfile.ZipFile(rutas["rips_json.zip"], "w") as z:
+        for fn, f, ide, contrato, items, total in facs:
+            if fn != esperado["sin_rips"]: z.writestr(f"FEV_{fn}/{fn}.json", json.dumps(rips_json(fn, f, ide, items), ensure_ascii=False))
+    fn, f, ide, contrato, items, total = facs[0]
+    with open(rutas["una_factura.json"], "w", encoding="utf-8") as o: json.dump(rips_json(fn, f, ide, items), o)
+    af, us, ac, ap, am, at = [], [], [], [], [], []
+    for fn, f, ide, contrato, items, total in facs:
+        if fn == esperado["sin_rips"]: continue
+        d = f.strftime("%d/%m/%Y"); doc = "99999999" if fn == esperado["paciente"] else ide
+        af.append(f"500000000001,ESE MORENO Y CLAVIJO,NI,900034131,{fn},{d},{d},{d},EPS037,NUEVA EMPRESA PROMOTORA DE SALUD,{contrato},,,0,0,0,{total}")
+        us.append(f"CC,{doc},EPS037,2,DEMO,,PACIENTE,,40,1,F,81,794,U")
+        for sv, cant in items:
+            if fn == esperado["cantidad"] and sv[5] in ("Medicamentos", "Otros servicios"): cant += 1
+            val = 0 if (fn == esperado["cero"] and sv[5] == "Consultas") else sv[4] * cant; dx = "" if fn == esperado["sin_dx"] else "R509"
+            if sv[5] == "Consultas": ac.append(f"{fn},500000000001,CC,{doc},{d},,{sv[1]},10,13,{dx},,,,1,{val},0,{val}")
+            elif sv[5] == "Procedimientos": ap.append(f"{fn},500000000001,CC,{doc},{d},,{sv[1]},1,1,,{dx},,,1,{val}")
+            elif sv[5] == "Medicamentos": am.append(f"{fn},500000000001,CC,{doc},,{CUM[sv[1]]},1,{sv[3]},SOLUCION,0.9%,ML,{cant},{sv[4]},{val}")
+            else: at.append(f"{fn},500000000001,CC,{doc},,1,{sv[1]},{sv[3]},{cant},{sv[4]},{val}")
+    with zipfile.ZipFile(rutas["rips_txt.zip"], "w") as z:
+        for pref, lineas in (("AF", af), ("US", us), ("AC", ac), ("AP", ap), ("AM", am), ("AT", at)):
+            z.writestr(f"{pref}000123.txt", "\r\n".join(lineas).encode("cp1252"))
+        z.writestr("CT000123.txt", f"500000000001,{date(2026, 1, 31).strftime('%d/%m/%Y')},AF000123,{len(af)}")
+    return rutas, esperado
+
 def generar(carpeta):
     os.makedirs(carpeta, exist_ok=True)
     rutas = {k: os.path.join(carpeta, k) for k in ("facturacion_ambito_demo.xlsx", "facturas_generadas_demo.xlsx", "farmacia_demo.xlsx")}

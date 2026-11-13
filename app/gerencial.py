@@ -51,7 +51,7 @@ def informe(mes=None):
             pm = kr["margen"] / kr["facturado"]
             ind.append(dict(indicador="Margen facturado − costos", valor=pm, formato="p", estado="OK" if pm > 0.1 else "ALERTA" if pm > 0 else "CRÍTICO", meta="> 10 %", lectura=f"${kr['margen']:,.0f}"))
         if kr["valor_hallazgo"]:
-            riesgos.append(dict(fuente="Reglas de línea R01–R09", hallazgo=f"{kr['lineas_hallazgo']:,} líneas con inconsistencias", valor=kr["valor_hallazgo"], estado="ALERTA"))
+            riesgos.append(dict(fuente="Reglas de línea R01–R10", hallazgo=f"{kr['lineas_hallazgo']:,} líneas con inconsistencias", valor=kr["valor_hallazgo"], estado="ALERTA"))
         txt.append(f"La facturación por ámbito registra ${kr['facturado']:,.0f} en {kr['lineas']:,} líneas"
                    + (f"; frente al RIPS la brecha en eventos es de ${kr['brecha_fact_rips']:,.0f} ({kr['pct_brecha']:.1%})" if kr.get("rips") else "")
                    + (f" y el margen frente a costos es de ${kr['margen']:,.0f}." if kr.get("costos") else "."))

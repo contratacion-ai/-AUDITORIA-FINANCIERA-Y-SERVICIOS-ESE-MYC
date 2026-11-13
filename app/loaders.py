@@ -182,8 +182,24 @@ CAMPOS = dict(contrato="CONTRATO", sede="SEDE", servicio="SERVICIO", ambito="AMB
               cups="COD PROCEDIMIENTO", med="COD MEDICAMENTO", cant="CANTIDAD", va="VALOR ACTIVIDAD", vt="VALOR TOTAL",
               factura="FACTURA NRO", fecha="FECHA DE FACTURACION", eps="CODIGO EPS", eps_n="NOMBRE EPS",
               ide="NUMERO IDE", esp="ESPECIALIDAD", agenda="AGENDA", prof="PROFESIONAL", reg="REGULADO",
-              diag="NOMBRE DIAGNOSTICO", act="ACTIVIDAD", tipo_pac="TIPO DE PACIENTE", uf="UNIDAD FUNCIONAL", diag_cod="COD DIAGNOSTICO")
-OPCIONALES = {"med", "eps_n", "ide", "esp", "agenda", "prof", "regimen", "reg", "diag", "act", "tipo_pac", "uf", "diag_cod"}
+              diag=("NOMBRE DIAGNOSTICO", "NOMBRE DX"), act="ACTIVIDAD", tipo_pac="TIPO DE PACIENTE", uf="UNIDAD FUNCIONAL",
+              diag_cod=("COD DIAGNOSTICO", "CODIGO DX"), vfac="VALOR FACTURA", frad="FECHA RADICADO", nrad="NRO RADICADO EPS")
+# eps / eps_n son opcionales: el reporte «facturas generadas por actividad» de 360 no trae EPS; se deduce del contrato (eps_de_contrato)
+OPCIONALES = {"med", "eps", "eps_n", "ide", "esp", "agenda", "prof", "regimen", "reg", "diag", "act", "tipo_pac", "uf", "diag_cod", "vfac", "frad", "nrad"}
+
+# Respaldo cuando no hay columnas de EPS ni contrato aprendido de cargas anteriores (orden: de lo más específico a lo general)
+EPS_POR_CONTRATO = [("SOAT PREVISORA", "LA PREVISORA SA COMPANIA DE SEGUROS"), ("FIDUPREVISORA", "FIDEICOMISOS PATRIMONIOS AUTONOMOS FIDUCIARIA LA PREVISORA SA"),
+                    ("FOMAG", "FIDEICOMISOS PATRIMONIOS AUTONOMOS FIDUCIARIA LA PREVISORA SA"), ("MAGISTERIO", "FIDEICOMISOS PATRIMONIOS AUTONOMOS FIDUCIARIA LA PREVISORA SA"),
+                    ("NUEVA EPS", "NUEVA EMPRESA PROMOTORA DE SALUD"), ("SANITAS", "ENTIDAD PROMOTORA DE SALUD SANITAS S A S"),
+                    ("COOSALUD", "COOSALUD ENTIDAD PROMOTORA DE SALUD S A"), ("FAMISANAR", "ENTIDAD PROMOTORA DE SALUD FAMISANAR S A S"),
+                    ("CAPRESOCA", "CAPRESOCA EPS"), ("ADRES", "ADMINISTRADORA DE LOS RECURSOS DEL SISTEMA GENERAL DE SEGURIDAD SOCIAL EN SALUD"),
+                    ("UAESA", "UAESA ARAUCA"), ("VENEZOLANOS", "UAESA ARAUCA"), ("PARTICULAR", "ESE MORENO Y CLAVIJO SERVICIO PARTICULAR")]
+
+def eps_de_contrato(contrato, aprendido=None):
+    """EPS de un contrato: la aprendida de cargas anteriores (facturación con NOMBRE EPS o facturas generadas) o por palabras del nombre."""
+    if aprendido and norm(contrato) in aprendido: return aprendido[norm(contrato)]
+    n = f" {norm(contrato)} "
+    return next((e for k, e in EPS_POR_CONTRATO if f" {k} " in n), "")
 
 def modalidad_por_nombre(contrato):
     """Modalidad deducida del nombre del contrato cuando no está en PARAM CONTRATO («…CAPITA…» → CAPITA, «…EVENTO…» → EVENTO, «…PGP…» → PGP)."""
@@ -225,11 +241,13 @@ def procesar_hoja(z, path, ss, mes, param, limit=None):
         if {"CONTRATO", "VALOR TOTAL"} <= {norm(v) for v in r.values()}: hdr, hi = r, i; break
     if hdr is None: raise ValueError("No se encontró la fila de encabezados (CONTRATO, VALOR TOTAL…) en las primeras 25 filas de la hoja")
     h = {norm(v): k for k, v in hdr.items()}
-    c = {k: h.get(v) for k, v in CAMPOS.items()}
-    falta = [CAMPOS[k] for k, v in c.items() if v is None and k not in OPCIONALES]
+    alt = lambda v: v if isinstance(v, tuple) else (v,)
+    c = {k: next((h[a] for a in alt(v) if a in h), None) for k, v in CAMPOS.items()}
+    falta = [" / ".join(alt(CAMPOS[k])) for k, v in c.items() if v is None and k not in OPCIONALES]
     if falta: raise ValueError(f"Columnas obligatorias no encontradas en la hoja: {', '.join(falta)}")
     cols = sorted({v for v in c.values() if v})
     pc, ps = param["contratos"], param["servicios"]
+    ce = param.get("eps_contrato", {}); sin_eps = c["eps"] is None and c["eps_n"] is None
     mask = os.environ.get("AUDIT_ENMASCARAR_IDE") == "1"
     fact = defaultdict(lambda: [0.0, 0.0, 0]); dim = defaultdict(lambda: [0.0, 0.0]); lin = defaultdict(lambda: [0.0, 0.0])
     fac, hal = {}, defaultdict(lambda: [0, 0.0])
@@ -258,7 +276,9 @@ def procesar_hoja(z, path, ss, mes, param, limit=None):
         if pc and modal == "SIN PARAMETRIZAR": fl.append("R08")
         if ps and norm(serv) not in ps: fl.append("R09")
         for x in fl: a = hal[(cont, x)]; a[0] += 1; a[1] += vt
-        epsn = g(c["eps_n"], ""); act = norm_act(g(c["act"]))
+        epsn = g(c["eps_n"], "")
+        if sin_eps: epsn = eps_de_contrato(cont, ce)
+        act = norm_act(g(c["act"]))
         kf = (eps, epsn, cont, modal, sede, serv, amb, g(c["regimen"], ""))
         if code:
             es_cups = bool(CUPS_RE.fullmatch(code))               # CUPS oficial (6 dígitos / 5DS…); G-/D-/ATC = código interno de 360
@@ -285,11 +305,18 @@ def procesar_hoja(z, path, ss, mes, param, limit=None):
                       ("especialidad", g(c["esp"], "SIN DATO")), ("agenda", g(c["agenda"], "SIN DATO")), ("paciente", ide or "SIN DATO")):
             a = dim[(d, it, sede, modal)]; a[0] += cant; a[1] += vt
         if fn:
-            x = fac.get(fn)
-            if x is None: fac[fn] = [eps, epsn, cont, modal, sede, vt, 1, {cont}]
+            x = fac.get(fn); ph = hashlib.sha1(ide.encode()).hexdigest()[:12] if (ide := (g(c["ide"]) or "").strip()) else ""
+            if x is None: fac[fn] = x = [eps, epsn, cont, modal, sede, vt, 1, {cont}, set(), 0.0, "", ""]
             else: x[5] += vt; x[6] += 1; x[7].add(cont)
+            if ph and len(x[8]) < 50: x[8].add(ph)
+            vf = num(g(c["vfac"])) if c["vfac"] else 0.0
+            if vf: x[9] = vf
+            if c["frad"] and not x[10]: x[10] = _ymd(g(c["frad"], ""))
+            if c["nrad"] and not x[11]: x[11] = (g(c["nrad"]) or "").strip()
     for fn, x in fac.items():
         if len(x[7]) > 1: a = hal[("VARIOS", "R07")]; a[0] += x[6]; a[1] += x[5]
+        if x[9] and x[3] != "CAPITA" and abs(x[5] - x[9]) > max(1.0, 0.001 * x[9]):      # R10: Σ líneas ≠ VALOR FACTURA (no aplica a cápita)
+            a = hal[(x[2], "R10")]; a[0] += x[6]; a[1] += x[9]
     mejor = {a: max(d, key=d.get) for a, d in amap.items()}            # código más frecuente por actividad
     previo = param.get("actividad", {})                                  # mapa de meses ya cargados (respaldo)
     for k, v in huerf.items():
@@ -298,7 +325,7 @@ def procesar_hoja(z, path, ss, mes, param, limit=None):
         a[0] += v[0]; a[1] += v[1]; a[2] += v[2]
     reglas = [(a, atxt.get(a, ""), code, nl) for a, d in amap.items() for code, nl in d.items()]
     medins = [(*k[:8], mdesc.get(k[7], ""), v[0], v[1], v[2], (v[3] if v[3] != float("inf") else 0.0), v[4], v[5], v[6]) for k, v in med.items()]
-    return dict(fact=fact, dim=dim, lin=lin, fac=fac, hal=hal, filas=n, reglas=reglas, medins=medins, med_det=mdet)
+    return dict(fact=fact, dim=dim, lin=lin, fac=fac, hal=hal, filas=n, reglas=reglas, medins=medins, med_det=mdet, con_eps=not sin_eps)
 
 # ───────────── RIPS / costos / notas técnicas: formato homologado + lectura del consolidado nativo ─────────────
 ALIAS = {

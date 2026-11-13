@@ -3,10 +3,11 @@ import os, shutil, zipfile
 from datetime import datetime
 from .db import conn, df, TOL_COSTO_UNIT, TABLAS_DATOS, CONSERVAR_ARCHIVOS, UPLOADS
 from .formatos import abrir_libro
+from . import rips_fev as RF
 import pandas as pd
 from .loaders import (_shared, hojas_mensuales, param_hojas, procesar_hoja, leer_tabla, leer_rips, leer_facturas_generadas, norm, ALIAS)
 
-TABLAS = {"facturacion": ["fact", "linea", "dim", "factura", "hallazgo", "medins", "med_det"], "rips": ["rips", "rips_factura"], "costos": ["costo"],
+TABLAS = {"facturacion": ["fact", "linea", "dim", "factura", "hallazgo", "medins", "med_det"], "rips": ["rips", "rips_factura", "rips_det"], "rips_fev": ["rips", "rips_factura", "rips_det"], "costos": ["costo"],
           "farmacia": ["farmacia"], "facturas": ["fac_gen"]}
 
 def registrar(tipo, mes, archivo, estado="en cola", ruta=None):
@@ -18,6 +19,8 @@ def registrar(tipo, mes, archivo, estado="en cola", ruta=None):
 def borrar_archivo(ruta):
     """Borra el archivo subido (y la carpeta «_extraido» de un comprimido) si ninguna carga pendiente lo sigue usando."""
     if not ruta or CONSERVAR_ARCHIVOS: return
+    base = os.path.realpath(UPLOADS)
+    if not os.path.realpath(ruta).startswith(base + os.sep): return      # nunca se borra nada fuera de la carpeta de cargas
     pend = df("SELECT COUNT(*) n FROM carga WHERE ruta=? AND estado IN ('en cola','procesando')", (ruta,)).n.iloc[0]
     if pend: return
     raiz = ruta.split("_extraido")[0]                     # archivo dentro de un comprimido: se borra el comprimido y lo extraído
@@ -81,7 +84,8 @@ def guardar_param(contratos, servicios):
 def cargar_param():
     with conn() as c:
         return {"contratos": {norm(r[0]): r[1] for r in c.execute("SELECT contrato, modalidad FROM param_contrato")},
-                "servicios": {norm(r[0]) for r in c.execute("SELECT servicio FROM param_servicio")}}
+                "servicios": {norm(r[0]) for r in c.execute("SELECT servicio FROM param_servicio")},
+                "eps_contrato": {norm(r[0]): r[1] for r in c.execute("SELECT contrato, eps_nombre FROM contrato_eps")}}
 
 def validar_costos(t):
     """Validaciones de carga de COSTOS (fila a fila). Devuelve DataFrame(fila, campo, severidad, mensaje, valor).
@@ -147,8 +151,13 @@ def _procesar_facturacion(path, jobs, limit=None):
                 c.executemany("INSERT OR REPLACE INTO regla_actividad VALUES(?,?,?,?,?)", ((mes, a, t, k, n) for a, t, k, n in R["reglas"]))
                 c.executemany("INSERT INTO linea VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ((cid, mes, *k, *v) for k, v in R["lin"].items()))
                 c.executemany("INSERT INTO dim VALUES(?,?,?,?,?,?,?,?)", ((cid, mes, *k, *v) for k, v in R["dim"].items()))
-                c.executemany("INSERT INTO factura VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-                              ((cid, mes, fn, x[0], x[1], x[2], x[3], x[4], len(x[7]), x[5], x[6]) for fn, x in R["fac"].items()))
+                c.executemany("INSERT INTO factura(carga_id, mes, factura, eps, eps_nombre, contrato, modalidad, sede, n_contratos, valor, lineas, "
+                              "paciente_id, n_pacientes, valor_factura, fecha_radicado, radicado_eps) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                              ((cid, mes, fn, x[0], x[1], x[2], x[3], x[4], len(x[7]), x[5], x[6], (next(iter(x[8])) if len(x[8]) == 1 else ""),
+                                len(x[8]), x[9], x[10], x[11]) for fn, x in R["fac"].items()))
+                if R.get("con_eps"):      # aprende contrato → EPS para los reportes que no traen EPS (facturas generadas por actividad)
+                    c.execute("INSERT OR REPLACE INTO contrato_eps SELECT contrato, eps_nombre, 'facturación' FROM (SELECT contrato, eps_nombre, SUM(lineas) n "
+                              "FROM fact WHERE carga_id=? AND eps_nombre<>'' GROUP BY 1, 2 ORDER BY n)", (cid,))
                 c.executemany("INSERT INTO hallazgo VALUES(?,?,?,?,?,?)", ((cid, mes, k[0], k[1], *v) for k, v in R["hal"].items()))
                 c.executemany("INSERT INTO medins VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ((cid, mes, *r) for r in R["medins"]))
                 c.executemany("INSERT INTO med_det VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ((cid, mes, *r) for r in R["med_det"]))
@@ -184,6 +193,8 @@ def _procesar_tabla(cid, tipo, path, mes_param=None):
                 _reemplazar(c, "facturas", cid, meses)
                 cols = ["mes"] + list(ALIAS["facturas"])
                 t.assign(carga_id=cid)[["carga_id"] + cols].to_sql("fac_gen", c, if_exists="append", index=False)
+                c.execute("INSERT OR IGNORE INTO contrato_eps SELECT contrato, tercero, 'facturas generadas' FROM (SELECT contrato, tercero, COUNT(*) n "
+                          "FROM fac_gen WHERE carga_id=? AND tercero<>'' AND contrato<>'' GROUP BY 1, 2 ORDER BY n DESC)", (cid,))
                 msg = f"{len(t):,} facturas por ${t.total.sum():,.0f} en {', '.join(meses)}"
             else:
                 t = leer_tabla(path, tipo, mes_param, eps_alias())
@@ -238,3 +249,27 @@ def procesar_tabla(cid, tipo, path, mes_param=None):
     """Procesa y, al terminar (bien o con error), borra el archivo subido: los datos quedan en la base (AUDIT_CONSERVAR_ARCHIVOS=1 lo conserva)."""
     try: _procesar_tabla(cid, tipo, path, mes_param)
     finally: borrar_archivo(path)
+
+def _procesar_rips_fev(cid, rutas, mes_param=None):
+    """RIPS JSON / TXT (sueltos o de un comprimido) en una sola carga. Reemplaza los RIPS de los meses que traiga."""
+    estado(cid, "procesando", f"Leyendo {len(rutas)} archivo(s) RIPS…")
+    try:
+        det, agg, vf, val = RF.procesar(rutas, mes_param)
+        meses = sorted(det["mes"].unique())
+        with conn() as c:
+            _reemplazar(c, "rips_fev", cid, meses)
+            det.assign(carga_id=cid)[["carga_id"] + RF.COLS_DET].to_sql("rips_det", c, if_exists="append", index=False)
+            agg.assign(carga_id=cid, nit_eps="", cucon="").rename(columns={"tipo_servicio": "servicio", "codigo": "cups"})[
+                ["carga_id", "mes", "eps", "nit_eps", "contrato", "cucon", "modalidad", "sede", "servicio", "cups", "factura", "cantidad", "valor", "descripcion"]] \
+                .to_sql("rips", c, if_exists="append", index=False)
+            vf.assign(carga_id=cid, factura_rips=vf.factura, cucon="")[["carga_id", "mes", "factura", "factura_rips", "eps", "contrato", "cucon", "modalidad", "sede",
+                                                                       "valor_fev", "servicios", "validacion"]].to_sql("rips_factura", c, if_exists="append", index=False)
+        orig = det.origen.value_counts().to_dict()
+        estado(cid, "ok", f"{vf.factura.nunique():,} facturas, {len(det):,} servicios RIPS ({', '.join(f'{k} {v:,}' for k, v in orig.items())})"
+                          + (f"; {len(val)} respuestas de validación (CUV)" if val else "") + f" en {', '.join(meses)}", len(det), ",".join(meses))
+    except Exception as e:
+        estado(cid, "error", f"{type(e).__name__}: {e}")
+
+def procesar_rips_fev(cid, rutas, ruta_subida, mes_param=None):
+    try: _procesar_rips_fev(cid, rutas, mes_param)
+    finally: borrar_archivo(ruta_subida)

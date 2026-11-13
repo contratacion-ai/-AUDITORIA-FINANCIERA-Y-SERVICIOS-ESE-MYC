@@ -1,21 +1,22 @@
 """API FastAPI. Documentación interactiva de endpoints: /docs (OpenAPI)."""
-import io, os, shutil, tempfile, zipfile
+import io, os, shutil, tempfile, threading, zipfile
 from datetime import datetime
 from pathlib import Path
 import numpy as np, pandas as pd
-from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from openpyxl import Workbook
 from . import analysis as A, costos as C, exporter, facturas as F, gerencial as G, medicamentos as MD, plantillas as PL, processing as P
-from .db import UPLOADS, df, init
+from .db import UPLOADS, VERSION, df, init
 from .loaders import ALIAS, _shared, es_facturacion_360, hojas_mensuales, parse_mes, todas_hojas
-from .formatos import ACEPTADOS, EXT_COMPRIMIDO, EXT_TABLA, abrir_libro, extension, extraer
+from .formatos import ACEPTADOS, EXT_COMPRIMIDO, EXT_RIPS, EXT_TABLA, abrir_libro, extension, extraer
+from . import rips_fev as RF
 
-app = FastAPI(title="Auditoría de facturación · ESE Moreno y Clavijo", version="5.1",
+app = FastAPI(title="Auditoría de facturación · ESE Moreno y Clavijo", version="5.2",
               description="Carga mensual de facturación por ámbito (Software 360), RIPS, costos y notas técnicas; conciliación y reportes.")
 init()
-TIPOS = ("facturacion", "facturas", "rips", "costos", "notas", "parametros", "codigos", "farmacia")
+TIPOS = ("facturacion", "actividad", "facturas", "rips", "rips_fev", "costos", "notas", "parametros", "codigos", "farmacia")
 PLANTILLAS = ("rips", "costos", "notas", "parametros", "codigos", "farmacia")
 
 def _json(d, limit=None):
@@ -32,11 +33,17 @@ def _limpio(o):
     return o
 
 @app.get("/api/health", tags=["sistema"])
-def health(): return {"ok": True, "hora": datetime.now().isoformat(timespec="seconds")}
+def health(): return {"ok": True, "version": VERSION, "hora": datetime.now().isoformat(timespec="seconds")}
+
+@app.post("/api/apagar", tags=["sistema"], summary="Cierra el servidor (solo desde este equipo; lo usa el lanzador al actualizar de versión)")
+def apagar(request: Request):
+    if request.client is None or request.client.host not in ("127.0.0.1", "::1", "localhost", "testclient"): raise HTTPException(403, "Solo desde este equipo")
+    if request.client.host != "testclient": threading.Timer(0.5, os._exit, args=(0,)).start()
+    return {"ok": True}
 
 @app.get("/api/meses", tags=["datos"], summary="Meses con datos por fuente")
 def meses():
-    return {t: df(f"SELECT DISTINCT mes FROM {t} ORDER BY mes").mes.tolist() for t in ("fact", "rips", "costo", "fac_gen", "farmacia")}
+    return {t: df(f"SELECT DISTINCT mes FROM {t} ORDER BY mes").mes.tolist() for t in ("fact", "rips", "costo", "fac_gen", "farmacia", "rips_det")}
 
 @app.get("/api/filtros", tags=["datos"], summary="Valores disponibles para los filtros del dashboard (sedes, EPS, clases)")
 def filtros():
@@ -49,6 +56,8 @@ def filtros():
 def _cargar_archivo(tipo, path, nombre, mes, bg):
     """Registra y programa el procesamiento de UNA hoja de cálculo o texto. Devuelve (cargas, nota)."""
     nota = None
+    if tipo == "actividad": tipo = "facturacion"          # «facturas generadas por actividad» de 360: mismo proceso que la facturación por ámbito
+    if extension(path) in EXT_RIPS: raise ValueError(f"«{nombre}»: los JSON se cargan como «RIPS JSON / TXT».")
     if tipo in ("farmacia", "costos"):
         # el reporte de 360 (facturación por ámbito, p. ej. filtrado a MEDICAMENTOS) cargado en otro tipo se procesa como facturación
         try:
@@ -82,7 +91,19 @@ def cargar(tipo: str, bg: BackgroundTasks, file: UploadFile = File(...), mes: st
     path = os.path.join(UPLOADS, f"{datetime.now():%Y%m%d_%H%M%S}_{Path(file.filename).name}")
     with open(path, "wb") as o: shutil.copyfileobj(file.file, o, 1 << 20)
     archivos = [(path, Path(file.filename).name)]
-    if ext in EXT_COMPRIMIDO or ext == ".tar.gz":
+    comprimido = ext in EXT_COMPRIMIDO or ext == ".tar.gz"
+    if tipo in ("rips", "rips_fev"):
+        # RIPS JSON (Res. 2275/2023) o TXT (AF, AC, AP, AM…): todos los archivos del envío van en una sola carga
+        try: rutas = extraer(path, path + "_extraido") if comprimido else [path]
+        except Exception as e: raise HTTPException(422, f"No se pudo descomprimir «{file.filename}»: {e}")
+        rips = [r for r in rutas if RF.es_rips(r)]
+        if rips and (tipo == "rips_fev" or len(rips) == len(rutas) or extension(path) in EXT_RIPS):
+            cid = P.registrar("rips_fev", mes, Path(file.filename).name + (f" ({len(rips)} archivos)" if len(rips) > 1 else ""), ruta=path)
+            bg.add_task(P.procesar_rips_fev, cid, rips, path, mes)
+            return {"cargas": [{"id": cid, "mes": mes, "archivo": file.filename}],
+                    "nota": None if tipo == "rips_fev" else "Se detectaron RIPS en formato JSON/TXT: se cargaron como «RIPS JSON / TXT»."}
+        if tipo == "rips_fev": raise HTTPException(422, "No se encontraron RIPS JSON (numFactura + usuarios) ni TXT (AF, AC, AP, AM, AT…) en el archivo.")
+    if comprimido:
         try: tablas = extraer(path, path + "_extraido")
         except Exception as e: raise HTTPException(422, f"No se pudo descomprimir «{file.filename}»: {e}")
         if not tablas: raise HTTPException(422, f"El comprimido no contiene archivos Excel, CSV o texto ({' '.join(sorted(EXT_TABLA))}).")
@@ -261,6 +282,13 @@ def md_agr(nivel: str = "contrato", mes: str | None = None, sede: str | None = N
     if nivel not in MD.NIVELES: raise HTTPException(422, f"nivel: {'|'.join(MD.NIVELES)}")
     return _json(MD.agrupado(nivel, mes, sede, clase, eps, contrato), limit)
 
+@app.get("/api/medicamentos/mes-a-mes", tags=["medicamentos e insumos"], summary="Comparativo mes a mes por contrato, código, servicio, sede, EPS, diagnóstico o grupo ATC")
+def md_mm(nivel: str = "contrato", metrica: str = "valor", sede: str | None = None, clase: str | None = None, eps: str | None = None,
+          contrato: str | None = None, limit: int = 3000):
+    if nivel not in MD.NIVELES or nivel == "usuario": raise HTTPException(422, "nivel: contrato|codigo|servicio|sede|eps|diagnostico|atc")
+    if metrica not in ("valor", "cantidad", "usuarios"): raise HTTPException(422, "metrica: valor|cantidad|usuarios")
+    return _json(MD.mes_a_mes(nivel, metrica, sede, clase, eps, contrato), limit)
+
 @app.get("/api/medicamentos/rips", tags=["medicamentos e insumos"], summary="Cruce medicamentos facturados (360) ↔ RIPS por factura y código")
 def md_rips(mes: str | None = None, sede: str | None = None, eps: str | None = None, contrato: str | None = None, estado: str | None = None, limit: int = 3000):
     d = MD.cruce_rips(mes, sede, eps, contrato)
@@ -276,6 +304,26 @@ def md_hom_xlsx(mes: str | None = None):
     if not len(h): raise HTTPException(404, "No hay códigos pendientes de homologar (o no hay medicamentos cargados para el periodo).")
     ruta = os.path.join(tempfile.mkdtemp(), "homologacion_cum.xlsx"); PL.plantilla_homologacion_cum(h, mes).save(ruta)
     return FileResponse(ruta, filename=f"homologacion_cum_{mes or 'todos'}.xlsx")
+
+@app.get("/api/rips-fev/resumen", tags=["RIPS JSON/TXT"], summary="KPIs de los RIPS JSON/TXT, estados del cruce y reglas de estructura")
+def rf_res(mes: str | None = None): return _limpio(RF.resumen(mes))
+
+@app.get("/api/rips-fev/facturas", tags=["RIPS JSON/TXT"], summary="Cruce factura a factura: Software 360 vs RIPS JSON/TXT")
+def rf_fac(mes: str | None = None, estado: str | None = None, limit: int = 3000):
+    d = RF.cruce_facturas(mes)
+    if estado and len(d): d = d[d.estado.str.contains(estado, regex=False)]
+    return _json(d, limit)
+
+@app.get("/api/rips-fev/servicios", tags=["RIPS JSON/TXT"], summary="Cruce por factura y código (cantidad y valor) 360 vs RIPS")
+def rf_srv(mes: str | None = None, tipo: str | None = None, estado: str | None = None, limit: int = 3000):
+    d = RF.cruce_servicios(mes, tipo)
+    if estado and len(d): d = d[d.estado.str.contains(estado, regex=False)]
+    return _json(d, limit)
+
+@app.get("/api/rips-fev/validacion", tags=["RIPS JSON/TXT"], summary="Reglas de estructura RV01–RV08 (resumen o detalle de una regla)")
+def rf_val(mes: str | None = None, regla: str | None = None, limit: int = 3000):
+    if regla and regla not in RF.REGLAS_RIPS: raise HTTPException(422, f"Reglas: {list(RF.REGLAS_RIPS)}")
+    return _json(RF.validacion(mes, regla), limit)
 
 @app.get("/api/gerencial", tags=["informe gerencial"], summary="Informe gerencial: indicadores, riesgos, narrativa y plan de acción")
 def gerencial(mes: str | None = None): return _limpio(G.informe(mes))

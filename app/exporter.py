@@ -8,7 +8,7 @@ import pandas as pd
 from openpyxl.chart import BarChart, Reference
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
-from . import analysis as A, costos as C, facturas as F, gerencial as G, medicamentos as MD
+from . import analysis as A, costos as C, facturas as F, gerencial as G, medicamentos as MD, rips_fev as RF
 from .db import AUTOR, AZUL, AZUL_CLARO, AZUL_MED, CARGO, FUENTE, GRIS, GRIS_CLARO, IDENTIDAD, INSTITUCION, NIT, VERSION, df
 
 TOP = 5            # filas ocupadas por el bloque de título antes de la tabla (títulos en 1-3, fila 4 en blanco, encabezado en la 5)
@@ -18,7 +18,7 @@ DESCRIPCION = {
     "Comparativo_Servicio_Mes": "Facturación por servicio y mes con variación del último mes.", "Comparativo_EPS_Mes": "Facturación por EPS y mes.",
     "Comparativo_Contrato_Mes": "Facturación por contrato y mes.", "Validacion_Cruce": "Cobertura de llaves comunes entre las cuatro fuentes.",
     "Contratos": "Comportamiento de contratos.", "Radicacion": "Radicación factura a factura (360 ↔ RIPS).", "Notas_Tecnicas": "Nota técnica vs facturación, RIPS y costo unitario.",
-    "Hallazgos": "Reglas de auditoría de línea R01–R09.", "Recomendaciones": "Acciones sugeridas por la herramienta.", "Costos_Cruce": "Cruce Costos × RIPS × Facturación × Notas técnicas por CUPS.",
+    "Hallazgos": "Reglas de auditoría de línea R01–R10.", "Recomendaciones": "Acciones sugeridas por la herramienta.", "Costos_Cruce": "Cruce Costos × RIPS × Facturación × Notas técnicas por CUPS.",
     "Costos_Validaciones": "Errores y advertencias detectados al cargar costos.", "Regla_Actividad": "Mapa ACTIVIDAD → CUPS usado para identificar el CUPS de cada registro.",
     "Informe_Gerencial": "Resumen ejecutivo, indicadores con semáforo, riesgos por valor y plan de acción priorizado.",
     "FG_Sede": "Facturas generadas por sede: radicado, glosado, pendiente y días de radicación.", "FG_EPS": "Facturas generadas por pagador (EPS/tercero).",
@@ -32,7 +32,9 @@ DESCRIPCION = {
     "MED_Contrato": "Medicamentos por contrato: cantidad, valor, usuarios únicos y facturas.", "MED_Codigo_360_ATC_CUM": "Por código 360 con código ATC/CUM, CUM homologado y alertas.",
     "MED_Servicio": "Por unidad funcional (servicio) y ámbito.", "MED_Usuario": "Consumo por usuario anonimizado (consumo atípico).",
     "MED_Diagnostico": "Medicamentos por diagnóstico principal.", "MED_Grupo_ATC": "Por grupo terapéutico ATC.",
-    "MED_Cruce_RIPS": "Medicamentos facturados en 360 vs RIPS por factura y código.", "MED_Homologacion_CUM": "Códigos que no homologan: 360 sin CUM y CUM del RIPS sin código 360.",
+    "MED_Cruce_RIPS": "Medicamentos facturados en 360 vs RIPS por factura y código.", "MED_Mes_a_mes_Contrato": "Medicamentos por contrato y mes con variación.",
+    "MED_Mes_a_mes_Codigo": "Medicamentos por código y mes con variación.", "RIPS_FEV_Facturas": "RIPS JSON/TXT vs Software 360, factura a factura.",
+    "RIPS_FEV_Servicios": "RIPS JSON/TXT vs Software 360 por factura y código.", "RIPS_FEV_Estructura": "Reglas de estructura del RIPS (RV01–RV08).", "MED_Homologacion_CUM": "Códigos que no homologan: 360 sin CUM y CUM del RIPS sin código 360.",
 }
 
 def _hojas_v5(mes=None):
@@ -54,6 +56,10 @@ def _hojas_v5(mes=None):
                      ("diagnostico", "MED_Diagnostico"), ("atc", "MED_Grupo_ATC")):
             h[t] = MD.agrupado(n, mes)
         h["MED_Cruce_RIPS"] = MD.cruce_rips(mes); h["MED_Homologacion_CUM"] = MD.homologacion_cum(mes)
+        h["MED_Mes_a_mes_Contrato"] = MD.mes_a_mes("contrato"); h["MED_Mes_a_mes_Codigo"] = MD.mes_a_mes("codigo")
+    rs = RF.resumen(mes)
+    if not rs.get("vacio"):
+        h["RIPS_FEV_Facturas"] = RF.cruce_facturas(mes); h["RIPS_FEV_Servicios"] = RF.cruce_servicios(mes); h["RIPS_FEV_Estructura"] = RF.validacion(mes)
     return h
 
 def hojas(mes=None):

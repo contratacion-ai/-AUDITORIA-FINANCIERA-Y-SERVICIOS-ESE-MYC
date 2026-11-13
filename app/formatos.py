@@ -14,7 +14,8 @@ from pathlib import Path
 
 EXT_TABLA = {".xlsx", ".xlsm", ".xls", ".xlsb", ".ods", ".csv", ".txt", ".tsv"}
 EXT_COMPRIMIDO = {".zip", ".rar", ".7z", ".gz", ".tgz", ".tar", ".bz2"}
-ACEPTADOS = sorted(EXT_TABLA | EXT_COMPRIMIDO | {".tar.gz"})
+EXT_RIPS = {".json"}                                     # RIPS JSON (Res. 2275/2023); los RIPS TXT usan .txt
+ACEPTADOS = sorted(EXT_TABLA | EXT_COMPRIMIDO | EXT_RIPS | {".tar.gz"})
 
 def extension(nombre):
     n = str(nombre).lower()
@@ -161,6 +162,6 @@ def extraer(ruta, destino, nivel=0):
         for a in sorted(archivos):
             if a.startswith(("~$", ".")): continue
             p = os.path.join(raiz, a); e = extension(a)
-            if e in EXT_TABLA: tablas.append(p)
+            if e in EXT_TABLA or e in EXT_RIPS: tablas.append(p)
             elif e in EXT_COMPRIMIDO | {".tar.gz"} and nivel < 2: tablas += extraer(p, p + "_extraido", nivel + 1)
     return tablas

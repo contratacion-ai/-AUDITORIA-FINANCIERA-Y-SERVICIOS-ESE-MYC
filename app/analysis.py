@@ -16,10 +16,11 @@ def _fk(s): return s.astype(str).str.upper().str.replace(r"[^A-Z0-9]", "", regex
 # ───────── homologación de RIPS contra Software 360 (por factura FEV y por CUPS) ─────────
 def _fill(r):
     """Completa contrato/sede/modalidad del RIPS usando la factura FEV de Software 360 cuando faltan o no coinciden."""
-    fm = df("SELECT factura, contrato, sede, modalidad FROM factura"); fm["fk"] = _fk(fm.factura)
+    fm = df("SELECT factura, contrato, sede, modalidad, eps_nombre eps FROM factura"); fm["fk"] = _fk(fm.factura)
     fm = fm.drop_duplicates("fk").set_index("fk"); fk = _fk(r.factura)
     known = {norm(c) for c in fm.contrato.unique()}
-    for c in ("contrato", "sede", "modalidad"):
+    for c in ("contrato", "sede", "modalidad", "eps"):          # eps: los RIPS JSON no traen la EPS; se toma de la factura de 360
+        if c not in r: continue
         v = fk.map(fm[c]); bad = r[c].fillna("").eq("") | (~r[c].map(norm).isin(known) if c == "contrato" else False)
         r[c] = np.where(bad & v.notna(), v, r[c])
     return r
