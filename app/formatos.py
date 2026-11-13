@@ -14,7 +14,7 @@ from pathlib import Path
 
 EXT_TABLA = {".xlsx", ".xlsm", ".xls", ".xlsb", ".ods", ".csv", ".txt", ".tsv"}
 EXT_COMPRIMIDO = {".zip", ".rar", ".7z", ".gz", ".tgz", ".tar", ".bz2"}
-EXT_RIPS = {".json"}                                     # RIPS JSON (Res. 2275/2023); los RIPS TXT usan .txt
+EXT_RIPS = {".json", ".xml"}                             # RIPS JSON (Res. 2275/2023) y XML de la FEV; los RIPS TXT usan .txt
 ACEPTADOS = sorted(EXT_TABLA | EXT_COMPRIMIDO | EXT_RIPS | {".tar.gz"})
 
 def extension(nombre):

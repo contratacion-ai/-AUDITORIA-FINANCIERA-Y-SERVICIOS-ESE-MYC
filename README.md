@@ -71,7 +71,7 @@ Endpoints nuevos: `GET /api/comparativos`, `GET /api/comparativo/mensual?nivel=`
 Las gráficas usan Chart.js desde cdnjs (se necesita internet al abrir el dashboard).
 
 ## Instalador de Windows (recomendado)
-Requisito: Windows 10 u 11 de 64 bits. Ejecute **`Instalador_Auditoria_ESE_MyC_v5.2.exe`** (doble clic → Siguiente → Instalar). No requiere internet, Python ni permisos de
+Requisito: Windows 10 u 11 de 64 bits. Ejecute **`Instalador_Auditoria_ESE_MyC_v5.3.exe`** (doble clic → Siguiente → Instalar). No requiere internet, Python ni permisos de
 administrador: incluye Python 3.12 oficial y todas las librerías. Crea accesos en el **Escritorio** y en el **menú Inicio**
 («Auditoría ESE MyC», «Carpeta de datos», «Guía rápida», «Desinstalar») y queda en *Agregar o quitar programas*.
 
@@ -83,6 +83,16 @@ administrador: incluye Python 3.12 oficial y todas las librerías. Crea accesos 
 - Construir el instalador (desde Linux/macOS, sin Windows): `bash instalador/construir_instalador.sh` → `dist/`.
   Versiones empaquetadas en `instalador/requirements-windows.txt`.
 - Windows SmartScreen puede advertir que el instalador no está firmado: «Más información» → «Ejecutar de todas formas».
+
+## Novedades v5.3 (probado con RIPS reales JSON + XML y TXT de la ESE)
+
+| Tema | Qué cambió |
+|---|---|
+| **XML de la factura electrónica (FEV)** | El .xml que acompaña cada JSON (AttachedDocument de la DIAN) se lee: número, fecha de expedición, valor a pagar, EPS y NIT, número de contrato, modalidad de pago, cobertura, CUFE, respuesta DIAN («Documento validado por la DIAN») y las líneas con su CUPS, cantidad y valor. Cruces nuevos: **XML (FEV) ≠ RIPS** por factura y por línea, **NO ESTÁ EN EL XML**, **DIAN NO VALIDADA**. |
+| **Mes de la factura** | Se toma de la FEV (XML), de Software 360 o del AF del TXT; la fecha del servicio solo si no hay otra fuente (antes un JSON de noviembre con servicios de julio quedaba en julio). |
+| **RV03 / RV05** | RV03 solo exige diagnóstico a consultas (y a procedimientos en JSON): en el TXT de la Res. 3374 el diagnóstico de un procedimiento diagnóstico es opcional. RV05 se llama «facturación tardía» (servicio de un mes facturado en otro). |
+| **Sin facturación de 360 cargada** | El cruce queda en «INFO: falta cargar la facturación 360 del mes» en lugar de marcar error. Se corrigió un error de la v4 que hacía fallar el Informe gerencial y la Serie mensual cuando solo había RIPS cargados. |
+| **Valores «None»** | Los campos que el generador de RIPS escribe como «None» se tratan como vacíos. |
 
 ## Novedades v5.2
 

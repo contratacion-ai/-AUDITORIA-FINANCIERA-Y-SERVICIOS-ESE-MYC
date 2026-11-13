@@ -166,9 +166,30 @@ def actividad_y_rips(carpeta, facturas=30, seed=23):
         doc = "99999999" if fn == esperado["paciente"] else ide
         return {"numDocumentoIdObligado": "900034131", "numFactura": fn, "tipoNota": None, "numNota": None,
                 "usuarios": [{"tipoDocumentoIdentificacion": "CC", "numDocumentoIdentificacion": doc, "tipoUsuario": "04", "codSexo": "F", "servicios": serv}]}
+    esperado["xml_difiere"] = "FA00015"
+    def fev_xml(fn, f, items, total):
+        """AttachedDocument mínimo como el de la DIAN: Invoice (CDATA) con líneas CUPS + ApplicationResponse «02 Documento validado»."""
+        lineas = "".join(f"<cac:InvoiceLine><cbc:ID>{i}</cbc:ID><cbc:InvoicedQuantity unitCode=\"94\">{c:.2f}</cbc:InvoicedQuantity>"
+                         f"<cbc:LineExtensionAmount currencyID=\"COP\">{sv[4] * c}</cbc:LineExtensionAmount><cac:Item><cbc:Description>{sv[3]}</cbc:Description>"
+                         f"<cac:SellersItemIdentification><cbc:ID>{CUM.get(sv[1], sv[1])}</cbc:ID></cac:SellersItemIdentification></cac:Item></cac:InvoiceLine>"
+                         for i, (sv, c) in enumerate(items, 1))
+        valor = total + (1000 if fn == esperado["xml_difiere"] else 0)
+        inv = (f"<?xml version=\"1.0\"?><Invoice><cbc:ID>{fn}</cbc:ID><cbc:UUID>cufe{fn}</cbc:UUID><cbc:IssueDate>{f.isoformat()}</cbc:IssueDate>"
+               f"<cac:AccountingSupplierParty><cbc:RegistrationName>ESE MORENO Y CLAVIJO</cbc:RegistrationName><cbc:CompanyID>900034131</cbc:CompanyID></cac:AccountingSupplierParty>"
+               f"<cac:AccountingCustomerParty><cbc:RegistrationName>NUEVA EMPRESA PROMOTORA DE SALUD</cbc:RegistrationName><cbc:CompanyID>900156264</cbc:CompanyID></cac:AccountingCustomerParty>"
+               f"<Collection name=\"Usuario\"><AdditionalInformation><Name>MODALIDAD_PAGO</Name><Value>Pago por evento.</Value></AdditionalInformation>"
+               f"<AdditionalInformation><Name>NUMERO_CONTRATO</Name><Value>CT-001</Value></AdditionalInformation></Collection>"
+               f"<cac:LegalMonetaryTotal><cbc:PayableAmount currencyID=\"COP\">{valor:.2f}</cbc:PayableAmount></cac:LegalMonetaryTotal>{lineas}</Invoice>")
+        resp = "<?xml version=\"1.0\"?><ApplicationResponse><cbc:ResponseCode>02</cbc:ResponseCode><cbc:Description>Documento validado por la DIAN</cbc:Description></ApplicationResponse>"
+        return (f"<?xml version=\"1.0\"?><AttachedDocument><cbc:ParentDocumentID>{fn}</cbc:ParentDocumentID><cac:Attachment><cac:ExternalReference>"
+                f"<cbc:Description><![CDATA[{inv}]]></cbc:Description></cac:ExternalReference></cac:Attachment><cac:ParentDocumentLineReference><cac:DocumentReference>"
+                f"<cac:Attachment><cac:ExternalReference><cbc:Description><![CDATA[{resp}]]></cbc:Description></cac:ExternalReference></cac:Attachment>"
+                f"</cac:DocumentReference></cac:ParentDocumentLineReference></AttachedDocument>")
     with zipfile.ZipFile(rutas["rips_json.zip"], "w") as z:
         for fn, f, ide, contrato, items, total in facs:
-            if fn != esperado["sin_rips"]: z.writestr(f"FEV_{fn}/{fn}.json", json.dumps(rips_json(fn, f, ide, items), ensure_ascii=False))
+            if fn != esperado["sin_rips"]:
+                z.writestr(f"FEV_{fn}/{fn}.json", json.dumps(rips_json(fn, f, ide, items), ensure_ascii=False))
+                z.writestr(f"FEV_{fn}/{fn}.xml", fev_xml(fn, f, items, total))
     fn, f, ide, contrato, items, total = facs[0]
     with open(rutas["una_factura.json"], "w", encoding="utf-8") as o: json.dump(rips_json(fn, f, ide, items), o)
     af, us, ac, ap, am, at = [], [], [], [], [], []

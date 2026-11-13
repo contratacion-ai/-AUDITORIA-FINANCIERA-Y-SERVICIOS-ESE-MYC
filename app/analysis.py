@@ -56,7 +56,7 @@ def mensual():
     cap = lambda s: s.map(norm) == "CAPITA"
     if rf.empty: x = pd.DataFrame(columns=["mes", "rips", "fact_evento", "rips_evento", "cap_fev", "cap_360"])
     else:
-        pares = set(zip(rf.mes, rf.eps.map(norm), rf.modalidad.map(norm))); fe = fe[[(a, b, c) in pares for a, b, c in zip(fe.mes, fe.eps.map(norm), fe.modalidad.map(norm))]]
+        pares = set(zip(rf.mes, rf.eps.map(norm), rf.modalidad.map(norm))); fe = fe[pd.Series([(a, b, c) in pares for a, b, c in zip(fe.mes, fe.eps.map(norm), fe.modalidad.map(norm))], index=fe.index, dtype=bool)]
         x = pd.DataFrame({"rips": rf.groupby("mes").v.sum(), "rips_evento": rf[~cap(rf.modalidad)].groupby("mes").v.sum(), "cap_fev": rf[cap(rf.modalidad)].groupby("mes").v.sum(),
                           "fact_evento": fe[~cap(fe.modalidad)].groupby("mes").v.sum(), "cap_360": fe[cap(fe.modalidad)].groupby("mes").v.sum()}).reset_index().rename(columns={"index": "mes"})
     m = f.merge(x, on="mes", how="outer").merge(r2, on="mes", how="outer").merge(k, on="mes", how="outer").merge(h, on="mes", how="outer").sort_values("mes").reset_index(drop=True)
@@ -80,7 +80,7 @@ def fact_vs_rips(mes=None, nivel="eps"):
     if r.empty: return pd.DataFrame()
     r["_lvl"] = r.modalidad; lv = "_lvl" if nivel == "modalidad" else nivel
     f = df(f"SELECT mes, eps_nombre e, modalidad mo, {fcol} k, SUM(valor) facturado, SUM(cantidad) cant_fact FROM fact{w} GROUP BY 1,2,3,4", p)
-    pares = set(zip(r.mes, r.eps.map(norm), r.modalidad.map(norm))); f = f[[(a, b, c) in pares for a, b, c in zip(f.mes, f.e.map(norm), f.mo.map(norm))]]
+    pares = set(zip(r.mes, r.eps.map(norm), r.modalidad.map(norm))); f = f[pd.Series([(a, b, c) in pares for a, b, c in zip(f.mes, f.e.map(norm), f.mo.map(norm))], index=f.index, dtype=bool)]
     rc = r.groupby(["mes", "modalidad", lv], as_index=False).agg(cant_rips=("cantidad", "sum"), rips=("valor", "sum")).rename(columns={lv: "k", "modalidad": "mo"})
     if nivel in ("eps", "contrato", "modalidad", "sede"):
         rfh = rips_fact_h(mes); rfh["_lvl"] = rfh.modalidad

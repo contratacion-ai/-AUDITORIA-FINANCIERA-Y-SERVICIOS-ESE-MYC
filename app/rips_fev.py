@@ -1,11 +1,12 @@
-"""RIPS en sus formatos de envío: JSON (Res. 2275 de 2023 / 1557 de 2023, un archivo por factura electrónica) y TXT planos
+"""RIPS en sus formatos de envío: JSON (Res. 2275 de 2023 / 1557 de 2023, un archivo por factura electrónica), el XML de la factura
+electrónica (FEV, AttachedDocument de la DIAN: valor, fecha, EPS, contrato, modalidad, CUFE, estado DIAN y líneas con CUPS) y TXT planos
 (Res. 3374 de 2000: AF, US, AC, AP, AM, AT, AU, AH, AN, CT). Ambos se pueden subir sueltos o dentro de .zip / .rar / .7z.
 
 Cada servicio queda en `rips_det` (paciente con hash) y además se agrega a `rips` / `rips_factura`, de modo que la conciliación
 Facturación vs RIPS, la radicación y el cruce de medicamentos funcionan igual que con el consolidado en Excel.
 También se leen las respuestas de validación del Ministerio (JSON con CodigoUnicoValidacion / ResultState) para marcar el CUV de cada factura.
 """
-import hashlib, json, os, re
+import hashlib, html, json, os, re
 from collections import Counter, defaultdict
 from pathlib import Path
 import numpy as np, pandas as pd
@@ -19,16 +20,23 @@ PREFIJOS_TXT = {"AF": "Transacciones", "US": "Usuarios", "AC": "Consultas", "AP"
 COLS_DET = ["mes", "factura", "tipo_servicio", "codigo", "descripcion", "cantidad", "valor_unitario", "valor", "paciente_id", "tipo_doc",
             "fecha", "diagnostico", "autorizacion", "origen", "archivo"]
 
-def _h(doc): doc = str(doc or "").strip(); return hashlib.sha1(doc.encode()).hexdigest()[:12] if doc else ""
-def _low(d): return {re.sub(r"[^a-z]", "", str(k).lower()): v for k, v in d.items()} if isinstance(d, dict) else {}
+def _s(v):
+    """Texto limpio: los generadores de RIPS escriben «None» / «null» en los campos vacíos."""
+    t = str(v if v is not None else "").strip()
+    return "" if t.lower() in ("none", "null", "nan") else t
+def _h(doc): doc = _s(doc); return hashlib.sha1(doc.encode()).hexdigest()[:12] if doc else ""
+def _low(d): return {re.sub(r"[^a-z]", "", str(k).lower()): (v if isinstance(v, (dict, list)) else _s(v)) for k, v in d.items()} if isinstance(d, dict) else {}
 def _fecha(v):
     s = str(v or "").strip()
     return _ymd(s.split(" ")[0].split("T")[0]) if s else ""
 
 def es_rips(ruta):
-    """True si el archivo es un RIPS JSON (o respuesta de validación) o un TXT de RIPS (AF/AC/AP… por el nombre)."""
+    """True si el archivo es un RIPS JSON (o respuesta de validación), el XML de la FEV o un TXT de RIPS (AF/AC/AP… por el nombre)."""
     n = Path(ruta).name.upper()
     if n.endswith(".JSON"): return True
+    if n.endswith(".XML"):
+        with open(ruta, "rb") as f: cab = f.read(4096)
+        return b"AttachedDocument" in cab or b"<Invoice" in cab
     return n.endswith(".TXT") and n[:2] in PREFIJOS_TXT
 
 # ───────── JSON ─────────
@@ -87,6 +95,38 @@ def leer_json(ruta):
                                   tipo_doc=td, fecha="", diagnostico="", autorizacion="", origen="JSON", archivo=Path(ruta).name))
     return filas, list(_validaciones_json(o))
 
+# ───────── XML de la factura electrónica (FEV) ─────────
+NIT_ESE = "900034131"
+def _tag(x, t):
+    return [html.unescape(v).strip() for v in re.findall(rf"<cbc:{t}\b[^>]*>(.*?)</cbc:{t}>", x, re.S)]
+
+def _modalidad(txt):
+    n = norm(txt)
+    return "CAPITA" if "CAPITA" in n else "EVENTO" if "EVENTO" in n else "PGP" if ("GLOBAL PROSPECTIVO" in n or "PGP" in n) else ""
+
+def leer_xml(ruta):
+    """AttachedDocument (o Invoice) de la DIAN → (encabezado, líneas). El Invoice viene en CDATA dentro del AttachedDocument."""
+    with open(ruta, encoding="utf-8", errors="replace") as f: x = f.read()
+    partes = re.findall(r"<!\[CDATA\[(.*?)\]\]>", x, re.S)
+    inv = next((p for p in partes if "<Invoice" in p or "<CreditNote" in p or "<DebitNote" in p), x)
+    resp = next((p for p in partes if "ApplicationResponse" in p), "")
+    ids = _tag(inv, "ID"); fac = (_tag(x, "ParentDocumentID") or [i for i in ids if re.match(r"^[A-Z]{1,6}\d", i)] or [""])[0]
+    nombres, nits = _tag(inv, "RegistrationName"), _tag(inv, "CompanyID")
+    cliente = next(((n, i) for n, i in zip(nombres, nits) if i != NIT_ESE), ("", ""))
+    sector = lambda k: (re.search(rf"<Name>{k}</Name>\s*<Value[^>]*>(.*?)</Value>", inv, re.S) or [None, ""])[1].strip()
+    codigos = _tag(resp, "ResponseCode"); desc = _tag(resp, "Description")
+    dian = ("VALIDADO DIAN" if "02" in codigos[:1] else (f"DIAN {codigos[0]}: {desc[0] if desc else ''}" if codigos else ""))
+    enc = dict(factura=fac, fecha=(_tag(inv, "IssueDate") or [""])[0], valor=num((_tag(inv, "PayableAmount") or ["0"])[0]), eps=cliente[0], nit=cliente[1],
+               contrato=_s(sector("NUMERO_CONTRATO")), modalidad=_modalidad(sector("MODALIDAD_PAGO")), cobertura=_s(sector("COBERTURA_PLAN_BENEFICIOS")),
+               cufe=(_tag(inv, "UUID") or [""])[0], estado_dian=dian, archivo=Path(ruta).name)
+    lineas = []
+    for l in re.findall(r"<cac:(?:Invoice|CreditNote|DebitNote)Line>(.*?)</cac:(?:Invoice|CreditNote|DebitNote)Line>", inv, re.S):
+        cod = (re.search(r"<cac:SellersItemIdentification>\s*<cbc:ID[^>]*>(.*?)</cbc:ID>", l, re.S) or
+               re.search(r"<cac:StandardItemIdentification>\s*<cbc:ID[^>]*>(.*?)</cbc:ID>", l, re.S))
+        lineas.append(dict(factura=fac, codigo=cod.group(1).strip() if cod else "", descripcion=(_tag(l, "Description") or [""])[0],
+                           cantidad=num((_tag(l, "InvoicedQuantity") or ["1"])[0]), valor=num((_tag(l, "LineExtensionAmount") or ["0"])[0])))
+    return enc, lineas
+
 # ───────── TXT (Res. 3374 de 2000) ─────────
 def _lineas_txt(ruta):
     with open(ruta, "rb") as f: crudo = f.read()
@@ -130,37 +170,57 @@ def leer_txt(rutas):
 # ───────── carga ─────────
 def procesar(rutas, mes_param=None):
     """Lee JSON y TXT y devuelve (det, rips_agregado, rips_factura, validaciones) como DataFrames."""
-    filas, val, af = [], [], {}
+    filas, val, af, xml, xlin = [], [], {}, [], []
     txt = [r for r in rutas if Path(r).suffix.lower() == ".txt" and Path(r).name.upper()[:2] in PREFIJOS_TXT]
     for r in rutas:
         if Path(r).suffix.lower() == ".json":
             f, v = leer_json(r); filas += f; val += v
+        elif Path(r).suffix.lower() == ".xml":
+            try: e, l = leer_xml(r)
+            except Exception: continue
+            if e["factura"]: xml.append(e); xlin += l
     if txt:
         f, af = leer_txt(txt); filas += f
-    if not filas and not val: raise ValueError("Los archivos no contienen RIPS JSON (numFactura + usuarios) ni RIPS TXT.")
+    if not filas and not val and not xml: raise ValueError("Los archivos no contienen RIPS JSON (numFactura + usuarios), XML de facturas (FEV) ni RIPS TXT.")
     d = pd.DataFrame(filas, columns=[c for c in COLS_DET if c != "mes"]) if filas else pd.DataFrame(columns=[c for c in COLS_DET if c != "mes"])
     # mes de cada factura: el de Software 360 si ya se cargó; si no, AF (TXT) o la fecha más frecuente de los servicios
     f360 = df("SELECT factura, MAX(mes) mes, MAX(eps_nombre) eps, MAX(contrato) contrato, MAX(modalidad) modalidad, MAX(sede) sede FROM factura GROUP BY factura")
     k = lambda s: s.astype(str).str.upper().str.replace(r"[^A-Z0-9]", "", regex=True)
     f360["fk"] = k(f360.factura); f360 = f360.drop_duplicates("fk").set_index("fk")
     d["fk"] = k(d.factura)
+    fx = pd.DataFrame(xml, columns=["factura", "fecha", "valor", "eps", "nit", "contrato", "modalidad", "cobertura", "cufe", "estado_dian", "archivo"])
+    fx["fk"] = k(fx.factura); fx = fx.drop_duplicates("fk", keep="last")
+    if d.empty and len(fx):                                            # solo XML: una fila por factura para ubicar mes y totales
+        d = pd.DataFrame([dict(factura=f, tipo_servicio="SIN RIPS (SOLO XML)", codigo="", descripcion="", cantidad=0, valor=0, valor_unitario=0, paciente_id="",
+                               tipo_doc="", fecha="", diagnostico="", autorizacion="", origen="XML", archivo="") for f in fx.factura])
+        d["fk"] = k(d.factura)
+    fxi = fx.set_index("fk")
     moda = d[d.fecha != ""].groupby("fk").fecha.agg(lambda s: Counter(x[:7] for x in s).most_common(1)[0][0])
     af_mes = {k(pd.Series([f])).iloc[0]: v["fecha"][:7] for f, v in af.items() if v.get("fecha")}
-    d["mes"] = d.fk.map(f360.mes).fillna(d.fk.map(af_mes)).fillna(d.fk.map(moda)).fillna(mes_param or "")
+    # mes = el de la factura (XML de la FEV, Software 360 o AF del TXT); la fecha del servicio solo si no hay otra fuente
+    d["mes"] = d.fk.map(fxi.fecha.str[:7].replace("", None)).fillna(d.fk.map(f360.mes)).fillna(d.fk.map(af_mes)).fillna(d.fk.map(moda)).fillna(mes_param or "")
     if (d.mes == "").all(): raise ValueError("No se pudo determinar el mes de los RIPS: indique el mes (AAAA-MM) al cargar.")
     d = d[d.mes != ""]
     af_k = {k(pd.Series([f])).iloc[0]: v for f, v in af.items()}
-    g = lambda col, fuente: d.fk.map(lambda x: (af_k.get(x) or {}).get(fuente) or "").where(lambda s: s != "", d.fk.map(f360[col]).fillna(""))
-    d["eps"] = g("eps", "eps"); d["contrato"] = g("contrato", "contrato")
-    d["modalidad"] = d.fk.map(f360.modalidad).fillna(""); d["sede"] = d.fk.map(f360.sede).fillna("")
+    def g(col, fuente, xcol):
+        v = d.fk.map(lambda x: (af_k.get(x) or {}).get(fuente) or "")
+        v = v.where(v != "", d.fk.map(fxi[xcol]).fillna(""))
+        return v.where(v != "", d.fk.map(f360[col]).fillna(""))
+    d["eps"] = g("eps", "eps", "eps"); d["contrato"] = g("contrato", "contrato", "contrato")
+    mx = d.fk.map(fxi.modalidad).fillna(""); d["modalidad"] = mx.where(mx != "", d.fk.map(f360.modalidad).fillna("")); d["sede"] = d.fk.map(f360.sede).fillna("")
     agg = d.groupby(["mes", "eps", "contrato", "modalidad", "sede", "tipo_servicio", "codigo", "factura"], as_index=False).agg(
         cantidad=("cantidad", "sum"), valor=("valor", "sum"), descripcion=("descripcion", "first"))
     vf = d.groupby(["mes", "factura"], as_index=False).agg(eps=("eps", "first"), contrato=("contrato", "first"), modalidad=("modalidad", "first"),
                                                          sede=("sede", "first"), valor_srv=("valor", "sum"), servicios=("cantidad", "sum"), fk=("fk", "first"))
-    vf["valor_fev"] = vf.fk.map(lambda x: (af_k.get(x) or {}).get("valor_neto")).fillna(vf.valor_srv)
+    vf["valor_fev"] = vf.fk.map(fxi.valor).fillna(vf.fk.map(lambda x: (af_k.get(x) or {}).get("valor_neto"))).fillna(vf.valor_srv)
     vmap = {k(pd.Series([f])).iloc[0]: (cuv, est, det) for f, cuv, est, det in val if f}
     vf["validacion"] = vf.fk.map(lambda x: (f"{vmap[x][1]} · CUV {vmap[x][0]}" + (f" · {vmap[x][2]}" if vmap[x][2] else "")) if x in vmap else "")
-    return d.drop(columns=["fk"]), agg, vf.drop(columns=["fk", "valor_srv"]), val
+    vf["validacion"] = vf.validacion.where(vf.validacion != "", vf.fk.map(fxi.estado_dian).fillna(""))
+    mes_fk = d.drop_duplicates("fk").set_index("fk").mes
+    fx["mes"] = fx.fk.map(mes_fk).fillna(fx.fecha.str[:7])
+    xl = pd.DataFrame(xlin, columns=["factura", "codigo", "descripcion", "cantidad", "valor"]); xl["mes"] = k(xl.factura).map(mes_fk).fillna(k(xl.factura).map(fxi.fecha.str[:7]))
+    d = d[d.tipo_servicio != "SIN RIPS (SOLO XML)"]; vf = vf[vf.factura.isin(set(d.factura))]      # una FEV sin RIPS no cuenta como RIPS
+    return d.drop(columns=["fk"]), agg[agg.tipo_servicio != "SIN RIPS (SOLO XML)"], vf.drop(columns=["fk", "valor_srv"]), val, fx.drop(columns=["fk"]), xl
 
 # ───────── análisis (pestaña «RIPS JSON/TXT vs 360») ─────────
 def _w(mes): return (" WHERE mes=?", (mes,)) if mes else ("", ())
@@ -172,8 +232,9 @@ def resumen(mes=None):
     cf = cruce_facturas(mes); vs = validacion(mes)
     k = dict(facturas=int(d.factura.nunique()), valor=float(d.valor.sum()), usuarios=int(d.paciente_id.replace("", np.nan).nunique()),
              servicios=int(len(d)), json=int((d.origen == "JSON").sum()), txt=int((d.origen == "TXT").sum()),
+             xml=int(df(f"SELECT COUNT(*) n FROM fev_xml{w}", p).n.iloc[0]), dian_validadas=int(df(f"SELECT COUNT(*) n FROM fev_xml{w} AND estado_dian='VALIDADO DIAN'" if w else "SELECT COUNT(*) n FROM fev_xml WHERE estado_dian='VALIDADO DIAN'", p).n.iloc[0]),
              facturas_ok=int((cf.estado == "OK").sum()) if len(cf) else 0, facturas_con_diferencia=int((cf.estado != "OK").sum()) if len(cf) else 0,
-             valor_diferencia=float(cf.dif.abs().sum()) if len(cf) else 0.0, hallazgos_estructura=int(vs.registros.sum()) if len(vs) else 0)
+             valor_diferencia=float(cf.loc[cf.estado.str.contains("DIFIERE|≠"), "dif"].abs().sum()) if len(cf) else 0.0, hallazgos_estructura=int(vs.registros.sum()) if len(vs) else 0)
     return dict(kpis=k, por_tipo=d.groupby("tipo_servicio").agg(servicios=("codigo", "size"), valor=("valor", "sum"), usuarios=("paciente_id", "nunique")).reset_index().to_dict("records"),
                 estados=(cf.estado.str.split("; ").explode().value_counts().rename_axis("estado").reset_index(name="facturas").to_dict("records") if len(cf) else []),
                 estructura=vs.to_dict("records"))
@@ -186,29 +247,40 @@ def cruce_facturas(mes=None):
     r = df(f"SELECT mes, factura, SUM(valor) valor_rips, COUNT(DISTINCT paciente_id) usuarios_rips, MAX(paciente_id) paciente_rips "
            f"FROM rips_det{w} GROUP BY mes, factura", p)
     if r.empty: return r
-    rf = df(f"SELECT factura, MAX(valor_fev) valor_fev, MAX(validacion) validacion, MAX(contrato) contrato_rips FROM rips_factura{w} GROUP BY factura", p)
+    rf = df(f"SELECT factura, MAX(valor_fev) valor_fev, MAX(validacion) validacion, MAX(contrato) contrato_rips, MAX(eps) eps_rips, MAX(modalidad) modalidad_rips "
+            f"FROM rips_factura{w} GROUP BY factura", p)
     f = df(f"SELECT mes, factura, MAX(contrato) contrato, MAX(sede) sede, MAX(modalidad) modalidad, SUM(valor) valor_360, MAX(valor_factura) valor_factura, "
            f"MAX(paciente_id) paciente_360, MAX(n_pacientes) n_pacientes FROM factura{w} GROUP BY mes, factura", p)
     g = df(f"SELECT factura, MAX(total) total_encabezado FROM fac_gen{w} GROUP BY factura", p)
-    for t in (r, rf, f, g): t["fk"] = _fk(t.factura) if len(t) else pd.Series(dtype=str)
-    m = r.merge(rf[["fk", "valor_fev", "validacion", "contrato_rips"]], on="fk", how="left")
+    x = df(f"SELECT factura, MAX(valor) valor_xml, MAX(eps) eps_xml, MAX(estado_dian) estado_dian, MAX(cufe) cufe FROM fev_xml{w} GROUP BY factura", p)
+    for t in (r, rf, f, g, x): t["fk"] = _fk(t.factura) if len(t) else pd.Series(dtype=str)
+    m = r.merge(rf[["fk", "valor_fev", "validacion", "contrato_rips", "eps_rips", "modalidad_rips"]], on="fk", how="left")
     m = m.merge(f.drop(columns=["factura"]).rename(columns={"mes": "mes_360", "contrato": "contrato_360"}), on="fk", how="outer")
     m = m.merge(g[["fk", "total_encabezado"]], on="fk", how="left")
+    m = m.merge(x[["fk", "valor_xml", "eps_xml", "estado_dian", "cufe"]], on="fk", how="outer")
     m["factura"] = m.factura.fillna(m.fk); m["mes"] = m.mes.fillna(m.mes_360)
     m["valor_360_ref"] = m.valor_factura.where(m.valor_factura > 0, m.total_encabezado).fillna(m.valor_360)
-    m["dif"] = m.valor_360_ref.fillna(0) - m.valor_rips.fillna(0)
-    meses_r = set(r.mes)
+    m["modalidad"] = m.modalidad.fillna(m.modalidad_rips).replace("", np.nan)
+    m["dif"] = m.valor_360_ref.fillna(m.valor_xml).fillna(0) - m.valor_rips.fillna(0)
+    meses_r = set(r.mes); meses_360 = set(df("SELECT DISTINCT mes FROM factura").mes)
+    tol = lambda v: max(1.0, 0.001 * (v or 0))
     def est(x):
-        if pd.isna(x.valor_rips): return "SIN RIPS" if x.mes in meses_r else "RIPS NO CARGADO PARA EL MES"
-        if pd.isna(x.valor_360): return "RIPS SIN FACTURA EN 360"
         a = []
-        if x.modalidad != "CAPITA" and abs(x.dif) > max(1.0, 0.001 * (x.valor_360_ref or 0)): a.append("VALOR DIFIERE")
+        if pd.notna(x.valor_xml) and pd.notna(x.valor_rips) and abs(x.valor_xml - x.valor_rips) > tol(x.valor_xml): a.append("XML (FEV) ≠ RIPS")
+        if pd.notna(x.estado_dian) and x.estado_dian not in ("", "VALIDADO DIAN"): a.append("DIAN NO VALIDADA")
+        if pd.isna(x.valor_rips):
+            return "; ".join(["SIN RIPS (HAY XML)" if pd.notna(x.valor_xml) else "SIN RIPS" if x.mes in meses_r else "RIPS NO CARGADO PARA EL MES"] + a)
+        if pd.isna(x.valor_360):
+            return "; ".join(["RIPS SIN FACTURA EN 360" if x.mes in meses_360 else "INFO: FALTA CARGAR LA FACTURACIÓN 360 DEL MES"] + a)
+        if x.modalidad != "CAPITA" and abs(x.dif) > tol(x.valor_360_ref): a.append("VALOR DIFIERE")
         if x.n_pacientes == 1 and x.usuarios_rips == 1 and x.paciente_360 and x.paciente_rips and x.paciente_360 != x.paciente_rips: a.append("PACIENTE DIFERENTE")
         if "RECHAZ" in str(x.validacion or ""): a.append("RECHAZADO POR MINSALUD")
         return "; ".join(a) or "OK"
     m["estado"] = m.apply(est, axis=1)
-    m["contrato"] = m.contrato_360.fillna(m.contrato_rips)
-    cols = ["mes", "factura", "contrato", "sede", "modalidad", "valor_360_ref", "valor_rips", "dif", "usuarios_rips", "n_pacientes", "validacion", "estado"]
+    m.loc[m.valor_360.isna() & m.valor_xml.isna(), "dif"] = np.nan                  # sin 360 ni XML no hay contra qué comparar
+    m["contrato"] = m.contrato_360.fillna(m.contrato_rips); m["eps"] = m.eps_xml.fillna(m.eps_rips)
+    cols = ["mes", "factura", "eps", "contrato", "sede", "modalidad", "valor_360_ref", "valor_xml", "valor_rips", "dif", "usuarios_rips", "n_pacientes",
+            "estado_dian", "validacion", "estado"]
     return m[cols].rename(columns={"valor_360_ref": "valor_360", "n_pacientes": "usuarios_360"}).sort_values("dif", key=lambda s: s.abs(), ascending=False).reset_index(drop=True)
 
 def cruce_servicios(mes=None, tipo=None):
@@ -225,29 +297,42 @@ def cruce_servicios(mes=None, tipo=None):
     r["fk"] = _fk(r.factura); l["fk"] = _fk(l.factura)
     fr = set(r.fk); l = l[l.fk.isin(fr)]                                # solo facturas que están en el RIPS
     m = l.merge(r.drop(columns=["factura"]), on=["fk", "codigo"], how="outer")
+    xl = df(f"SELECT factura, codigo, SUM(cantidad) cant_xml, SUM(valor) valor_xml FROM fev_linea{w} GROUP BY factura, codigo", p)
+    if len(xl):
+        xl["fk"] = _fk(xl.factura); xl["codigo"] = xl.codigo.map(lambda c: hm.get(c, c))
+        m = m.merge(xl[xl.fk.isin(fr)].drop(columns=["factura"]), on=["fk", "codigo"], how="outer")
+    else: m["cant_xml"] = np.nan; m["valor_xml"] = np.nan
     m["factura"] = m.factura.fillna(m.fk)
+    sin360 = m.cant_360.isna() & m.valor_360.isna()
     for c in ("cant_360", "valor_360", "cant_rips", "valor_rips"): m[c] = m[c].fillna(0.0)
     m["dif_cantidad"] = m.cant_360 - m.cant_rips; m["dif_valor"] = m.valor_360 - m.valor_rips
+    hay360 = len(l) > 0
     def est(x):
-        if x.cant_rips == 0 and x.valor_rips == 0 and pd.isna(x.tipo_servicio): return "FACTURADO EN 360 SIN RIPS"
+        xa = []
+        if pd.notna(x.valor_xml) and (abs((x.cant_xml or 0) - x.cant_rips) > 0.001 or abs(x.valor_xml - x.valor_rips) > max(1.0, 0.001 * x.valor_xml)): xa.append("XML (FEV) ≠ RIPS")
+        if pd.isna(x.valor_xml) and len(xl) and x.cant_rips > 0: xa.append("NO ESTÁ EN EL XML")
+        if not hay360: return "; ".join(xa) or ("INFO: XML = RIPS · falta cargar la facturación 360 del mes" if pd.notna(x.valor_xml) else "INFO: falta cargar la facturación 360 del mes")
+        if x.cant_rips == 0 and x.valor_rips == 0 and pd.isna(x.tipo_servicio): return "; ".join(["FACTURADO EN 360 SIN RIPS"] + xa)
         if x.cant_360 == 0 and x.valor_360 == 0:
             return "CÓDIGO RIPS SIN HOMOLOGAR" if x.tipo_servicio in ("Medicamentos", "Otros servicios") and x.codigo == x.codigo_rips else "EN RIPS, NO FACTURADO EN 360"
         a = []
         if x.tipo_servicio not in ("Urgencias", "Hospitalización") and abs(x.dif_cantidad) > 0.001: a.append("CANTIDAD DIFIERE")
         if x.valor_rips > 0 and abs(x.dif_valor) > max(1.0, 0.001 * x.valor_360): a.append("VALOR DIFIERE")
-        return "; ".join(a) or "OK"
+        return "; ".join(a + xa) or "OK"
     m["estado"] = m.apply(est, axis=1)
     m = m[~((m.tipo_servicio.isin(["Urgencias", "Hospitalización", "Recién nacidos", "SIN SERVICIOS"])) & (m.codigo.fillna("") == ""))]
-    cols = ["factura", "tipo_servicio", "servicio", "codigo", "codigo_rips", "actividad", "desc_rips", "cant_360", "cant_rips", "dif_cantidad",
-            "valor_360", "valor_rips", "dif_valor", "estado"]
+    if not hay360: m[["cant_360", "valor_360", "dif_cantidad", "dif_valor"]] = np.nan
+    cols = ["factura", "tipo_servicio", "servicio", "codigo", "codigo_rips", "actividad", "desc_rips", "cant_360", "cant_xml", "cant_rips", "dif_cantidad",
+            "valor_360", "valor_xml", "valor_rips", "dif_valor", "estado"]
     return m[cols].sort_values("dif_valor", key=lambda s: s.abs(), ascending=False).reset_index(drop=True)
 
 REGLAS_RIPS = {
     "RV01": ("Servicio sin código (CUPS/CUM)", lambda d: (d.codigo == "") & ~d.tipo_servicio.isin(["Urgencias", "Hospitalización", "Recién nacidos", "SIN SERVICIOS"])),
     "RV02": ("Servicio con valor en cero (consultas, procedimientos, medicamentos, otros)", lambda d: (d.valor <= 0) & d.tipo_servicio.isin(["Consultas", "Procedimientos", "Medicamentos", "Otros servicios"])),
-    "RV03": ("Consulta o procedimiento sin diagnóstico principal", lambda d: (d.diagnostico == "") & d.tipo_servicio.isin(["Consultas", "Procedimientos"])),
+    "RV03": ("Sin diagnóstico principal (consultas; procedimientos en JSON)", lambda d: (d.diagnostico == "") & ((d.tipo_servicio == "Consultas")
+             | ((d.tipo_servicio == "Procedimientos") & (d.origen == "JSON")))),
     "RV04": ("Usuario sin número de documento", lambda d: d.paciente_id == ""),
-    "RV05": ("Fecha del servicio fuera del mes de la factura", lambda d: (d.fecha != "") & (d.fecha.str[:7] != d.mes)),
+    "RV05": ("Servicio prestado en un mes distinto al de la factura (facturación tardía)", lambda d: (d.fecha != "") & (d.fecha.str[:7] != d.mes)),
     "RV06": ("Valor ≠ cantidad × valor unitario (medicamentos y otros servicios)", lambda d: d.tipo_servicio.isin(["Medicamentos", "Otros servicios"]) & (d.valor_unitario > 0)
              & ((d.cantidad * d.valor_unitario - d.valor).abs() > 1)),
     "RV07": ("Servicio repetido (misma factura, código, usuario y fecha)", lambda d: d.duplicated(["factura", "tipo_servicio", "codigo", "paciente_id", "fecha"], keep=False) & (d.codigo != "")),

@@ -7,7 +7,7 @@ from . import rips_fev as RF
 import pandas as pd
 from .loaders import (_shared, hojas_mensuales, param_hojas, procesar_hoja, leer_tabla, leer_rips, leer_facturas_generadas, norm, ALIAS)
 
-TABLAS = {"facturacion": ["fact", "linea", "dim", "factura", "hallazgo", "medins", "med_det"], "rips": ["rips", "rips_factura", "rips_det"], "rips_fev": ["rips", "rips_factura", "rips_det"], "costos": ["costo"],
+TABLAS = {"facturacion": ["fact", "linea", "dim", "factura", "hallazgo", "medins", "med_det"], "rips": ["rips", "rips_factura", "rips_det", "fev_xml", "fev_linea"], "rips_fev": ["rips", "rips_factura", "rips_det", "fev_xml", "fev_linea"], "costos": ["costo"],
           "farmacia": ["farmacia"], "facturas": ["fac_gen"]}
 
 def registrar(tipo, mes, archivo, estado="en cola", ruta=None):
@@ -254,11 +254,14 @@ def _procesar_rips_fev(cid, rutas, mes_param=None):
     """RIPS JSON / TXT (sueltos o de un comprimido) en una sola carga. Reemplaza los RIPS de los meses que traiga."""
     estado(cid, "procesando", f"Leyendo {len(rutas)} archivo(s) RIPS…")
     try:
-        det, agg, vf, val = RF.procesar(rutas, mes_param)
-        meses = sorted(det["mes"].unique())
+        det, agg, vf, val, fx, xl = RF.procesar(rutas, mes_param)
+        meses = sorted(set(det["mes"]) | set(fx["mes"]))
         with conn() as c:
             _reemplazar(c, "rips_fev", cid, meses)
             det.assign(carga_id=cid)[["carga_id"] + RF.COLS_DET].to_sql("rips_det", c, if_exists="append", index=False)
+            fx.assign(carga_id=cid)[["carga_id", "mes", "factura", "fecha", "valor", "eps", "nit", "contrato", "modalidad", "cobertura", "cufe", "estado_dian", "archivo"]] \
+                .to_sql("fev_xml", c, if_exists="append", index=False)
+            xl.assign(carga_id=cid)[["carga_id", "mes", "factura", "codigo", "descripcion", "cantidad", "valor"]].to_sql("fev_linea", c, if_exists="append", index=False)
             agg.assign(carga_id=cid, nit_eps="", cucon="").rename(columns={"tipo_servicio": "servicio", "codigo": "cups"})[
                 ["carga_id", "mes", "eps", "nit_eps", "contrato", "cucon", "modalidad", "sede", "servicio", "cups", "factura", "cantidad", "valor", "descripcion"]] \
                 .to_sql("rips", c, if_exists="append", index=False)
@@ -266,6 +269,7 @@ def _procesar_rips_fev(cid, rutas, mes_param=None):
                                                                        "valor_fev", "servicios", "validacion"]].to_sql("rips_factura", c, if_exists="append", index=False)
         orig = det.origen.value_counts().to_dict()
         estado(cid, "ok", f"{vf.factura.nunique():,} facturas, {len(det):,} servicios RIPS ({', '.join(f'{k} {v:,}' for k, v in orig.items())})"
+                          + (f"; {len(fx):,} XML de factura (FEV)" if len(fx) else "")
                           + (f"; {len(val)} respuestas de validación (CUV)" if val else "") + f" en {', '.join(meses)}", len(det), ",".join(meses))
     except Exception as e:
         estado(cid, "error", f"{type(e).__name__}: {e}")

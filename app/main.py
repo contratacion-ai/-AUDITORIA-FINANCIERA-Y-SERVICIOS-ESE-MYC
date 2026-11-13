@@ -13,7 +13,7 @@ from .loaders import ALIAS, _shared, es_facturacion_360, hojas_mensuales, parse_
 from .formatos import ACEPTADOS, EXT_COMPRIMIDO, EXT_RIPS, EXT_TABLA, abrir_libro, extension, extraer
 from . import rips_fev as RF
 
-app = FastAPI(title="Auditoría de facturación · ESE Moreno y Clavijo", version="5.2",
+app = FastAPI(title="Auditoría de facturación · ESE Moreno y Clavijo", version="5.3",
               description="Carga mensual de facturación por ámbito (Software 360), RIPS, costos y notas técnicas; conciliación y reportes.")
 init()
 TIPOS = ("facturacion", "actividad", "facturas", "rips", "rips_fev", "costos", "notas", "parametros", "codigos", "farmacia")

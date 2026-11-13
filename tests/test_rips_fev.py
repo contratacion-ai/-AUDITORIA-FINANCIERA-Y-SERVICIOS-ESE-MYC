@@ -43,12 +43,16 @@ def test_facturacion_por_actividad():
 
 def test_rips_json_zip():
     r, c = _subir("rips_fev", RUTAS["rips_json.zip"])
-    assert c["tipo"] == "rips_fev" and "29 facturas" in c["mensaje"]
+    assert c["tipo"] == "rips_fev" and "29 facturas" in c["mensaje"] and "29 XML" in c["mensaje"]
     f = cli.get("/api/rips-fev/facturas?mes=2026-01").json()["filas"]
     assert _estado(f, ESP["sin_rips"]) == "SIN RIPS"
     assert "PACIENTE DIFERENTE" in _estado(f, ESP["paciente"])
     for k in ("cantidad", "cero", "r10"): assert "VALOR DIFIERE" in _estado(f, ESP[k]), k
     assert _estado(f, "FA00000") == "OK"
+    assert "XML (FEV) ≠ RIPS" in _estado(f, ESP["xml_difiere"])                     # XML de la factura con valor distinto
+    fx = next(x for x in f if x["factura"] == "FA00000")
+    assert fx["estado_dian"] == "VALIDADO DIAN" and fx["modalidad"] == "EVENTO"
+    assert cli.get("/api/rips-fev/resumen?mes=2026-01").json()["kpis"]["xml"] == 29
     s = cli.get("/api/rips-fev/servicios?mes=2026-01").json()["filas"]
     assert any(x["estado"] == "CÓDIGO RIPS SIN HOMOLOGAR" for x in s)             # CUM del medicamento aún sin homologar
     v = {x["regla"]: x for x in cli.get("/api/rips-fev/validacion?mes=2026-01").json()["filas"]}
