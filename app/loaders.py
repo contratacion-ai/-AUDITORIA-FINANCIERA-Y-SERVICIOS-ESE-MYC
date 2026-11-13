@@ -50,6 +50,21 @@ def parse_mes_flex(x, anio=None):
         if mo: return f"{anio}-{mo:02d}"
     return None
 
+def cum_norm(c):
+    """CUM normalizado como lo valida el RIPS: expediente-consecutivo sin ceros a la izquierda (19935124-02 → 19935124-2; 053560-06 → 53560-6).
+    Los demás códigos (CUPS, G-0052, D-0082…) se devuelven igual."""
+    s = str(c if c is not None else "").strip().upper()
+    m = re.fullmatch(r"0*(\d+)\s*-\s*0*(\d+)", s)
+    if m: return f"{int(m[1])}-{int(m[2])}"
+    m = re.fullmatch(r"0*(\d{7,})", s)
+    return str(int(m[1])) if m else s
+
+def mapa_cum():
+    """{CUM normalizado: código 360} desde la tabla de homologación (manual + maestro de medicamentos)."""
+    from .db import df
+    h = df("SELECT codigo_rips, codigo_360 FROM hom_codigo")
+    return {cum_norm(a): b for a, b in zip(h.codigo_rips, h.codigo_360)}
+
 def num(x):
     """Número desde texto: 4180 · 4180.5 · 4.180,50 · 4,180.50 · $ 4.180 (CSV con formato colombiano)."""
     try: return float(x)

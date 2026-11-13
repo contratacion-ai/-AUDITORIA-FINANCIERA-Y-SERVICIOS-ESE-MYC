@@ -2,7 +2,7 @@ AUDITORIA DE FACTURACION - ESE MORENO Y CLAVIJO
 ==============================================
 Preparado por: Winston Gerlein Gutierrez Pastrana - Profesional de Costos   (version 5.0)
 
-OPCION RECOMENDADA - INSTALADOR: doble clic en "Instalador_Auditoria_ESE_MyC_v5.3.exe" > Siguiente > Instalar.
+OPCION RECOMENDADA - INSTALADOR: doble clic en "Instalador_Auditoria_ESE_MyC_v5.4.exe" > Siguiente > Instalar.
   No necesita internet, Python ni administrador. Luego abra "Auditoria ESE MyC" desde el Escritorio o el menu Inicio.
   Si Windows muestra "Windows protegio su equipo": "Mas informacion" > "Ejecutar de todas formas".
 
@@ -41,3 +41,5 @@ LIMPIAR CARGAS (v5.1): volver a cargar un mes REEMPLAZA los datos de ese mes (no
 de papelera por carga, "Borrar datos del mes" y "Borrar TODO". El archivo subido se borra solo despues de procesarlo.
 HOMOLOGACION CUM: "Medicamentos e insumos" > "Homologacion CUM" > descargar plantilla, escribir el CUM en la columna A y cargarla
 en "5 - Homologacion de codigos".
+MAESTRO DE MEDICAMENTOS (v5.4): cargue el maestro de 360 con CUM en "5b". Los CUM se homologan solos con los codigos facturados
+(por el nombre generico). Revise "Medicamentos e insumos" > "Maestro 360 vs facturado".

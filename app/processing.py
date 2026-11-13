@@ -5,6 +5,7 @@ from .db import conn, df, TOL_COSTO_UNIT, TABLAS_DATOS, CONSERVAR_ARCHIVOS, UPLO
 from .formatos import abrir_libro
 from . import rips_fev as RF
 import pandas as pd
+from .loaders import cum_norm
 from .loaders import (_shared, hojas_mensuales, param_hojas, procesar_hoja, leer_tabla, leer_rips, leer_facturas_generadas, norm, ALIAS)
 
 TABLAS = {"facturacion": ["fact", "linea", "dim", "factura", "hallazgo", "medins", "med_det"], "rips": ["rips", "rips_factura", "rips_det", "fev_xml", "fev_linea"], "rips_fev": ["rips", "rips_factura", "rips_det", "fev_xml", "fev_linea"], "costos": ["costo"],
@@ -188,6 +189,11 @@ def _procesar_tabla(cid, tipo, path, mes_param=None):
                 fac.assign(carga_id=cid)[["carga_id", "mes", "factura", "factura_rips", "eps", "contrato", "cucon", "modalidad", "sede", "valor_fev", "servicios", "validacion"]] \
                     .to_sql("rips_factura", c, if_exists="append", index=False)
                 msg = f"{len(fac)} facturas y {n} combinaciones de servicio en {', '.join(meses)}"
+            elif tipo == "maestro_med":
+                from . import maestro as MA
+                t = MA.leer(path); meses = []
+                c.execute("DELETE FROM maestro_med")                 # el maestro se reemplaza completo en cada carga
+                t.assign(carga_id=cid)[["carga_id"] + MA.COLS + ["gnorm"]].to_sql("maestro_med", c, if_exists="append", index=False)
             elif tipo == "facturas":
                 t = leer_facturas_generadas(path, mes_param); meses = sorted(t["mes"].unique())
                 _reemplazar(c, "facturas", cid, meses)
@@ -208,7 +214,8 @@ def _procesar_tabla(cid, tipo, path, mes_param=None):
                         .to_sql("farmacia", c, if_exists="append", index=False)
                     msg = f"{len(g):,} registros de dispensación/consumo ({g.codigo.nunique():,} códigos) en {', '.join(meses)}"
                 elif tipo == "codigos":
-                    c.executemany("INSERT OR REPLACE INTO hom_codigo VALUES(?,?,?)", t[["codigo_rips", "codigo_360", "descripcion"]].values.tolist()); meses = []
+                    c.executemany("INSERT OR REPLACE INTO hom_codigo(codigo_rips, codigo_360, descripcion, fuente) VALUES(?,?,?,'manual')",
+                                  [(cum_norm(a), b, d) for a, b, d in t[["codigo_rips", "codigo_360", "descripcion"]].values.tolist()]); meses = []
                     msg = f"{len(t)} códigos homologados (RIPS → Software 360)"
                 elif tipo == "notas":
                     c.executemany("DELETE FROM nota WHERE eps=? AND modalidad=?", t[["eps", "modalidad"]].drop_duplicates().values.tolist()); meses = []
@@ -231,13 +238,24 @@ def _procesar_tabla(cid, tipo, path, mes_param=None):
                     _reemplazar(c, "costos", cid, meses)
                     g.assign(carga_id=cid)[["carga_id", "mes", "sede", "servicio", "cups", "concepto", "cantidad", "valor", "tipo_costo"]].to_sql("costo", c, if_exists="append", index=False)
                     msg = f"{len(g)} registros de costo en {', '.join(meses)}; {n_err} filas rechazadas, {int((v.severidad == 'ADVERTENCIA').sum()) if len(v) else 0} advertencias"
+        if tipo == "maestro_med":
+            from . import maestro as MA
+            h = MA.homologar_auto()
+            msg = (f"{len(t):,} productos ({int((t.cum != '').sum()):,} con CUM, {t.gnorm.nunique():,} genéricos). Homologación automática: "
+                   f"{h['homologados']:,} códigos facturados ↔ {h['cums']:,} CUM" + (f"; {h['conflictos']} CUM en conflicto" if h["conflictos"] else "")
+                   + ("" if h["homologados"] else " (cargue la facturación de 360 para homologar)"))
         estado(cid, "ok", msg, len(srv) if tipo == "rips" else len(t), ",".join(meses) or None)
     except Exception as e:
         estado(cid, "error", f"{type(e).__name__}: {e}")
 
 def procesar_facturacion(path, jobs, limit=None):
-    """Procesa y, al terminar (bien o con error), borra el archivo subido: los datos quedan en la base (AUDIT_CONSERVAR_ARCHIVOS=1 lo conserva)."""
-    try: _procesar_facturacion(path, jobs, limit)
+    """Procesa y, al terminar (bien o con error), borra el archivo subido: los datos quedan en la base (AUDIT_CONSERVAR_ARCHIVOS=1 lo conserva).
+    Si ya hay maestro de medicamentos, se rehace la homologación automática CUM ↔ código 360 con los códigos nuevos."""
+    try:
+        _procesar_facturacion(path, jobs, limit)
+        if df("SELECT COUNT(*) n FROM maestro_med").n.iloc[0]:
+            from . import maestro as MA
+            MA.homologar_auto()
     finally: borrar_archivo(path)
 
 def procesar_parametros(cid, path):

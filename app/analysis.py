@@ -1,7 +1,7 @@
 """Análisis: conciliación Facturación ↔ RIPS ↔ Costos ↔ Notas técnicas, radicación, contratos, cobertura de llaves e informes."""
 import numpy as np, pandas as pd
 from .db import df, UMBRAL_OK, UMBRAL_ALERTA, NT_EXCESO, NT_BAJA, REGLAS, SEDES
-from .loaders import norm
+from .loaders import norm, cum_norm, mapa_cum
 
 def _w(mes, extra=""):
     cond = (["mes=?"] if mes else []) + ([extra] if extra else [])
@@ -34,8 +34,8 @@ def rips_h(mes=None):
     r = df(f"SELECT mes,eps,nit_eps,contrato,cucon,modalidad,sede,servicio tipo_servicio,cups,factura,cantidad,valor FROM rips{w}", p)
     if r.empty: return r
     r = _fill(r)
-    hc = df("SELECT codigo_rips, codigo_360 FROM hom_codigo")
-    if not hc.empty: r["cups"] = r.cups.map(hc.set_index("codigo_rips").codigo_360).fillna(r.cups)   # CUMS → código interno 360
+    hm = mapa_cum()
+    if hm: r["cups"] = r.cups.map(lambda c: hm.get(cum_norm(c), c))           # CUM → código interno 360 (manual + maestro)
     h = r.cups.map(_cups_serv())
     r["servicio"] = np.where(h.notna(), h, "SIN HOMOLOGAR · " + r.tipo_servicio)
     return r

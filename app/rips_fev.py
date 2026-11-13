@@ -11,7 +11,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 import numpy as np, pandas as pd
 from .db import df
-from .loaders import norm, num, _ymd
+from .loaders import norm, num, _ymd, cum_norm, mapa_cum
 
 TIPOS_JSON = {"consultas": "Consultas", "procedimientos": "Procedimientos", "urgencias": "Urgencias", "hospitalizacion": "Hospitalización",
               "reciennacidos": "Recién nacidos", "medicamentos": "Medicamentos", "otrosservicios": "Otros servicios"}
@@ -292,14 +292,14 @@ def cruce_servicios(mes=None, tipo=None):
     if tipo: r = r[r.tipo_servicio == tipo]
     l = df(f"SELECT factura, CASE WHEN cod_proc<>'' THEN cod_proc ELSE cod_med END codigo, MAX(actividad) actividad, MAX(servicio) servicio, "
            f"SUM(cantidad) cant_360, SUM(valor) valor_360 FROM linea{w} GROUP BY factura, codigo", p)
-    h = df("SELECT codigo_rips, codigo_360 FROM hom_codigo"); hm = dict(zip(h.codigo_rips, h.codigo_360))
-    r["codigo"] = r.codigo_rips.map(lambda c: hm.get(c, c))
+    hm = mapa_cum()
+    r["codigo"] = r.codigo_rips.map(lambda c: hm.get(cum_norm(c), c))
     r["fk"] = _fk(r.factura); l["fk"] = _fk(l.factura)
     fr = set(r.fk); l = l[l.fk.isin(fr)]                                # solo facturas que están en el RIPS
     m = l.merge(r.drop(columns=["factura"]), on=["fk", "codigo"], how="outer")
     xl = df(f"SELECT factura, codigo, SUM(cantidad) cant_xml, SUM(valor) valor_xml FROM fev_linea{w} GROUP BY factura, codigo", p)
     if len(xl):
-        xl["fk"] = _fk(xl.factura); xl["codigo"] = xl.codigo.map(lambda c: hm.get(c, c))
+        xl["fk"] = _fk(xl.factura); xl["codigo"] = xl.codigo.map(lambda c: hm.get(cum_norm(c), c))
         m = m.merge(xl[xl.fk.isin(fr)].drop(columns=["factura"]), on=["fk", "codigo"], how="outer")
     else: m["cant_xml"] = np.nan; m["valor_xml"] = np.nan
     m["factura"] = m.factura.fillna(m.fk)

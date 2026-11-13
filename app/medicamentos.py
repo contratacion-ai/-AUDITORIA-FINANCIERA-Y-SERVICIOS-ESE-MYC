@@ -119,8 +119,8 @@ def cruce_farmacia(mes=None, sede=None):
     f = df(f"SELECT mes, sede, codigo, MAX(descripcion) descripcion, MAX(clase) clase, SUM(cantidad) cant_fact, SUM(valor) valor_fact FROM medins{w} GROUP BY 1,2,3", p)
     fa = df(f"SELECT mes, sede, codigo, MAX(descripcion) desc_farmacia, SUM(cantidad) cant_dispensada, SUM(valor_costo) costo FROM farmacia{w} GROUP BY 1,2,3", p)
     if fa.empty: return pd.DataFrame()
-    hc = df("SELECT codigo_rips, codigo_360 FROM hom_codigo")
-    if not hc.empty: fa["codigo"] = fa.codigo.map(hc.set_index("codigo_rips").codigo_360).fillna(fa.codigo)
+    hm = mapa_cum()
+    if hm: fa["codigo"] = fa.codigo.map(lambda c: hm.get(cum_norm(c), c))
     fa = fa.groupby(["mes", "sede", "codigo"], as_index=False).agg(desc_farmacia=("desc_farmacia", "first"), cant_dispensada=("cant_dispensada", "sum"), costo=("costo", "sum"))
     m = f.merge(fa, on=["mes", "sede", "codigo"], how="outer")
     for c in ("cant_fact", "valor_fact", "cant_dispensada", "costo"): m[c] = m[c].fillna(0.0)
@@ -164,6 +164,12 @@ def recomendaciones(mes=None):
                                      "de ingreso potencial no cobrado (excluya lo incluido en cápita)."))
         pv = cf[cf.estado.str.contains("PRECIO VENTA < COSTO")]
         if len(pv): R.append(("naranja", f"{len(pv):,} ítems se facturan por debajo de su costo de adquisición: actualizar tarifas."))
+    from . import maestro as MA
+    mv = MA.validacion(mes)
+    if len(mv):
+        malos = mv[~mv.estado.isin(["OK"]) & ~mv.estado.str.startswith("INFO")]
+        if len(malos): R.append(("naranja", f"Maestro de medicamentos: {len(malos):,} códigos facturados con observación (${malos.valor.sum():,.0f}): sin coincidencia en el maestro, "
+                                             "sin CUM, CUM compartido con otro genérico o sin registro INVIMA. Corregir el maestro en Software 360 antes de generar los RIPS."))
     rd = resumen_detalle(mes)
     if rd.get("sin_cum"):
         R.append(("naranja", f"{rd['sin_cum']:,} códigos de medicamentos/insumos de Software 360 no tienen CUM homologado ({rd['pct_valor_sin_cum']:.0%} del valor): "
@@ -175,7 +181,7 @@ def recomendaciones(mes=None):
 
 # ═════════ v5.1 · detalle por línea (tabla med_det): contrato, código 360, ATC/CUM, usuarios, servicios, RIPS y homologación CUM ═════════
 import re
-from .loaders import norm
+from .loaders import norm, cum_norm, mapa_cum
 
 ATC_GRUPOS = {"A": "Tracto alimentario y metabolismo", "B": "Sangre y órganos hematopoyéticos", "C": "Sistema cardiovascular",
               "D": "Dermatológicos", "G": "Genitourinario y hormonas sexuales", "H": "Preparados hormonales sistémicos",
@@ -232,7 +238,7 @@ def agrupado(nivel="contrato", mes=None, sede=None, clase=None, eps=None, contra
         g["var_precio"] = (g.vu_max / g.vu_min - 1).fillna(0)
         def est(r):
             a = []
-            if not r.cum_homologado: a.append("SIN CUM HOMOLOGADO")
+            if not r.cum_homologado: a.append("INFO: INSUMO SIN CUM (se reporta en otros servicios)" if r.clase == "INSUMO" else "SIN CUM HOMOLOGADO")
             if r.tipo_cod_medicamento == "VARIOS": a.append("VARIOS ATC/CUM PARA UN CÓDIGO 360")
             if r.var_precio > TOL_PRECIO: a.append(f"PRECIO NO HOMOGÉNEO (> {TOL_PRECIO:.0%})")
             if r.valor <= 0: a.append("Facturado en $0 (validar cápita/paquete)")
@@ -261,9 +267,9 @@ def cruce_rips(mes=None, sede=None, eps=None, contrato=None):
     r = df(f"SELECT factura, cups codigo_rips, servicio tipo_servicio, MAX(descripcion) desc_rips, SUM(cantidad) cant_rips, SUM(valor) valor_rips "
            f"FROM rips{w} GROUP BY factura, cups, servicio", p)
     if d.empty or r.empty: return pd.DataFrame()
-    h = df("SELECT codigo_rips, codigo_360 FROM hom_codigo"); hm = dict(zip(h.codigo_rips, h.codigo_360))
+    hm = mapa_cum()
     cod360 = set(d.codigo)
-    r["codigo"] = r.codigo_rips.map(lambda c: hm.get(c, c))
+    r["codigo"] = r.codigo_rips.map(lambda c: hm.get(cum_norm(c), c))
     r["homologado"] = r.codigo.isin(cod360)
     es_med = r.homologado | r.tipo_servicio.map(norm).str.contains("MEDICAMENT|INSUMO") | r.codigo_rips.str.match(CUM_RE.pattern) | r.codigo_rips.str.match(ATC_RE.pattern)
     r = r[es_med]; r["fk"] = _fk(r.factura)
@@ -300,8 +306,8 @@ def homologacion_cum(mes=None):
     w = " WHERE mes=?" if mes else ""; p = (mes,) if mes else ()
     r = df(f"SELECT cups codigo_rips, MAX(servicio) tipo_servicio, MAX(descripcion) descripcion, SUM(cantidad) cantidad, SUM(valor) valor FROM rips{w} GROUP BY cups", p)
     if not r.empty:
-        h = set(df("SELECT codigo_rips FROM hom_codigo").codigo_rips); c360 = set(df("SELECT DISTINCT codigo FROM med_det").codigo) | set(df("SELECT DISTINCT cups FROM fact").cups)
-        r = r[(r.tipo_servicio.map(norm).str.contains("MEDICAMENT|INSUMO") | r.codigo_rips.str.match(CUM_RE.pattern)) & ~r.codigo_rips.isin(h) & ~r.codigo_rips.isin(c360)]
+        h = set(mapa_cum()); c360 = set(df("SELECT DISTINCT codigo FROM med_det").codigo) | set(df("SELECT DISTINCT cups FROM fact").cups)
+        r = r[(r.tipo_servicio.map(norm).str.contains("MEDICAMENT|INSUMO") | r.codigo_rips.str.match(CUM_RE.pattern)) & ~r.codigo_rips.map(cum_norm).isin(h) & ~r.codigo_rips.isin(c360)]
         if len(r): out.append(r.assign(origen="RIPS", clase="", codigo="", cod_med="", tipo_cod_medicamento=r.codigo_rips.map(tipo_codigo), usuarios=np.nan,
                                        estado="CUM DEL RIPS SIN CÓDIGO 360")[["origen", "clase", "codigo", "cod_med", "tipo_cod_medicamento", "descripcion",
                                                                               "codigo_rips", "cantidad", "valor", "usuarios", "estado"]])
@@ -313,10 +319,11 @@ def resumen_detalle(mes=None, sede=None, clase=None, eps=None, contrato=None):
     d = det(mes, sede, clase, eps, contrato)
     if d.empty: return {}
     g = agrupado("codigo", mes, sede, clase, eps, contrato); cr = cruce_rips(mes, sede, eps, contrato)
-    sin = g[g.cum_homologado == ""]
+    sin = g[(g.cum_homologado == "") & (g.clase != "INSUMO")]            # los insumos no llevan CUM
     return dict(usuarios=int(d.paciente_id.replace("", np.nan).nunique()), facturas=int(d.factura.replace("", np.nan).nunique()),
                 contratos=int(d.contrato.nunique()), codigos_360=int(d.codigo.nunique()), codigos_atc=int(d.cod_med.replace("", np.nan).nunique()),
-                sin_cum=int(len(sin)), valor_sin_cum=float(sin.valor.sum()), pct_valor_sin_cum=float(sin.valor.sum() / g.valor.sum()) if g.valor.sum() else 0.0,
+                sin_cum=int(len(sin)), valor_sin_cum=float(sin.valor.sum()),
+                pct_valor_sin_cum=float(sin.valor.sum() / g[g.clase != "INSUMO"].valor.sum()) if g[g.clase != "INSUMO"].valor.sum() else 0.0,
                 rips_estados=(cr.estado.value_counts().rename_axis("estado").reset_index(name="n").to_dict("records") if len(cr) else []),
                 por_atc=agrupado("atc", mes, sede, clase, eps, contrato)[["grupo_atc", "valor", "usuarios"]].to_dict("records"),
                 por_contrato=agrupado("contrato", mes, sede, clase, eps, contrato).head(12)[["contrato", "modalidad", "valor", "usuarios", "lineas"]].to_dict("records"),

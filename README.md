@@ -71,7 +71,7 @@ Endpoints nuevos: `GET /api/comparativos`, `GET /api/comparativo/mensual?nivel=`
 Las gráficas usan Chart.js desde cdnjs (se necesita internet al abrir el dashboard).
 
 ## Instalador de Windows (recomendado)
-Requisito: Windows 10 u 11 de 64 bits. Ejecute **`Instalador_Auditoria_ESE_MyC_v5.3.exe`** (doble clic → Siguiente → Instalar). No requiere internet, Python ni permisos de
+Requisito: Windows 10 u 11 de 64 bits. Ejecute **`Instalador_Auditoria_ESE_MyC_v5.4.exe`** (doble clic → Siguiente → Instalar). No requiere internet, Python ni permisos de
 administrador: incluye Python 3.12 oficial y todas las librerías. Crea accesos en el **Escritorio** y en el **menú Inicio**
 («Auditoría ESE MyC», «Carpeta de datos», «Guía rápida», «Desinstalar») y queda en *Agregar o quitar programas*.
 
@@ -83,6 +83,15 @@ administrador: incluye Python 3.12 oficial y todas las librerías. Crea accesos 
 - Construir el instalador (desde Linux/macOS, sin Windows): `bash instalador/construir_instalador.sh` → `dist/`.
   Versiones empaquetadas en `instalador/requirements-windows.txt`.
 - Windows SmartScreen puede advertir que el instalador no está firmado: «Más información» → «Ejecutar de todas formas».
+
+## Novedades v5.4 · Maestro de medicamentos 360 con CUM (carga «5b»)
+
+| Tema | Qué hace |
+|---|---|
+| **Carga del maestro** | Lee la hoja MAESTRO_MEDICAMENTOS (Código, Nombre, Genérico, Marca, Cod CUM, Cod INVIMA, CUM_RIPS, Estado CUM / INVIMA, Alerta, Observación). Se reemplaza completo en cada carga. «NO APLICA», «0» o vacío = sin CUM. |
+| **Homologación automática** | El código facturado (G-0052) se une al maestro por el **nombre genérico** (la ACTIVIDAD de 360 = «Genérico» del maestro), no por número: la numeración del maestro se corre a partir de ~150 y los códigos de 5 dígitos (G-00628) son otra serie. Todos los CUM de las marcas del genérico quedan homologados al código facturado. Coincidencia aproximada ≥ 95 % (errores como «SOLUCIN») se usa y se marca para validar. Se rehace sola al cargar facturación; las homologaciones manuales se respetan. |
+| **CUM normalizado** | 19935124-02 = 19935124-2 (como el RIPS) en todos los cruces. |
+| **Validación** (Medicamentos → 🧾) | Facturado vs maestro: SIN COINCIDENCIA EN EL MAESTRO, EN EL MAESTRO SIN CUM, CUM COMPARTIDO CON OTRO GENÉRICO, SIN REGISTRO INVIMA / VITAL, CUM SIN CONSECUTIVO, COINCIDENCIA APROXIMADA; insumos (D-) como información. CUM del RIPS vs maestro. Indicadores de calidad del maestro y listas de CUM compartidos y observaciones (Excel: MED_Maestro_vs_Facturado, MED_CUM_RIPS_vs_Maestro, MAESTRO_*). |
 
 ## Novedades v5.3 (probado con RIPS reales JSON + XML y TXT de la ESE)
 

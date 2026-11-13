@@ -211,6 +211,20 @@ def actividad_y_rips(carpeta, facturas=30, seed=23):
         z.writestr("CT000123.txt", f"500000000001,{date(2026, 1, 31).strftime('%d/%m/%Y')},AF000123,{len(af)}")
     return rutas, esperado
 
+def maestro_medicamentos(ruta):
+    """Maestro de medicamentos como el de 360 (hoja MAESTRO_MEDICAMENTOS). Los «Código» NO coinciden con el número de G-xxxx a propósito:
+    el cruce debe hacerse por el genérico. El genérico de G-0052 tiene dos marcas (dos CUM, uno con ceros a la izquierda en el consecutivo)."""
+    wb = Workbook(); ws = wb.active; ws.title = "MAESTRO_MEDICAMENTOS"
+    ws.append(["Código", "Nombre", "Genérico", "Unidad", "Forma Farm.", "Presentación", "Concentración", "Marca", "Cod CUM (original)", "Cod INVIMA",
+               "CUM_RIPS (normalizado)", "Estado CUM", "Estado INVIMA", "Principio activo", "Alerta CUM", "Observación revisión"])
+    ws.append([51, "CLORURO DE SODIO 0.9% 500ML FRESENIUS", "CLORURO DE SODIO 0.9% SOLUCION INYECTABLE 500ML", "ML", "SOLUCION", "BOLSA", "0.9%", "FRESENIUS",
+               "19942561-6", "INV1", "19942561-6", "CUM VALIDO", "REGISTRO MEDICAMENTO", "CLORURO DE SODIO", None, None])
+    ws.append([1200, "CLORURO DE SODIO 0.9% 500ML BAXTER", "CLORURO DE SODIO 0.9% SOLUCION INYECTABLE 500ML", "ML", "SOLUCION", "BOLSA", "0.9%", "BAXTER",
+               "20055558-08", "INV2", "20055558-8", "CUM VALIDO", "REGISTRO MEDICAMENTO", "CLORURO DE SODIO", None, None])
+    ws.append([999, "ACETAMINOFEN TABLETA 500MG SIN CUM", "ACETAMINOFEN TABLETA 500MG", "MG", "TABLETAS", "TABLETAS", "500mg", "NO APLICA", "0", "0", None,
+               "SIN CUM", "SIN REGISTRO / VITAL", "ACETAMINOFEN", None, "Revisar"])
+    wb.save(ruta)
+
 def generar(carpeta):
     os.makedirs(carpeta, exist_ok=True)
     rutas = {k: os.path.join(carpeta, k) for k in ("facturacion_ambito_demo.xlsx", "facturas_generadas_demo.xlsx", "farmacia_demo.xlsx")}

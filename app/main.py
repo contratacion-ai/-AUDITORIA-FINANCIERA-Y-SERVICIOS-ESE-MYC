@@ -12,11 +12,12 @@ from .db import UPLOADS, VERSION, df, init
 from .loaders import ALIAS, _shared, es_facturacion_360, hojas_mensuales, parse_mes, todas_hojas
 from .formatos import ACEPTADOS, EXT_COMPRIMIDO, EXT_RIPS, EXT_TABLA, abrir_libro, extension, extraer
 from . import rips_fev as RF
+from . import maestro as MA
 
-app = FastAPI(title="Auditoría de facturación · ESE Moreno y Clavijo", version="5.3",
+app = FastAPI(title="Auditoría de facturación · ESE Moreno y Clavijo", version="5.4",
               description="Carga mensual de facturación por ámbito (Software 360), RIPS, costos y notas técnicas; conciliación y reportes.")
 init()
-TIPOS = ("facturacion", "actividad", "facturas", "rips", "rips_fev", "costos", "notas", "parametros", "codigos", "farmacia")
+TIPOS = ("facturacion", "actividad", "facturas", "rips", "rips_fev", "costos", "notas", "parametros", "codigos", "farmacia", "maestro_med")
 PLANTILLAS = ("rips", "costos", "notas", "parametros", "codigos", "farmacia")
 
 def _json(d, limit=None):
@@ -288,6 +289,21 @@ def md_mm(nivel: str = "contrato", metrica: str = "valor", sede: str | None = No
     if nivel not in MD.NIVELES or nivel == "usuario": raise HTTPException(422, "nivel: contrato|codigo|servicio|sede|eps|diagnostico|atc")
     if metrica not in ("valor", "cantidad", "usuarios"): raise HTTPException(422, "metrica: valor|cantidad|usuarios")
     return _json(MD.mes_a_mes(nivel, metrica, sede, clase, eps, contrato), limit)
+
+@app.get("/api/maestro/validacion", tags=["maestro de medicamentos"], summary="Lo facturado frente al maestro: coincidencia por genérico, CUM, estado CUM/INVIMA")
+def ma_val(mes: str | None = None, estado: str | None = None, limit: int = 3000):
+    d = MA.validacion(mes)
+    if estado and len(d): d = d[d.estado.str.contains(estado, regex=False)]
+    return _json(d, limit)
+
+@app.get("/api/maestro/calidad", tags=["maestro de medicamentos"], summary="Calidad del maestro: estado CUM/INVIMA, CUM compartidos, observaciones")
+def ma_cal(): return _limpio(MA.calidad())
+
+@app.get("/api/maestro/rips", tags=["maestro de medicamentos"], summary="CUM reportados en los RIPS frente al maestro")
+def ma_rips(mes: str | None = None, limit: int = 3000): return _json(MA.rips_vs_maestro(mes), limit)
+
+@app.get("/api/maestro/productos", tags=["maestro de medicamentos"], summary="Maestro de medicamentos cargado")
+def ma_prod(limit: int = 5000): return _json(df("SELECT codigo, nombre, generico, forma, concentracion, marca, cum, invima, estado_cum, estado_invima, alerta, observacion FROM maestro_med ORDER BY generico"), limit)
 
 @app.get("/api/medicamentos/rips", tags=["medicamentos e insumos"], summary="Cruce medicamentos facturados (360) ↔ RIPS por factura y código")
 def md_rips(mes: str | None = None, sede: str | None = None, eps: str | None = None, contrato: str | None = None, estado: str | None = None, limit: int = 3000):

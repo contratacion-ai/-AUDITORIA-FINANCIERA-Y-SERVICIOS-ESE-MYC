@@ -1,6 +1,6 @@
 """Persistencia (SQLite), parámetros de auditoría, identidad del documento y consulta a DataFrame.
 
-Versión 5.3 — Preparado por Winston Gerlein Gutiérrez Pastrana, Profesional de Costos.
+Versión 5.4 — Preparado por Winston Gerlein Gutiérrez Pastrana, Profesional de Costos.
 Las bases creadas con versiones anteriores se migran automáticamente (``_migrar``) sin perder datos.
 """
 import os, sqlite3
@@ -18,7 +18,7 @@ CARGO = "Profesional de Costos"
 IDENTIDAD = f"{AUTOR} – {CARGO}"
 INSTITUCION = "ESE Departamental de Primer Nivel Moreno y Clavijo"
 NIT = "900034131"
-VERSION = "5.3"
+VERSION = "5.4"
 # Paleta sobria y coherente (hex sin #) para Excel y dashboard
 AZUL, AZUL_MED, AZUL_CLARO, GRIS, GRIS_CLARO = "1F4E79", "2E75B6", "DDEBF7", "595959", "F2F2F2"
 FUENTE = "Calibri"
@@ -110,6 +110,8 @@ CREATE INDEX IF NOT EXISTS i_rdet ON rips_det(mes, factura);
 CREATE TABLE IF NOT EXISTS fev_xml(carga_id INT, mes TEXT, factura TEXT, fecha TEXT, valor REAL, eps TEXT, nit TEXT, contrato TEXT, modalidad TEXT,
   cobertura TEXT, cufe TEXT, estado_dian TEXT, archivo TEXT);
 CREATE TABLE IF NOT EXISTS fev_linea(carga_id INT, mes TEXT, factura TEXT, codigo TEXT, descripcion TEXT, cantidad REAL, valor REAL);
+CREATE TABLE IF NOT EXISTS maestro_med(carga_id INT, codigo TEXT, nombre TEXT, generico TEXT, gnorm TEXT, unidad TEXT, forma TEXT, presentacion TEXT,
+  concentracion TEXT, marca TEXT, cum TEXT, cum_original TEXT, invima TEXT, estado_cum TEXT, estado_invima TEXT, principio TEXT, alerta TEXT, observacion TEXT);
 CREATE TABLE IF NOT EXISTS contrato_eps(contrato TEXT PRIMARY KEY, eps_nombre TEXT, fuente TEXT);
 CREATE TABLE IF NOT EXISTS param_contrato(contrato TEXT PRIMARY KEY, modalidad TEXT, sede TEXT, servicio TEXT);
 CREATE TABLE IF NOT EXISTS param_servicio(servicio TEXT PRIMARY KEY);
@@ -129,7 +131,7 @@ def conn():
     return c
 
 # Columnas agregadas después de la v2/v3: se añaden con ALTER TABLE si la base ya existía
-COLUMNAS_NUEVAS = {"fact": [("origen_cups", "TEXT")], "rips": [("descripcion", "TEXT")], "costo": [("tipo_costo", "TEXT")], "carga": [("ruta", "TEXT")],
+COLUMNAS_NUEVAS = {"fact": [("origen_cups", "TEXT")], "rips": [("descripcion", "TEXT")], "costo": [("tipo_costo", "TEXT")], "carga": [("ruta", "TEXT")], "hom_codigo": [("fuente", "TEXT")],
                    "factura": [("paciente_id", "TEXT"), ("n_pacientes", "INT"), ("valor_factura", "REAL"), ("fecha_radicado", "TEXT"), ("radicado_eps", "TEXT")]}
 # Tablas con datos de una carga (columna carga_id): se borran al eliminar la carga o limpiar un mes
 TABLAS_DATOS = ["fact", "linea", "dim", "factura", "hallazgo", "medins", "med_det", "rips", "rips_factura", "costo", "costo_unitario",

@@ -8,7 +8,7 @@ import pandas as pd
 from openpyxl.chart import BarChart, Reference
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
-from . import analysis as A, costos as C, facturas as F, gerencial as G, medicamentos as MD, rips_fev as RF
+from . import analysis as A, costos as C, facturas as F, gerencial as G, maestro as MA, medicamentos as MD, rips_fev as RF
 from .db import AUTOR, AZUL, AZUL_CLARO, AZUL_MED, CARGO, FUENTE, GRIS, GRIS_CLARO, IDENTIDAD, INSTITUCION, NIT, VERSION, df
 
 TOP = 5            # filas ocupadas por el bloque de título antes de la tabla (títulos en 1-3, fila 4 en blanco, encabezado en la 5)
@@ -33,7 +33,9 @@ DESCRIPCION = {
     "MED_Servicio": "Por unidad funcional (servicio) y ámbito.", "MED_Usuario": "Consumo por usuario anonimizado (consumo atípico).",
     "MED_Diagnostico": "Medicamentos por diagnóstico principal.", "MED_Grupo_ATC": "Por grupo terapéutico ATC.",
     "MED_Cruce_RIPS": "Medicamentos facturados en 360 vs RIPS por factura y código.", "MED_Mes_a_mes_Contrato": "Medicamentos por contrato y mes con variación.",
-    "MED_Mes_a_mes_Codigo": "Medicamentos por código y mes con variación.", "RIPS_FEV_Facturas": "RIPS JSON/TXT vs Software 360, factura a factura.",
+    "MED_Mes_a_mes_Codigo": "Medicamentos por código y mes con variación.", "MED_Maestro_vs_Facturado": "Lo facturado frente al maestro de medicamentos (CUM, INVIMA, coincidencia por genérico).",
+    "MED_CUM_RIPS_vs_Maestro": "CUM reportados en los RIPS frente al maestro.", "MAESTRO_CUM_Compartidos": "CUM repetidos en el maestro (mismo o distinto genérico).",
+    "MAESTRO_Observaciones": "Observaciones de revisión del maestro para corregir en Software 360.", "RIPS_FEV_Facturas": "RIPS JSON/TXT vs Software 360, factura a factura.",
     "RIPS_FEV_Servicios": "RIPS JSON/TXT vs Software 360 por factura y código.", "RIPS_FEV_Estructura": "Reglas de estructura del RIPS (RV01–RV08).", "MED_Homologacion_CUM": "Códigos que no homologan: 360 sin CUM y CUM del RIPS sin código 360.",
 }
 
@@ -57,6 +59,10 @@ def _hojas_v5(mes=None):
             h[t] = MD.agrupado(n, mes)
         h["MED_Cruce_RIPS"] = MD.cruce_rips(mes); h["MED_Homologacion_CUM"] = MD.homologacion_cum(mes)
         h["MED_Mes_a_mes_Contrato"] = MD.mes_a_mes("contrato"); h["MED_Mes_a_mes_Codigo"] = MD.mes_a_mes("codigo")
+        mv = MA.validacion(mes)
+        if len(mv):
+            h["MED_Maestro_vs_Facturado"] = mv; h["MED_CUM_RIPS_vs_Maestro"] = MA.rips_vs_maestro(mes)
+            q = MA.calidad(); h["MAESTRO_CUM_Compartidos"] = pd.DataFrame(q["compartidos"]); h["MAESTRO_Observaciones"] = pd.DataFrame(q["observaciones"])
     rs = RF.resumen(mes)
     if not rs.get("vacio"):
         h["RIPS_FEV_Facturas"] = RF.cruce_facturas(mes); h["RIPS_FEV_Servicios"] = RF.cruce_servicios(mes); h["RIPS_FEV_Estructura"] = RF.validacion(mes)
