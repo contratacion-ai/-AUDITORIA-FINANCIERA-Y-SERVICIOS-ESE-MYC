@@ -1,0 +1,10 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pandas>=2.0
+openpyxl>=3.1
+xlrd>=2.0
+python-multipart>=0.0.9
+pyxlsb>=1.0
+odfpy>=1.4
+py7zr>=0.20
+lxml>=5.0
