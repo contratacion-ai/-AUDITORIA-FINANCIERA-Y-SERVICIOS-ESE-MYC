@@ -283,15 +283,16 @@ def cruce_facturas(mes=None):
             "estado_dian", "validacion", "estado"]
     return m[cols].rename(columns={"valor_360_ref": "valor_360", "n_pacientes": "usuarios_360"}).sort_values("dif", key=lambda s: s.abs(), ascending=False).reset_index(drop=True)
 
-def cruce_servicios(mes=None, tipo=None):
-    """Factura + código: cantidad y valor en 360 (líneas) vs RIPS (servicios). Medicamentos/insumos por la homologación CUM ↔ código 360."""
+def cruce_servicios(mes=None, tipo=None, lineas=None):
+    """Factura + código: cantidad y valor en 360 (líneas) vs RIPS (servicios). Medicamentos/insumos por la homologación CUM ↔ código 360.
+    `lineas` permite cruzar otra fuente de 360 (p. ej. la facturación por actividad): columnas factura, codigo, actividad, servicio, cant_360, valor_360."""
     w, p = _w(mes)
     r = df(f"SELECT factura, tipo_servicio, codigo codigo_rips, MAX(descripcion) desc_rips, SUM(cantidad) cant_rips, SUM(valor) valor_rips FROM rips_det{w} "
            f"GROUP BY factura, tipo_servicio, codigo", p)
     if r.empty: return r
     if tipo: r = r[r.tipo_servicio == tipo]
-    l = df(f"SELECT factura, CASE WHEN cod_proc<>'' THEN cod_proc ELSE cod_med END codigo, MAX(actividad) actividad, MAX(servicio) servicio, "
-           f"SUM(cantidad) cant_360, SUM(valor) valor_360 FROM linea{w} GROUP BY factura, codigo", p)
+    l = lineas.copy() if lineas is not None else df(f"SELECT factura, CASE WHEN cod_proc<>'' THEN cod_proc ELSE cod_med END codigo, MAX(actividad) actividad, "
+                                                  f"MAX(servicio) servicio, SUM(cantidad) cant_360, SUM(valor) valor_360 FROM linea{w} GROUP BY factura, codigo", p)
     hm = mapa_cum()
     r["codigo"] = r.codigo_rips.map(lambda c: hm.get(cum_norm(c), c))
     r["fk"] = _fk(r.factura); l["fk"] = _fk(l.factura)

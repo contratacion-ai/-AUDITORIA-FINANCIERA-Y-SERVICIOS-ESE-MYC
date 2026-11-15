@@ -1,6 +1,6 @@
 """Persistencia (SQLite), parámetros de auditoría, identidad del documento y consulta a DataFrame.
 
-Versión 5.4 — Preparado por Winston Gerlein Gutiérrez Pastrana, Profesional de Costos.
+Versión 5.5 — Preparado por Winston Gerlein Gutiérrez Pastrana, Profesional de Costos.
 Las bases creadas con versiones anteriores se migran automáticamente (``_migrar``) sin perder datos.
 """
 import os, sqlite3
@@ -18,7 +18,7 @@ CARGO = "Profesional de Costos"
 IDENTIDAD = f"{AUTOR} – {CARGO}"
 INSTITUCION = "ESE Departamental de Primer Nivel Moreno y Clavijo"
 NIT = "900034131"
-VERSION = "5.4"
+VERSION = "5.5"
 # Paleta sobria y coherente (hex sin #) para Excel y dashboard
 AZUL, AZUL_MED, AZUL_CLARO, GRIS, GRIS_CLARO = "1F4E79", "2E75B6", "DDEBF7", "595959", "F2F2F2"
 FUENTE = "Calibri"
@@ -112,6 +112,11 @@ CREATE TABLE IF NOT EXISTS fev_xml(carga_id INT, mes TEXT, factura TEXT, fecha T
 CREATE TABLE IF NOT EXISTS fev_linea(carga_id INT, mes TEXT, factura TEXT, codigo TEXT, descripcion TEXT, cantidad REAL, valor REAL);
 CREATE TABLE IF NOT EXISTS maestro_med(carga_id INT, codigo TEXT, nombre TEXT, generico TEXT, gnorm TEXT, unidad TEXT, forma TEXT, presentacion TEXT,
   concentracion TEXT, marca TEXT, cum TEXT, cum_original TEXT, invima TEXT, estado_cum TEXT, estado_invima TEXT, principio TEXT, alerta TEXT, observacion TEXT);
+CREATE TABLE IF NOT EXISTS act_det(carga_id INT, mes TEXT, factura TEXT, fecha_factura TEXT, fecha_servicio TEXT, unidad_funcional TEXT, contrato TEXT,
+  eps_nombre TEXT, modalidad TEXT, sede TEXT, servicio TEXT, clase TEXT, codigo TEXT, cod_med TEXT, actividad TEXT, cantidad REAL, valor_actividad REAL,
+  valor REAL, valor_factura REAL, fecha_radicado TEXT, radicado_eps TEXT, ambito TEXT, paciente_id TEXT, diagnostico TEXT, profesional TEXT,
+  especialidad TEXT, autorizacion TEXT, ingreso TEXT);
+CREATE INDEX IF NOT EXISTS i_act ON act_det(mes, factura);
 CREATE TABLE IF NOT EXISTS contrato_eps(contrato TEXT PRIMARY KEY, eps_nombre TEXT, fuente TEXT);
 CREATE TABLE IF NOT EXISTS param_contrato(contrato TEXT PRIMARY KEY, modalidad TEXT, sede TEXT, servicio TEXT);
 CREATE TABLE IF NOT EXISTS param_servicio(servicio TEXT PRIMARY KEY);
@@ -135,7 +140,7 @@ COLUMNAS_NUEVAS = {"fact": [("origen_cups", "TEXT")], "rips": [("descripcion", "
                    "factura": [("paciente_id", "TEXT"), ("n_pacientes", "INT"), ("valor_factura", "REAL"), ("fecha_radicado", "TEXT"), ("radicado_eps", "TEXT")]}
 # Tablas con datos de una carga (columna carga_id): se borran al eliminar la carga o limpiar un mes
 TABLAS_DATOS = ["fact", "linea", "dim", "factura", "hallazgo", "medins", "med_det", "rips", "rips_factura", "costo", "costo_unitario",
-                "carga_validacion", "nota", "fac_gen", "farmacia", "rips_det", "fev_xml", "fev_linea"]
+                "carga_validacion", "nota", "fac_gen", "farmacia", "rips_det", "fev_xml", "fev_linea", "act_det"]
 CONSERVAR_ARCHIVOS = os.environ.get("AUDIT_CONSERVAR_ARCHIVOS") == "1"   # por defecto el archivo subido se borra una vez procesado
 
 def _migrar(c):

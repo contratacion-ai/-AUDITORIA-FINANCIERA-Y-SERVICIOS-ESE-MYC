@@ -19,7 +19,9 @@ URLS = ["/api/gerencial", "/api/resumen", "/api/comparativos", "/api/resumen/emp
         "/api/facturas/cruce", "/api/facturas/detalle", "/api/medicamentos/resumen", "/api/medicamentos/agrupado", "/api/medicamentos/rips",
         "/api/medicamentos/homologacion", "/api/medicamentos/mes-a-mes", "/api/medicamentos/farmacia", "/api/medicamentos/sede",
         "/api/rips-fev/resumen", "/api/rips-fev/facturas", "/api/rips-fev/servicios", "/api/rips-fev/validacion", "/api/estados/radicacion",
-        "/api/comparativo/mensual", "/api/export", "/api/filtros", "/api/meses"]
+        "/api/comparativo/mensual", "/api/export", "/api/filtros", "/api/meses", "/api/actividad/resumen", "/api/actividad/facturas",
+        "/api/actividad/servicios", "/api/actividad/ambito", "/api/actividad/reglas", "/api/actividad/medicamentos", "/api/actividad/detalle",
+        "/api/maestro/validacion", "/api/maestro/calidad", "/api/maestro/rips"]
 
 @pytest.fixture(scope="module", autouse=True)
 def base_propia():

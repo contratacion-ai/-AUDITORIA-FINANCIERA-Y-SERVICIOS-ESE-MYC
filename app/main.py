@@ -13,8 +13,9 @@ from .loaders import ALIAS, _shared, es_facturacion_360, hojas_mensuales, parse_
 from .formatos import ACEPTADOS, EXT_COMPRIMIDO, EXT_RIPS, EXT_TABLA, abrir_libro, extension, extraer
 from . import rips_fev as RF
 from . import maestro as MA
+from . import actividad as AC
 
-app = FastAPI(title="Auditoría de facturación · ESE Moreno y Clavijo", version="5.4",
+app = FastAPI(title="Auditoría de facturación · ESE Moreno y Clavijo", version="5.5",
               description="Carga mensual de facturación por ámbito (Software 360), RIPS, costos y notas técnicas; conciliación y reportes.")
 init()
 TIPOS = ("facturacion", "actividad", "facturas", "rips", "rips_fev", "costos", "notas", "parametros", "codigos", "farmacia", "maestro_med")
@@ -44,7 +45,7 @@ def apagar(request: Request):
 
 @app.get("/api/meses", tags=["datos"], summary="Meses con datos por fuente")
 def meses():
-    return {t: df(f"SELECT DISTINCT mes FROM {t} ORDER BY mes").mes.tolist() for t in ("fact", "rips", "costo", "fac_gen", "farmacia", "rips_det")}
+    return {t: df(f"SELECT DISTINCT mes FROM {t} ORDER BY mes").mes.tolist() for t in ("fact", "rips", "costo", "fac_gen", "farmacia", "rips_det", "act_det")}
 
 @app.get("/api/filtros", tags=["datos"], summary="Valores disponibles para los filtros del dashboard (sedes, EPS, clases)")
 def filtros():
@@ -57,7 +58,6 @@ def filtros():
 def _cargar_archivo(tipo, path, nombre, mes, bg):
     """Registra y programa el procesamiento de UNA hoja de cálculo o texto. Devuelve (cargas, nota)."""
     nota = None
-    if tipo == "actividad": tipo = "facturacion"          # «facturas generadas por actividad» de 360: mismo proceso que la facturación por ámbito
     if extension(path) in EXT_RIPS: raise ValueError(f"«{nombre}»: los JSON se cargan como «RIPS JSON / TXT».")
     if tipo in ("farmacia", "costos"):
         # el reporte de 360 (facturación por ámbito, p. ej. filtrado a MEDICAMENTOS) cargado en otro tipo se procesa como facturación
@@ -65,14 +65,14 @@ def _cargar_archivo(tipo, path, nombre, mes, bg):
             if es_facturacion_360(abrir_libro(path)):
                 tipo, nota = "facturacion", f"«{nombre}» tiene el formato de facturación por ámbito de Software 360: se cargó como Facturación (medicamentos e insumos incluidos)."
         except Exception: pass
-    if tipo == "facturacion":
+    if tipo in ("facturacion", "actividad"):
         try:
             z = abrir_libro(path); hojas = hojas_mensuales(z, anio=mes[:4] if mes else None); nombres = list(todas_hojas(z))
         except Exception as e: raise ValueError(f"«{nombre}»: no se pudo leer ({type(e).__name__}: {e}).")
         sel = [m for m in sorted(hojas) if not mes or m == mes]
         if not sel: raise ValueError(f"«{nombre}»: no se encontraron hojas mensuales ('ENERO 2026', 'ENERO' o una hoja con FECHA DE FACTURACION). Hojas: {nombres or 'ninguna'}")
         jobs = [(P.registrar(tipo, m, nombre, ruta=path), m) for m in sel]
-        bg.add_task(P.procesar_facturacion, path, jobs)
+        bg.add_task(P.procesar_actividad if tipo == "actividad" else P.procesar_facturacion, path, jobs)
         return [{"id": i, "mes": m, "archivo": nombre} for i, m in jobs], nota
     cid = P.registrar(tipo, mes, nombre, ruta=path)
     bg.add_task(P.procesar_parametros, cid, path) if tipo == "parametros" else bg.add_task(P.procesar_tabla, cid, tipo, path, mes)
@@ -289,6 +289,36 @@ def md_mm(nivel: str = "contrato", metrica: str = "valor", sede: str | None = No
     if nivel not in MD.NIVELES or nivel == "usuario": raise HTTPException(422, "nivel: contrato|codigo|servicio|sede|eps|diagnostico|atc")
     if metrica not in ("valor", "cantidad", "usuarios"): raise HTTPException(422, "metrica: valor|cantidad|usuarios")
     return _json(MD.mes_a_mes(nivel, metrica, sede, clase, eps, contrato), limit)
+
+@app.get("/api/actividad/resumen", tags=["facturación por actividad"], summary="KPIs, estados del cruce y distribución por servicio, unidad, sede y contrato")
+def ac_res(mes: str | None = None, sede: str | None = None, eps: str | None = None, contrato: str | None = None): return _limpio(AC.resumen(mes, sede, eps, contrato))
+
+@app.get("/api/actividad/facturas", tags=["facturación por actividad"], summary="Cruce integral por factura: valor factura, RIPS, XML/DIAN, facturas generadas, por ámbito y radicación")
+def ac_fac(mes: str | None = None, sede: str | None = None, eps: str | None = None, contrato: str | None = None, estado: str | None = None, limit: int = 3000):
+    d = AC.facturas(mes, sede, eps, contrato)
+    if estado and len(d): d = d[d.estado.str.contains(estado, regex=False)]
+    return _json(d, limit)
+
+@app.get("/api/actividad/servicios", tags=["facturación por actividad"], summary="Por factura y código: actividad vs RIPS y XML (CUM homologados con el maestro)")
+def ac_srv(mes: str | None = None, sede: str | None = None, eps: str | None = None, contrato: str | None = None, estado: str | None = None, limit: int = 3000):
+    d = AC.servicios(mes, sede, eps, contrato)
+    if estado and len(d): d = d[d.estado.str.contains(estado, regex=False)]
+    return _json(d, limit)
+
+@app.get("/api/actividad/ambito", tags=["facturación por actividad"], summary="Facturación por actividad vs por ámbito, por servicio")
+def ac_amb(mes: str | None = None): return _json(AC.ambito_vs_actividad(mes))
+
+@app.get("/api/actividad/reglas", tags=["facturación por actividad"], summary="Reglas de línea A01–A08 (resumen o detalle de una regla)")
+def ac_reg(mes: str | None = None, regla: str | None = None, sede: str | None = None, eps: str | None = None, contrato: str | None = None, limit: int = 3000):
+    if regla and regla not in AC.REGLAS_LINEA: raise HTTPException(422, f"Reglas: {list(AC.REGLAS_LINEA)}")
+    return _json(AC.reglas(mes, regla, sede, eps, contrato), limit)
+
+@app.get("/api/actividad/medicamentos", tags=["facturación por actividad"], summary="Medicamentos e insumos de la facturación por actividad frente al maestro")
+def ac_med(mes: str | None = None, limit: int = 3000): return _json(AC.medicamentos(mes), limit)
+
+@app.get("/api/actividad/detalle", tags=["facturación por actividad"], summary="Líneas de la facturación por actividad (filtro por factura)")
+def ac_det(mes: str | None = None, sede: str | None = None, eps: str | None = None, contrato: str | None = None, factura: str | None = None, limit: int = 3000):
+    return _json(AC.detalle(mes, sede, eps, contrato, factura), limit)
 
 @app.get("/api/maestro/validacion", tags=["maestro de medicamentos"], summary="Lo facturado frente al maestro: coincidencia por genérico, CUM, estado CUM/INVIMA")
 def ma_val(mes: str | None = None, estado: str | None = None, limit: int = 3000):

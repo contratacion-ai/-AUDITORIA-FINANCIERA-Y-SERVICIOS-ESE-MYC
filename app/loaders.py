@@ -198,9 +198,10 @@ CAMPOS = dict(contrato="CONTRATO", sede="SEDE", servicio="SERVICIO", ambito="AMB
               factura="FACTURA NRO", fecha="FECHA DE FACTURACION", eps="CODIGO EPS", eps_n="NOMBRE EPS",
               ide="NUMERO IDE", esp="ESPECIALIDAD", agenda="AGENDA", prof="PROFESIONAL", reg="REGULADO",
               diag=("NOMBRE DIAGNOSTICO", "NOMBRE DX"), act="ACTIVIDAD", tipo_pac="TIPO DE PACIENTE", uf="UNIDAD FUNCIONAL",
-              diag_cod=("COD DIAGNOSTICO", "CODIGO DX"), vfac="VALOR FACTURA", frad="FECHA RADICADO", nrad="NRO RADICADO EPS")
+              diag_cod=("COD DIAGNOSTICO", "CODIGO DX"), vfac="VALOR FACTURA", frad="FECHA RADICADO", nrad="NRO RADICADO EPS",
+              aut="NRO AUTORIZACION", fserv="FECHA DE SERVICIO", ingreso="NRO INGRESO")
 # eps / eps_n son opcionales: el reporte «facturas generadas por actividad» de 360 no trae EPS; se deduce del contrato (eps_de_contrato)
-OPCIONALES = {"med", "eps", "eps_n", "ide", "esp", "agenda", "prof", "regimen", "reg", "diag", "act", "tipo_pac", "uf", "diag_cod", "vfac", "frad", "nrad"}
+OPCIONALES = {"med", "eps", "eps_n", "ide", "esp", "agenda", "prof", "regimen", "reg", "diag", "act", "tipo_pac", "uf", "diag_cod", "vfac", "frad", "nrad", "aut", "fserv", "ingreso"}
 
 # Respaldo cuando no hay columnas de EPS ni contrato aprendido de cargas anteriores (orden: de lo más específico a lo general)
 EPS_POR_CONTRATO = [("SOAT PREVISORA", "LA PREVISORA SA COMPANIA DE SEGUROS"), ("FIDUPREVISORA", "FIDEICOMISOS PATRIMONIOS AUTONOMOS FIDUCIARIA LA PREVISORA SA"),
@@ -248,9 +249,10 @@ def param_hojas(z, ss):
     contratos = [(c, norm(m), sd, sv) for c, m, sd, sv in tabla("PARAM CONTRATO", ["CONTRATO", "MODALIDAD", "SEDE", "SERVICIO"])]
     return contratos, [x[0] for x in tabla("PARAM SERVICIO", ["SERVICIO"])]
 
-def procesar_hoja(z, path, ss, mes, param, limit=None):
+def procesar_hoja(z, path, ss, mes, param, limit=None, detalle=False):
     """Agrega una hoja mensual (≈220 mil líneas) sin cargarla completa.
-    param = {'contratos': {norm(contrato): modalidad}, 'servicios': {norm(servicio)}}"""
+    param = {'contratos': {norm(contrato): modalidad}, 'servicios': {norm(servicio)}}
+    detalle=True (facturación por actividad): además devuelve una fila por línea en R['act_det'] (paciente con hash)."""
     hdr, hi = None, 0          # el reporte puede traer filas de título antes de los encabezados (p. ej. junio)
     for i, r in enumerate(iter_rows(z, path, ss, limit=25)):
         if {"CONTRATO", "VALOR TOTAL"} <= {norm(v) for v in r.values()}: hdr, hi = r, i; break
@@ -268,6 +270,7 @@ def procesar_hoja(z, path, ss, mes, param, limit=None):
     fac, hal = {}, defaultdict(lambda: [0, 0.0])
     # Medicamentos / insumos / suplementos: [cantidad, valor, líneas, vu_min, vu_max, cant_max, líneas en cero]
     med, mdesc = defaultdict(lambda: [0.0, 0.0, 0, float("inf"), 0.0, 0.0, 0]), {}
+    adet = []      # facturación por actividad: una fila por línea
     mdet = []      # detalle por línea de medicamentos/insumos (paciente con hash): contrato, CUPS/código 360, ATC/CUM, usuarios, cruces
     # Regla de actividad: ACTIVIDAD normalizada → {código: nº de líneas}. Se usa para identificar el CUPS de las líneas que
     # llegan sin código (ver docstring de `identificar_cups`). `huerf` acumula esas líneas hasta conocer el mapa completo.
@@ -293,6 +296,13 @@ def procesar_hoja(z, path, ss, mes, param, limit=None):
         for x in fl: a = hal[(cont, x)]; a[0] += 1; a[1] += vt
         epsn = g(c["eps_n"], "")
         if sin_eps: epsn = eps_de_contrato(cont, ce)
+        if detalle:
+            idd = (g(c["ide"]) or "").strip()
+            adet.append((fn, _ymd(f) if f else "", _ymd(g(c["fserv"], "")) if c["fserv"] else "", g(c["uf"], ""), cont, epsn, modal, sede, serv,
+                         clase_item(serv, g(c["cups"]), g(c["med"])) or "SERVICIO", code, (g(c["med"]) or "").strip(), (g(c["act"]) or "").strip(), cant, va, vt,
+                         num(g(c["vfac"])) if c["vfac"] else 0.0, _ymd(g(c["frad"], "")) if c["frad"] else "", (g(c["nrad"]) or "").strip(), amb,
+                         hashlib.sha1(idd.encode()).hexdigest()[:12] if idd else "", g(c["diag_cod"], ""), g(c["prof"], ""), g(c["esp"], ""),
+                         (g(c["aut"]) or "").strip(), (g(c["ingreso"]) or "").strip()))
         act = norm_act(g(c["act"]))
         kf = (eps, epsn, cont, modal, sede, serv, amb, g(c["regimen"], ""))
         if code:
@@ -340,7 +350,7 @@ def procesar_hoja(z, path, ss, mes, param, limit=None):
         a[0] += v[0]; a[1] += v[1]; a[2] += v[2]
     reglas = [(a, atxt.get(a, ""), code, nl) for a, d in amap.items() for code, nl in d.items()]
     medins = [(*k[:8], mdesc.get(k[7], ""), v[0], v[1], v[2], (v[3] if v[3] != float("inf") else 0.0), v[4], v[5], v[6]) for k, v in med.items()]
-    return dict(fact=fact, dim=dim, lin=lin, fac=fac, hal=hal, filas=n, reglas=reglas, medins=medins, med_det=mdet, con_eps=not sin_eps)
+    return dict(fact=fact, dim=dim, lin=lin, fac=fac, hal=hal, filas=n, reglas=reglas, medins=medins, med_det=mdet, con_eps=not sin_eps, act_det=adet)
 
 # ───────────── RIPS / costos / notas técnicas: formato homologado + lectura del consolidado nativo ─────────────
 ALIAS = {

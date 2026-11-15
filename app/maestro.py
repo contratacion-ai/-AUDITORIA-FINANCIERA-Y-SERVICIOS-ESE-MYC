@@ -39,8 +39,11 @@ def leer(path):
 
 def _facturados():
     """Códigos de medicamentos (no insumos D-) facturados en 360 con su descripción y valor."""
-    d = df("SELECT codigo, MAX(descripcion) descripcion, MAX(clase) clase, SUM(valor) valor, SUM(lineas) lineas FROM medins WHERE codigo NOT LIKE 'D-%' "
-           "AND clase <> 'INSUMO' AND codigo <> 'SIN CODIGO' GROUP BY codigo")
+    # una fila por (código, descripción): el mismo código puede venir con textos distintos en la facturación por ámbito y por actividad
+    d = df("SELECT codigo, descripcion, MAX(clase) clase, SUM(valor) valor, SUM(lineas) lineas FROM ("
+           "SELECT codigo, descripcion, clase, valor, lineas FROM medins UNION ALL "
+           "SELECT codigo, actividad, clase, valor, 1 FROM act_det WHERE clase IN ('MEDICAMENTO','SUPLEMENTO')) "
+           "WHERE codigo NOT LIKE 'D-%' AND clase <> 'INSUMO' AND codigo NOT IN ('SIN CODIGO', '') GROUP BY codigo, descripcion")
     d["gnorm"] = d.descripcion.map(norm)
     return d
 
@@ -63,7 +66,8 @@ def homologar_auto():
     fact = _facturados()
     if maestro.empty or fact.empty: return dict(homologados=0, cums=0, conflictos=0)
     e = emparejar(fact, maestro)
-    e = e[e.tipo != "SIN COINCIDENCIA"].merge(fact[["codigo", "descripcion", "valor"]], on="codigo")
+    e = e.assign(descripcion=fact.descripcion.values, valor=fact.valor.values)
+    e = e[e.tipo != "SIN COINCIDENCIA"]
     m = maestro[maestro.cum != ""][["gnorm", "cum"]]
     x = e.merge(m, left_on="gnorm_maestro", right_on="gnorm").sort_values("valor", ascending=False)
     conflictos = int(x.groupby("cum").codigo.nunique().gt(1).sum())
@@ -78,10 +82,15 @@ def homologar_auto():
 PRIORIDAD = ["SIN COINCIDENCIA EN EL MAESTRO", "EN EL MAESTRO SIN CUM (no se puede reportar en el RIPS)", "CUM COMPARTIDO CON OTRO GENÉRICO",
              "SIN REGISTRO INVIMA / VITAL", "CUM SIN CONSECUTIVO", "COINCIDENCIA APROXIMADA (validar el nombre en 360)"]
 
-def validacion(mes=None):
-    """Lo facturado (medicamentos e insumos) frente al maestro: coincidencia, CUM disponibles, estado CUM/INVIMA y alertas."""
+def validacion(mes=None, fuente="medins"):
+    """Lo facturado (medicamentos e insumos) frente al maestro: coincidencia, CUM disponibles, estado CUM/INVIMA y alertas.
+    fuente: «medins» (facturación de las demás pestañas) o «act_det» (facturación por actividad)."""
     w, p = (" WHERE mes=?", (mes,)) if mes else ("", ())
-    f = df(f"SELECT codigo, MAX(descripcion) descripcion, MAX(clase) clase, SUM(cantidad) cantidad, SUM(valor) valor, SUM(lineas) lineas FROM medins{w} GROUP BY codigo", p)
+    if fuente == "act_det":
+        f = df(f"SELECT codigo, MAX(actividad) descripcion, MAX(clase) clase, SUM(cantidad) cantidad, SUM(valor) valor, COUNT(*) lineas FROM act_det"
+               f"{w}{' AND' if w else ' WHERE'} clase IN ('MEDICAMENTO','INSUMO','SUPLEMENTO') GROUP BY codigo", p)
+    else:
+        f = df(f"SELECT codigo, MAX(descripcion) descripcion, MAX(clase) clase, SUM(cantidad) cantidad, SUM(valor) valor, SUM(lineas) lineas FROM medins{w} GROUP BY codigo", p)
     maestro = df("SELECT * FROM maestro_med")
     if f.empty or maestro.empty: return pd.DataFrame()
     f["gnorm"] = f.descripcion.map(norm)

@@ -34,6 +34,7 @@ def test_cum_norm():
 
 def test_maestro_homologa_por_generico():
     _subir("actividad", RUTAS["ENERO_actividad.xlsx"])
+    assert db.df("SELECT COUNT(*) n FROM act_det").n.iloc[0] > 0
     c = _subir("maestro_med", MAESTRO)
     assert "2 CUM" in c["mensaje"]                                                  # dos marcas del mismo genérico
     h = db.df("SELECT * FROM hom_codigo")

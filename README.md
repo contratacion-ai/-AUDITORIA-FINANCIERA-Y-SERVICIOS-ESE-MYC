@@ -71,7 +71,7 @@ Endpoints nuevos: `GET /api/comparativos`, `GET /api/comparativo/mensual?nivel=`
 Las gráficas usan Chart.js desde cdnjs (se necesita internet al abrir el dashboard).
 
 ## Instalador de Windows (recomendado)
-Requisito: Windows 10 u 11 de 64 bits. Ejecute **`Instalador_Auditoria_ESE_MyC_v5.4.exe`** (doble clic → Siguiente → Instalar). No requiere internet, Python ni permisos de
+Requisito: Windows 10 u 11 de 64 bits. Ejecute **`Instalador_Auditoria_ESE_MyC_v5.5.exe`** (doble clic → Siguiente → Instalar). No requiere internet, Python ni permisos de
 administrador: incluye Python 3.12 oficial y todas las librerías. Crea accesos en el **Escritorio** y en el **menú Inicio**
 («Auditoría ESE MyC», «Carpeta de datos», «Guía rápida», «Desinstalar») y queda en *Agregar o quitar programas*.
 
@@ -83,6 +83,16 @@ administrador: incluye Python 3.12 oficial y todas las librerías. Crea accesos 
 - Construir el instalador (desde Linux/macOS, sin Windows): `bash instalador/construir_instalador.sh` → `dist/`.
   Versiones empaquetadas en `instalador/requirements-windows.txt`.
 - Windows SmartScreen puede advertir que el instalador no está firmado: «Más información» → «Ejecutar de todas formas».
+
+## Novedades v5.5 · Pestaña «📋 Facturación por actividad»
+
+| Tema | Qué hace |
+|---|---|
+| **Datos propios** | La carga «1c» guarda el reporte por actividad línea a línea (tabla `act_det`: factura, fechas de factura/servicio/radicado, unidad funcional, contrato, EPS, sede, servicio, código, ATC, cantidad, valores, VALOR FACTURA, diagnóstico, profesional, autorización; paciente anonimizado). Ya no reemplaza la facturación por ámbito del mes: si el mes no la tiene, también alimenta las demás pestañas. |
+| **Cruce integral por factura** | Σ líneas vs VALOR FACTURA (no cápita) · RIPS (JSON/TXT/Excel) · XML de la FEV y validación DIAN · informe de facturas generadas (encabezado, glosada) · facturación por ámbito · radicación (días hábiles, plazo, sin radicar, radicado antes de la factura) · paciente distinto al RIPS · varios contratos. Una fuente solo cuenta como faltante en los meses en que se cargó. |
+| **Por factura y código** | Actividad vs RIPS y XML (cantidad y valor; CUM homologados con el maestro). |
+| **Otras vistas** | Medicamentos vs maestro, por ámbito vs por actividad (por servicio), reglas de línea A01–A08 (valor cero, valor ≠ unitario × cantidad, sin código, consulta sin diagnóstico, facturación tardía > 30 días y líneas repetidas —estas dos sin cápita—, sin factura, cantidad ≤ 0) y líneas de una factura. Excel: hojas `ACT_*`; recomendaciones en el informe gerencial. |
+| **Maestro** | La homologación automática considera cada par código-descripción de ambas facturaciones. |
 
 ## Novedades v5.4 · Maestro de medicamentos 360 con CUM (carga «5b»)
 

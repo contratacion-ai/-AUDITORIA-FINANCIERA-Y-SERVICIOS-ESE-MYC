@@ -33,7 +33,7 @@ def _estado(filas, factura): return next(x["estado"] for x in filas if x["factur
 
 def test_facturacion_por_actividad():
     r, c = _subir("actividad", RUTAS["ENERO_actividad.xlsx"])
-    assert c["tipo"] == "facturacion" and c["mes"] == "2026-01"                     # hoja sin mes: se toma de FECHA DE FACTURACION
+    assert c["tipo"] == "actividad" and c["mes"] == "2026-01" and "también alimenta" in c["mensaje"]   # hoja sin mes: FECHA DE FACTURACION
     eps = {x["empresa"] for x in cli.get("/api/resumen/empresas?mes=2026-01").json()["empresas"]["filas"]}
     assert eps == {"NUEVA EMPRESA PROMOTORA DE SALUD", "ENTIDAD PROMOTORA DE SALUD SANITAS S A S"}   # deducida del contrato
     h = cli.get("/api/conciliacion/hallazgos?mes=2026-01").json()["filas"]

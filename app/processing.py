@@ -9,7 +9,7 @@ from .loaders import cum_norm
 from .loaders import (_shared, hojas_mensuales, param_hojas, procesar_hoja, leer_tabla, leer_rips, leer_facturas_generadas, norm, ALIAS)
 
 TABLAS = {"facturacion": ["fact", "linea", "dim", "factura", "hallazgo", "medins", "med_det"], "rips": ["rips", "rips_factura", "rips_det", "fev_xml", "fev_linea"], "rips_fev": ["rips", "rips_factura", "rips_det", "fev_xml", "fev_linea"], "costos": ["costo"],
-          "farmacia": ["farmacia"], "facturas": ["fac_gen"]}
+          "farmacia": ["farmacia"], "facturas": ["fac_gen"], "actividad": ["act_det"]}
 
 def registrar(tipo, mes, archivo, estado="en cola", ruta=None):
     with conn() as c:
@@ -131,6 +131,25 @@ def _reemplazar(c, tipo, cid, meses):
             c.execute("UPDATE carga SET mensaje=COALESCE(mensaje,'') || ' · meses ' || ? || ' reemplazados por la carga ' || ? WHERE id=?",
                       (",".join(sorted(ms & set(meses))), cid, r["id"]))
 
+def _guardar_facturacion(c, cid, mes, R):
+    """Guarda en las tablas de la facturación (fact, línea, factura, hallazgos, medicamentos…) el resultado de procesar_hoja."""
+    _reemplazar(c, "facturacion", cid, [mes])
+    c.executemany("INSERT INTO fact VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ((cid, mes, *k[:9], *v, k[9]) for k, v in R["fact"].items()))
+    c.execute("DELETE FROM regla_actividad WHERE mes=?", (mes,))
+    c.executemany("INSERT OR REPLACE INTO regla_actividad VALUES(?,?,?,?,?)", ((mes, a, t, k, n) for a, t, k, n in R["reglas"]))
+    c.executemany("INSERT INTO linea VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ((cid, mes, *k, *v) for k, v in R["lin"].items()))
+    c.executemany("INSERT INTO dim VALUES(?,?,?,?,?,?,?,?)", ((cid, mes, *k, *v) for k, v in R["dim"].items()))
+    c.executemany("INSERT INTO factura(carga_id, mes, factura, eps, eps_nombre, contrato, modalidad, sede, n_contratos, valor, lineas, "
+                  "paciente_id, n_pacientes, valor_factura, fecha_radicado, radicado_eps) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                  ((cid, mes, fn, x[0], x[1], x[2], x[3], x[4], len(x[7]), x[5], x[6], (next(iter(x[8])) if len(x[8]) == 1 else ""),
+                    len(x[8]), x[9], x[10], x[11]) for fn, x in R["fac"].items()))
+    if R.get("con_eps"):      # aprende contrato → EPS para los reportes que no traen EPS (facturas generadas por actividad)
+        c.execute("INSERT OR REPLACE INTO contrato_eps SELECT contrato, eps_nombre, 'facturación' FROM (SELECT contrato, eps_nombre, SUM(lineas) n "
+                  "FROM fact WHERE carga_id=? AND eps_nombre<>'' GROUP BY 1, 2 ORDER BY n)", (cid,))
+    c.executemany("INSERT INTO hallazgo VALUES(?,?,?,?,?,?)", ((cid, mes, k[0], k[1], *v) for k, v in R["hal"].items()))
+    c.executemany("INSERT INTO medins VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ((cid, mes, *r) for r in R["medins"]))
+    c.executemany("INSERT INTO med_det VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ((cid, mes, *r) for r in R["med_det"]))
+
 def _procesar_facturacion(path, jobs, limit=None):
     """jobs: [(carga_id, 'AAAA-MM')]. Abre el xlsx una sola vez; toma PARAM CONTRATO/SERVICIO del libro y procesa cada mes."""
     try:
@@ -145,23 +164,7 @@ def _procesar_facturacion(path, jobs, limit=None):
         estado(cid, "procesando", "Leyendo hoja…")
         try:
             R = procesar_hoja(z, hojas[mes][1], ss, mes, param, limit)
-            with conn() as c:
-                _reemplazar(c, "facturacion", cid, [mes])
-                c.executemany("INSERT INTO fact VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ((cid, mes, *k[:9], *v, k[9]) for k, v in R["fact"].items()))
-                c.execute("DELETE FROM regla_actividad WHERE mes=?", (mes,))
-                c.executemany("INSERT OR REPLACE INTO regla_actividad VALUES(?,?,?,?,?)", ((mes, a, t, k, n) for a, t, k, n in R["reglas"]))
-                c.executemany("INSERT INTO linea VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ((cid, mes, *k, *v) for k, v in R["lin"].items()))
-                c.executemany("INSERT INTO dim VALUES(?,?,?,?,?,?,?,?)", ((cid, mes, *k, *v) for k, v in R["dim"].items()))
-                c.executemany("INSERT INTO factura(carga_id, mes, factura, eps, eps_nombre, contrato, modalidad, sede, n_contratos, valor, lineas, "
-                              "paciente_id, n_pacientes, valor_factura, fecha_radicado, radicado_eps) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                              ((cid, mes, fn, x[0], x[1], x[2], x[3], x[4], len(x[7]), x[5], x[6], (next(iter(x[8])) if len(x[8]) == 1 else ""),
-                                len(x[8]), x[9], x[10], x[11]) for fn, x in R["fac"].items()))
-                if R.get("con_eps"):      # aprende contrato → EPS para los reportes que no traen EPS (facturas generadas por actividad)
-                    c.execute("INSERT OR REPLACE INTO contrato_eps SELECT contrato, eps_nombre, 'facturación' FROM (SELECT contrato, eps_nombre, SUM(lineas) n "
-                              "FROM fact WHERE carga_id=? AND eps_nombre<>'' GROUP BY 1, 2 ORDER BY n)", (cid,))
-                c.executemany("INSERT INTO hallazgo VALUES(?,?,?,?,?,?)", ((cid, mes, k[0], k[1], *v) for k, v in R["hal"].items()))
-                c.executemany("INSERT INTO medins VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ((cid, mes, *r) for r in R["medins"]))
-                c.executemany("INSERT INTO med_det VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ((cid, mes, *r) for r in R["med_det"]))
+            with conn() as c: _guardar_facturacion(c, cid, mes, R)
             estado(cid, "ok", f"{len(R['fac'])} facturas, {len(R['fact'])} combinaciones agregadas, {len(R['med_det'])} líneas de medicamentos/insumos", R["filas"])
         except Exception as e:
             estado(cid, "error", f"{type(e).__name__}: {e}")
@@ -295,3 +298,37 @@ def _procesar_rips_fev(cid, rutas, mes_param=None):
 def procesar_rips_fev(cid, rutas, ruta_subida, mes_param=None):
     try: _procesar_rips_fev(cid, rutas, mes_param)
     finally: borrar_archivo(ruta_subida)
+
+def _procesar_actividad(path, jobs, limit=None):
+    """Facturación generada POR ACTIVIDAD (360): se guarda línea a línea en act_det (pestaña propia). Si el mes no tiene facturación
+    por ámbito cargada, también alimenta las demás pestañas; una facturación por ámbito del mes que llegue después la reemplaza allí."""
+    try:
+        z = abrir_libro(path); ss = _shared(z); hojas = hojas_mensuales(z, ss, jobs[0][1][:4] if jobs else None)
+        guardar_param(*param_hojas(z, ss))
+    except Exception as e:
+        for cid, _ in jobs: estado(cid, "error", f"No se pudo leer el archivo (Excel, CSV o texto) o está dañado: {e}")
+        return
+    param = cargar_param()
+    for cid, mes in jobs:
+        param["actividad"] = mapa_actividad()
+        estado(cid, "procesando", "Leyendo líneas…")
+        try:
+            R = procesar_hoja(z, hojas[mes][1], ss, mes, param, limit, detalle=True)
+            ambito = df("SELECT COUNT(*) n FROM carga WHERE tipo='facturacion' AND estado='ok' AND (',' || mes || ',') LIKE ?", (f"%,{mes},%",)).n.iloc[0]
+            with conn() as c:
+                _reemplazar(c, "actividad", cid, [mes])
+                c.executemany("INSERT INTO act_det VALUES(" + ",".join(["?"] * 28) + ")", ((cid, mes, *r) for r in R["act_det"]))
+                if not ambito: _guardar_facturacion(c, cid, mes, R)
+            estado(cid, "ok", f"{len(R['fac']):,} facturas, {len(R['act_det']):,} líneas por actividad"
+                              + (" (también alimenta las demás pestañas: el mes no tiene facturación por ámbito)" if not ambito
+                                 else " (el mes ya tiene facturación por ámbito: se usa solo en la pestaña «Facturación por actividad»)"), R["filas"])
+        except Exception as e:
+            estado(cid, "error", f"{type(e).__name__}: {e}")
+
+def procesar_actividad(path, jobs, limit=None):
+    try:
+        _procesar_actividad(path, jobs, limit)
+        if df("SELECT COUNT(*) n FROM maestro_med").n.iloc[0]:
+            from . import maestro as MA
+            MA.homologar_auto()
+    finally: borrar_archivo(path)
