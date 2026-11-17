@@ -10,7 +10,7 @@ from openpyxl import Workbook
 from . import analysis as A, costos as C, exporter, facturas as F, gerencial as G, medicamentos as MD, plantillas as PL, processing as P
 from .db import UPLOADS, VERSION, df, init
 from .loaders import ALIAS, _shared, es_facturacion_360, hojas_mensuales, parse_mes, todas_hojas
-from .formatos import ACEPTADOS, EXT_COMPRIMIDO, EXT_RIPS, EXT_TABLA, abrir_libro, extension, extraer
+from .formatos import ACEPTADOS, EXT_COMPRIMIDO, EXT_RIPS, EXT_TABLA, abrir_libro, corto, extension, extraer, nombre_interno
 from . import rips_fev as RF
 from . import maestro as MA
 from . import actividad as AC
@@ -89,7 +89,7 @@ def cargar(tipo: str, bg: BackgroundTasks, file: UploadFile = File(...), mes: st
     if ext not in ACEPTADOS: raise HTTPException(422, f"Formato no soportado ({ext or 'sin extensión'}). Formatos aceptados: {' '.join(ACEPTADOS)}")
     if mes and not parse_mes(mes): raise HTTPException(422, "El mes debe tener formato AAAA-MM.")
     mes = parse_mes(mes) if mes else None
-    path = os.path.join(UPLOADS, f"{datetime.now():%Y%m%d_%H%M%S}_{Path(file.filename).name}")
+    path = os.path.join(UPLOADS, f"{datetime.now():%Y%m%d_%H%M%S}_{corto(Path(file.filename).name, 40)}")   # ruta corta (límite de 260 caracteres de Windows)
     with open(path, "wb") as o: shutil.copyfileobj(file.file, o, 1 << 20)
     archivos = [(path, Path(file.filename).name)]
     comprimido = ext in EXT_COMPRIMIDO or ext == ".tar.gz"
@@ -108,7 +108,7 @@ def cargar(tipo: str, bg: BackgroundTasks, file: UploadFile = File(...), mes: st
         try: tablas = extraer(path, path + "_extraido")
         except Exception as e: raise HTTPException(422, f"No se pudo descomprimir «{file.filename}»: {e}")
         if not tablas: raise HTTPException(422, f"El comprimido no contiene archivos Excel, CSV o texto ({' '.join(sorted(EXT_TABLA))}).")
-        archivos = [(t, f"{Path(file.filename).name} › {os.path.relpath(t, path + '_extraido')}") for t in tablas]
+        archivos = [(t, f"{Path(file.filename).name} › {nombre_interno(t, path + '_extraido')}") for t in tablas]
     cargas, notas, errores = [], [], []
     for ruta, nombre in archivos:
         try:
@@ -153,7 +153,7 @@ def plantilla(tipo: str):
 @app.post("/api/homologar/{tipo}", tags=["cargas"], summary="Convierte un archivo nativo (consolidado RIPS, comparativo de notas técnicas, costos) al formato homologado")
 def homologar(tipo: str, file: UploadFile = File(...), mes: str | None = Form(None)):
     if tipo not in ("rips", "costos", "notas"): raise HTTPException(404, "Tipos: rips, costos, notas")
-    path = os.path.join(UPLOADS, f"hom_{datetime.now():%Y%m%d_%H%M%S}_{Path(file.filename).name}")
+    path = os.path.join(UPLOADS, f"hom_{datetime.now():%Y%m%d_%H%M%S}_{corto(Path(file.filename).name, 40)}")
     with open(path, "wb") as o: shutil.copyfileobj(file.file, o, 1 << 20)
     if extension(file.filename) in EXT_COMPRIMIDO or extension(file.filename) == ".tar.gz":
         try: tablas = extraer(path, path + "_extraido")
@@ -366,7 +366,7 @@ def rf_srv(mes: str | None = None, tipo: str | None = None, estado: str | None =
     if estado and len(d): d = d[d.estado.str.contains(estado, regex=False)]
     return _json(d, limit)
 
-@app.get("/api/rips-fev/validacion", tags=["RIPS JSON/TXT"], summary="Reglas de estructura RV01–RV08 (resumen o detalle de una regla)")
+@app.get("/api/rips-fev/validacion", tags=["RIPS JSON/TXT"], summary="Reglas de estructura RV01–RV10 (resumen o detalle de una regla)")
 def rf_val(mes: str | None = None, regla: str | None = None, limit: int = 3000):
     if regla and regla not in RF.REGLAS_RIPS: raise HTTPException(422, f"Reglas: {list(RF.REGLAS_RIPS)}")
     return _json(RF.validacion(mes, regla), limit)

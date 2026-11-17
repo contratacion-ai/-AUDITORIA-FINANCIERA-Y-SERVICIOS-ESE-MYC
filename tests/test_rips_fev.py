@@ -1,5 +1,5 @@
 """Facturación por actividad (360, sin columnas de EPS) + RIPS en JSON y TXT dentro de .zip: carga, cruces y reglas de estructura."""
-import os, sys, tempfile
+import os, sys, tempfile, zipfile
 import openpyxl, pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -89,3 +89,30 @@ def test_mes_a_mes_y_version():
     assert "2026-01" in d["columnas"] and d["filas"]
     h = cli.get("/api/health").json(); assert h["version"] == db.VERSION
     assert cli.post("/api/apagar").json()["ok"]                                     # desde el cliente de prueba no cierra el proceso
+
+def test_zip_con_rutas_largas_y_carpetas_con_espacio():
+    """Descargas de Google Drive: carpeta raíz con espacio final y rutas de más de 260 caracteres (fallaban en Windows)."""
+    from app.formatos import extraer, nombre_interno
+    largo = "Hospital San Francisco /RIPS JSON/9 SEPTIEMBRE/11301_NUEVA EPS CONTRIBUTIVO EVENTO COVID-19 " + "X" * 60 + "/FHSF35921/"
+    ruta = os.path.join(CARPETA, "Hospital San Francisco-20261117T191415Z-1-001.zip")
+    with zipfile.ZipFile(RUTAS["rips_json.zip"]) as z, zipfile.ZipFile(ruta, "w") as o:
+        for i, m in enumerate(n for n in z.namelist() if not n.endswith("/")):
+            o.writestr(largo + f"ResultadosMSPS_FHSF35921_ID{i:06d}_" + "A" * 80 + "_" + os.path.basename(m), z.read(m))
+    destino = os.path.join(CARPETA, "ext_largo"); rutas = extraer(ruta, destino)
+    assert rutas and all(len(os.path.relpath(r, destino)) <= 70 for r in rutas)          # NNN/nombre (≤ 60) sin importar la profundidad
+    assert all(not p.endswith((" ", ".")) for r in rutas for p in os.path.relpath(r, destino).split(os.sep))
+    assert nombre_interno(rutas[0], destino).startswith("Hospital San Francisco/RIPS JSON")
+    r, c = _subir("rips_fev", ruta)
+    assert "29 facturas" in c["mensaje"]
+
+def test_reglas_rips_cubren_global_y_fecha_posterior():
+    from app import rips_fev as RF
+    assert {"RV09", "RV10"} <= set(RF.REGLAS_RIPS)
+    import pandas as pd
+    d = pd.DataFrame(dict(mes="2026-02", factura=["F1"] * 12 + ["F2", "F2"], tipo_servicio="Consultas", codigo="890201", valor=[0.0] * 12 + [0.0, 1.0],
+                          paciente_id=[f"p{i}" for i in range(12)] + ["a", "b"], fecha=["2026-02-01"] * 12 + ["2026-01-05", "2026-03-02"]))
+    d["glob"] = RF.es_global(d)                                              # F1: 12 usuarios sin modalidad → global (cápita/PGP)
+    assert d.glob.tolist() == [True] * 12 + [False, False]
+    R = RF.REGLAS_RIPS
+    assert R["RV02"][1](d).sum() == 1 and R["RV08"][1](d).sum() == 2              # cero y varios usuarios: solo en la factura de evento
+    assert R["RV05"][1](d).tolist()[-2:] == [True, False] and R["RV09"][1](d).tolist()[-2:] == [False, True]

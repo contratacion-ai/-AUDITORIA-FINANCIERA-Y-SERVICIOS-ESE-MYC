@@ -84,6 +84,16 @@ administrador: incluye Python 3.12 oficial y todas las librerías. Crea accesos 
   Versiones empaquetadas en `instalador/requirements-windows.txt`.
 - Windows SmartScreen puede advertir que el instalador no está firmado: «Más información» → «Ejecutar de todas formas».
 
+## Novedades v5.6 · RIPS comprimidos con rutas largas (descargas de Google Drive)
+
+| Cambio | Detalle |
+|---|---|
+| **Error «[Errno 2] No such file or directory» al cargar .zip** | Windows no abre rutas de más de 260 caracteres ni carpetas que terminan en espacio («Hospital Juan de Dios /…»). Ahora cada archivo se extrae en `NNN/nombre` (nombre limpio, máx. 60 caracteres); la ruta original se conserva para los mensajes. 7z y rar usan rutas extendidas de Windows. |
+| **Varios meses en un solo comprimido** | Un .zip con un año de RIPS (JSON y TXT por mes) se carga de una vez; cada factura toma su mes (XML, 360, AF o fecha más frecuente). |
+| **Facturas globales (cápita/PGP)** | Las reglas RV02 (valor cero), RV07 (repetidos) y RV08 (varios usuarios) ya no marcan facturas cápita/PGP; sin modalidad conocida, una factura con 10 o más usuarios se trata como global. |
+| **RV05 / RV09 / RV10** | RV05 = servicio de un mes anterior (facturación tardía); **RV09** = servicio con fecha posterior al mes de la factura; **RV10** = JSON sin numFactura. |
+| **KPI** | «Facturas con hallazgo» ya no cuenta las que solo esperan la facturación 360 del mes (se muestran aparte). |
+
 ## Novedades v5.5 · Pestaña «📋 Facturación por actividad»
 
 | Tema | Qué hace |
@@ -119,7 +129,7 @@ administrador: incluye Python 3.12 oficial y todas las librerías. Crea accesos 
 |---|---|
 | **«Not Found» tras actualizar** | Causa: al instalar encima seguía abierto el servidor de la versión anterior. Ahora el instalador cierra el aplicativo antes de copiar, el lanzador detecta la versión que está corriendo y la reemplaza (`/api/health` informa la versión; `/api/apagar` solo desde el mismo equipo) y la pantalla avisa si quedó una versión anterior abierta. |
 | **Facturación generada por actividad** (carga «1c») | Reporte de 360 con una línea por actividad (hoja con cualquier nombre; mes desde FECHA DE FACTURACION). No trae EPS: se deduce del contrato con lo aprendido de cargas anteriores (facturación con NOMBRE EPS, facturas generadas) o por el nombre. Usa VALOR FACTURA (regla **R10**: Σ líneas ≠ valor de la factura, excepto cápita), FECHA RADICADO, CODIGO DX. Alimenta todas las pestañas. |
-| **RIPS JSON / TXT** (carga «2b», pestaña 🔗) | JSON de la Res. 2275 de 2023 (uno por factura) y TXT de la Res. 3374 de 2000 (AF, US, AC, AP, AM, AT, AU, AH), sueltos o en .zip/.rar/.7z; lee también respuestas de validación (CUV). Cruce factura a factura (VALOR DIFIERE, SIN RIPS, RIPS SIN FACTURA EN 360, PACIENTE DIFERENTE, RECHAZADO), por factura y código (cantidad/valor; CUM por homologación) y reglas de estructura RV01–RV08. Los RIPS también alimentan Facturación vs RIPS, Radicación y Medicamentos. Un RIPS JSON/TXT reemplaza al RIPS en Excel del mismo mes y viceversa. |
+| **RIPS JSON / TXT** (carga «2b», pestaña 🔗) | JSON de la Res. 2275 de 2023 (uno por factura) y TXT de la Res. 3374 de 2000 (AF, US, AC, AP, AM, AT, AU, AH), sueltos o en .zip/.rar/.7z; lee también respuestas de validación (CUV). Cruce factura a factura (VALOR DIFIERE, SIN RIPS, RIPS SIN FACTURA EN 360, PACIENTE DIFERENTE, RECHAZADO), por factura y código (cantidad/valor; CUM por homologación) y reglas de estructura RV01–RV10. Los RIPS también alimentan Facturación vs RIPS, Radicación y Medicamentos. Un RIPS JSON/TXT reemplaza al RIPS en Excel del mismo mes y viceversa. |
 | **Medicamentos · Mes a mes** | Por contrato, código, servicio, sede, EPS, diagnóstico o grupo ATC, en valor, cantidad o usuarios únicos, con variación del último mes (NUEVO, SIN CONSUMO, ↑/↓ > 30 %). |
 | **Seguridad de archivos** | El borrado automático solo actúa dentro de la carpeta de cargas de la aplicación. |
 

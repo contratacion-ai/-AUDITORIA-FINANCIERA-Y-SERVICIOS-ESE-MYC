@@ -233,7 +233,7 @@ def resumen(mes=None):
     k = dict(facturas=int(d.factura.nunique()), valor=float(d.valor.sum()), usuarios=int(d.paciente_id.replace("", np.nan).nunique()),
              servicios=int(len(d)), json=int((d.origen == "JSON").sum()), txt=int((d.origen == "TXT").sum()),
              xml=int(df(f"SELECT COUNT(*) n FROM fev_xml{w}", p).n.iloc[0]), dian_validadas=int(df(f"SELECT COUNT(*) n FROM fev_xml{w} AND estado_dian='VALIDADO DIAN'" if w else "SELECT COUNT(*) n FROM fev_xml WHERE estado_dian='VALIDADO DIAN'", p).n.iloc[0]),
-             facturas_ok=int((cf.estado == "OK").sum()) if len(cf) else 0, facturas_con_diferencia=int((cf.estado != "OK").sum()) if len(cf) else 0,
+             facturas_ok=int((cf.estado == "OK").sum()) if len(cf) else 0, facturas_con_diferencia=int(((cf.estado != "OK") & ~cf.estado.str.startswith("INFO")).sum()) if len(cf) else 0, sin_360=int(cf.estado.str.startswith("INFO").sum()) if len(cf) else 0,
              valor_diferencia=float(cf.loc[cf.estado.str.contains("DIFIERE|≠"), "dif"].abs().sum()) if len(cf) else 0.0, hallazgos_estructura=int(vs.registros.sum()) if len(vs) else 0)
     return dict(kpis=k, por_tipo=d.groupby("tipo_servicio").agg(servicios=("codigo", "size"), valor=("valor", "sum"), usuarios=("paciente_id", "nunique")).reset_index().to_dict("records"),
                 estados=(cf.estado.str.split("; ").explode().value_counts().rename_axis("estado").reset_index(name="facturas").to_dict("records") if len(cf) else []),
@@ -327,24 +327,35 @@ def cruce_servicios(mes=None, tipo=None, lineas=None):
             "valor_360", "valor_xml", "valor_rips", "dif_valor", "estado"]
     return m[cols].sort_values("dif_valor", key=lambda s: s.abs(), ascending=False).reset_index(drop=True)
 
+USUARIOS_GLOBAL = 10      # una factura con 10 o más usuarios se trata como global (cápita/PGP) si no se conoce su modalidad
+
+def es_global(d):
+    """Facturas cápita/PGP: modalidad conocida (XML, AF o 360) o, si no se conoce, factura con muchos usuarios (RIPS mensual de cápita)."""
+    mod = d.factura.map(df("SELECT factura, MAX(modalidad) modalidad FROM rips_factura GROUP BY factura").set_index("factura").modalidad).fillna("").str.upper()
+    usu = d.groupby("factura").paciente_id.transform("nunique")
+    return mod.str.contains("CAPITA|CÁPITA|PGP|GLOBAL") | ((mod == "") & (usu >= USUARIOS_GLOBAL))
+
 REGLAS_RIPS = {
     "RV01": ("Servicio sin código (CUPS/CUM)", lambda d: (d.codigo == "") & ~d.tipo_servicio.isin(["Urgencias", "Hospitalización", "Recién nacidos", "SIN SERVICIOS"])),
-    "RV02": ("Servicio con valor en cero (consultas, procedimientos, medicamentos, otros)", lambda d: (d.valor <= 0) & d.tipo_servicio.isin(["Consultas", "Procedimientos", "Medicamentos", "Otros servicios"])),
+    "RV02": ("Servicio con valor en cero (consultas, procedimientos, medicamentos, otros; sin cápita/PGP)", lambda d: (d.valor <= 0) & d.tipo_servicio.isin(["Consultas", "Procedimientos", "Medicamentos", "Otros servicios"]) & ~d.glob),
     "RV03": ("Sin diagnóstico principal (consultas; procedimientos en JSON)", lambda d: (d.diagnostico == "") & ((d.tipo_servicio == "Consultas")
              | ((d.tipo_servicio == "Procedimientos") & (d.origen == "JSON")))),
     "RV04": ("Usuario sin número de documento", lambda d: d.paciente_id == ""),
-    "RV05": ("Servicio prestado en un mes distinto al de la factura (facturación tardía)", lambda d: (d.fecha != "") & (d.fecha.str[:7] != d.mes)),
+    "RV05": ("Servicio prestado en un mes anterior al de la factura (facturación tardía)", lambda d: (d.fecha != "") & (d.fecha.str[:7] < d.mes)),
     "RV06": ("Valor ≠ cantidad × valor unitario (medicamentos y otros servicios)", lambda d: d.tipo_servicio.isin(["Medicamentos", "Otros servicios"]) & (d.valor_unitario > 0)
              & ((d.cantidad * d.valor_unitario - d.valor).abs() > 1)),
-    "RV07": ("Servicio repetido (misma factura, código, usuario y fecha)", lambda d: d.duplicated(["factura", "tipo_servicio", "codigo", "paciente_id", "fecha"], keep=False) & (d.codigo != "")),
-    "RV08": ("Factura con servicios de más de un usuario", lambda d: d.groupby("factura").paciente_id.transform("nunique") > 1),
+    "RV07": ("Servicio repetido (misma factura, código, usuario y fecha; sin cápita/PGP)", lambda d: d.duplicated(["factura", "tipo_servicio", "codigo", "paciente_id", "fecha"], keep=False) & (d.codigo != "") & ~d.glob),
+    "RV09": ("Servicio con fecha posterior al mes de la factura (fecha errada o servicio facturado antes de prestarse)", lambda d: (d.fecha != "") & (d.fecha.str[:7] > d.mes)),
+    "RV10": ("Archivo JSON sin número de factura (numFactura vacío)", lambda d: d.factura.fillna("").str.strip() == ""),
+    "RV08": ("Factura de evento con servicios de más de un usuario", lambda d: (d.groupby("factura").paciente_id.transform("nunique") > 1) & ~d.glob),
 }
 
 def validacion(mes=None, regla=None):
-    """Reglas de estructura del RIPS (RV01–RV08): resumen por regla o detalle de una regla."""
+    """Reglas de estructura del RIPS (RV01–RV10): resumen por regla o detalle de una regla."""
     w, p = _w(mes)
     d = df(f"SELECT * FROM rips_det{w}", p)
     if d.empty: return pd.DataFrame(columns=["regla", "descripcion", "registros", "facturas", "valor"])
+    d["glob"] = es_global(d)
     if regla:
         x = d[REGLAS_RIPS[regla][1](d)]
         return x[["mes", "factura", "tipo_servicio", "codigo", "descripcion", "cantidad", "valor_unitario", "valor", "fecha", "diagnostico", "origen", "archivo"]]

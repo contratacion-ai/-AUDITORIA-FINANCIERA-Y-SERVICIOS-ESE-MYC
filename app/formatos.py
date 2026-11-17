@@ -134,34 +134,89 @@ def _extraer_rar(ruta, destino):
     raise ValueError("No se pudo abrir el archivo .rar en este equipo. Instale 7-Zip (gratuito) o WinRAR, o descomprímalo y cargue los Excel/CSV. "
                      + (f"Detalle: {' | '.join(errores)}" if errores else "No se encontró 7-Zip, WinRAR ni el «tar» de Windows."))
 
+# ───────── extracción con rutas cortas ─────────
+# Windows no abre rutas de más de 260 caracteres ni carpetas que terminan en espacio o punto (frecuente en las descargas de Google Drive:
+# «Hospital Juan de Dios /09. Septiembre/JSON …/ResultadosMSPS_…»). Por eso cada archivo se escribe en «destino/NNN/nombre», donde NNN
+# identifica la carpeta original (los RIPS TXT de un mismo envío quedan juntos) y el nombre se limpia y se acorta. ORIGEN guarda la ruta
+# original dentro del comprimido para mostrarla al usuario.
+ORIGEN = {}
+_INVALIDOS = re.compile(r'[<>:"|?*\x00-\x1f]')
+_OMITIR = ("__MACOSX", ".")
+
+def corto(nombre, maximo=60):
+    """Nombre de archivo válido en Windows y de longitud acotada (conserva la extensión)."""
+    n = _INVALIDOS.sub("_", str(nombre)).replace("/", "_").replace("\\", "_").strip().rstrip(". ") or "archivo"
+    if len(n) > maximo:
+        st, ex = os.path.splitext(n); ex = ex[:12]; n = st[:maximo - len(ex)].rstrip(". ") + ex
+    return n
+
+def _largo(p):
+    """Prefijo de ruta extendida de Windows (\\?\\) para herramientas que escriben las rutas originales (7z, rar)."""
+    p = os.path.abspath(p)
+    return "\\\\?\\" + p if os.name == "nt" and not p.startswith("\\\\?\\") else p
+
+class _Plano:
+    def __init__(self, destino): self.destino, self.dirs, self.usados = destino, {}, set()
+    def ruta(self, interno):
+        partes = [x.strip() for x in re.split(r"[\\/]+", str(interno)) if x.strip() not in ("", ".", "..")]
+        if not partes or any(x.startswith(_OMITIR) for x in partes) or partes[-1].startswith("~$"): return None
+        d = os.path.join(self.destino, f"{self.dirs.setdefault('/'.join(partes[:-1]), len(self.dirs)):03d}"); os.makedirs(d, exist_ok=True)
+        n = corto(partes[-1]); p = os.path.join(d, n); k = 1
+        while p in self.usados: st, ex = os.path.splitext(n); p = os.path.join(d, f"{st}_{k}{ex}"); k += 1
+        self.usados.add(p); ORIGEN[p] = "/".join(partes); return p
+
+def _copiar(origen, p):
+    with open(p, "wb") as o: shutil.copyfileobj(origen, o, 1 << 20)
+
+def _aplanar(tmp, plano):
+    """Pasa lo que extrajo una herramienta externa (7z, rar) a la estructura corta y borra la carpeta temporal."""
+    base = _largo(tmp)
+    for raiz, _, archivos in os.walk(base):
+        for a in archivos:
+            q = os.path.join(raiz, a); p = plano.ruta(os.path.relpath(q, base))
+            if p: shutil.move(q, p)
+    shutil.rmtree(base, ignore_errors=True)
+
+def nombre_interno(ruta, base):
+    """Ruta original (dentro del comprimido) de un archivo extraído, para los mensajes."""
+    return ORIGEN.get(ruta) or os.path.relpath(ruta, base)
+
 def extraer(ruta, destino, nivel=0):
-    """Extrae un comprimido en `destino` y devuelve las rutas de las hojas de cálculo / textos que contiene (incluye comprimidos anidados)."""
-    os.makedirs(destino, exist_ok=True); ext = extension(ruta)
+    """Extrae un comprimido en `destino` (con rutas cortas) y devuelve las rutas de las hojas de cálculo, textos, JSON y XML que contiene
+    (incluye comprimidos anidados hasta dos niveles)."""
+    os.makedirs(destino, exist_ok=True); ext = extension(ruta); plano = _Plano(destino)
     if ext == ".zip":
         with zipfile.ZipFile(ruta) as z:
             for m in z.infolist():
-                if not m.is_dir() and _seguro(destino, m.filename): z.extract(m, destino)
+                p = None if m.is_dir() else plano.ruta(m.filename)
+                if p:
+                    with z.open(m) as s: _copiar(s, p)
     elif ext in (".tar", ".tgz", ".tar.gz", ".bz2") or (ext == ".gz" and tarfile.is_tarfile(ruta)):
         with tarfile.open(ruta) as t:
-            miembros = [m for m in t.getmembers() if m.isfile() and _seguro(destino, m.name)]
-            try: t.extractall(destino, members=miembros, filter="data")
-            except TypeError: t.extractall(destino, members=miembros)
+            for m in t.getmembers():
+                p = plano.ruta(m.name) if m.isfile() else None
+                if p: _copiar(t.extractfile(m), p)
     elif ext == ".gz":
-        with gzip.open(ruta) as g, open(os.path.join(destino, Path(ruta).stem), "wb") as o: shutil.copyfileobj(g, o)
+        p = plano.ruta(Path(ruta).stem)
+        with gzip.open(ruta) as g: _copiar(g, p)
     elif ext == ".7z":
         import py7zr
+        tmp = os.path.join(destino, "_t"); os.makedirs(_largo(tmp), exist_ok=True)
         with py7zr.SevenZipFile(ruta) as z:
-            z.extract(path=destino, targets=[n for n in z.getnames() if _seguro(destino, n)])
+            z.extract(path=_largo(tmp), targets=[n for n in z.getnames() if _seguro(tmp, n)])
+        _aplanar(tmp, plano)
     elif ext == ".rar":
-        _extraer_rar(ruta, destino)
+        tmp = os.path.join(destino, "_t"); os.makedirs(_largo(tmp), exist_ok=True)
+        _extraer_rar(ruta, _largo(tmp)); _aplanar(tmp, plano)
     else:
         raise ValueError(f"Formato comprimido no soportado: {ext}")
-    tablas = []
-    for raiz, dirs, archivos in os.walk(destino):
-        dirs[:] = [d for d in dirs if not d.startswith((".", "__MACOSX"))]
-        for a in sorted(archivos):
-            if a.startswith(("~$", ".")): continue
-            p = os.path.join(raiz, a); e = extension(a)
-            if e in EXT_TABLA or e in EXT_RIPS: tablas.append(p)
-            elif e in EXT_COMPRIMIDO | {".tar.gz"} and nivel < 2: tablas += extraer(p, p + "_extraido", nivel + 1)
+    tablas, n = [], 0
+    for p in sorted(plano.usados, key=lambda x: ORIGEN.get(x, x)):
+        e = extension(p)
+        if e in EXT_TABLA or e in EXT_RIPS: tablas.append(p)
+        elif e in EXT_COMPRIMIDO | {".tar.gz"} and nivel < 2:
+            n += 1; sub = os.path.join(os.path.dirname(p), f"x{n:03d}_{corto(Path(p).stem, 12)}")
+            hijos = extraer(p, sub, nivel + 1)
+            for h in hijos: ORIGEN[h] = ORIGEN.get(p, Path(p).name) + " › " + ORIGEN.get(h, Path(h).name)
+            tablas += hijos
     return tablas

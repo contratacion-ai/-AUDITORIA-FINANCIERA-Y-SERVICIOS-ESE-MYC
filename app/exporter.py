@@ -39,7 +39,7 @@ DESCRIPCION = {
     "ACT_Factura_Codigo_RIPS": "Facturación por actividad vs RIPS/XML por factura y código.", "ACT_Ambito_vs_Actividad": "Por ámbito vs por actividad, por servicio.",
     "ACT_Reglas": "Reglas de línea A01–A08 de la facturación por actividad.", "ACT_Medicamentos_Maestro": "Medicamentos de la facturación por actividad vs maestro.",
     "MAESTRO_Observaciones": "Observaciones de revisión del maestro para corregir en Software 360.", "RIPS_FEV_Facturas": "RIPS JSON/TXT vs Software 360, factura a factura.",
-    "RIPS_FEV_Servicios": "RIPS JSON/TXT vs Software 360 por factura y código.", "RIPS_FEV_Estructura": "Reglas de estructura del RIPS (RV01–RV08).", "MED_Homologacion_CUM": "Códigos que no homologan: 360 sin CUM y CUM del RIPS sin código 360.",
+    "RIPS_FEV_Servicios": "RIPS JSON/TXT vs Software 360 por factura y código.", "RIPS_FEV_Estructura": "Reglas de estructura del RIPS (RV01–RV10).", "MED_Homologacion_CUM": "Códigos que no homologan: 360 sin CUM y CUM del RIPS sin código 360.",
 }
 
 def _hojas_v5(mes=None):
