@@ -84,6 +84,19 @@ administrador: incluye Python 3.12 oficial y todas las librerías. Crea accesos 
   Versiones empaquetadas en `instalador/requirements-windows.txt`.
 - Windows SmartScreen puede advertir que el instalador no está firmado: «Más información» → «Ejecutar de todas formas».
 
+## Novedades v5.8 · RIPS de varios GB y comparativo con las tres facturaciones
+
+| Cambio | Detalle |
+|---|---|
+| **Envíos de RIPS de varios GB** | El .zip se lee en su lugar, sin descomprimirlo (no llena el disco ni choca con el límite de rutas de Windows). Los JSON de más de 120 MB (RIPS mensual de cápita) se leen usuario por usuario con `ijson`; los servicios se guardan por lotes de 50.000 directamente en la base. Prueba: 3,8 millones de servicios en 110 s con 600 MB de memoria. |
+| **Validación RV01–RV10 por lotes** | Se calcula al cargar, por lotes de ~200.000 servicios (una factura enorme se parte por usuario); la pestaña lee los totales guardados y abre en segundos. |
+| **Carga interrumpida** | Si el aplicativo se cierra mientras procesa, al abrir de nuevo la carga queda en «error · interrumpida» (antes se quedaba «procesando» para siempre). Una carga fallida no deja datos a medias. |
+| **Espacio en disco** | Antes de cargar se verifica el espacio libre frente al tamaño de los RIPS. |
+| **Cuota moderadora** | Se lee `valorPagoModerador` (JSON) y la cuota moderadora del AC (TXT): si la factura de 360 es el valor del RIPS menos la cuota, queda «OK NETO DE CUOTA MODERADORA». |
+| **Pestaña ⚖️ RIPS vs facturación 360** | Factura a factura: RIPS · facturación por ámbito · facturas generadas · facturación por actividad · XML (columna FUENTES = R A G C X), diferencias contra el RIPS y estado (SIN RIPS, NO ESTÁ EN…, RIPS ≠ …, GENERADA ≠ ACTIVIDAD, ANULADA CON RIPS). Una factura solo es «SIN RIPS» si ya se cargó el RIPS de su sede (prefijo FHJD, FHSF…) en ese mes. Cobertura de RIPS por fuente y mes, y medicamentos/insumos por código 360 en las facturas con RIPS (CUM homologado; traslados y estancias excluidos). Hojas COMP_RIPS_* en el Excel y recomendaciones en el informe gerencial. |
+
+> Después de actualizar, vuelva a cargar los RIPS (los cargados con versiones anteriores no tienen la validación por lotes ni la cuota moderadora).
+
 ## Novedades v5.7 · Comprimidos grandes sin bloquear la pantalla
 
 | Cambio | Detalle |

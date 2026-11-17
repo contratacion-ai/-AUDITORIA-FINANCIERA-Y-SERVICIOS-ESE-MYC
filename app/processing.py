@@ -8,7 +8,7 @@ import pandas as pd
 from .loaders import cum_norm
 from .loaders import (_shared, hojas_mensuales, param_hojas, procesar_hoja, leer_tabla, leer_rips, leer_facturas_generadas, norm, ALIAS)
 
-TABLAS = {"facturacion": ["fact", "linea", "dim", "factura", "hallazgo", "medins", "med_det"], "rips": ["rips", "rips_factura", "rips_det", "fev_xml", "fev_linea"], "rips_fev": ["rips", "rips_factura", "rips_det", "fev_xml", "fev_linea"], "costos": ["costo"],
+TABLAS = {"facturacion": ["fact", "linea", "dim", "factura", "hallazgo", "medins", "med_det"], "rips": ["rips", "rips_factura", "rips_det", "fev_xml", "fev_linea", "rips_val", "rips_val_det"], "rips_fev": ["rips", "rips_factura", "rips_det", "fev_xml", "fev_linea", "rips_val", "rips_val_det"], "costos": ["costo"],
           "farmacia": ["farmacia"], "facturas": ["fac_gen"], "actividad": ["act_det"]}
 
 def registrar(tipo, mes, archivo, estado="en cola", ruta=None):
@@ -271,32 +271,24 @@ def procesar_tabla(cid, tipo, path, mes_param=None):
     try: _procesar_tabla(cid, tipo, path, mes_param)
     finally: borrar_archivo(path)
 
-def _procesar_rips_fev(cid, rutas, mes_param=None):
-    """RIPS JSON / TXT (sueltos o de un comprimido) en una sola carga. Reemplaza los RIPS de los meses que traiga."""
-    estado(cid, "procesando", f"Leyendo {len(rutas)} archivo(s) RIPS…")
+def _procesar_rips_fev(cid, fuentes, mes_param=None):
+    """RIPS JSON / TXT / XML (sueltos o de un comprimido) en una sola carga, por lotes. Reemplaza los RIPS de los meses que traiga."""
+    estado(cid, "procesando", f"Leyendo {len(fuentes):,} archivo(s) RIPS…")
     try:
-        det, agg, vf, val, fx, xl = RF.procesar(rutas, mes_param, avance=lambda t: estado(cid, "procesando", t))
-        meses = sorted(set(det["mes"]) | set(fx["mes"]))
-        with conn() as c:
-            _reemplazar(c, "rips_fev", cid, meses)
-            det.assign(carga_id=cid)[["carga_id"] + RF.COLS_DET].to_sql("rips_det", c, if_exists="append", index=False)
-            fx.assign(carga_id=cid)[["carga_id", "mes", "factura", "fecha", "valor", "eps", "nit", "contrato", "modalidad", "cobertura", "cufe", "estado_dian", "archivo"]] \
-                .to_sql("fev_xml", c, if_exists="append", index=False)
-            xl.assign(carga_id=cid)[["carga_id", "mes", "factura", "codigo", "descripcion", "cantidad", "valor"]].to_sql("fev_linea", c, if_exists="append", index=False)
-            agg.assign(carga_id=cid, nit_eps="", cucon="").rename(columns={"tipo_servicio": "servicio", "codigo": "cups"})[
-                ["carga_id", "mes", "eps", "nit_eps", "contrato", "cucon", "modalidad", "sede", "servicio", "cups", "factura", "cantidad", "valor", "descripcion"]] \
-                .to_sql("rips", c, if_exists="append", index=False)
-            vf.assign(carga_id=cid, factura_rips=vf.factura, cucon="")[["carga_id", "mes", "factura", "factura_rips", "eps", "contrato", "cucon", "modalidad", "sede",
-                                                                       "valor_fev", "servicios", "validacion"]].to_sql("rips_factura", c, if_exists="append", index=False)
-        orig = det.origen.value_counts().to_dict()
-        estado(cid, "ok", f"{vf.factura.nunique():,} facturas, {len(det):,} servicios RIPS ({', '.join(f'{k} {v:,}' for k, v in orig.items())})"
-                          + (f"; {len(fx):,} XML de factura (FEV)" if len(fx) else "")
-                          + (f"; {len(val)} respuestas de validación (CUV)" if val else "") + f" en {', '.join(meses)}", len(det), ",".join(meses))
+        r = RF.cargar(cid, fuentes, mes_param, avance=lambda t: estado(cid, "procesando", t), reemplazar=lambda c, meses: _reemplazar(c, "rips_fev", cid, meses))
+        estado(cid, "ok", f"{r['facturas']:,} facturas, {r['servicios']:,} servicios RIPS ({', '.join(f'{k} {v:,}' for k, v in r['origen'].items())})"
+                          + (f"; {r['xml']:,} XML de factura (FEV)" if r["xml"] else "") + (f"; {r['validaciones']:,} respuestas de validación (CUV)" if r["validaciones"] else "")
+                          + f" en {', '.join(r['meses'])}" + (f". {len(r['errores'])} archivo(s) omitidos: {r['errores'][0]}" if r["errores"] else ""), r["servicios"], ",".join(r["meses"]))
     except Exception as e:
         estado(cid, "error", f"{type(e).__name__}: {e}")
+        with conn() as c:                                               # sin datos a medias de una carga fallida
+            for t in TABLAS_DATOS: c.execute(f"DELETE FROM {t} WHERE carga_id=?", (cid,))
+    finally:
+        with conn() as c:
+            for t in ("rips_fi", "rips_lote"): c.execute(f"DELETE FROM {t} WHERE carga_id=?", (cid,))
 
-def procesar_rips_fev(cid, rutas, ruta_subida, mes_param=None):
-    try: _procesar_rips_fev(cid, rutas, mes_param)
+def procesar_rips_fev(cid, fuentes, ruta_subida, mes_param=None):
+    try: _procesar_rips_fev(cid, fuentes, mes_param)
     finally: borrar_archivo(ruta_subida)
 
 def _procesar_actividad(path, jobs, limit=None):

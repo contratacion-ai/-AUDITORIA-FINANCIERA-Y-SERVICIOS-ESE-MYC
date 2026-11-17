@@ -2,7 +2,7 @@
 (responsable y plazo sugeridos). Reúne facturación por ámbito, facturas generadas, RIPS, costos, notas técnicas y medicamentos/insumos."""
 from datetime import datetime
 import pandas as pd
-from . import actividad as AC, analysis as A, costos as C, facturas as F, medicamentos as MD
+from . import actividad as AC, analysis as A, comparativo as CP, costos as C, facturas as F, medicamentos as MD
 from .db import AUTOR, CARGO, INSTITUCION, NIT, VERSION, META_GLOSA, META_RADICACION, UMBRAL_OK, UMBRAL_ALERTA
 
 RESPONSABLE = {"Facturas generadas": "Coordinación de facturación y cartera", "Facturación por actividad": "Facturación · Auditoría de cuentas médicas", "Medicamentos e insumos": "Servicio farmacéutico y almacén",
@@ -68,7 +68,7 @@ def informe(mes=None):
 
     recs = [dict(x, modulo=x.get("modulo", "Facturación / RIPS / costos")) for x in A.recomendaciones(mes)
             if not (x["nivel"] == "info" and "No hay RIPS" in x["texto"] and kf)]
-    recs += F.recomendaciones(mes) + MD.recomendaciones(mes) + AC.recomendaciones(mes)
+    recs += F.recomendaciones(mes) + MD.recomendaciones(mes) + AC.recomendaciones(mes) + CP.recomendaciones(mes)
     recs = [dict(r, prioridad=PRIORIDAD.get(r["nivel"], 3), responsable=RESPONSABLE.get(r["modulo"], "Gerencia"), plazo=PLAZO.get(r["nivel"], "—")) for r in recs]
     recs.sort(key=lambda r: r["prioridad"])
     riesgos.sort(key=lambda r: -(r["valor"] or 0))

@@ -116,3 +116,30 @@ def test_reglas_rips_cubren_global_y_fecha_posterior():
     R = RF.REGLAS_RIPS
     assert R["RV02"][1](d).sum() == 1 and R["RV08"][1](d).sum() == 2              # cero y varios usuarios: solo en la factura de evento
     assert R["RV05"][1](d).tolist()[-2:] == [True, False] and R["RV09"][1](d).tolist()[-2:] == [False, True]
+
+def test_comparativo_rips_vs_tres_facturaciones():
+    r = cli.get("/api/comparativo/resumen?mes=2026-01").json()
+    assert r["kpis"]["facturas"] > 0 and r["kpis"]["con_rips"] > 0
+    fuentes = {x["fuente"] for x in r["filas"]}
+    assert {"RIPS", "Facturación por actividad"} <= fuentes
+    f = cli.get("/api/comparativo/facturas?mes=2026-01").json()
+    fila = next(x for x in f["filas"] if x["factura"] == ESP["sin_rips"])
+    assert "SIN RIPS" in fila["estado"] and "C" in fila["fuentes"] and "R" not in fila["fuentes"]
+    assert any("RIPS ≠ POR ACTIVIDAD" in x["estado"] for x in f["filas"])
+    m = cli.get("/api/comparativo/medicamentos?mes=2026-01").json()
+    assert m["filas"] and "estado" in m["columnas"]
+    assert cli.get("/api/export/COMP_RIPS?mes=2026-01").status_code == 200
+
+def test_json_grande_en_streaming(monkeypatch):
+    """Un JSON por encima del límite se lee usuario por usuario (ijson), con BOM y numFactura después de «usuarios»."""
+    from app import rips_fev as RF
+    import json as js
+    monkeypatch.setattr(RF, "LIMITE_JSON_MEMORIA", 10)
+    ruta = os.path.join(CARPETA, "capita_grande.json")
+    us = [{"numDocumentoIdentificacion": str(i), "servicios": {"consultas": [{"codConsulta": "890201", "fechaInicioAtencion": "2026-01-03 08:00", "vrServicio": 0}] * 3}} for i in range(50)]
+    with open(ruta, "wb") as f: f.write(b"\xef\xbb\xbf" + js.dumps({"usuarios": us, "numFactura": "FCAP1"}).encode())
+    val = []; filas = list(RF.leer_json(RF.Fuente.ruta(ruta), val))
+    assert len(filas) == 150 and {x[0] for x in filas} == {"FCAP1"} and len({x[7] for x in filas}) == 50
+    with open(ruta, "wb") as f: f.write(js.dumps([{"numFactura": "FA1", "usuarios": us[:2]}, {"numFactura": "FA2", "usuarios": us[2:3]}]).encode())
+    filas = list(RF.leer_json(RF.Fuente.ruta(ruta), val))
+    assert [x[0] for x in filas].count("FA1") == 6 and [x[0] for x in filas].count("FA2") == 3

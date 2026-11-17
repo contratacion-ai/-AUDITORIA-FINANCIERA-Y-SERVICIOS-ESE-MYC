@@ -18,7 +18,7 @@ CARGO = "Profesional de Costos"
 IDENTIDAD = f"{AUTOR} – {CARGO}"
 INSTITUCION = "ESE Departamental de Primer Nivel Moreno y Clavijo"
 NIT = "900034131"
-VERSION = "5.7"
+VERSION = "5.8"
 # Paleta sobria y coherente (hex sin #) para Excel y dashboard
 AZUL, AZUL_MED, AZUL_CLARO, GRIS, GRIS_CLARO = "1F4E79", "2E75B6", "DDEBF7", "595959", "F2F2F2"
 FUENTE = "Calibri"
@@ -107,6 +107,14 @@ CREATE TABLE IF NOT EXISTS fac_gen(carga_id INT, mes TEXT, factura TEXT, ingreso
 CREATE TABLE IF NOT EXISTS rips_det(carga_id INT, mes TEXT, factura TEXT, tipo_servicio TEXT, codigo TEXT, descripcion TEXT, cantidad REAL,
   valor_unitario REAL, valor REAL, paciente_id TEXT, tipo_doc TEXT, fecha TEXT, diagnostico TEXT, autorizacion TEXT, origen TEXT, archivo TEXT);
 CREATE INDEX IF NOT EXISTS i_rdet ON rips_det(mes, factura);
+CREATE INDEX IF NOT EXISTS i_rdet_c ON rips_det(carga_id);
+CREATE TABLE IF NOT EXISTS rips_fi(carga_id INT, fk TEXT, factura TEXT, mes TEXT, eps TEXT, contrato TEXT, modalidad TEXT, sede TEXT, lote INT, usuarios INT);
+CREATE TABLE IF NOT EXISTS rips_lote(carga_id INT, fk TEXT, paciente_id TEXT, lote INT);
+CREATE INDEX IF NOT EXISTS i_rlote ON rips_lote(carga_id, lote);
+CREATE INDEX IF NOT EXISTS i_rfi ON rips_fi(carga_id, fk);
+CREATE TABLE IF NOT EXISTS rips_val(carga_id INT, mes TEXT, regla TEXT, registros INT, facturas INT, valor REAL);
+CREATE TABLE IF NOT EXISTS rips_val_det(carga_id INT, mes TEXT, regla TEXT, factura TEXT, tipo_servicio TEXT, codigo TEXT, descripcion TEXT, cantidad REAL,
+  valor_unitario REAL, valor REAL, fecha TEXT, diagnostico TEXT, origen TEXT, archivo TEXT);
 CREATE TABLE IF NOT EXISTS fev_xml(carga_id INT, mes TEXT, factura TEXT, fecha TEXT, valor REAL, eps TEXT, nit TEXT, contrato TEXT, modalidad TEXT,
   cobertura TEXT, cufe TEXT, estado_dian TEXT, archivo TEXT);
 CREATE TABLE IF NOT EXISTS fev_linea(carga_id INT, mes TEXT, factura TEXT, codigo TEXT, descripcion TEXT, cantidad REAL, valor REAL);
@@ -136,11 +144,11 @@ def conn():
     return c
 
 # Columnas agregadas después de la v2/v3: se añaden con ALTER TABLE si la base ya existía
-COLUMNAS_NUEVAS = {"fact": [("origen_cups", "TEXT")], "rips": [("descripcion", "TEXT")], "costo": [("tipo_costo", "TEXT")], "carga": [("ruta", "TEXT")], "hom_codigo": [("fuente", "TEXT")],
+COLUMNAS_NUEVAS = {"fact": [("origen_cups", "TEXT")], "rips": [("descripcion", "TEXT")], "costo": [("tipo_costo", "TEXT")], "carga": [("ruta", "TEXT")], "hom_codigo": [("fuente", "TEXT")], "rips_det": [("moderadora", "REAL"), ("fk", "TEXT")],
                    "factura": [("paciente_id", "TEXT"), ("n_pacientes", "INT"), ("valor_factura", "REAL"), ("fecha_radicado", "TEXT"), ("radicado_eps", "TEXT")]}
 # Tablas con datos de una carga (columna carga_id): se borran al eliminar la carga o limpiar un mes
 TABLAS_DATOS = ["fact", "linea", "dim", "factura", "hallazgo", "medins", "med_det", "rips", "rips_factura", "costo", "costo_unitario",
-                "carga_validacion", "nota", "fac_gen", "farmacia", "rips_det", "fev_xml", "fev_linea", "act_det"]
+                "carga_validacion", "nota", "fac_gen", "farmacia", "rips_det", "fev_xml", "fev_linea", "act_det", "rips_val", "rips_val_det"]
 CONSERVAR_ARCHIVOS = os.environ.get("AUDIT_CONSERVAR_ARCHIVOS") == "1"   # por defecto el archivo subido se borra una vez procesado
 
 def _migrar(c):
@@ -154,6 +162,9 @@ def init():
     with conn() as c:
         c.executescript(DDL)
         _migrar(c)
+        c.execute("DELETE FROM rips_det WHERE mes IS NULL"); c.execute("DELETE FROM rips_fi"); c.execute("DELETE FROM rips_lote")         # restos de una carga interrumpida (equipo apagado)
+        c.execute("UPDATE carga SET estado='error', mensaje='Carga interrumpida: el aplicativo se cerró o el equipo se apagó mientras procesaba. Vuelva a cargar el archivo. ' "
+                  "|| COALESCE(mensaje,'') WHERE estado IN ('en cola','procesando')")
         c.executemany("INSERT OR IGNORE INTO hom_eps VALUES(?,?)", HOM_EPS)
 
 def df(sql, params=()):

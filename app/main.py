@@ -14,6 +14,7 @@ from .formatos import ACEPTADOS, EXT_COMPRIMIDO, EXT_RIPS, EXT_TABLA, abrir_libr
 from . import rips_fev as RF
 from . import maestro as MA
 from . import actividad as AC
+from . import comparativo as CP
 
 app = FastAPI(title="Auditoría de facturación · ESE Moreno y Clavijo", version="5.5",
               description="Carga mensual de facturación por ámbito (Software 360), RIPS, costos y notas técnicas; conciliación y reportes.")
@@ -128,14 +129,22 @@ class _Tareas:
 
 def _comprimido_en_segundo_plano(tipo, path, nombre, mes, cid):
     try:
-        P.estado(cid, "procesando", "Descomprimiendo…")
-        tablas = extraer(path, path + "_extraido", avance=lambda i, n: P.estado(cid, "procesando", f"Descomprimiendo: {i:,} de {n:,} archivos…"))
+        prog = lambda i, n: P.estado(cid, "procesando", f"Descomprimiendo: {i:,} de {n:,} archivos…")
         if tipo in ("rips", "rips_fev"):
-            rips = [r for r in tablas if RF.es_rips(r)]
-            if rips and (tipo == "rips_fev" or len(rips) == len(tablas)):
-                with conn() as c: c.execute("UPDATE carga SET tipo='rips_fev', archivo=? WHERE id=?", (nombre + (f" ({len(rips)} archivos)" if len(rips) > 1 else ""), cid))
+            # un .zip de RIPS se lee en su lugar, sin descomprimir (envíos de varios GB)
+            P.estado(cid, "procesando", "Revisando el contenido del comprimido…")
+            fs = RF.fuentes(path, avance=prog); rips = [f for f in fs if RF.es_rips(f)]
+            if rips and (tipo == "rips_fev" or len(rips) == len(fs)):
+                mb = sum(f.tam for f in rips) / 1048576
+                libre = shutil.disk_usage(os.path.dirname(os.path.abspath(path))).free / 1048576
+                if libre < mb * 0.9 + 500:                                # la base ocupa ~70-90 % del tamaño de los JSON/TXT descomprimidos
+                    raise ValueError(f"Espacio en disco insuficiente: los RIPS ocupan {mb:,.0f} MB descomprimidos y quedan {libre:,.0f} MB libres. "
+                                     "Libere espacio en el disco C: o cargue el comprimido por partes (por meses).")
+                with conn() as c: c.execute("UPDATE carga SET tipo='rips_fev', archivo=? WHERE id=?", (nombre + f" ({len(rips):,} archivos, {mb:,.0f} MB)", cid))
                 P.procesar_rips_fev(cid, rips, path, mes); return
             if tipo == "rips_fev": raise ValueError("No se encontraron RIPS JSON (numFactura + usuarios) ni TXT (AF, AC, AP, AM, AT…) en el comprimido.")
+        P.estado(cid, "procesando", "Descomprimiendo…")
+        tablas = extraer(path, path + "_extraido", avance=prog)
         if not tablas: raise ValueError(f"El comprimido no contiene archivos Excel, CSV o texto ({' '.join(sorted(EXT_TABLA))}).")
         tareas, cargas, notas, errores = _Tareas(), [], [], []
         for t in tablas:
@@ -382,6 +391,21 @@ def md_hom_xlsx(mes: str | None = None):
 
 @app.get("/api/rips-fev/resumen", tags=["RIPS JSON/TXT"], summary="KPIs de los RIPS JSON/TXT, estados del cruce y reglas de estructura")
 def rf_res(mes: str | None = None): return _limpio(RF.resumen(mes))
+
+@app.get("/api/comparativo/resumen", tags=["RIPS vs facturación 360"], summary="RIPS vs facturación por ámbito, facturas generadas, por actividad y XML: por mes y fuente")
+def cp_res(mes: str | None = None): return _limpio(CP.resumen(mes))
+
+@app.get("/api/comparativo/facturas", tags=["RIPS vs facturación 360"], summary="Factura a factura: valor en cada fuente, diferencias contra el RIPS y estado")
+def cp_fac(mes: str | None = None, estado: str | None = None, limit: int = 3000):
+    d = CP.facturas(mes)
+    if estado and len(d): d = d[d.estado.str.contains(estado, regex=False)]
+    return _json(d, limit)
+
+@app.get("/api/comparativo/medicamentos", tags=["RIPS vs facturación 360"], summary="Medicamentos e insumos por código 360: RIPS vs por ámbito vs por actividad")
+def cp_med(mes: str | None = None, estado: str | None = None, limit: int = 3000):
+    d = CP.medicamentos(mes)
+    if estado and len(d): d = d[d.estado.str.contains(estado, regex=False)]
+    return _json(d, limit)
 
 @app.get("/api/rips-fev/facturas", tags=["RIPS JSON/TXT"], summary="Cruce factura a factura: Software 360 vs RIPS JSON/TXT")
 def rf_fac(mes: str | None = None, estado: str | None = None, limit: int = 3000):
