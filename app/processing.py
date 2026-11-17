@@ -275,7 +275,7 @@ def _procesar_rips_fev(cid, rutas, mes_param=None):
     """RIPS JSON / TXT (sueltos o de un comprimido) en una sola carga. Reemplaza los RIPS de los meses que traiga."""
     estado(cid, "procesando", f"Leyendo {len(rutas)} archivo(s) RIPS…")
     try:
-        det, agg, vf, val, fx, xl = RF.procesar(rutas, mes_param)
+        det, agg, vf, val, fx, xl = RF.procesar(rutas, mes_param, avance=lambda t: estado(cid, "procesando", t))
         meses = sorted(set(det["mes"]) | set(fx["mes"]))
         with conn() as c:
             _reemplazar(c, "rips_fev", cid, meses)

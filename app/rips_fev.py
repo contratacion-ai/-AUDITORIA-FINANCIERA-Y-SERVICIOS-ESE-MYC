@@ -168,21 +168,32 @@ def leer_txt(rutas):
     return filas, af
 
 # ───────── carga ─────────
-def procesar(rutas, mes_param=None):
-    """Lee JSON y TXT y devuelve (det, rips_agregado, rips_factura, validaciones) como DataFrames."""
-    filas, val, af, xml, xlin = [], [], {}, [], []
+def procesar(rutas, mes_param=None, avance=None):
+    """Lee JSON y TXT y devuelve (det, rips_agregado, rips_factura, validaciones) como DataFrames. `avance(texto)` informa el progreso."""
+    cols = [c for c in COLS_DET if c != "mes"]
+    partes, val, af, xml, xlin, errores = [], [], {}, [], [], []
     txt = [r for r in rutas if Path(r).suffix.lower() == ".txt" and Path(r).name.upper()[:2] in PREFIJOS_TXT]
-    for r in rutas:
+    otros = [r for r in rutas if Path(r).suffix.lower() in (".json", ".xml")]
+    for i, r in enumerate(otros, 1):
+        if avance and (i % 50 == 0 or i == len(otros)): avance(f"Leyendo JSON/XML {i:,} de {len(otros):,}…")
         if Path(r).suffix.lower() == ".json":
-            f, v = leer_json(r); filas += f; val += v
-        elif Path(r).suffix.lower() == ".xml":
+            try: f, v = leer_json(r)
+            except (ValueError, RecursionError, MemoryError) as e: errores.append(str(e)); continue
+            if f: partes.append(pd.DataFrame(f, columns=cols))                 # un DataFrame por archivo: mucha menos memoria que miles de dict
+            val += v
+        else:
             try: e, l = leer_xml(r)
             except Exception: continue
             if e["factura"]: xml.append(e); xlin += l
     if txt:
-        f, af = leer_txt(txt); filas += f
-    if not filas and not val and not xml: raise ValueError("Los archivos no contienen RIPS JSON (numFactura + usuarios), XML de facturas (FEV) ni RIPS TXT.")
-    d = pd.DataFrame(filas, columns=[c for c in COLS_DET if c != "mes"]) if filas else pd.DataFrame(columns=[c for c in COLS_DET if c != "mes"])
+        if avance: avance(f"Leyendo {len(txt):,} archivos TXT…")
+        f, af = leer_txt(txt)
+        if f: partes.append(pd.DataFrame(f, columns=cols))
+    if not partes and not val and not xml:
+        raise ValueError("Los archivos no contienen RIPS JSON (numFactura + usuarios), XML de facturas (FEV) ni RIPS TXT." + (f" {errores[0]}" if errores else ""))
+    if avance: avance("Cruzando con Software 360 y guardando…")
+    d = pd.concat(partes, ignore_index=True) if partes else pd.DataFrame(columns=cols)
+    del partes
     # mes de cada factura: el de Software 360 si ya se cargó; si no, AF (TXT) o la fecha más frecuente de los servicios
     f360 = df("SELECT factura, MAX(mes) mes, MAX(eps_nombre) eps, MAX(contrato) contrato, MAX(modalidad) modalidad, MAX(sede) sede FROM factura GROUP BY factura")
     k = lambda s: s.astype(str).str.upper().str.replace(r"[^A-Z0-9]", "", regex=True)

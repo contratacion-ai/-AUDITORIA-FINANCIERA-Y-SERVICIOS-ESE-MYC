@@ -68,9 +68,12 @@ def test_formato(nombre, crear):
     with open(ruta, "rb") as f:
         r = cli.post("/api/cargas/farmacia", files={"file": (nombre, f, "application/octet-stream")})   # también se reconoce desde «Farmacia»
     assert r.status_code == 200, r.text
-    assert r.json()["cargas"][0]["mes"] == "2026-01"
-    c = cli.get("/api/cargas").json()["filas"][0]
-    assert c["tipo"] == "facturacion" and c["estado"] == "ok", c
+    h = cli.get("/api/cargas").json()["filas"]
+    if r.json()["cargas"][0]["mes"] is None:                                    # comprimido: se descomprime en segundo plano
+        pre = next(x for x in h if x["id"] == r.json()["cargas"][0]["id"])
+        assert pre["estado"] == "descomprimido", pre
+    c = h[0]
+    assert c["tipo"] == "facturacion" and c["estado"] == "ok" and c["mes"] == "2026-01", c
     k = cli.get("/api/medicamentos/resumen?mes=2026-01").json()
     assert abs(k["kpis"]["valor"] - TOTAL) < 1 and k["detalle"]["codigos_360"] == 4, nombre
 
@@ -83,4 +86,6 @@ def test_comprimido_vacio():
     with zipfile.ZipFile(ruta, "w") as z: z.writestr("leeme.pdf", b"x")
     with open(ruta, "rb") as f:
         r = cli.post("/api/cargas/facturacion", files={"file": ("vacio.zip", f, "application/zip")})
-    assert r.status_code == 422 and "no contiene" in r.json()["detail"]
+    assert r.status_code == 200                                                 # se responde de inmediato; el error queda en el historial
+    c = next(x for x in cli.get("/api/cargas").json()["filas"] if x["id"] == r.json()["cargas"][0]["id"])
+    assert c["estado"] == "error" and "no contiene" in c["mensaje"], c

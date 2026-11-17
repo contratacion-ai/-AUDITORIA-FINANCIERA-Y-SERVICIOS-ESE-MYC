@@ -173,7 +173,7 @@ def _aplanar(tmp, plano):
     base = _largo(tmp)
     for raiz, _, archivos in os.walk(base):
         for a in archivos:
-            q = os.path.join(raiz, a); p = plano.ruta(os.path.relpath(q, base))
+            q = os.path.join(raiz, a); p = plano.ruta(os.path.relpath(q, base)) if util(a) else None
             if p: shutil.move(q, p)
     shutil.rmtree(base, ignore_errors=True)
 
@@ -181,20 +181,27 @@ def nombre_interno(ruta, base):
     """Ruta original (dentro del comprimido) de un archivo extraído, para los mensajes."""
     return ORIGEN.get(ruta) or os.path.relpath(ruta, base)
 
-def extraer(ruta, destino, nivel=0):
+def util(nombre):
+    """Solo se extraen hojas de cálculo, textos, JSON, XML y comprimidos: los PDF e imágenes de soportes se omiten."""
+    e = extension(str(nombre).rstrip("/\\ "))
+    return e in EXT_TABLA or e in EXT_RIPS or e in EXT_COMPRIMIDO or e == ".tar.gz"
+
+def extraer(ruta, destino, nivel=0, avance=None):
     """Extrae un comprimido en `destino` (con rutas cortas) y devuelve las rutas de las hojas de cálculo, textos, JSON y XML que contiene
-    (incluye comprimidos anidados hasta dos niveles)."""
+    (incluye comprimidos anidados hasta dos niveles). `avance(i, n)` informa el progreso."""
     os.makedirs(destino, exist_ok=True); ext = extension(ruta); plano = _Plano(destino)
     if ext == ".zip":
         with zipfile.ZipFile(ruta) as z:
-            for m in z.infolist():
-                p = None if m.is_dir() else plano.ruta(m.filename)
+            miembros = [m for m in z.infolist() if not m.is_dir() and util(m.filename)]
+            for i, m in enumerate(miembros, 1):
+                p = plano.ruta(m.filename)
                 if p:
                     with z.open(m) as s: _copiar(s, p)
+                if avance and (i % 200 == 0 or i == len(miembros)): avance(i, len(miembros))
     elif ext in (".tar", ".tgz", ".tar.gz", ".bz2") or (ext == ".gz" and tarfile.is_tarfile(ruta)):
         with tarfile.open(ruta) as t:
             for m in t.getmembers():
-                p = plano.ruta(m.name) if m.isfile() else None
+                p = plano.ruta(m.name) if m.isfile() and util(m.name) else None
                 if p: _copiar(t.extractfile(m), p)
     elif ext == ".gz":
         p = plano.ruta(Path(ruta).stem)
@@ -203,7 +210,7 @@ def extraer(ruta, destino, nivel=0):
         import py7zr
         tmp = os.path.join(destino, "_t"); os.makedirs(_largo(tmp), exist_ok=True)
         with py7zr.SevenZipFile(ruta) as z:
-            z.extract(path=_largo(tmp), targets=[n for n in z.getnames() if _seguro(tmp, n)])
+            z.extract(path=_largo(tmp), targets=[n for n in z.getnames() if _seguro(tmp, n) and util(n)])
         _aplanar(tmp, plano)
     elif ext == ".rar":
         tmp = os.path.join(destino, "_t"); os.makedirs(_largo(tmp), exist_ok=True)

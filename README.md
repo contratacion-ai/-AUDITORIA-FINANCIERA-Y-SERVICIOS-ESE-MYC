@@ -84,6 +84,15 @@ administrador: incluye Python 3.12 oficial y todas las librerías. Crea accesos 
   Versiones empaquetadas en `instalador/requirements-windows.txt`.
 - Windows SmartScreen puede advertir que el instalador no está firmado: «Más información» → «Ejecutar de todas formas».
 
+## Novedades v5.7 · Comprimidos grandes sin bloquear la pantalla
+
+| Cambio | Detalle |
+|---|---|
+| **«Subiendo…» que no terminaba** | El aplicativo descomprimía todo el .zip antes de responder. Ahora responde apenas recibe el archivo y descomprime y procesa en segundo plano; la tarjeta y el historial muestran el avance («Descomprimiendo 1.200 de 6.000 archivos…», «Leyendo JSON/XML 50 de 3.000…»). |
+| **Porcentaje de subida** | La tarjeta muestra el tamaño y el % subido; si el aplicativo se cerró, lo dice en lugar de quedarse esperando. |
+| **Solo se extrae lo útil** | Los PDF, imágenes y demás soportes dentro del comprimido se omiten (solo Excel, CSV/TXT, JSON, XML y comprimidos anidados). |
+| **Menos memoria** | Los RIPS JSON se acumulan por archivo en tablas y no como miles de registros sueltos; un JSON dañado se omite y se informa en vez de detener la carga. |
+
 ## Novedades v5.6 · RIPS comprimidos con rutas largas (descargas de Google Drive)
 
 | Cambio | Detalle |

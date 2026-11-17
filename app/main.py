@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from openpyxl import Workbook
 from . import analysis as A, costos as C, exporter, facturas as F, gerencial as G, medicamentos as MD, plantillas as PL, processing as P
-from .db import UPLOADS, VERSION, df, init
+from .db import UPLOADS, VERSION, conn, df, init
 from .loaders import ALIAS, _shared, es_facturacion_360, hojas_mensuales, parse_mes, todas_hojas
 from .formatos import ACEPTADOS, EXT_COMPRIMIDO, EXT_RIPS, EXT_TABLA, abrir_libro, corto, extension, extraer, nombre_interno
 from . import rips_fev as RF
@@ -93,22 +93,19 @@ def cargar(tipo: str, bg: BackgroundTasks, file: UploadFile = File(...), mes: st
     with open(path, "wb") as o: shutil.copyfileobj(file.file, o, 1 << 20)
     archivos = [(path, Path(file.filename).name)]
     comprimido = ext in EXT_COMPRIMIDO or ext == ".tar.gz"
+    if comprimido:
+        # un comprimido puede traer miles de archivos: se responde de inmediato y se descomprime en segundo plano (progreso en el historial)
+        cid = P.registrar(tipo, mes, Path(file.filename).name, ruta=path); P.estado(cid, "en cola", "Archivo recibido; descomprimiendo…")
+        bg.add_task(_comprimido_en_segundo_plano, tipo, path, Path(file.filename).name, mes, cid)
+        return {"cargas": [{"id": cid, "mes": mes, "archivo": file.filename}], "nota": "Archivo recibido. Se descomprime y procesa en segundo plano: vea el avance en el historial."}
     if tipo in ("rips", "rips_fev"):
-        # RIPS JSON (Res. 2275/2023) o TXT (AF, AC, AP, AM…): todos los archivos del envío van en una sola carga
-        try: rutas = extraer(path, path + "_extraido") if comprimido else [path]
-        except Exception as e: raise HTTPException(422, f"No se pudo descomprimir «{file.filename}»: {e}")
-        rips = [r for r in rutas if RF.es_rips(r)]
-        if rips and (tipo == "rips_fev" or len(rips) == len(rutas) or extension(path) in EXT_RIPS):
-            cid = P.registrar("rips_fev", mes, Path(file.filename).name + (f" ({len(rips)} archivos)" if len(rips) > 1 else ""), ruta=path)
-            bg.add_task(P.procesar_rips_fev, cid, rips, path, mes)
+        # RIPS JSON (Res. 2275/2023), XML de la FEV o TXT suelto
+        if RF.es_rips(path):
+            cid = P.registrar("rips_fev", mes, Path(file.filename).name, ruta=path)
+            bg.add_task(P.procesar_rips_fev, cid, [path], path, mes)
             return {"cargas": [{"id": cid, "mes": mes, "archivo": file.filename}],
                     "nota": None if tipo == "rips_fev" else "Se detectaron RIPS en formato JSON/TXT: se cargaron como «RIPS JSON / TXT»."}
-        if tipo == "rips_fev": raise HTTPException(422, "No se encontraron RIPS JSON (numFactura + usuarios) ni TXT (AF, AC, AP, AM, AT…) en el archivo.")
-    if comprimido:
-        try: tablas = extraer(path, path + "_extraido")
-        except Exception as e: raise HTTPException(422, f"No se pudo descomprimir «{file.filename}»: {e}")
-        if not tablas: raise HTTPException(422, f"El comprimido no contiene archivos Excel, CSV o texto ({' '.join(sorted(EXT_TABLA))}).")
-        archivos = [(t, f"{Path(file.filename).name} › {nombre_interno(t, path + '_extraido')}") for t in tablas]
+        if tipo == "rips_fev": raise HTTPException(422, "No es un RIPS JSON (numFactura + usuarios), XML de la FEV ni TXT (AF, AC, AP, AM, AT…). Para un envío completo súbalo en .zip.")
     cargas, notas, errores = [], [], []
     for ruta, nombre in archivos:
         try:
@@ -121,6 +118,38 @@ def cargar(tipo: str, bg: BackgroundTasks, file: UploadFile = File(...), mes: st
         notas.append("Varios archivos traen el mismo mes: cada carga reemplaza la anterior de ese mes (cargue el mes completo en un solo archivo).")
     if len(archivos) > 1: notas.insert(0, f"Comprimido con {len(archivos)} archivo(s): {', '.join(n.split(' › ')[-1] for _, n in archivos)}.")
     return {"cargas": cargas, "nota": " ".join(notas + [f"No se cargaron: {' | '.join(errores)}" if errores else ""]).strip() or None}
+
+class _Tareas:
+    """Sustituto de BackgroundTasks dentro de una tarea en segundo plano: ejecuta en orden las tareas programadas."""
+    def __init__(self): self.t = []
+    def add_task(self, f, *a, **k): self.t.append((f, a, k))
+    def ejecutar(self):
+        for f, a, k in self.t: f(*a, **k)
+
+def _comprimido_en_segundo_plano(tipo, path, nombre, mes, cid):
+    try:
+        P.estado(cid, "procesando", "Descomprimiendo…")
+        tablas = extraer(path, path + "_extraido", avance=lambda i, n: P.estado(cid, "procesando", f"Descomprimiendo: {i:,} de {n:,} archivos…"))
+        if tipo in ("rips", "rips_fev"):
+            rips = [r for r in tablas if RF.es_rips(r)]
+            if rips and (tipo == "rips_fev" or len(rips) == len(tablas)):
+                with conn() as c: c.execute("UPDATE carga SET tipo='rips_fev', archivo=? WHERE id=?", (nombre + (f" ({len(rips)} archivos)" if len(rips) > 1 else ""), cid))
+                P.procesar_rips_fev(cid, rips, path, mes); return
+            if tipo == "rips_fev": raise ValueError("No se encontraron RIPS JSON (numFactura + usuarios) ni TXT (AF, AC, AP, AM, AT…) en el comprimido.")
+        if not tablas: raise ValueError(f"El comprimido no contiene archivos Excel, CSV o texto ({' '.join(sorted(EXT_TABLA))}).")
+        tareas, cargas, notas, errores = _Tareas(), [], [], []
+        for t in tablas:
+            try:
+                c, n = _cargar_archivo(tipo, t, f"{nombre} › {nombre_interno(t, path + '_extraido')}", mes, tareas); cargas += c
+                if n: notas.append(n)
+            except ValueError as e: errores.append(str(e))
+        if not cargas: raise ValueError(" | ".join(errores))
+        P.estado(cid, "descomprimido", f"{len(tablas)} archivo(s) → carga(s) {', '.join(str(c['id']) for c in cargas)}. " + " ".join(notas)
+                 + (f" No se cargaron: {' | '.join(errores)}" if errores else ""))
+        tareas.ejecutar()
+    except Exception as e:
+        P.estado(cid, "error", f"No se pudo cargar «{nombre}»: {type(e).__name__}: {e}")
+        P.borrar_archivo(path)
 
 @app.get("/api/cargas", tags=["cargas"], summary="Historial de cargas")
 def cargas(): return _json(df("SELECT id, tipo, mes, archivo, fecha, estado, filas, mensaje FROM carga ORDER BY id DESC"))
