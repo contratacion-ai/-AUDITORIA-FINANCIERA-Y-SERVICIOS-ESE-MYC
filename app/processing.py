@@ -25,11 +25,26 @@ def borrar_archivo(ruta):
     pend = df("SELECT COUNT(*) n FROM carga WHERE ruta=? AND estado IN ('en cola','procesando')", (ruta,)).n.iloc[0]
     if pend: return
     raiz = ruta.split("_extraido")[0]                     # archivo dentro de un comprimido: se borra el comprimido y lo extraído
+    RF.cerrar(raiz)
     for p in {ruta, raiz}:
-        if os.path.isfile(p): os.remove(p)
+        try:
+            if os.path.isfile(p): os.remove(p)
+        except OSError: pass                              # Windows: archivo aún en uso (antivirus, otro proceso); se limpia al reiniciar
     if os.path.isdir(raiz + "_extraido"):
         pend = df("SELECT COUNT(*) n FROM carga WHERE ruta LIKE ? AND estado IN ('en cola','procesando')", (raiz + "_extraido%",)).n.iloc[0]
         if not pend: shutil.rmtree(raiz + "_extraido", ignore_errors=True)
+
+def limpiar_huerfanos(horas=12):
+    """Al iniciar: borra de la carpeta de cargas los archivos que ninguna carga pendiente usa y que tienen más de `horas` horas."""
+    if CONSERVAR_ARCHIVOS or not os.path.isdir(UPLOADS): return
+    import time
+    pend = set(df("SELECT ruta FROM carga WHERE estado IN ('en cola','procesando') AND ruta IS NOT NULL").ruta)
+    for n in os.listdir(UPLOADS):
+        p = os.path.join(UPLOADS, n)
+        try:
+            if p in pend or time.time() - os.path.getmtime(p) < horas * 3600: continue
+            shutil.rmtree(p, ignore_errors=True) if os.path.isdir(p) else os.remove(p)
+        except OSError: pass
 
 def eliminar_carga(cid):
     """Elimina los datos de una carga (todas las tablas) y su archivo; el historial la conserva con estado «eliminada»."""
@@ -289,7 +304,10 @@ def _procesar_rips_fev(cid, fuentes, mes_param=None):
 
 def procesar_rips_fev(cid, fuentes, ruta_subida, mes_param=None):
     try: _procesar_rips_fev(cid, fuentes, mes_param)
-    finally: borrar_archivo(ruta_subida)
+    finally:
+        RF.cerrar(ruta_subida)
+        try: borrar_archivo(ruta_subida)
+        except Exception: pass                            # la limpieza nunca cambia el resultado de la carga
 
 def _procesar_actividad(path, jobs, limit=None):
     """Facturación generada POR ACTIVIDAD (360): se guarda línea a línea en act_det (pestaña propia). Si el mes no tiene facturación

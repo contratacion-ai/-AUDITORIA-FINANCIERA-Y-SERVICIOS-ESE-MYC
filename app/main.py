@@ -19,6 +19,7 @@ from . import comparativo as CP
 app = FastAPI(title="Auditoría de facturación · ESE Moreno y Clavijo", version="5.5",
               description="Carga mensual de facturación por ámbito (Software 360), RIPS, costos y notas técnicas; conciliación y reportes.")
 init()
+P.limpiar_huerfanos()
 TIPOS = ("facturacion", "actividad", "facturas", "rips", "rips_fev", "costos", "notas", "parametros", "codigos", "farmacia", "maestro_med")
 PLANTILLAS = ("rips", "costos", "notas", "parametros", "codigos", "farmacia")
 
@@ -158,7 +159,9 @@ def _comprimido_en_segundo_plano(tipo, path, nombre, mes, cid):
         tareas.ejecutar()
     except Exception as e:
         P.estado(cid, "error", f"No se pudo cargar «{nombre}»: {type(e).__name__}: {e}")
-        P.borrar_archivo(path)
+        RF.cerrar(path)
+        try: P.borrar_archivo(path)
+        except Exception: pass
 
 @app.get("/api/cargas", tags=["cargas"], summary="Historial de cargas")
 def cargas(): return _json(df("SELECT id, tipo, mes, archivo, fecha, estado, filas, mensaje FROM carga ORDER BY id DESC"))

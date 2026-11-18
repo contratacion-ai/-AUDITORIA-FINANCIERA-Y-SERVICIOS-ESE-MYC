@@ -84,6 +84,12 @@ administrador: incluye Python 3.12 oficial y todas las librerías. Crea accesos 
   Versiones empaquetadas en `instalador/requirements-windows.txt`.
 - Windows SmartScreen puede advertir que el instalador no está firmado: «Más información» → «Ejecutar de todas formas».
 
+## Novedades v5.11 · «PermissionError: [WinError 32]» al terminar una carga
+
+| Cambio | Detalle |
+|---|---|
+| **El .zip quedaba abierto** | Al terminar, el aplicativo intentaba borrar el .zip subido mientras lo tenía abierto; Windows lo impide y ese error cambiaba una carga correcta a «error». Ahora los .zip se cierran antes de borrarlos, la limpieza nunca cambia el resultado de la carga y, si Windows aún bloquea el archivo (antivirus), se borra al reiniciar el aplicativo (archivos sin uso con más de 12 horas). |
+
 ## Novedades v5.10 · Archivos dañados dentro del comprimido
 
 | Cambio | Detalle |

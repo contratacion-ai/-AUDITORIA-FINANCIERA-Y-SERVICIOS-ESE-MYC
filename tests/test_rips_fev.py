@@ -193,3 +193,15 @@ def test_zip_con_un_archivo_corrupto_carga_el_resto():
         f.seek(ini + m.compress_size // 3); f.write(b"\xff" * 24)
     r, c = _subir("rips_fev", ruta)
     assert c["estado"] == "ok" and "dañados u omitidos" in c["mensaje"] and "28 facturas" in c["mensaje"], c
+
+def test_bloqueo_de_windows_al_borrar_no_cambia_el_resultado(monkeypatch):
+    """Windows no deja borrar un archivo abierto (WinError 32): la carga debe quedar «ok» y el .zip cerrado."""
+    from app import rips_fev as RF
+    real = os.remove
+    def bloqueado(p):
+        if p.endswith(".zip"): raise PermissionError(32, "El proceso no tiene acceso al archivo porque está siendo utilizado por otro proceso", p)
+        return real(p)
+    monkeypatch.setattr(os, "remove", bloqueado)
+    r, c = _subir("rips_fev", RUTAS["rips_json.zip"])
+    assert c["estado"] == "ok" and "29 facturas" in c["mensaje"], c
+    assert not [k for k in RF.ABIERTOS if k.startswith(db.UPLOADS)]       # ningún .zip subido queda abierto

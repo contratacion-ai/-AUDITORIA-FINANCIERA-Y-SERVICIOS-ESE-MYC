@@ -47,6 +47,15 @@ class Fuente:
     @classmethod
     def ruta(cls, p): return cls(str(p), lambda: open(p, "rb"), os.path.getsize(p))
 
+ABIERTOS = defaultdict(list)          # ZipFile abiertos por archivo subido: se cierran antes de borrarlo (Windows bloquea un archivo abierto)
+
+def cerrar(ruta):
+    """Cierra los .zip abiertos por `fuentes` para este archivo subido (y sus comprimidos internos)."""
+    for k in [k for k in ABIERTOS if k == ruta or k.startswith(str(ruta) + "_extraido")]:
+        for z in ABIERTOS.pop(k, []):
+            try: z.close()
+            except Exception: pass
+
 def fuentes(ruta, avance=None):
     """Fuentes RIPS de un archivo: un .zip se lee en su lugar (sin extraer); los comprimidos anidados y los .rar/.7z/.tar se extraen."""
     from .formatos import EXT_COMPRIMIDO, extension, extraer, util
@@ -54,12 +63,13 @@ def fuentes(ruta, avance=None):
     if ext == ".zip":
         # 1) directorio central del zip (lo normal); 2) si está dañado (descargas grandes de Google Drive, descarga incompleta),
         #    recorrido secuencial de los encabezados locales (zipseq), también sin descomprimir al disco
-        miembros = None
+        miembros = z = None
         try:
-            z = zipfile.ZipFile(ruta); miembros = [(m.filename, m.file_size, (lambda m=m: z.open(m))) for m in z.infolist() if not m.is_dir()]
+            z = zipfile.ZipFile(ruta); ABIERTOS[ruta].append(z); miembros = [(m.filename, m.file_size, (lambda m=m: z.open(m))) for m in z.infolist() if not m.is_dir()]
             for m in z.infolist():
                 if not m.is_dir() and util(m.filename): z.open(m).close()        # valida el encabezado local de cada miembro
         except (zipfile.BadZipFile, zipfile.LargeZipFile, OSError, EOFError, ValueError, NotImplementedError):
+            if z is not None: z.close(); ABIERTOS.pop(ruta, None)
             from . import zipseq
             if avance: avance("El índice del .zip está dañado: se recorre el archivo completo para encontrar los RIPS…")
             ent = zipseq.indexar(ruta, avance)
