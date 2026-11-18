@@ -202,6 +202,7 @@ def atenciones_txt(resultado) -> pd.DataFrame:
 def atenciones_json(entradas, hospital: str | None = None) -> pd.DataFrame:
     """Registros de RIPS JSON (Res. 2275) con paciente, código y fecha de prestación."""
     from .incidencias import RegistroIncidencias
+    from .json_rips import documentos_2275
     from .lectura import contexto_desde_ruta, descubrir_archivos
 
     filas = []
@@ -214,9 +215,7 @@ def atenciones_json(entradas, hospital: str | None = None) -> pd.DataFrame:
             filas.append({"fuente": "RIPS JSON", "archivo": fuente.ruta, "error": "JSON_INVALIDO", "con_error": True})
             continue
         sede = hospital or contexto_desde_ruta(fuente.ruta).get("hospital") or ""
-        for factura in (doc if isinstance(doc, list) else [doc]):
-            if not isinstance(factura, dict) or "usuarios" not in factura:
-                continue
+        for factura in documentos_2275(doc):
             nota = str(factura.get("tipoNota") or "").strip().upper()
             for u in factura.get("usuarios") or []:
                 nac = pd.to_datetime(u.get("fechaNacimiento"), errors="coerce")

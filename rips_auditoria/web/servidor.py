@@ -196,6 +196,12 @@ async def crear_cargue(request: Request):
                 destino.parent.mkdir(parents=True, exist_ok=True)
                 with destino.open("wb") as fh:
                     shutil.copyfileobj(a.file, fh, 1 << 20)
+            sueltos_json = [a for a in archivos if (a.filename or "").lower().endswith(".json")
+                            and len(PurePosixPath((a.filename or "").replace("\\", "/")).parts) == 1]
+            if sueltos_json and not hospital.strip():
+                shutil.rmtree(temporal, ignore_errors=True)
+                raise HTTPException(400, "Subió archivos JSON sueltos: escriba el hospital (sede) en las opciones "
+                                         "del cargue o suba la carpeta del hospital.")
             hijos = sorted(temporal.iterdir())
             if not hospital.strip() and any(h.is_dir() and detectar_mes(h.name)[0] for h in hijos):
                 shutil.rmtree(temporal, ignore_errors=True)

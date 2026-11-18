@@ -3,7 +3,7 @@
 Formatos aceptados (cada archivo ``.json``, suelto, en carpetas o en ZIP):
 
 1. **RIPS JSON de la Res. 2275 de 2023** (FEV-RIPS): un objeto por factura,
-   o una lista de ellos, con ``numFactura`` y ``usuarios[].servicios``
+   una lista de ellos o el JSON envuelto en ``{"rips": {...}}``, con ``numFactura`` y ``usuarios[].servicios``
    (``consultas``, ``procedimientos``, ``medicamentos``, ``otrosServicios``;
    ``urgencias``, ``hospitalizacion`` y ``recienNacidos`` no traen código ni
    valor y no generan filas, igual que AU/AH/AN en la Res. 3374).
@@ -106,6 +106,21 @@ def _contexto(ruta: str, hospital: str | None, mes: str | None) -> dict:
             "carpeta": c.get("carpeta_envio") or ""}
 
 
+def documentos_2275(doc):
+    """Facturas RIPS JSON (Res. 2275) dentro de ``doc``: una factura, una lista de
+    facturas o el JSON envuelto (``{"rips": {...}}``, como lo devuelve el validador)."""
+    if isinstance(doc, list):
+        for x in doc:
+            yield from documentos_2275(x)
+    elif isinstance(doc, dict):
+        if isinstance(doc.get("usuarios"), list):
+            yield doc
+            return
+        for clave in ("rips", "Rips", "RIPS", "factura", "data"):
+            if clave in doc:
+                yield from documentos_2275(doc[clave])
+
+
 def leer_json(entradas, hospital: str | None = None, mes: str | None = None, cfg: dict | None = None) -> dict:
     """Lee los JSON de ``entradas`` y devuelve ``{"filas": DataFrame (COLUMNAS),
     "resumen": {...}, "incidencias": [...]}`` ya depurado y agregado."""
@@ -135,8 +150,9 @@ def leer_json(entradas, hospital: str | None = None, mes: str | None = None, cfg
         ctx = _contexto(fuente.ruta, hospital, mes)
         lista = doc.get("filas") if isinstance(doc, dict) and isinstance(doc.get("filas"), list) else doc
         docs = lista if isinstance(lista, list) else [lista]
-        if docs and all(isinstance(x, dict) and "usuarios" in x for x in docs):
-            for d in docs:
+        facturas = list(documentos_2275(doc))
+        if facturas:
+            for d in facturas:
                 registros += _servicios_2275(d, fuente.ruta, ctx)
         elif docs and all(isinstance(x, dict) for x in docs) and {"CODIGO_CUPS_CUMS", "FACTURA_FEV"} <= set(docs[0]):
             h = pd.DataFrame(docs).reindex(columns=COLUMNAS, fill_value="")
@@ -276,4 +292,4 @@ def hay_json(entradas) -> bool:
     return False
 
 
-__all__ = ["cargar_json", "hay_json", "integrar", "leer_json"]
+__all__ = ["cargar_json", "documentos_2275", "hay_json", "integrar", "leer_json"]

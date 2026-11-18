@@ -117,11 +117,15 @@
       </div>
       <div class="botones">
         <button class="sec" id="btn-archivos">Elegir ZIP o TXT</button>
+        <button class="sec" id="btn-json">Elegir JSON (Res. 2275)</button>
         <button class="sec" id="btn-carpeta">Elegir carpeta</button>
         <button class="sec" id="btn-limpiar" style="display:none">Quitar selección</button>
       </div>
       <input type="file" id="f-archivos" multiple accept=".zip,.txt,.json,.ZIP,.TXT,.JSON" hidden>
       <input type="file" id="f-carpeta" webkitdirectory multiple hidden>
+      <input type="file" id="f-json" multiple accept=".json,.JSON,application/json" hidden>
+      <div class="ayuda">RIPS JSON de la Res. 2275 de 2023 (una factura por archivo, como los descarga el validador del
+        Ministerio): se pueden cargar solos o junto con los TXT. Si los JSON van sueltos, escriba el hospital en las opciones.</div>
       <div class="seleccion" id="seleccion">Ningún archivo seleccionado.</div>
       <div class="sep" id="sep-ruta">o, para lotes grandes, escriba la ruta en este equipo</div>
       <input type="text" id="ruta" placeholder="Ej.: E:\RIPS 2026\RIPS DESCARGADOS 2026\Hospital San Lorenzo">
@@ -132,7 +136,7 @@
       <h2><span class="num">2</span> Opciones del cargue</h2>
       <label for="hospital">Hospital (opcional)</label>
       <input type="text" id="hospital" placeholder="Se toma de la carpeta: Hospital San Antonio, San Lorenzo…">
-      <div class="ayuda">Escríbalo sólo si carga TXT sueltos o la carpeta de un mes.</div>
+      <div class="ayuda">Escríbalo sólo si carga TXT o JSON sueltos, o la carpeta de un mes.</div>
       <label class="interruptor"><input type="checkbox" id="enviar">
         <div><b>Enviar cada mes al aplicativo de auditoría</b>
         <span>Genera RIPS_AUDITORIA_AAAA-MM.xlsx con todas las sedes acumuladas y lo carga en «Cargas › RIPS». Si el aplicativo está cerrado, se intenta abrir.</span></div></label>
@@ -238,15 +242,23 @@ async function abrirApp(){
   verificarApp();
 }
 
+function tipoArchivo(r){ const x = r.toLowerCase(); return x.endsWith(".json") ? "JSON" : x.endsWith(".zip") ? "ZIP" : x.endsWith(".txt") ? "TXT" : "otros"; }
+function jsonSueltos(){ return estado.archivos.filter(f => tipoArchivo(f.ruta) === "JSON" && !f.ruta.includes("/")).length; }
 function mostrarSeleccion(){
   const n = estado.archivos.length, t = estado.archivos.reduce((a, f) => a + f.file.size, 0);
-  $("#seleccion").innerHTML = n ? `<b>${n} archivo(s)</b> · ${peso(t)} · ${esc(estado.archivos.slice(0, 3).map(f => f.ruta).join(", "))}${n > 3 ? "…" : ""}`
+  const cuenta = {}; estado.archivos.forEach(f => { const k = tipoArchivo(f.ruta); cuenta[k] = (cuenta[k] || 0) + 1; });
+  const detalle = Object.entries(cuenta).map(([k, v]) => `${ent(v)} ${k}`).join(" · ");
+  $("#seleccion").innerHTML = n ? `<b>${n} archivo(s)</b> (${detalle}) · ${peso(t)} · ${esc(estado.archivos.slice(0, 3).map(f => f.ruta).join(", "))}${n > 3 ? "…" : ""}` +
+    (jsonSueltos() && !$("#hospital").value.trim() ? '<div class="aviso">Escriba el hospital (sede) de los JSON en «Opciones del cargue».</div>' : "")
                                 : "Ningún archivo seleccionado.";
   $("#btn-limpiar").style.display = n ? "" : "none";
 }
 function agregar(lista){ for (const f of lista) estado.archivos.push({file: f, ruta: f.webkitRelativePath || f.name}); mostrarSeleccion(); }
 $("#btn-archivos").onclick = () => $("#f-archivos").click();
 $("#btn-carpeta").onclick = () => $("#f-carpeta").click();
+$("#btn-json").onclick = () => $("#f-json").click();
+$("#f-json").onchange = e => { agregar(e.target.files); e.target.value = ""; };
+$("#hospital").addEventListener("input", mostrarSeleccion);
 $("#zona").onclick = () => $("#f-archivos").click();
 $("#f-archivos").onchange = e => { agregar(e.target.files); e.target.value = ""; };
 $("#f-carpeta").onchange = e => { agregar(e.target.files); e.target.value = ""; };
@@ -279,6 +291,7 @@ function fase(f){
 $("#btn-iniciar").onclick = () => {
   const ruta = $("#ruta").value.trim();
   if (!estado.archivos.length && !ruta){ alert("Seleccione o arrastre los RIPS, o escriba la ruta de la carpeta o el ZIP."); return; }
+  if (jsonSueltos() && !$("#hospital").value.trim()){ alert("Escriba el hospital (sede) al que pertenecen los JSON."); $("#hospital").focus(); return; }
   const fd = new FormData();
   estado.archivos.forEach(f => fd.append("archivos", f.file, f.ruta));
   fd.append("ruta_local", ruta); fd.append("hospital", $("#hospital").value.trim());
