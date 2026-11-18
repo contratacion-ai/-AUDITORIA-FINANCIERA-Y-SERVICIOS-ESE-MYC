@@ -179,3 +179,17 @@ def test_zip_danado_por_la_api():
     ruta = os.path.join(CARPETA, "Hospital San Antonio-20261117T191416Z-1-001.zip"); _zip_danado(RUTAS["rips_json.zip"], ruta, "indice")
     r, c = _subir("rips_fev", ruta)
     assert c["tipo"] == "rips_fev" and "29 facturas" in c["mensaje"], c
+
+def test_zip_con_un_archivo_corrupto_carga_el_resto():
+    """«Error -3 while decompressing data»: un JSON dañado se omite y se informa; los demás se cargan."""
+    ruta = os.path.join(CARPETA, "Hospital San Francisco-20261117T191415Z-1-001.zip")
+    with zipfile.ZipFile(RUTAS["rips_json.zip"]) as z, zipfile.ZipFile(ruta, "w", zipfile.ZIP_DEFLATED) as o:
+        for n in z.namelist():
+            if not n.endswith("/"): o.writestr(n, z.read(n))
+    with zipfile.ZipFile(ruta) as z:
+        m = next(i for i in z.infolist() if i.filename.endswith(".json") and i.compress_size > 200)
+        ini = m.header_offset + 30 + len(m.filename.encode()) + len(m.extra)
+    with open(ruta, "r+b") as f:                                        # se dañan bytes en medio del contenido comprimido
+        f.seek(ini + m.compress_size // 3); f.write(b"\xff" * 24)
+    r, c = _subir("rips_fev", ruta)
+    assert c["estado"] == "ok" and "dañados u omitidos" in c["mensaje"] and "28 facturas" in c["mensaje"], c

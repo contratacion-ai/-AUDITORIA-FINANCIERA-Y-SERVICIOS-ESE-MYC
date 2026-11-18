@@ -6,7 +6,7 @@ Cada servicio queda en `rips_det` (paciente con hash) y además se agrega a `rip
 Facturación vs RIPS, la radicación y el cruce de medicamentos funcionan igual que con el consolidado en Excel.
 También se leen las respuestas de validación del Ministerio (JSON con CodigoUnicoValidacion / ResultState) para marcar el CUV de cada factura.
 """
-import hashlib, html, json, os, re, shutil, zipfile
+import hashlib, html, json, os, re, shutil, zipfile, zlib
 from collections import Counter, defaultdict
 from pathlib import Path
 import numpy as np, pandas as pd
@@ -35,6 +35,8 @@ def _fecha(v):
 # llenar el disco y el límite de rutas de Windows; los JSON grandes se leen usuario por usuario (ijson) y las filas se guardan por lotes.
 LIMITE_JSON_MEMORIA = 120 * 1024 * 1024        # JSON más grandes que esto se leen en streaming
 LOTE = 50_000
+# errores de lectura de UN archivo dentro del comprimido (dato dañado, descarga incompleta): se omite ese archivo y se informa
+ERRORES_ARCHIVO = (zlib.error, zipfile.BadZipFile, EOFError, OSError, ValueError, NotImplementedError, UnicodeError, RecursionError, MemoryError)
 COLS = [c for c in COLS_DET if c != "mes"]
 
 class Fuente:
@@ -70,8 +72,10 @@ def fuentes(ruta, avance=None):
             e = extension(partes[-1])
             if e in EXT_COMPRIMIDO or e == ".tar.gz":
                 n += 1; dst = os.path.join(ruta + "_extraido", f"a{n:04d}{e}"); os.makedirs(os.path.dirname(dst), exist_ok=True)
-                with abrir() as s_, open(dst, "wb") as o: shutil.copyfileobj(s_, o, 1 << 20)
-                out += [Fuente("/".join(partes) + " › " + f.nombre, f.abrir, f.tam) for f in fuentes(dst)]
+                try:
+                    with abrir() as s_, open(dst, "wb") as o: shutil.copyfileobj(s_, o, 1 << 20)
+                    out += [Fuente("/".join(partes) + " › " + f.nombre, f.abrir, f.tam) for f in fuentes(dst)]
+                except ERRORES_ARCHIVO: continue                         # comprimido interno dañado: se omite
             else: out.append(Fuente("/".join(partes), abrir, tam))
         return out
     if ext in EXT_COMPRIMIDO or ext == ".tar.gz":
@@ -86,7 +90,9 @@ def es_rips(f):
     n = f.base.upper()
     if n.endswith(".JSON"): return True
     if n.endswith(".XML"):
-        with f.abrir() as h: cab = h.read(4096)
+        try:
+            with f.abrir() as h: cab = h.read(4096)
+        except ERRORES_ARCHIVO: return True                             # dañado: se intenta leer después y se informa como omitido
         return b"AttachedDocument" in cab or b"<Invoice" in cab
     return n.endswith(".TXT") and n[:2] in PREFIJOS_TXT
 
@@ -210,41 +216,45 @@ def leer_xml(f):
     return enc, lineas
 
 # ───────── TXT (Res. 3374 de 2000) ─────────
-def _lineas_txt(f):
+def _lineas_txt(f, errores=None):
     if not isinstance(f, Fuente): f = Fuente.ruta(f)
-    with f.abrir() as h:
-        for b in h:
-            try: l = b.decode("utf-8-sig")
-            except UnicodeDecodeError: l = b.decode("cp1252", errors="replace")
-            if l.strip(): yield [x.strip() for x in l.rstrip("\r\n").split(",")]
+    try:
+        with f.abrir() as h:
+            for b in h:
+                try: l = b.decode("utf-8-sig")
+                except UnicodeDecodeError: l = b.decode("cp1252", errors="replace")
+                if l.strip(): yield [x.strip() for x in l.rstrip("\r\n").split(",")]
+    except ERRORES_ARCHIVO as e:
+        if errores is None: raise
+        errores.append(f"«{f.nombre}» dañado ({type(e).__name__}: {e}); se leyó hasta donde fue posible")
 
-def leer_txt(fs):
+def leer_txt(fs, errores=None):
     """Un juego de RIPS TXT (puede venir de varias remisiones) → (af, generador de filas). AF da EPS, contrato, fecha y valor neto de cada factura."""
     fs = [f if isinstance(f, Fuente) else Fuente.ruta(f) for f in fs]
     por = defaultdict(list)
     for f in fs: por[f.base.upper()[:2]].append(f)
     af = {}
     for f in por.get("AF", []):
-        for x in _lineas_txt(f):
+        for x in _lineas_txt(f, errores):
             if len(x) >= 17: af[x[4]] = dict(fecha=_ymd(x[5]), cod_eps=x[8], eps=x[9], contrato=x[10], valor_neto=num(x[16]))
     def filas():
         def t(f, tipo, x, cod, desc, cant, vu, val, fecha, dx, aut, mod=0.0):
             return (x[0], tipo, cod, desc, cant or 1.0, vu, val, _h(x[3]), x[2], fecha or af.get(x[0], {}).get("fecha", ""), dx, aut, "TXT", f.base, mod)
         for f in por.get("AC", []):
-            for x in _lineas_txt(f):
+            for x in _lineas_txt(f, errores):
                 if len(x) >= 15: yield t(f, "Consultas", x, x[6], "", 1.0, num(x[14]), num(x[14]), _ymd(x[4]), x[9], x[5], num(x[15]) if len(x) > 15 else 0.0)
         for f in por.get("AP", []):
-            for x in _lineas_txt(f):
+            for x in _lineas_txt(f, errores):
                 if len(x) >= 15: yield t(f, "Procedimientos", x, x[6], "", 1.0, num(x[14]), num(x[14]), _ymd(x[4]), x[10], x[5])
         for f in por.get("AM", []):
-            for x in _lineas_txt(f):
+            for x in _lineas_txt(f, errores):
                 if len(x) >= 14: yield t(f, "Medicamentos", x, x[5], x[7], num(x[11]), num(x[12]), num(x[13]), "", "", x[4])
         for f in por.get("AT", []):
-            for x in _lineas_txt(f):
+            for x in _lineas_txt(f, errores):
                 if len(x) >= 11: yield t(f, "Otros servicios", x, x[6], x[7], num(x[8]), num(x[9]), num(x[10]), "", "", x[4])
         for pref, tipo in (("AU", "Urgencias"), ("AH", "Hospitalización")):
             for f in por.get(pref, []):
-                for x in _lineas_txt(f):
+                for x in _lineas_txt(f, errores):
                     if len(x) >= 5: yield (x[0], tipo, "", "", 0.0, 0.0, 0.0, _h(x[3]), x[2], _ymd(x[4] if pref == "AU" else x[5] if len(x) > 5 else ""), "", "", "TXT", f.base, 0.0)
     return af, filas()
 
@@ -264,7 +274,7 @@ def cargar(cid, fs, mes_param=None, avance=None, reemplazar=None):
     for i, f in enumerate(xmls, 1):
         if i % 200 == 0: av(f"Leyendo XML de facturas {i:,} de {len(xmls):,}…")
         try: e, l = leer_xml(f)
-        except Exception: continue
+        except Exception as ex: errores.append(f"«{f.nombre}» dañado ({type(ex).__name__}: {str(ex)[:80]})"); continue
         if e["factura"]: xml.append(e); xlin += l
     with conn() as c:
         c.execute("DELETE FROM rips_det WHERE carga_id=?", (cid,)); c.execute("DELETE FROM rips_fi WHERE carga_id=?", (cid,))
@@ -285,11 +295,11 @@ def cargar(cid, fs, mes_param=None, avance=None, reemplazar=None):
     for i, f in enumerate(jsons, 1):
         av(f"Leyendo JSON {i:,} de {len(jsons):,} ({leido / tot:.0%} del volumen) · {n:,} servicios…") if i % 25 == 0 or f.tam > 20e6 else None
         try: agregar(leer_json(f, val))
-        except (ValueError, RecursionError, MemoryError) as e: errores.append(str(e)[:200])
+        except ERRORES_ARCHIVO as e: errores.append(f"«{f.nombre}» dañado u omitido ({type(e).__name__}: {str(e)[:80]})")
         leido += f.tam
     af = {}
     if txt:
-        av(f"Leyendo {len(txt):,} archivos TXT…"); af, gen = leer_txt(txt); agregar(gen)
+        av(f"Leyendo {len(txt):,} archivos TXT…"); af, gen = leer_txt(txt, errores); agregar(gen)
     vaciar()
     if not n and not val and not xml:
         raise ValueError("Los archivos no contienen RIPS JSON (numFactura + usuarios), XML de facturas (FEV) ni RIPS TXT." + (f" {errores[0]}" if errores else ""))

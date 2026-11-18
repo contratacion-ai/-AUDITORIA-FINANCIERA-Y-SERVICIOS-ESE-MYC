@@ -84,6 +84,12 @@ administrador: incluye Python 3.12 oficial y todas las librerías. Crea accesos 
   Versiones empaquetadas en `instalador/requirements-windows.txt`.
 - Windows SmartScreen puede advertir que el instalador no está firmado: «Más información» → «Ejecutar de todas formas».
 
+## Novedades v5.10 · Archivos dañados dentro del comprimido
+
+| Cambio | Detalle |
+|---|---|
+| **«Error -3 while decompressing data: invalid distance too far back»** | Un archivo dañado dentro del .zip (descarga incompleta o con errores) ya no detiene la carga: se omite, se cargan los demás y el historial dice cuáles se omitieron («⚠ N archivo(s) dañados u omitidos…») para volver a descargarlos. Aplica a JSON, XML, TXT y comprimidos internos. |
+
 ## Novedades v5.9 · ZIP con índice dañado («BadZipFile: Bad magic number»)
 
 | Cambio | Detalle |

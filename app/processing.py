@@ -278,7 +278,7 @@ def _procesar_rips_fev(cid, fuentes, mes_param=None):
         r = RF.cargar(cid, fuentes, mes_param, avance=lambda t: estado(cid, "procesando", t), reemplazar=lambda c, meses: _reemplazar(c, "rips_fev", cid, meses))
         estado(cid, "ok", f"{r['facturas']:,} facturas, {r['servicios']:,} servicios RIPS ({', '.join(f'{k} {v:,}' for k, v in r['origen'].items())})"
                           + (f"; {r['xml']:,} XML de factura (FEV)" if r["xml"] else "") + (f"; {r['validaciones']:,} respuestas de validación (CUV)" if r["validaciones"] else "")
-                          + f" en {', '.join(r['meses'])}" + (f". {len(r['errores'])} archivo(s) omitidos: {r['errores'][0]}" if r["errores"] else ""), r["servicios"], ",".join(r["meses"]))
+                          + f" en {', '.join(r['meses'])}" + (f". ⚠ {len(r['errores'])} archivo(s) dañados u omitidos (descargue de nuevo el comprimido): " + " | ".join(r["errores"][:3]) if r["errores"] else ""), r["servicios"], ",".join(r["meses"]))
     except Exception as e:
         estado(cid, "error", f"{type(e).__name__}: {e}")
         with conn() as c:                                               # sin datos a medias de una carga fallida
