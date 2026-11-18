@@ -196,7 +196,7 @@ async def crear_cargue(request: Request):
                 destino.parent.mkdir(parents=True, exist_ok=True)
                 with destino.open("wb") as fh:
                     shutil.copyfileobj(a.file, fh, 1 << 20)
-            sueltos_json = [a for a in archivos if (a.filename or "").lower().endswith(".json")
+            sueltos_json = [a for a in archivos if (a.filename or "").lower().endswith((".json", ".xml"))
                             and len(PurePosixPath((a.filename or "").replace("\\", "/")).parts) == 1]
             if sueltos_json and not hospital.strip():
                 shutil.rmtree(temporal, ignore_errors=True)

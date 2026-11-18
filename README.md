@@ -91,7 +91,7 @@ informe Excel): el informe conserva sus columnas y agrega al final:
 |---|---|
 | Limpiar por mes, sede o ambos | «Ver qué se eliminaría» → lista y resumen → casilla de confirmación + diálogo → «Confirmar eliminación». Consola: `datos limpiar --mes 2026-05 --sede "Hospital San Antonio"` (pide escribir SI) |
 | Duplicados reales | Filas idénticas y facturas repetidas en otro mes (misma sede, factura, código, cantidad y valor); se conserva la del mes más antiguo. Consola: `datos duplicados` |
-| JSON | RIPS JSON de la Res. 2275 (una factura, una lista o el JSON envuelto en `{"rips": …}` del validador) o filas homologadas: botón «Elegir JSON (Res. 2275)» de la ventana de cargue (si van sueltos se pide el hospital), en la pestaña o con `datos json <rutas> [--hospital] [--mes]` |
+| JSON | RIPS JSON de la Res. 2275 (una factura, una lista o el JSON envuelto en `{"rips": …}` del validador) o filas homologadas: botón «Elegir JSON + XML (Res. 2275)» de la ventana de cargue (si van sueltos se pide el hospital). La EPS, el NIT, el contrato, la modalidad y el valor se toman del **XML de la factura electrónica** que acompaña a cada JSON (`fev_xml.py`); el paciente es siempre el usuario del JSON (el documento dentro de cada servicio es el del profesional), en la pestaña o con `datos json <rutas> [--hospital] [--mes]` |
 | Catálogos | Pestaña «CUPS enriquecido» o `datos catalogo --complemento RIPS_cups.csv --tarifario Tarifa_UVB.xlsb` |
 
 Nada se borra sin vista previa y confirmación explícita; la confirmación lleva una huella de los datos vistos

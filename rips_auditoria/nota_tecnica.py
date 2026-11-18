@@ -28,8 +28,11 @@ Insumos
   ``codProcedimiento`` y ``codTecnologiaSalud``; fechas
   ``fechaInicioAtencion``, ``fechaDispensAdmon`` y
   ``fechaSuministroTecnologia``; edad por ``fechaNacimiento``. El JSON no
-  trae la EPS: si su factura está en un AF cargado se usa esa EPS; si no, se
-  asume la EPS de la nota (``json_sin_eps="asumir"``) y se reporta.
+  trae la EPS: se toma del XML de la factura electrónica (FEV) que viene junto
+  al JSON (adquiriente y NIT); si no hay XML pero la factura está en un AF
+  cargado se usa esa EPS; si no, se asume la EPS de la nota
+  (``json_sin_eps="asumir"``) y se reporta. El documento que trae cada
+  servicio del JSON es el del profesional: el paciente es siempre el usuario.
 
 Reglas de conteo
 ----------------
@@ -66,7 +69,8 @@ DEFAULTS = {
     "eps_nombre": "NUEVA EPS",
     # Textos (en el nombre de la entidad del AF) y códigos que identifican a la EPS
     "eps_textos": ["NUEVA EPS", "NUEVA EMPRESA PROMOTORA"],
-    "eps_codigos": ["EPS037", "EPSS37", "EPS041", "EPSS41"],
+    # códigos de entidad del AF (EPS037 = Nueva EPS) y NIT de la FEV (900156264 = Nueva EPS S.A.)
+    "eps_codigos": ["EPS037", "EPSS37", "EPS041", "EPSS41", "900156264"],
     "json_sin_eps": "asumir",  # asumir | excluir: JSON cuya factura no está en un AF cargado
 }
 CURSOS = [("Primera infancia (0 a 5 años)", 0, 6), ("Infancia (6 a 11 años)", 6, 12),
@@ -201,10 +205,12 @@ def atenciones_txt(resultado) -> pd.DataFrame:
 
 def atenciones_json(entradas, hospital: str | None = None) -> pd.DataFrame:
     """Registros de RIPS JSON (Res. 2275) con paciente, código y fecha de prestación."""
+    from .fev_xml import indice_fev
     from .incidencias import RegistroIncidencias
     from .json_rips import documentos_2275
     from .lectura import contexto_desde_ruta, descubrir_archivos
 
+    fev = indice_fev(entradas)
     filas = []
     for fuente in descubrir_archivos(list(entradas), RegistroIncidencias()):
         if not fuente.ruta.lower().endswith(".json"):
@@ -228,9 +234,12 @@ def atenciones_json(entradas, hospital: str | None = None) -> pd.DataFrame:
                         filas.append({
                             "fuente": "RIPS JSON", "tipo_archivo": tipo, "sede": sede, "archivo": fuente.ruta,
                             "linea": i + 1, "factura": str(factura.get("numFactura") or "").strip(),
-                            "cod_entidad": "", "nombre_entidad": "",
-                            "tipo_id": str(s.get("tipoDocumentoIdentificacion") or u.get("tipoDocumentoIdentificacion") or "").strip().upper(),
-                            "num_id": str(s.get("numDocumentoIdentificacion") or u.get("numDocumentoIdentificacion") or "").strip().upper(),
+                            # EPS y NIT de la FEV (XML) de la factura, si viene junto al JSON
+                            "cod_entidad": (fev.get(str(factura.get("numFactura") or "").strip().upper()) or {}).get("eps_nit", ""),
+                            "nombre_entidad": (fev.get(str(factura.get("numFactura") or "").strip().upper()) or {}).get("eps_nombre", ""),
+                            # paciente = el usuario; el documento dentro de cada servicio es el del profesional
+                            "tipo_id": str(u.get("tipoDocumentoIdentificacion") or "").strip().upper(),
+                            "num_id": str(u.get("numDocumentoIdentificacion") or "").strip().upper(),
                             "codigo_rips": str(s.get(c_cod) or "").strip(), "fecha": fecha, "fecha_de_factura": False,
                             "edad_anios": edad, "con_error": False, "error": "", "nota": nota,
                         })
@@ -284,10 +293,13 @@ def calcular(at: pd.DataFrame, catalogo: pd.DataFrame, desde: str | None = None,
     textos = [_n(x) for x in c["eps_textos"]]
     codigos = {str(x).strip().upper() for x in c["eps_codigos"]}
     nom = at["nombre_entidad"].fillna("").map(_n)
-    de_eps = nom.map(lambda x: any(t in x for t in textos if t)) | at["cod_entidad"].fillna("").str.upper().isin(codigos)
+    cod = at["cod_entidad"].fillna("").astype(str).str.strip().str.upper()
+    nit = cod.str.replace(r"[^0-9]", "", regex=True).str[:9]  # NIT sin puntos ni dígito de verificación
+    de_eps = nom.map(lambda x: any(t in x for t in textos if t)) | cod.isin(codigos) | (nit.isin(codigos) & (nit != ""))
     json_asumido = es_json & (at["nombre_entidad"].fillna("") == "")
     if c["json_sin_eps"] == "asumir":
         de_eps |= json_asumido
+    fechas_archivos = at["fecha"].dt.strftime("%Y-%m").dropna()  # período por defecto si ninguna es de la EPS
     otra_eps = at[~de_eps]
     at = at[de_eps].copy()
     at["json_eps_asumida"] = json_asumido[de_eps]
@@ -295,6 +307,8 @@ def calcular(at: pd.DataFrame, catalogo: pd.DataFrame, desde: str | None = None,
     # 3) Período
     at["mes"] = at["fecha"].dt.strftime("%Y-%m")
     validas = at["mes"].dropna()
+    if validas.empty:
+        validas = fechas_archivos
     desde = desde or (validas.min() if len(validas) else dt.date.today().strftime("%Y-01"))
     hasta = hasta or (validas.max() if len(validas) else dt.date.today().strftime("%Y-%m"))
     meses = _meses(desde, hasta)

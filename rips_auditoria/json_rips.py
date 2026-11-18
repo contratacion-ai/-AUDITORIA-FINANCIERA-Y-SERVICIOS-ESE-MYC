@@ -13,8 +13,10 @@ Formatos aceptados (cada archivo ``.json``, suelto, en carpetas o en ZIP):
    procedimientos cuentan 1), ``vrServicio`` (valor), ``fechaInicioAtencion``
    / ``fechaDispensAdmon`` / ``fechaSuministroTecnologia`` (mes) y
    ``codPrestador`` (sede por ``organizacion.hospitales_por_prestador``).
-   El JSON no trae la EPS ni el valor neto de la FEV: EPS = «SIN EPS (RIPS
-   JSON)» y VALOR_FACTURA_FEV = suma de ``vrServicio`` de la factura.
+   El JSON no trae la EPS ni el valor de la FEV: se toman del **XML de la
+   factura electrónica** que viene junto al JSON (``fev_xml``: adquiriente,
+   NIT, ``NUMERO_CONTRATO``, ``MODALIDAD_PAGO`` y ``PayableAmount``). Sin XML:
+   EPS = «SIN EPS (RIPS JSON)» y VALOR_FACTURA_FEV = suma de ``vrServicio``.
 2. **Filas homologadas**: una lista de objetos (o ``{"filas": [...]}``) con
    las columnas de la plantilla del aplicativo (MES, EPS, SEDE, FACTURA_FEV,
    TIPO_SERVICIO, CODIGO_CUPS_CUMS, CANTIDAD, VALOR_SERVICIO…).
@@ -134,6 +136,9 @@ def leer_json(entradas, hospital: str | None = None, mes: str | None = None, cfg
     homologadas: list[pd.DataFrame] = []
     avisos: list[str] = []
     archivos = 0
+    from .fev_xml import indice_fev
+
+    fev = indice_fev(entradas)  # XML de la factura electrónica junto a cada JSON
     for fuente in descubrir_archivos(list(entradas), inc):
         if not fuente.ruta.lower().endswith(".json"):
             continue
@@ -181,15 +186,26 @@ def leer_json(entradas, hospital: str | None = None, mes: str | None = None, cfg
             lambda m: f"{int(m):02d}" if pd.notna(m) else ""))
         r["MES"] = r["mes_ctx"].where(r["mes_ctx"].notna(), mes_fechas)
         r["SEDE"] = r["sede_ctx"].where(r["sede_ctx"] != "", r["prestador"].map(lambda p: por_prestador.get(p, "")))
-        contrato = r["carpeta"].map(limpiar_contrato)
-        fev = r.groupby("factura")["valor"].sum()
+        # La carpeta con el mismo nombre de la factura (FHSA83039/) no es un contrato
+        carpeta = r["carpeta"].where(r["carpeta"].str.upper() != r["factura"].str.upper(), "")
+        contrato = carpeta.map(limpiar_contrato)
+        suma = r.groupby("factura")["valor"].sum()
+        # EPS, contrato, modalidad y valor de la FEV (XML) que acompaña al JSON, si está
+        f = r["factura"].str.upper().map(lambda x: fev.get(x) or {})
+        eps = f.map(lambda d: d.get("eps_nombre", "")).where(lambda x: x != "", EPS_JSON)
+        cucon = f.map(lambda d: d.get("contrato", ""))
+        contrato = contrato.where(contrato != "", cucon)
+        modal_fev = f.map(lambda d: d.get("modalidad", ""))
+        modal = pd.Series([_modalidad_nombre(c, reglas) for c in contrato], index=r.index)
+        valor_fev = f.map(lambda d: d.get("valor"))
         partes.append(pd.DataFrame({
-            "MES": r["MES"], "EPS": EPS_JSON, "NIT_EPS": "", "CONTRATO": contrato.where(contrato != "", "SIN CONTRATO"),
-            "CUCON": "", "MODALIDAD": [_modalidad_nombre(c, reglas) for c in contrato], "SEDE": r["SEDE"],
+            "MES": r["MES"], "EPS": eps, "NIT_EPS": f.map(lambda d: d.get("eps_nit", "")),
+            "CONTRATO": contrato.where(contrato != "", "SIN CONTRATO"),
+            "CUCON": cucon, "MODALIDAD": modal_fev.where(modal_fev != "", modal), "SEDE": r["SEDE"],
             "FACTURA_FEV": r["factura"], "FACTURA_RIPS": "", "TIPO_SERVICIO": r["tipo"],
             "CODIGO_CUPS_CUMS": r["codigo"], "DESCRIPCION_SERVICIO": r["descripcion"], "CANTIDAD": r["cantidad"],
-            "VALOR_SERVICIO": r["valor"], "VALOR_FACTURA_FEV": r["factura"].map(fev),
-            "VALIDACION": "RIPS JSON (Res. 2275)",
+            "VALOR_SERVICIO": r["valor"], "VALOR_FACTURA_FEV": valor_fev.where(valor_fev.notna(), r["factura"].map(suma)),
+            "VALIDACION": f.map(lambda d: "RIPS JSON (Res. 2275) · FEV XML" if d else "RIPS JSON (Res. 2275) · SIN FEV XML"),
         }))
     if homologadas:
         h = pd.concat(homologadas, ignore_index=True)

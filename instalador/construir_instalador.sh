@@ -116,9 +116,10 @@ DEPURACIÓN DE DATOS (pestaña "Depuración de datos"): limpiar un mes, una sede
  volver a cargar, depurar duplicados (siempre con vista previa y confirmación; lo eliminado
  queda en la carpeta "papelera") y cargar RIPS en JSON (Res. 2275) sin duplicar.
 
-RIPS JSON (Res. 2275): botón "Elegir JSON (Res. 2275)" en la ventana de cargue. Se pueden
- cargar solos o con los TXT; si van sueltos, escriba el hospital. No se duplican con lo ya
- cargado y también cuentan en la nota técnica de capitación.
+RIPS JSON (Res. 2275): botón "Elegir JSON + XML (Res. 2275)" en la ventana de cargue. Cargue
+ cada JSON con su XML de la factura electrónica (o el ZIP/carpeta que los trae): del XML se
+ toman la EPS, el NIT, el contrato, la modalidad y el valor. Si van sueltos, escriba el
+ hospital. No se duplican con lo ya cargado y también cuentan en la nota técnica.
 
 CARGUE SIN LÍMITE: se pueden subir carpetas con miles de TXT y archivos con todas sus líneas.
 

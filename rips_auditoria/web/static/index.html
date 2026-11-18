@@ -117,15 +117,16 @@
       </div>
       <div class="botones">
         <button class="sec" id="btn-archivos">Elegir ZIP o TXT</button>
-        <button class="sec" id="btn-json">Elegir JSON (Res. 2275)</button>
+        <button class="sec" id="btn-json">Elegir JSON + XML (Res. 2275)</button>
         <button class="sec" id="btn-carpeta">Elegir carpeta</button>
         <button class="sec" id="btn-limpiar" style="display:none">Quitar selección</button>
       </div>
       <input type="file" id="f-archivos" multiple accept=".zip,.txt,.json,.ZIP,.TXT,.JSON" hidden>
       <input type="file" id="f-carpeta" webkitdirectory multiple hidden>
-      <input type="file" id="f-json" multiple accept=".json,.JSON,application/json" hidden>
+      <input type="file" id="f-json" multiple accept=".json,.JSON,.xml,.XML,application/json" hidden>
       <div class="ayuda">RIPS JSON de la Res. 2275 de 2023 (una factura por archivo, como los descarga el validador del
-        Ministerio): se pueden cargar solos o junto con los TXT. Si los JSON van sueltos, escriba el hospital en las opciones.</div>
+        Ministerio): seleccione cada JSON <b>con su XML de la factura electrónica</b> (de ahí se toman la EPS, el contrato, la
+        modalidad y el valor), o el ZIP o la carpeta que los contiene. Si van sueltos, escriba el hospital en las opciones.</div>
       <div class="seleccion" id="seleccion">Ningún archivo seleccionado.</div>
       <div class="sep" id="sep-ruta">o, para lotes grandes, escriba la ruta en este equipo</div>
       <input type="text" id="ruta" placeholder="Ej.: E:\RIPS 2026\RIPS DESCARGADOS 2026\Hospital San Lorenzo">
@@ -242,7 +243,7 @@ async function abrirApp(){
   verificarApp();
 }
 
-function tipoArchivo(r){ const x = r.toLowerCase(); return x.endsWith(".json") ? "JSON" : x.endsWith(".zip") ? "ZIP" : x.endsWith(".txt") ? "TXT" : "otros"; }
+function tipoArchivo(r){ const x = r.toLowerCase(); return x.endsWith(".json") ? "JSON" : x.endsWith(".zip") ? "ZIP" : x.endsWith(".txt") ? "TXT" : x.endsWith(".xml") ? "XML" : "otros"; }
 function jsonSueltos(){ return estado.archivos.filter(f => tipoArchivo(f.ruta) === "JSON" && !f.ruta.includes("/")).length; }
 function mostrarSeleccion(){
   const n = estado.archivos.length, t = estado.archivos.reduce((a, f) => a + f.file.size, 0);
