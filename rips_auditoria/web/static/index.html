@@ -139,6 +139,21 @@
       <label class="interruptor"><input type="checkbox" id="consolidado">
         <div><b>Generar consolidado anual</b>
         <span>Un Excel y un JSON con todos los hospitales y meses (más lento en lotes grandes).</span></div></label>
+      <label class="interruptor"><input type="checkbox" id="nota-tecnica">
+        <div><b>Generar nota técnica de capitación</b>
+        <span>Pacientes únicos por código CUPS y mes (tipo + número de identificación), con plantilla de la nota y hoja de cálculo con fórmulas y tabla dinámica.</span></div></label>
+      <div id="nt-opciones" style="display:none;border:1px solid var(--borde);border-radius:10px;padding:10px 12px;margin-top:8px">
+        <label for="nt-archivo">Archivo de la nota técnica (CodigoCUP, Homologo, ESTADO CUPS, DescripcionCUP)</label>
+        <input type="file" id="nt-archivo" accept=".xlsx,.xls,.csv">
+        <div class="ayuda" id="nt-estado">Verificando nota técnica guardada…</div>
+        <label for="nt-eps">EPS del contrato</label>
+        <input type="text" id="nt-eps" value="NUEVA EPS">
+        <div style="display:flex;gap:10px">
+          <div style="flex:1"><label for="nt-desde">Desde (AAAA-MM)</label><input type="text" id="nt-desde" placeholder="2023-01"></div>
+          <div style="flex:1"><label for="nt-hasta">Hasta (AAAA-MM)</label><input type="text" id="nt-hasta" placeholder="2023-12"></div>
+        </div>
+        <div class="ayuda">Sin período se toma del primer al último mes con atenciones. <a href="/api/nota-tecnica/plantilla" style="color:var(--verde-osc)">Descargar plantilla en blanco</a>.</div>
+      </div>
       <div class="ayuda" style="margin-top:10px">¿Va a volver a cargar un mes o una sede? Revise y limpie antes lo ya cargado en
         <a href="/tablero#depuracion" style="color:var(--verde-osc)">Tablero › Depuración de datos</a>. Los RIPS en JSON (Res. 2275) se integran sin duplicar.</div>
       <button class="pri" id="btn-iniciar">Iniciar cargue</button>
@@ -268,6 +283,11 @@ $("#btn-iniciar").onclick = () => {
   estado.archivos.forEach(f => fd.append("archivos", f.file, f.ruta));
   fd.append("ruta_local", ruta); fd.append("hospital", $("#hospital").value.trim());
   fd.append("enviar", $("#enviar").checked); fd.append("consolidado", $("#consolidado").checked);
+  if ($("#nota-tecnica").checked){
+    fd.append("nota_tecnica", "true"); fd.append("nt_eps", $("#nt-eps").value.trim());
+    fd.append("nt_desde", $("#nt-desde").value.trim()); fd.append("nt_hasta", $("#nt-hasta").value.trim());
+    if ($("#nt-archivo").files.length) fd.append("nota_archivo", $("#nt-archivo").files[0]);
+  }
   $("#btn-iniciar").disabled = true; $("#avance").style.display = "block"; $("#resultados").style.display = "none";
   $("#log").textContent = ""; estado.linea = 0; fase("subir");
   $("#fase-texto").textContent = estado.archivos.length ? "Subiendo archivos…" : "Leyendo la ruta indicada…";
@@ -322,7 +342,13 @@ function mostrarResultados(t){
     ["valor_neto_facturado_af", "Valor neto AF", "$"], ["valor_servicios_rips", "Valor servicios RIPS", "$"],
     ["facturas_con_diferencia", "Facturas con diferencia", "#"], ["inc_error", "Errores", "#"], ["inc_advertencia", "Advertencias", "#"]], u);
   tabla("#t-incidencias", [["severidad", "Severidad", "chip"], ["regla", "Regla"], ["descripcion", "Descripción"], ["cantidad", "Cantidad", "#"]], r.incidencias);
-  $("#aviso-envio").innerHTML = (r.aviso_envio ? `<div class="aviso">${esc(r.aviso_envio)}</div>` : "") + (r.json ?
+  const nt = r.nota_tecnica;
+  const notaHtml = nt ? `<div class="aviso" style="background:var(--verde-claro);color:var(--verde-osc)"><b>Nota técnica ${esc(nt.eps)}</b>
+    (${esc(nt.desde)} a ${esc(nt.hasta)}): ${ent(nt.pacientes_unicos_periodo)} pacientes únicos · ${nt.codigos_con_pacientes} de ${nt.codigos_nota}
+    códigos con pacientes · ${nt.codigos_sin_registros} en 0 · duplicados ${ent(nt.duplicados)} · anulados ${ent(nt.excl_anulado)} ·
+    con errores ${ent(nt.con_errores)} · fuera de período ${ent(nt.excl_fuera_periodo)}${nt.meses_sin_informacion.length ?
+    ` · <b>meses sin información: ${esc(nt.meses_sin_informacion.join(", "))}</b>` : ""}. Descargue los archivos NOTA_TECNICA/ de la lista.</div>` : "";
+  $("#aviso-envio").innerHTML = notaHtml + (r.aviso_envio ? `<div class="aviso">${esc(r.aviso_envio)}</div>` : "") + (r.json ?
     `<div class="aviso" style="background:var(--verde-claro);color:var(--verde-osc)">RIPS JSON: ${ent(r.json.registros_leidos)} registros leídos ·
      ${ent(r.json.repetidos_en_json)} repetidos en el JSON · ${ent(r.json.ya_cargadas)} ya cargados · <b>${ent(r.json.agregadas)} filas agregadas</b></div>` +
      r.json.avisos.map(a => `<div class="aviso">${esc(a)}</div>`).join("") : "");
@@ -341,6 +367,14 @@ function mostrarResultados(t){
   verificarApp();
 }
 
+async function estadoNota(){
+  try{
+    const e = await (await fetch("/api/nota-tecnica/estado")).json();
+    $("#nt-estado").textContent = e.archivo ? `Guardada: ${e.archivo} · ${e.codigos} códigos (${e.inactivos} inactivos). Cargue otro archivo sólo si cambió.`
+                                            : "No hay nota técnica guardada: seleccione el archivo (p. ej. NUEVA_EPS.xlsx).";
+  }catch(err){}
+}
+$("#nota-tecnica").onchange = e => { $("#nt-opciones").style.display = e.target.checked ? "block" : "none"; if (e.target.checked) estadoNota(); };
 verificarApp(); setInterval(verificarApp, 8000);
 </script>
 </body>

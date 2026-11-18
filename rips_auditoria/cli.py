@@ -67,6 +67,19 @@ def _parser() -> argparse.ArgumentParser:
     pl = sub.add_parser("plantilla", help="Generar la plantilla Excel vacía del Anexo Técnico No. 1")
     pl.add_argument("-s", "--salida", default="Plantilla_RIPS_Res3374_AnexoTecnico1.xlsx")
 
+    nt_ = sub.add_parser("nota-tecnica", help="Nota técnica de capitación: pacientes únicos por código CUPS y mes")
+    nt_.add_argument("entradas", nargs="*", help="RIPS TXT, JSON, carpetas o ZIP")
+    nt_.add_argument("--nota", help="Nota técnica con los códigos (p. ej. NUEVA_EPS.xlsx: CodigoCUP, Homologo, ESTADO CUPS)")
+    nt_.add_argument("-s", "--salida", default="nota_tecnica", help="Carpeta de salida")
+    nt_.add_argument("--desde", help="Primer mes AAAA-MM (por defecto el primero con datos)")
+    nt_.add_argument("--hasta", help="Último mes AAAA-MM (por defecto el último con datos)")
+    nt_.add_argument("--hospital", help="Sede, si los archivos no vienen en carpetas por hospital")
+    nt_.add_argument("--eps", help="Nombre de la EPS del contrato (por defecto NUEVA EPS)")
+    nt_.add_argument("--eps-texto", action="append", help="Texto del nombre de la entidad en el AF (se puede repetir)")
+    nt_.add_argument("--eps-codigo", action="append", help="Código de la entidad en el AF, p. ej. EPSS41 (se puede repetir)")
+    nt_.add_argument("--json-sin-eps", choices=["asumir", "excluir"], help="JSON cuya factura no está en un AF cargado")
+    nt_.add_argument("--plantilla", action="store_true", help="Sólo generar la plantilla en blanco de la nota técnica")
+
     dt_ = sub.add_parser("datos", help="Limpiar o depurar los datos cargados, leer JSON y cargar catálogos de CUPS")
     ds = dt_.add_subparsers(dest="accion", required=True)
     li = ds.add_parser("limpiar", help="Eliminar lo cargado de un mes, una sede o ambos (muestra y pide confirmación)")
@@ -106,6 +119,35 @@ def _confirmar(vista: dict, accion: str, automatico: bool) -> bool:
         return input(f"\n¿{accion}? Escriba SI para confirmar: ").strip().upper() == "SI"
     except EOFError:  # sin consola interactiva: no se confirma
         return False
+
+
+def _nota_tecnica(args) -> int:
+    from . import nota_tecnica, nota_tecnica_excel
+
+    salida = Path(args.salida)
+    if args.plantilla:
+        print("Plantilla:", nota_tecnica_excel.exportar_nota(salida / "PLANTILLA_NOTA_TECNICA_CAPITACION.xlsx"))
+        return 0
+    if not args.nota or not args.entradas:
+        print("Indique los RIPS/JSON a procesar y --nota con el archivo de códigos de la nota técnica.", file=sys.stderr)
+        return 1
+    cfg = cargar_configuracion()
+    nt_cfg = cfg.setdefault("nota_tecnica", {})
+    for clave, valor in (("eps_nombre", args.eps), ("eps_textos", args.eps_texto), ("eps_codigos", args.eps_codigo),
+                         ("json_sin_eps", args.json_sin_eps)):
+        if valor:
+            nt_cfg[clave] = valor
+    calc = nota_tecnica.procesar_nota(args.entradas, args.nota, args.desde, args.hasta, args.hospital, cfg)
+    r = calc["resumen"]
+    print(f"{r['eps']} · {r['desde']} a {r['hasta']} · {r['codigos_con_pacientes']} de {r['codigos_nota']} códigos con "
+          f"pacientes · {r['pacientes_unicos_periodo']} pacientes únicos · {r['registros_incluidos']} registros incluidos")
+    print(f"Sin registros: {r['codigos_sin_registros']} códigos · duplicados: {r['duplicados']} · anulados: "
+          f"{r['excl_anulado']} · con errores: {r['con_errores']} · fuera de período: {r['excl_fuera_periodo']}")
+    if r["meses_sin_informacion"]:
+        print("[!] Meses sin información:", ", ".join(r["meses_sin_informacion"]))
+    for ruta in nota_tecnica_excel.generar(calc, salida):
+        print("Generado:", ruta)
+    return 0
 
 
 def _datos(args) -> int:
@@ -156,6 +198,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.comando == "datos":
         return _datos(args)
+    if args.comando == "nota-tecnica":
+        return _nota_tecnica(args)
 
     if args.comando == "plantilla":
         from .excel import generar_plantilla

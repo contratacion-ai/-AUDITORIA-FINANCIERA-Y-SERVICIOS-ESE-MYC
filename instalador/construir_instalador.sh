@@ -101,6 +101,12 @@ INFORME POR CUPS ENRIQUECIDO (pestaña "CUPS enriquecido" del tablero): cargue e
  complementario por CUPS y el tarifario del Manual UVB (.xlsb). Se agregan sus columnas al
  informe y se completan y guardan las descripciones que faltan.
 
+NOTA TÉCNICA DE CAPITACIÓN: en esta ventana marque "Generar nota técnica de capitación",
+ seleccione una vez el archivo de la nota (NUEVA_EPS.xlsx, con CodigoCUP y Homologo) y el período.
+ Cuenta pacientes únicos por código CUPS y mes y genera, en la carpeta NOTA_TECNICA del cargue,
+ la nota técnica (campos del contrato entre [corchetes]) y la hoja de cálculo con fórmulas,
+ tabla dinámica y validación de meses sin información.
+
 MEDICAMENTOS VS FARMACIA (pestaña "Medicamentos vs farmacia"): cargue el libro
  CRUCE_PORTAFOLIO_FARMACIA_vs_MAESTRO.xlsx. Cruza por CUM los medicamentos facturados en RIPS
  con el portafolio: fuera de portafolio, facturados bajo costo o bajo precio, impacto en pesos

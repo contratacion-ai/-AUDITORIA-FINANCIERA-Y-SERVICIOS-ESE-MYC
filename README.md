@@ -124,6 +124,39 @@ descripción de los CUM que llegan sin ella (fuente «portafolio farmacia»). La
 CUM no encontrados en el maestro, maestro sin portafolio, insumos) se consultan en la misma pestaña.
 Supuesto: el RIPS factura en la misma unidad del portafolio (unidad mínima de dispensación).
 
+### Nota técnica de capitación: pacientes únicos por CUPS y mes (v1.5)
+
+Para contratos de capitación (p. ej. Nueva EPS). En la ventana de cargue marque **«Generar nota técnica de
+capitación»**, seleccione una vez el archivo de la nota (p. ej. `NUEVA_EPS.xlsx`: `CodigoCUP`, `Homologo`,
+`ESTADO CUPS`, `DescripcionCUP`; queda guardado) y, si quiere, el período. Por consola:
+
+```bash
+python -m rips_auditoria nota-tecnica "D:/RIPS 2023/Hospital San Antonio" --nota NUEVA_EPS.xlsx \
+    --desde 2023-01 --hasta 2023-12 -s salida_nota            # RIPS TXT, JSON, carpetas o ZIP
+python -m rips_auditoria nota-tecnica --plantilla -s plantilla  # plantilla en blanco
+```
+
+| Regla | Cómo |
+|---|---|
+| Paciente | tipo + número de identificación (AC/AP/AT/AM; JSON `usuarios[]`) |
+| Conteo | pacientes **únicos** por código y mes; varias atenciones del mismo paciente y código en un mes = 1 |
+| Mes | fecha de prestación (`fecha_consulta`, `fecha_procedimiento`, `fechaInicioAtencion`…); AT/AM sin fecha: fecha inicial de la factura (se reporta) |
+| Códigos | CUPS tal cual; medicamentos `MD…` por su **CUM homólogo** (sin ceros a la izquierda) |
+| EPS | AF de la factura (`nota_tecnica.eps_textos` / `eps_codigos`); JSON sin EPS: se asume la del contrato y se reporta |
+| Sin registros | el código aparece con 0 y «SIN REGISTROS» |
+| Calidad | se reportan por código: duplicados (contados una vez), anulados (nota crédito JSON, excluidos), errores de diligenciamiento Res. 3374 (incluidos), sin identificación, sin fecha y fuera de período (excluidos); también los códigos encontrados fuera de la nota |
+
+Salidas en `NOTA_TECNICA/`:
+
+- `NOTA_TECNICA_<EPS>_<periodo>.xlsx`: identificación del contrato, objetivo, fuente de datos, criterios de
+  inclusión y exclusión, metodología, tabla resumen (CUPS × mes con totales), observaciones de calidad y
+  conclusiones; los datos del contrato quedan entre `[corchetes]`. Hojas «Tabla resumen», «Calidad», «Curso de
+  vida» (Res. 3280) y «Códigos fuera de la nota».
+- `HOJA_PACIENTES_CUPS_<EPS>_<periodo>.xlsx`: «Matriz» con fórmulas (`COUNTIFS` sobre «Datos», `SUM` por código y
+  por mes, meses sin información y validación), **tabla dinámica nativa** (CUPS × mes, cuenta de pacientes) que
+  Excel actualiza al abrir, «Validación» de meses sin información, «Datos» (una fila por paciente, código y mes) e
+  «Instrucciones» con las fórmulas sugeridas.
+
 ### Uso desde otros computadores de la red
 
 Acceso **«Cargue RIPS ESE MyC (en red)»** (o `python -m rips_auditoria.web --red`, o
@@ -331,6 +364,8 @@ rips_auditoria/
   depuracion.py       limpieza por mes/sede y duplicados, con vista previa y confirmación
   json_rips.py        lectura de RIPS JSON (Res. 2275 u homologados) e integración sin duplicar
   cruce_medicamentos.py  medicamentos facturados en RIPS vs. portafolio de farmacia (por CUM)
+  nota_tecnica.py     nota técnica de capitación: pacientes únicos por CUPS y mes, calidad de datos
+  nota_tecnica_excel.py  plantilla de la nota y hoja de cálculo con fórmulas y tabla dinámica nativa
   web/                ventana de cargue y tablero (FastAPI + páginas con la imagen de la ESE)
   web/red.py          acceso en red con clave y puente hacia el aplicativo de auditoría
 config/

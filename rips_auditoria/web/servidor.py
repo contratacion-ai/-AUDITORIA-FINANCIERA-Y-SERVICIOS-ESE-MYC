@@ -33,11 +33,12 @@ import urllib.parse
 import uuid
 from pathlib import Path, PurePosixPath
 
+import pandas as pd
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from .. import __version__, catalogo_cups, cruce_medicamentos, depuracion, json_rips
+from .. import __version__, catalogo_cups, cruce_medicamentos, depuracion, json_rips, nota_tecnica, nota_tecnica_excel
 from .. import tablero as tb
 from ..aplicativo import ClienteAplicativo, ErrorAplicativo, enviar_meses, escribir_mes, resumen_cruce
 from ..config import cargar_configuracion, carpeta_datos
@@ -161,6 +162,25 @@ async def crear_cargue(request: Request):
         ruta_local, hospital = _texto(form, "ruta_local"), _texto(form, "hospital")
         enviar = _texto(form, "enviar").lower() in ("true", "1", "on", "si", "sí")
         consolidado = _texto(form, "consolidado").lower() in ("true", "1", "on", "si", "sí")
+        nt = None  # nota técnica de capitación (pacientes únicos por CUPS y mes)
+        if _texto(form, "nota_tecnica").lower() in ("true", "1", "on", "si", "sí"):
+            subida = form.get("nota_archivo")
+            if subida is not None and not isinstance(subida, str) and subida.filename:
+                tmp = carpeta_datos() / "temporal" / f"nota_{uuid.uuid4().hex[:8]}"
+                ruta_nota = _ruta_segura(tmp, Path(subida.filename).name)
+                ruta_nota.parent.mkdir(parents=True, exist_ok=True)
+                with ruta_nota.open("wb") as fh:
+                    shutil.copyfileobj(subida.file, fh, 1 << 20)
+                try:
+                    nota_tecnica.guardar_nota(ruta_nota)
+                except (ValueError, KeyError) as exc:
+                    raise HTTPException(400, f"El archivo de la nota técnica no es válido: {exc}") from exc
+                finally:
+                    shutil.rmtree(tmp, ignore_errors=True)
+            if nota_tecnica.nota_vigente() is None:
+                raise HTTPException(400, "Cargue el archivo de la nota técnica (códigos CUPS) para generarla.")
+            nt = {"desde": _texto(form, "nt_desde").strip() or None, "hasta": _texto(form, "nt_hasta").strip() or None,
+                  "eps": _texto(form, "nt_eps").strip() or None}
         entradas: list[Path] = []
         tid = uuid.uuid4().hex[:10]
         ruta_local = ruta_local.strip().strip('"').strip("'")
@@ -189,11 +209,12 @@ async def crear_cargue(request: Request):
                "log": [], "resultado": None, "error": None, "salida": None}
     _trabajos[tid] = trabajo
     threading.Thread(target=_ejecutar, args=(trabajo, entradas, hospital.strip() or None, enviar, consolidado,
-                                            temporal if archivos else None), daemon=True).start()
+                                            temporal if archivos else None, nt), daemon=True).start()
     return {"id": tid}
 
 
-def _ejecutar(t: dict, entradas: list[Path], hospital, enviar: bool, consolidado: bool, temporal: Path | None):
+def _ejecutar(t: dict, entradas: list[Path], hospital, enviar: bool, consolidado: bool, temporal: Path | None,
+              nt: dict | None = None):
     raiz = logging.getLogger("rips_auditoria")
     manejador = _CapturaLog(t)
     raiz.addHandler(manejador)
@@ -225,6 +246,26 @@ def _ejecutar(t: dict, entradas: list[Path], hospital, enviar: bool, consolidado
                                 f"{resumen_json['repetidos_en_json']} repetidos en el JSON, "
                                 f"{resumen_json['ya_cargadas']} ya cargados, {resumen_json['agregadas']} filas agregadas")
                 catalogo_cups.actualizar_descripciones(tb.cargar(tb.carpeta_acumulado(cfg))[0])
+            resumen_nt = None
+            if nt:
+                # Nota técnica: pacientes únicos por código y mes, con los mismos RIPS (TXT validados + JSON)
+                t["fase"] = "Generando la nota técnica (pacientes únicos por CUPS y mes)"
+                if nt.get("eps"):
+                    cfg.setdefault("nota_tecnica", {})["eps_nombre"] = nt["eps"]
+                    cfg["nota_tecnica"].setdefault("eps_textos", [nt["eps"]] + nota_tecnica.DEFAULTS["eps_textos"])
+                partes = [p for p in (nota_tecnica.atenciones_txt(res), nota_tecnica.atenciones_json(entradas, hospital))
+                          if len(p)]
+                at = pd.concat(partes, ignore_index=True) if partes else pd.DataFrame(columns=nota_tecnica.COLS_AT)
+                calc = nota_tecnica.calcular(at, nota_tecnica.cargar_catalogo(nota_tecnica.nota_vigente()),
+                                             nt.get("desde"), nt.get("hasta"), cfg)
+                archivos += nota_tecnica_excel.generar(calc, salida / "NOTA_TECNICA")
+                r = calc["resumen"]
+                resumen_nt = {k: r[k] for k in ("eps", "desde", "hasta", "codigos_nota", "codigos_con_pacientes",
+                                                "codigos_sin_registros", "pacientes_unicos_periodo", "registros_incluidos",
+                                                "duplicados", "excl_anulado", "con_errores", "excl_fuera_periodo",
+                                                "meses_sin_informacion", "registros_otra_eps")}
+                t["log"].append(f"Nota técnica: {r['codigos_con_pacientes']} de {r['codigos_nota']} códigos con pacientes, "
+                                f"{r['pacientes_unicos_periodo']} pacientes únicos ({r['desde']} a {r['hasta']})")
             tabla = res.resumen_unidades()
             inc = res.resumen_incidencias().head(15)
             resultado = {
@@ -232,7 +273,7 @@ def _ejecutar(t: dict, entradas: list[Path], hospital, enviar: bool, consolidado
                 "unidades": json.loads(tabla.to_json(orient="records", force_ascii=False)),
                 "incidencias": json.loads(inc.to_json(orient="records", force_ascii=False)),
                 "archivos": [str(Path(a).relative_to(salida)).replace("\\", "/") for a in archivos],
-                "envio": None, "cruce": None, "aviso_envio": None, "json": resumen_json,
+                "envio": None, "cruce": None, "aviso_envio": None, "json": resumen_json, "nota_tecnica": resumen_nt,
             }
             mensuales = [a for a in archivos if Path(a).parent.name == "APLICATIVO_AUDITORIA"]
             if enviar and mensuales:
@@ -446,6 +487,21 @@ async def _archivo_subido(request: Request, carpeta: Path) -> Path:
         with destino.open("wb") as fh:
             shutil.copyfileobj(a.file, fh, 1 << 20)
     return destino
+
+
+@app.get("/api/nota-tecnica/estado")
+def nota_tecnica_estado():
+    ruta = nota_tecnica.nota_vigente()
+    if ruta is None:
+        return {"archivo": None}
+    cat = nota_tecnica.cargar_catalogo(ruta)
+    return {"archivo": ruta.name, "codigos": len(cat), "inactivos": int((cat["estado"] != "ACTIVO").sum())}
+
+
+@app.get("/api/nota-tecnica/plantilla")
+def nota_tecnica_plantilla():
+    ruta = nota_tecnica_excel.exportar_nota(carpeta_datos() / "PLANTILLA_NOTA_TECNICA_CAPITACION.xlsx")
+    return FileResponse(ruta, filename=ruta.name)
 
 
 @app.get("/api/catalogos/estado")
