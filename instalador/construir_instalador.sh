@@ -8,7 +8,8 @@
 # DLLs/), en cualquiera de estas formas:
 #   * el instalador del aplicativo de auditoría (Instalador_Auditoria_ESE_MyC_v5.0.exe
 #     o su .zip): se toma su carpeta python/ (Python oficial 3.12);
-#   * una carpeta con python.exe, python312.dll, Lib/ y DLLs/.
+#   * una carpeta con python.exe, python312.dll, Lib/ y DLLs/ (p. ej. la carpeta tools/
+#     del paquete oficial de NuGet «python» 3.12.x de la Python Software Foundation).
 # Las librerías (pandas, openpyxl, XlsxWriter, PyYAML, FastAPI, uvicorn…) se
 # descargan de PyPI como binarios para Windows (requiere internet al construir).
 #
@@ -99,6 +100,11 @@ TABLERO DE ANÁLISIS: botón "Tablero de análisis" (http://localhost:8100/table
 INFORME POR CUPS ENRIQUECIDO (pestaña "CUPS enriquecido" del tablero): cargue el Excel/CSV
  complementario por CUPS y el tarifario del Manual UVB (.xlsb). Se agregan sus columnas al
  informe y se completan y guardan las descripciones que faltan.
+
+MEDICAMENTOS VS FARMACIA (pestaña "Medicamentos vs farmacia"): cargue el libro
+ CRUCE_PORTAFOLIO_FARMACIA_vs_MAESTRO.xlsx. Cruza por CUM los medicamentos facturados en RIPS
+ con el portafolio: fuera de portafolio, facturados bajo costo o bajo precio, impacto en pesos
+ y productos del portafolio sin facturar. Genera alertas y acciones recomendadas.
 
 DEPURACIÓN DE DATOS (pestaña "Depuración de datos"): limpiar un mes, una sede o ambos antes de
  volver a cargar, depurar duplicados (siempre con vista previa y confirmación; lo eliminado

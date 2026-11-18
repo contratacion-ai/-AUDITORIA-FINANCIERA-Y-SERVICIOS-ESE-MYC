@@ -37,7 +37,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from .. import __version__, catalogo_cups, depuracion, json_rips
+from .. import __version__, catalogo_cups, cruce_medicamentos, depuracion, json_rips
 from .. import tablero as tb
 from ..aplicativo import ClienteAplicativo, ErrorAplicativo, enviar_meses, escribir_mes, resumen_cruce
 from ..config import cargar_configuracion, carpeta_datos
@@ -155,32 +155,33 @@ def _texto(form, campo: str) -> str:
 
 @app.post("/api/cargues")
 async def crear_cargue(request: Request):
-    form = await request.form(max_files=MAX_ARCHIVOS_FORMULARIO, max_fields=MAX_ARCHIVOS_FORMULARIO)
-    archivos = [a for a in form.getlist("archivos") if not isinstance(a, str)]
-    ruta_local, hospital = _texto(form, "ruta_local"), _texto(form, "hospital")
-    enviar = _texto(form, "enviar").lower() in ("true", "1", "on", "si", "sí")
-    consolidado = _texto(form, "consolidado").lower() in ("true", "1", "on", "si", "sí")
-    entradas: list[Path] = []
-    tid = uuid.uuid4().hex[:10]
-    ruta_local = ruta_local.strip().strip('"').strip("'")
-    if ruta_local:
-        p = Path(ruta_local)
-        if not p.exists():
-            raise HTTPException(400, f"No existe la ruta: {ruta_local}")
-        entradas.append(p)
-    temporal = carpeta_datos() / "temporal" / tid
-    if archivos:
-        for a in archivos:
-            destino = _ruta_segura(temporal, a.filename or "archivo")
-            destino.parent.mkdir(parents=True, exist_ok=True)
-            with destino.open("wb") as fh:
-                shutil.copyfileobj(a.file, fh, 1 << 20)
-        hijos = sorted(temporal.iterdir())
-        if not hospital.strip() and any(h.is_dir() and detectar_mes(h.name)[0] for h in hijos):
-            shutil.rmtree(temporal, ignore_errors=True)
-            raise HTTPException(400, "Subió la carpeta de un mes: escriba el nombre del hospital "
-                                     "o suba la carpeta del hospital completa.")
-        entradas += hijos
+    # el formulario se cierra al salir (libera los archivos temporales de la subida)
+    async with request.form(max_files=MAX_ARCHIVOS_FORMULARIO, max_fields=MAX_ARCHIVOS_FORMULARIO) as form:
+        archivos = [a for a in form.getlist("archivos") if not isinstance(a, str)]
+        ruta_local, hospital = _texto(form, "ruta_local"), _texto(form, "hospital")
+        enviar = _texto(form, "enviar").lower() in ("true", "1", "on", "si", "sí")
+        consolidado = _texto(form, "consolidado").lower() in ("true", "1", "on", "si", "sí")
+        entradas: list[Path] = []
+        tid = uuid.uuid4().hex[:10]
+        ruta_local = ruta_local.strip().strip('"').strip("'")
+        if ruta_local:
+            p = Path(ruta_local)
+            if not p.exists():
+                raise HTTPException(400, f"No existe la ruta: {ruta_local}")
+            entradas.append(p)
+        temporal = carpeta_datos() / "temporal" / tid
+        if archivos:
+            for a in archivos:
+                destino = _ruta_segura(temporal, a.filename or "archivo")
+                destino.parent.mkdir(parents=True, exist_ok=True)
+                with destino.open("wb") as fh:
+                    shutil.copyfileobj(a.file, fh, 1 << 20)
+            hijos = sorted(temporal.iterdir())
+            if not hospital.strip() and any(h.is_dir() and detectar_mes(h.name)[0] for h in hijos):
+                shutil.rmtree(temporal, ignore_errors=True)
+                raise HTTPException(400, "Subió la carpeta de un mes: escriba el nombre del hospital "
+                                         "o suba la carpeta del hospital completa.")
+            entradas += hijos
     if not entradas:
         raise HTTPException(400, "Seleccione un ZIP, archivos TXT o una carpeta, o escriba la ruta en este equipo.")
     trabajo = {"id": tid, "estado": "en cola", "fase": "En cola", "inicio": dt.datetime.now().isoformat(timespec="seconds"),
@@ -435,31 +436,42 @@ def _enviar_desde_tablero(t: dict, df, meses: list[str]):
 # ---------------------------------------------------------------------------
 
 async def _archivo_subido(request: Request, carpeta: Path) -> Path:
-    form = await request.form()
-    a = form.get("archivo")
-    if a is None or isinstance(a, str) or not a.filename:
-        raise HTTPException(400, "Seleccione el archivo.")
-    destino = _ruta_segura(carpeta, Path(a.filename).name)
-    destino.parent.mkdir(parents=True, exist_ok=True)
-    with destino.open("wb") as fh:
-        shutil.copyfileobj(a.file, fh, 1 << 20)
+    # el formulario se cierra al salir (libera los archivos temporales de la subida)
+    async with request.form() as form:
+        a = form.get("archivo")
+        if a is None or isinstance(a, str) or not a.filename:
+            raise HTTPException(400, "Seleccione el archivo.")
+        destino = _ruta_segura(carpeta, Path(a.filename).name)
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        with destino.open("wb") as fh:
+            shutil.copyfileobj(a.file, fh, 1 << 20)
     return destino
 
 
 @app.get("/api/catalogos/estado")
 def catalogos_estado():
-    return catalogo_cups.estado()
+    return {**catalogo_cups.estado(), "farmacia": cruce_medicamentos.estado()}
+
+
+@app.get("/api/farmacia/resumen")
+def farmacia_resumen(request: Request):
+    """Indicadores del cruce de medicamentos facturados vs. portafolio de farmacia (con los filtros del tablero)."""
+    df, _ind, _p = _datos_tablero()
+    return cruce_medicamentos.resumen(tb.filtrar(df, _filtros(request)))
 
 
 @app.post("/api/catalogos/{tipo}")
 async def catalogos_cargar(tipo: str, request: Request):
     """Carga el archivo complementario (Excel/CSV) o el tarifario UVB y completa las descripciones."""
-    if tipo not in ("complemento", "tarifario"):
+    if tipo not in ("complemento", "tarifario", "farmacia"):
         raise HTTPException(404, "Catálogo no reconocido")
     temporal = carpeta_datos() / "temporal" / uuid.uuid4().hex[:10]
     ruta = await _archivo_subido(request, temporal)
     try:
-        r = catalogo_cups.cargar_complemento(ruta) if tipo == "complemento" else catalogo_cups.cargar_tarifario(ruta)
+        if tipo == "farmacia":  # cruce portafolio de farmacia vs. maestro (CUM)
+            r = {**cruce_medicamentos.cargar_cruce(ruta), "descripciones": catalogo_cups.actualizar_descripciones()}
+        else:
+            r = catalogo_cups.cargar_complemento(ruta) if tipo == "complemento" else catalogo_cups.cargar_tarifario(ruta)
     except (ValueError, KeyError, ImportError) as exc:
         raise HTTPException(400, f"No se pudo leer el archivo: {exc}") from exc
     finally:
@@ -517,20 +529,22 @@ async def duplicados_confirmar(request: Request):
 async def datos_json(request: Request):
     """Lee uno o varios JSON (RIPS Res. 2275 u homologados) y los integra sin duplicar."""
     carpeta = _carpeta_datos_acumulado()
-    form = await request.form(max_files=MAX_ARCHIVOS_FORMULARIO, max_fields=MAX_ARCHIVOS_FORMULARIO)
-    archivos = [a for a in form.getlist("archivos") if not isinstance(a, str)]
-    if not archivos:
-        raise HTTPException(400, "Seleccione uno o varios archivos JSON.")
-    temporal = carpeta_datos() / "temporal" / uuid.uuid4().hex[:10]
-    try:
+    # el formulario se cierra al salir (libera los archivos temporales de la subida)
+    async with request.form(max_files=MAX_ARCHIVOS_FORMULARIO, max_fields=MAX_ARCHIVOS_FORMULARIO) as form:
+        archivos = [a for a in form.getlist("archivos") if not isinstance(a, str)]
+        if not archivos:
+            raise HTTPException(400, "Seleccione uno o varios archivos JSON.")
+        hospital = _texto(form, "hospital").strip() or None
+        mes = _texto(form, "mes").strip() or None
+        temporal = carpeta_datos() / "temporal" / uuid.uuid4().hex[:10]
         for a in archivos:
             destino = _ruta_segura(temporal, a.filename or "archivo.json")
             destino.parent.mkdir(parents=True, exist_ok=True)
             with destino.open("wb") as fh:
                 shutil.copyfileobj(a.file, fh, 1 << 20)
+    try:
         with _turno:
-            r = json_rips.cargar_json(sorted(temporal.iterdir()), hospital=_texto(form, "hospital").strip() or None,
-                                      mes=_texto(form, "mes").strip() or None, carpeta=carpeta)
+            r = json_rips.cargar_json(sorted(temporal.iterdir()), hospital=hospital, mes=mes, carpeta=carpeta)
             catalogo_cups.actualizar_descripciones(tb.cargar(carpeta)[0])
         return r
     finally:

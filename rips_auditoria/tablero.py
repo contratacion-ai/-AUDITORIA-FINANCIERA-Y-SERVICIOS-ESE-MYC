@@ -41,7 +41,7 @@ import numpy as np
 import pandas as pd
 import xlsxwriter
 
-from . import catalogo_cups
+from . import catalogo_cups, cruce_medicamentos
 from .aplicativo import COLUMNAS, _norm
 from .config import carpeta_datos
 
@@ -469,6 +469,9 @@ def alertas(df: pd.DataFrame, ind: pd.DataFrame, params: dict | None = None) -> 
                             "Analizar demanda inducida, reconsultas o cambios en la población asignada.",
                             sede, g["MES"].iloc[i], act)
 
+    # 8) Medicamentos facturados vs. portafolio de farmacia (si el cruce está cargado)
+    out += cruce_medicamentos.alertas(df)
+
     orden = {"CRÍTICA": 0, "ALTA": 1, "MEDIA": 2, "INFORMATIVA": 3}
     out.sort(key=lambda a: (orden[a["nivel"]], -abs(a["valor"] or 0)))
     return out[: p["maximo_alertas"]]
@@ -532,6 +535,10 @@ def analisis(df: pd.DataFrame, ind: pd.DataFrame, lista_alertas: list[dict]) -> 
         "Modalidad inferida": "Cargar PARAM CONTRATO en el aplicativo de auditoría para homologar contratos y modalidad.",
         "Facturas sin servicios": "Solicitar el detalle de servicios de las facturas que sólo están en el AF.",
         "Servicios en cero": "Validar los servicios en cero (paquetes o errores) antes del cruce con Software 360.",
+        "Medicamento bajo costo": "Corregir en facturación la tarifa de los medicamentos facturados por debajo del precio de compra "
+                                  "(pérdida directa) y fijar su precio de venta en el portafolio de farmacia.",
+        "Medicamento fuera de portafolio": "Revisar los CUM facturados que no están en el portafolio de farmacia "
+                                           "(expediente/consecutivo distinto) e incluirlos en el portafolio y el maestro.",
     }
     for cat in cuenta.index:
         if cat in acciones:
@@ -609,7 +616,7 @@ def _con_descripcion(d: pd.DataFrame, g: pd.DataFrame) -> pd.DataFrame:
     desc = (d[d["DESCRIPCION_SERVICIO"] != ""].groupby("CODIGO_CUPS_CUMS")["DESCRIPCION_SERVICIO"].first())
     sedes = d.groupby("CODIGO_CUPS_CUMS")["SEDE"].nunique().rename("sedes")
     g = g.join(sedes, on="CODIGO_CUPS_CUMS")
-    g.insert(1, "descripcion", g["CODIGO_CUPS_CUMS"].map(desc).fillna(""))
+    g.insert(1, "descripcion", g["CODIGO_CUPS_CUMS"].map(desc).astype(object).fillna(""))
     # Códigos sin descripción en los RIPS: la guardada desde el Excel o el tarifario UVB
     g["descripcion"] = catalogo_cups.completar(g["descripcion"], g["CODIGO_CUPS_CUMS"])
     return g
@@ -624,6 +631,12 @@ TABLAS = {
     "cups_sede": "CUPS por sede", "cups_mes": "CUPS por mes", "frecuencias": "Frecuencia de uso por sede y mes",
     "indicadores": "Indicadores de cargue por sede y mes", "alertas": "Alertas",
     "cups_enriquecido": "RIPS por CUPS enriquecido (archivo complementario y tarifario UVB)",
+    "farmacia": "Medicamentos facturados vs. portafolio de farmacia",
+    "farmacia_no_facturados": "Portafolio de farmacia sin facturación en RIPS",
+    "farmacia_resumen": "Resumen ejecutivo del cruce portafolio vs. maestro",
+    "farmacia_no_encontrados": "CUM del portafolio no encontrados en el maestro",
+    "farmacia_maestro_sin_portafolio": "Maestro de medicamentos sin portafolio",
+    "farmacia_insumos": "Análisis de insumos de farmacia",
 }
 
 
@@ -653,6 +666,12 @@ def tabla(df: pd.DataFrame, ind: pd.DataFrame, nombre: str, filtros: dict | None
     if nombre in simples:
         g = agrupar(d, simples[nombre])
         return _con_descripcion(d, g) if nombre.startswith("cups") else g
+    if nombre == "farmacia":
+        return cruce_medicamentos.cruzar(d)
+    if nombre == "farmacia_no_facturados":
+        return cruce_medicamentos.no_facturados(d)
+    if nombre.startswith("farmacia_"):
+        return cruce_medicamentos.hoja(nombre.removeprefix("farmacia_"))
     if nombre == "frecuencias":
         return frecuencias(d, filtrar_indicadores(ind, filtros))
     if nombre == "indicadores":
@@ -782,6 +801,9 @@ def exportar_excel(df: pd.DataFrame, ind: pd.DataFrame, ruta: str | Path, filtro
     hoja("EPS x sede", tabla(df, ind, "eps_sede", filtros), "Empresa por sede")
     hoja("RIPS por servicio", tabla(df, ind, "servicio", filtros), "RIPS por tipo de servicio")
     hoja("RIPS por CUPS", tabla(df, ind, "cups", filtros), "RIPS por CUPS / CUM (de mayor a menor valor)")
+    if cruce_medicamentos.estado():
+        hoja("Medicamentos vs farmacia", tabla(df, ind, "farmacia", filtros),
+             "Medicamentos facturados en RIPS vs. portafolio de farmacia (de mayor a menor valor)")
     hoja("CUPS x sede", tabla(df, ind, "cups_sede", filtros), "CUPS por sede")
     hoja("RIPS por contrato", tabla(df, ind, "contrato", filtros), "RIPS por contrato y modalidad")
     hoja("Indicadores cargue", tabla(df, ind, "indicadores", filtros), "Indicadores de cargue por sede y mes")

@@ -255,6 +255,11 @@ def actualizar_descripciones(df: pd.DataFrame | None = None) -> dict:
         c_desc = next((c for c in comp.columns if normalizar_nombre(c) in ("DESCRIPCION", "DESCRIPCION SERVICIO")), None)
         if c_desc:
             fuentes.append(("archivo complementario", dict(zip(comp[COL_CODIGO], comp[c_desc], strict=False))))
+    from . import cruce_medicamentos  # CUM de medicamentos: portafolio de farmacia
+
+    farmacia = cruce_medicamentos.descripciones()
+    if farmacia:
+        fuentes.append(("portafolio farmacia", {c: farmacia.get(cruce_medicamentos.normalizar_cum(c), "") for c in faltan}))
     tar = _leer_guardado(ARCHIVO_TARIFARIO)
     if tar is not None:
         fuentes.append(("tarifario UVB", dict(zip(tar["codigo"], tar["descripcion"], strict=False))))

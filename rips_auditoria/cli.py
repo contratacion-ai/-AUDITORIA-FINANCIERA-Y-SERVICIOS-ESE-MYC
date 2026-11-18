@@ -82,6 +82,7 @@ def _parser() -> argparse.ArgumentParser:
     ca = ds.add_parser("catalogo", help="Cargar el archivo complementario de CUPS y/o el tarifario UVB")
     ca.add_argument("--complemento", help="Excel o CSV con columnas por código CUPS")
     ca.add_argument("--tarifario", help="Tarifario del Manual UVB (.xlsb, .xlsx o .csv)")
+    ca.add_argument("--farmacia", help="Cruce portafolio de farmacia vs. maestro (CRUCE_PORTAFOLIO_FARMACIA_vs_MAESTRO.xlsx)")
     return p
 
 
@@ -133,9 +134,14 @@ def _datos(args) -> int:
         print(r)
         print(catalogo_cups.actualizar_descripciones())
     elif args.accion == "catalogo":
-        if not (args.complemento or args.tarifario):
-            print("Indique --complemento y/o --tarifario", file=sys.stderr)
+        if not (args.complemento or args.tarifario or args.farmacia):
+            print("Indique --complemento, --tarifario y/o --farmacia", file=sys.stderr)
             return 1
+        if args.farmacia:
+            from . import cruce_medicamentos
+
+            print(cruce_medicamentos.cargar_cruce(args.farmacia))
+            print(catalogo_cups.actualizar_descripciones())
         if args.complemento:
             print(catalogo_cups.cargar_complemento(args.complemento))
         if args.tarifario:

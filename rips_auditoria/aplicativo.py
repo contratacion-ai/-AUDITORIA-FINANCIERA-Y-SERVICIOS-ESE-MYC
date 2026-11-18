@@ -187,9 +187,9 @@ def construir_filas(resultado, cfg_app: dict | None = None,
     nit_cod = {str(k): v for k, v in (c["nit_por_codigo"] or {}).items()}
     cod = d["cod_entidad"].fillna("").astype(str).str.strip()
     nombre = d["nombre_entidad"].fillna("").astype(str).str.strip()
-    eps = cod.map(eps_cod).fillna(nombre)
+    eps = cod.map(eps_cod).astype(object).fillna(nombre)
     d["EPS"] = eps.where(eps != "", "PARTICULAR")
-    d["NIT_EPS"] = cod.map(nit_cod).fillna("")
+    d["NIT_EPS"] = cod.map(nit_cod).astype(object).fillna("")
     contratos = {_norm(k): v for k, v in (c["contratos"] or {}).items()}
     base = d["carpeta_envio"].fillna("").map(limpiar_contrato)
     d["CONTRATO"] = [contratos.get(_norm(x), x) or "SIN CONTRATO" for x in base]

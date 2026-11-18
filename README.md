@@ -101,6 +101,29 @@ del JSON contados una vez, agregación por la llave de la plantilla) y sólo se 
 ya cargadas en ningún mes. Nota: reprocesar los TXT de una sede-mes la reemplaza completa (incluidas filas
 que vinieron de JSON); vuelva a cargar el JSON si lo necesita.
 
+### Medicamentos facturados vs. portafolio de farmacia (v1.4)
+
+Tablero › «Medicamentos vs farmacia» (o `python -m rips_auditoria datos catalogo --farmacia CRUCE_PORTAFOLIO_FARMACIA_vs_MAESTRO.xlsx`).
+Se carga el libro del **cruce portafolio de farmacia vs. maestro** (hoja `PORTAFOLIO_CRUZADO`: CUM, código Salud 360,
+principio activo, precio de compra, precio a usar, resultado del cruce con el maestro; `PARAMETROS`: margen mínimo) y
+se guarda en `catalogos/farmacia/`. Los medicamentos facturados en los RIPS se cruzan por **CUM normalizado** (sin
+espacios, tabulaciones ni ceros a la izquierda) y cada CUM queda con su estado:
+
+| Estado | Regla |
+|---|---|
+| NO ESTÁ EN PORTAFOLIO | el CUM facturado no existe en el portafolio |
+| FACTURADO BAJO COSTO | valor unitario facturado < precio de compra (pérdida directa) |
+| MARGEN BAJO | sobre el costo pero con margen < margen mínimo de PARAMETROS |
+| FACTURADO BAJO / SOBRE PRECIO | diferencia con el «precio a usar» mayor que `cruce_medicamentos.tolerancia_pct` (5 %) |
+
+Indicadores: CUM facturados, % en portafolio, valor fuera de portafolio, facturados bajo costo, impacto de facturar
+bajo precio ((precio a usar − valor unitario) × cantidad) y productos del portafolio sin facturar. Las alertas
+«Medicamento bajo costo» y «Medicamento fuera de portafolio» se suman a las del tablero y a sus acciones
+recomendadas; el informe Excel lleva la hoja «Medicamentos vs farmacia». El portafolio también completa la
+descripción de los CUM que llegan sin ella (fuente «portafolio farmacia»). Las hojas del libro (resumen ejecutivo,
+CUM no encontrados en el maestro, maestro sin portafolio, insumos) se consultan en la misma pestaña.
+Supuesto: el RIPS factura en la misma unidad del portafolio (unidad mínima de dispensación).
+
 ### Uso desde otros computadores de la red
 
 Acceso **«Cargue RIPS ESE MyC (en red)»** (o `python -m rips_auditoria.web --red`, o
@@ -307,6 +330,7 @@ rips_auditoria/
   catalogo_cups.py    archivo complementario y tarifario UVB: informe por CUPS enriquecido y descripciones
   depuracion.py       limpieza por mes/sede y duplicados, con vista previa y confirmación
   json_rips.py        lectura de RIPS JSON (Res. 2275 u homologados) e integración sin duplicar
+  cruce_medicamentos.py  medicamentos facturados en RIPS vs. portafolio de farmacia (por CUM)
   web/                ventana de cargue y tablero (FastAPI + páginas con la imagen de la ESE)
   web/red.py          acceso en red con clave y puente hacia el aplicativo de auditoría
 config/

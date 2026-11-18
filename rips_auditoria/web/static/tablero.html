@@ -134,6 +134,7 @@
     <button data-v="alertas">Alertas y análisis</button>
     <button data-v="aplicativo">Aplicativo de auditoría</button>
     <button data-v="cupsenr">CUPS enriquecido</button>
+    <button data-v="farmacia">Medicamentos vs farmacia</button>
     <button data-v="depuracion">Depuración de datos</button>
   </div>
 
@@ -271,6 +272,24 @@
       <div id="tp-cupsenr"></div></div>
   </section>
 
+  <!-- MEDICAMENTOS FACTURADOS VS PORTAFOLIO DE FARMACIA -->
+  <section class="vista" id="v-farmacia">
+    <div class="tarjeta"><h2>Cruce portafolio de farmacia vs. maestro de medicamentos</h2>
+      <p class="nota">Cargue el libro CRUCE_PORTAFOLIO_FARMACIA_vs_MAESTRO.xlsx (hoja PORTAFOLIO_CRUZADO con CUM, precio de compra y precio a usar).
+        Los medicamentos facturados en los RIPS se cruzan por CUM normalizado y se compara su valor unitario con el portafolio.</p>
+      <div class="fila-form"><input type="file" id="fa-arch" accept=".xlsx,.xlsb,.xls,.csv"><button class="ver" id="fa-cargar">Cargar cruce de farmacia</button></div>
+      <div id="fa-estado" class="nota"></div></div>
+    <div class="kpis" id="fa-kpis"></div>
+    <div class="tarjeta"><h2>Detalle</h2><div class="barra-tabla"><label>Ver <select id="sel-farmacia">
+      <option value="farmacia">Medicamentos facturados vs. portafolio</option>
+      <option value="farmacia_no_facturados">Portafolio sin facturación en RIPS</option>
+      <option value="farmacia_resumen">Resumen ejecutivo del cruce (hallazgos y acciones)</option>
+      <option value="farmacia_no_encontrados">CUM no encontrados en el maestro</option>
+      <option value="farmacia_maestro_sin_portafolio">Maestro sin portafolio</option>
+      <option value="farmacia_insumos">Insumos</option></select></label></div>
+      <div id="tp-farmacia"></div></div>
+  </section>
+
   <!-- DEPURACIÓN DE DATOS -->
   <section class="vista" id="v-depuracion">
     <div class="tarjeta"><h2>Limpiar datos cargados antes de una nueva carga</h2>
@@ -314,9 +333,13 @@ const ETQ = {MES:"Mes", SEDE:"Sede", EPS:"Empresa (EPS)", TIPO_SERVICIO:"Servici
   eps:"Empresas", meses:"Meses", sedes:"Sedes", variacion_valor_pct:"Var. % valor", remisiones:"Remisiones",
   valor_neto_af:"Valor neto AF", valor_servicios_rips:"Valor servicios RIPS", facturas_con_diferencia:"Facturas con diferencia",
   errores:"Errores", advertencias:"Advertencias", actualizado:"Actualizado", nivel:"Nivel", categoria:"Categoría", sede:"Sede",
-  mes:"Mes", mensaje:"Hallazgo", tipo_duplicado:"Tipo de duplicado", filas:"Filas", fuente_descripcion:"Fuente descripción",
+  mes:"Mes", mensaje:"Hallazgo", tipo_duplicado:"Tipo de duplicado", descripcion_rips:"Descripción RIPS", valor_unitario_rips:"Valor unitario RIPS",
+  estado_cruce:"Estado del cruce", impacto:"Impacto", codigo_salud360:"Código Salud 360", principio_activo:"Principio activo",
+  concentracion:"Concentración", forma:"Forma", laboratorio:"Laboratorio", precio_regulado:"Precio regulado", precio_compra:"Precio compra",
+  precio_a_usar:"Precio a usar", alerta_precio_farmacia:"Alerta precio (farmacia)", resultado_cruce_maestro:"Cruce con maestro",
+  codigo_maestro:"Código(s) maestro", sugerencia_farmacia:"Sugerencia farmacia", margen_rips_pct:"Margen RIPS %", cum:"CUM", filas:"Filas", fuente_descripcion:"Fuente descripción",
   FACTURA_FEV:"Factura", CANTIDAD:"Cantidad", VALOR_SERVICIO:"Valor servicio", accion:"Acción recomendada", TOTAL:"Total", PARTICIPACION_PCT:"% part.", VARIACION_PCT:"Var. % último mes"};
-const ES_PESOS = c => /^valor|VALOR_|^valor_/.test(c) && !/pct/i.test(c);
+const ES_PESOS = c => /^valor|VALOR_|^valor_|^precio_(compra|a_usar)|^impacto/.test(c) && !/pct/i.test(c);
 const ES_NUM = (c, v) => typeof v === "number";
 
 const estado = {opc: null, datos: null, vista: "resumen", graficos: {}, tablas: {}};
@@ -456,7 +479,7 @@ async function iniciar(){
   const sel = (id, lista, vacio) => $(id).innerHTML = `<option value="">${vacio}</option>` + lista.map(m => `<option>${esc(m)}</option>`).join("");
   sel("#dp-mes", o.meses, "(todos los meses)"); sel("#dp-sede", o.sede, "(todas las sedes)");
   if (!o.meses.length){ $("#sin-datos").style.display = "block";
-    $$(".vista").forEach(v => v.style.display = ["v-depuracion", "v-cupsenr"].includes(v.id) ? "" : "none"); return; }
+    $$(".vista").forEach(v => v.style.display = ["v-depuracion", "v-cupsenr", "v-farmacia"].includes(v.id) ? "" : "none"); return; }
   const opciones = (sel, lista, vacio) => $(sel).innerHTML = `<option value="">${vacio}</option>` + lista.map(m => `<option>${esc(m)}</option>`).join("");
   opciones("#f-desde", o.meses, "(primero)"); opciones("#f-hasta", o.meses, "(último)");
   $$(".multi").forEach(m => multi(m, m.dataset.f, o[m.dataset.f] || []));
@@ -478,6 +501,7 @@ function pintarVista(todo){
   const v = estado.vista, d = estado.datos;
   if (v === "depuracion") return pintarDepuracion();
   if (v === "cupsenr") return pintarCupsEnr();
+  if (v === "farmacia") return pintarFarmacia();
   if (!d) return;
   ({resumen: pintarResumen, comparativos: pintarComparativo, frecuencias: pintarFrecuencias, empresa: pintarEmpresa, sede: pintarSede,
     servicio: pintarServicio, cups: pintarCups, consolidado: () => tablaPaginada("tp-consolidado", "consolidado"),
@@ -633,6 +657,37 @@ $$("[data-cat]").forEach(b => b.onclick = async () => {
     Descripciones completadas: ${Object.entries(c).map(([k, v]) => `${v} desde ${esc(k)}`).join(", ") || "ninguna nueva"}; sin descripción: ${d.descripciones.sin_descripcion}.</div>`;
   input.value = ""; await actualizar(); pintarCupsEnr();
 });
+
+/* ---------- Medicamentos vs portafolio de farmacia ---------- */
+async function pintarFarmacia(){
+  const e = await (await fetch("/api/catalogos/estado")).json();
+  $("#fa-estado").innerHTML = e.farmacia ? `Guardado: ${ent(e.farmacia.cum_portafolio)} CUM del portafolio · ${esc(e.farmacia.actualizado.replace("T", " "))}`
+                                         : "Sin cargar.";
+  if (!estado.opc || !estado.opc.meses.length){ $("#fa-kpis").innerHTML = ""; if (e.farmacia) tablaPaginada("tp-farmacia", $("#sel-farmacia").value); return; }
+  const r = await (await fetch("/api/farmacia/resumen?" + parametros())).json();
+  const pe = r.por_estado || {};
+  $("#fa-kpis").innerHTML = !r.cum_facturados ? '<p class="nota">No hay medicamentos facturados para el filtro.</p>' : [
+    kpi("CUM facturados en RIPS", ent(r.cum_facturados), pesos(r.valor_medicamentos)),
+    kpi("En portafolio de farmacia", r.cargado ? `${dec(r.pct_en_portafolio, 1)}%` : "—", r.cargado ? `${ent(r.en_portafolio)} CUM` : "cargue el cruce"),
+    kpi("Fuera de portafolio", ent(pe["NO ESTÁ EN PORTAFOLIO"] || 0), pesos(r.valor_fuera_portafolio)),
+    kpi("Facturados bajo costo", `<span style="color:var(--critica)">${ent(pe["FACTURADO BAJO COSTO"] || 0)}</span>`, "valor unitario < precio de compra"),
+    kpi("Bajo precio / margen bajo", ent((pe["FACTURADO BAJO PRECIO"] || 0) + (pe["MARGEN BAJO"] || 0)), "frente al precio a usar"),
+    kpi("Impacto por facturar bajo precio", pesos(r.impacto_bajo_precio), `${ent(r.portafolio_no_facturado || 0)} productos del portafolio sin facturar`),
+  ].join("");
+  tablaPaginada("tp-farmacia", $("#sel-farmacia").value);
+}
+$("#sel-farmacia").onchange = () => tablaPaginada("tp-farmacia", $("#sel-farmacia").value);
+$("#fa-cargar").onclick = async () => {
+  const input = $("#fa-arch");
+  if (!input.files.length){ alert("Seleccione el libro del cruce de farmacia."); return; }
+  const fd = new FormData(); fd.append("archivo", input.files[0]);
+  $("#fa-cargar").disabled = true; $("#fa-estado").textContent = "Leyendo…";
+  const r = await fetch("/api/catalogos/farmacia", {method: "POST", body: fd}); const d = await r.json(); $("#fa-cargar").disabled = false;
+  if (!r.ok){ $("#fa-estado").innerHTML = `<div class="aviso">${esc(d.detail)}</div>`; return; }
+  $("#fa-estado").innerHTML = `<div class="ok-caja">${ent(d.cum_portafolio)} CUM del portafolio guardados (${d.sin_cum} sin CUM, ${d.cum_repetidos} repetidos);
+    margen mínimo ${dec(d.margen_minimo * 100, 0)}%; hojas: ${esc(d.hojas.join(", "))}.</div>`;
+  input.value = ""; await iniciar(); pintarFarmacia();
+};
 
 /* ---------- Depuración de datos ---------- */
 function pintarDepuracion(){}
