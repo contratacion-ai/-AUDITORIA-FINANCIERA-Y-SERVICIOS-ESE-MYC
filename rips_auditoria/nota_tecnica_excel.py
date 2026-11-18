@@ -45,7 +45,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-from .nota_tecnica import CURSOS, MOTIVOS, SIN_CURSO, nombre_mes
+from .nota_tecnica import CURSOS, MESES_ES, MOTIVOS, SIN_CURSO, nombre_mes
 
 VERDE, VINO, GRIS = "18A020", "A01038", "5F6B63"
 INSTITUCION = "ESE Departamental de Primer Nivel Moreno y Clavijo"
@@ -127,6 +127,10 @@ def _secciones(r: dict | None) -> list[tuple[str, list[str]]]:
             f"Códigos de la nota sin registros: {r['codigos_sin_registros']} de {r['codigos_nota']} (en 0, ver hoja «Calidad»).",
             "Meses sin información en todo el período: " + (", ".join(nombre_mes(m) for m in r["meses_sin_informacion"])
                                                              or "ninguno") + ".",
+            *([f"ATENCIÓN: ninguna atención de los códigos de la nota coincidió con la EPS {r['eps']}. Entidades "
+               f"encontradas en los AF: {r.get('entidades_encontradas') or 'ninguna'}. Verifique el nombre o código de "
+               "la EPS (opción «EPS del contrato» o nota_tecnica.eps_codigos)."]
+              if not r["registros_eps"] and r.get("registros_otra_eps") else []),
             "[OTRAS OBSERVACIONES DEL AUDITOR]",
         ] if r else [
             "Registros duplicados: [N.º] · anulados: [N.º] · con errores de diligenciamiento: [N.º] · fuera de período: [N.º]",
@@ -143,8 +147,11 @@ def _secciones(r: dict | None) -> list[tuple[str, list[str]]]:
     ]
 
 
-def exportar_nota(ruta: str | Path, calc: dict | None = None) -> Path:
-    """Nota técnica en Excel. Sin ``calc`` genera la plantilla en blanco con corchetes."""
+def exportar_nota(ruta: str | Path, calc: dict | None = None, catalogo: pd.DataFrame | None = None,
+                  anio: str | None = None) -> Path:
+    """Nota técnica en Excel. Sin ``calc`` genera la plantilla con corchetes; con ``catalogo``
+    (``nota_tecnica.cargar_catalogo``) la «Tabla resumen» trae todos los servicios de la
+    nota técnica (código, descripción, estado y tipo) con los meses para diligenciar."""
     ruta = Path(ruta)
     ruta.parent.mkdir(parents=True, exist_ok=True)
     r = calc["resumen"] if calc else None
@@ -174,16 +181,7 @@ def exportar_nota(ruta: str | Path, calc: dict | None = None) -> Path:
         _hoja_calidad(wb, calc)
         _hoja_curso_vida(wb, calc)
     else:
-        w = wb.add_worksheet("Tabla resumen")
-        enc = wb.add_format({"bold": True, "font_color": "#FFFFFF", "bg_color": f"#{VERDE}", "border": 1})
-        for j, c in enumerate(["CÓDIGO CUPS", "DESCRIPCIÓN", "[MES 1]", "[MES 2]", "[…]", "[MES 12]", "TOTAL",
-                               "OBSERVACIONES"]):
-            w.write(0, j, c, enc)
-        w.write(1, 0, "[CÓDIGO]", cor)
-        w.write(1, 1, "[DESCRIPCIÓN]", cor)
-        w.set_column(0, 0, 14)
-        w.set_column(1, 1, 50)
-        w.set_column(7, 7, 50)
+        _tabla_plantilla(wb, catalogo, anio, cor)
     for hoja in wb.worksheets():  # impresión: carta horizontal, ajustada al ancho de la página
         hoja.set_landscape()
         hoja.set_paper(1)
@@ -192,6 +190,53 @@ def exportar_nota(ruta: str | Path, calc: dict | None = None) -> Path:
         hoja.set_footer("&L" + INSTITUCION + "&RPágina &P de &N")
     wb.close()
     return ruta
+
+
+def _tabla_plantilla(wb, catalogo: pd.DataFrame | None, anio: str | None, cor) -> None:
+    """«Tabla resumen» de la plantilla: todos los servicios de la nota técnica × 12 meses,
+    con celdas para diligenciar, totales por código y por mes con fórmulas y observaciones."""
+    from xlsxwriter.utility import xl_col_to_name, xl_rowcol_to_cell
+
+    w = wb.add_worksheet("Tabla resumen")
+    enc = _enc(wb)
+    txt = wb.add_format({"border": 1, "border_color": "#DCE3DD", "text_wrap": True, "valign": "top"})
+    celda = wb.add_format({"border": 1, "border_color": "#DCE3DD", "bg_color": "#FFFBEA", "num_format": "#,##0",
+                           "locked": False})
+    tot = wb.add_format({"bold": True, "num_format": "#,##0", "border": 1, "bg_color": "#E8F6E9"})
+    obs = wb.add_format({"border": 1, "border_color": "#DCE3DD", "bg_color": "#FFFBEA", "text_wrap": True, "locked": False})
+    meses = [f"{m} {anio or '[AÑO]'}" for m in MESES_ES]
+    cols = ["CÓDIGO CUPS", "DESCRIPCIÓN", "ESTADO", "TIPO", *meses, "TOTAL PACIENTES-MES", "OBSERVACIONES"]
+    w.write_row(0, 0, cols, enc)
+    filas = (catalogo[["codigo", "descripcion", "estado", "tipo"]].itertuples(index=False, name=None)
+             if catalogo is not None and len(catalogo) else [("[CÓDIGO]", "[DESCRIPCIÓN]", "[ESTADO]", "[TIPO]")])
+    n = 0
+    for i, (cod, desc, est, tipo) in enumerate(filas, start=1):
+        for j, v in enumerate((cod, desc, est, tipo)):
+            w.write_string(i, j, str(v), cor if str(v).startswith("[") else txt)
+        for j in range(4, 16):
+            w.write_blank(i, j, None, celda)
+        w.write_formula(i, 16, f"=SUM({xl_rowcol_to_cell(i, 4)}:{xl_rowcol_to_cell(i, 15)})", tot, 0)
+        w.write_blank(i, 17, None, obs)
+        n = i
+    w.write(n + 1, 1, "TOTAL POR MES", tot)
+    for j in range(4, 17):
+        col = xl_col_to_name(j)
+        w.write_formula(n + 1, j, f"=SUM({col}2:{col}{n + 1})", tot, 0)
+    w.write(n + 2, 1, "VALIDACIÓN DEL MES", tot)
+    for j in range(4, 16):
+        col = xl_col_to_name(j)
+        w.write_formula(n + 2, j, f'=IF({col}{n + 2}=0,"SIN INFORMACION","OK")', tot, "SIN INFORMACION")
+    alerta = wb.add_format({"bg_color": "#FBEAEF", "font_color": f"#{VINO}", "bold": True})
+    w.conditional_format(n + 2, 4, n + 2, 15, {"type": "cell", "criteria": "==", "value": '"SIN INFORMACION"', "format": alerta})
+    w.freeze_panes(1, 4)
+    w.autofilter(0, 0, n, len(cols) - 1)
+    w.set_column(0, 0, 13)
+    w.set_column(1, 1, 55)
+    w.set_column(2, 3, 12)
+    w.set_column(4, 16, 11)
+    w.set_column(17, 17, 50)
+    w.write(n + 4, 1, f"{n} servicio(s) de la nota técnica. Diligencie el número de pacientes únicos por mes "
+                      "(o genere la nota desde la ventana de cargue con los RIPS para llenarla automáticamente).")
 
 
 def _enc(wb):

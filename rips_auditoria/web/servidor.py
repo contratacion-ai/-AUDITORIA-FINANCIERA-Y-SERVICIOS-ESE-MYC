@@ -269,7 +269,8 @@ def _ejecutar(t: dict, entradas: list[Path], hospital, enviar: bool, consolidado
                 resumen_nt = {k: r[k] for k in ("eps", "desde", "hasta", "codigos_nota", "codigos_con_pacientes",
                                                 "codigos_sin_registros", "pacientes_unicos_periodo", "registros_incluidos",
                                                 "duplicados", "excl_anulado", "con_errores", "excl_fuera_periodo",
-                                                "meses_sin_informacion", "registros_otra_eps")}
+                                                "meses_sin_informacion", "registros_otra_eps", "registros_eps",
+                                                "entidades_encontradas")}
                 t["log"].append(f"Nota técnica: {r['codigos_con_pacientes']} de {r['codigos_nota']} códigos con pacientes, "
                                 f"{r['pacientes_unicos_periodo']} pacientes únicos ({r['desde']} a {r['hasta']})")
             tabla = res.resumen_unidades()
@@ -505,8 +506,12 @@ def nota_tecnica_estado():
 
 
 @app.get("/api/nota-tecnica/plantilla")
-def nota_tecnica_plantilla():
-    ruta = nota_tecnica_excel.exportar_nota(carpeta_datos() / "PLANTILLA_NOTA_TECNICA_CAPITACION.xlsx")
+def nota_tecnica_plantilla(anio: str = ""):
+    """Plantilla de la nota técnica con la tabla de todos los servicios de la nota guardada (si la hay)."""
+    vigente = nota_tecnica.nota_vigente()
+    cat = nota_tecnica.cargar_catalogo(vigente) if vigente else None
+    ruta = nota_tecnica_excel.exportar_nota(carpeta_datos() / "PLANTILLA_NOTA_TECNICA_CAPITACION.xlsx", None, cat,
+                                            anio.strip() or None)
     return FileResponse(ruta, filename=ruta.name)
 
 

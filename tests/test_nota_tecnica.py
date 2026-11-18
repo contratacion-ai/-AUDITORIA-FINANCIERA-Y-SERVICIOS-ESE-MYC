@@ -203,3 +203,29 @@ def test_ventana_de_cargue_genera_la_nota(catalogo, entradas, monkeypatch):
     assert sum(a.startswith("NOTA_TECNICA/") for a in t["resultado"]["archivos"]) == 2
     assert c.get("/api/nota-tecnica/estado").json()["codigos"] == 6  # queda guardada
     assert c.get("/api/nota-tecnica/plantilla").status_code == 200
+
+
+def test_plantilla_con_la_tabla_de_servicios(catalogo, tmp_path):
+    cat = nt.cargar_catalogo(catalogo)
+    ruta = nx.exportar_nota(tmp_path / "PLANTILLA.xlsx", None, cat, "2023")
+    w = openpyxl.load_workbook(ruta)["Tabla resumen"]
+    assert [c.value for c in w[1]][:6] == ["CÓDIGO CUPS", "DESCRIPCIÓN", "ESTADO", "TIPO", "Enero 2023", "Febrero 2023"]
+    codigos = [w.cell(row=r, column=1).value for r in range(2, 2 + len(cat))]
+    assert codigos == list(cat["codigo"])  # todos los servicios de la nota, en su orden
+    assert w["C6"].value == "INACTIVO" and w["D5"].value == "Medicamento (CUM)"
+    assert w["Q2"].value == "=SUM(E2:P2)" and w["E8"].value == "=SUM(E2:E7)"
+    assert w["E9"].value == '=IF(E8=0,"SIN INFORMACION","OK")'
+
+
+def test_aviso_si_ninguna_atencion_es_de_la_eps(catalogo, entradas, tmp_path):
+    from rips_auditoria.config import cargar_configuracion
+
+    cfg = cargar_configuracion()
+    cfg["nota_tecnica"] = {"eps_nombre": "COOSALUD", "eps_textos": ["COOSALUD"], "eps_codigos": [], "json_sin_eps": "excluir"}
+    calc = nt.procesar_nota(entradas, catalogo, desde="2023-01", hasta="2023-03", cfg=cfg)
+    r = calc["resumen"]
+    assert r["registros_eps"] == 0 and r["registros_otra_eps"] > 0
+    assert "NUEVA EPS" in r["entidades_encontradas"] and "SANITAS" in r["entidades_encontradas"]
+    nota = nx.exportar_nota(tmp_path / "n.xlsx", calc)
+    texto = "\n".join(str(c.value) for c in openpyxl.load_workbook(nota)["Nota técnica"]["A"] if c.value)
+    assert "ninguna atención de los códigos de la nota coincidió con la EPS COOSALUD" in texto

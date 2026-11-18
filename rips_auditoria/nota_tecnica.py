@@ -383,6 +383,11 @@ def calcular(at: pd.DataFrame, catalogo: pd.DataFrame, desde: str | None = None,
         "fuentes": sorted(set(at["fuente"].dropna())) or ["(ninguna)"],
         "sedes": sorted({s for s in incl["sede"].dropna() if s}),
         "archivos": int(pd.concat([at["archivo"], otra_eps["archivo"]]).nunique()),
+        # entidades de los AF con atenciones de códigos de la nota (para revisar el filtro de EPS)
+        "entidades_encontradas": "; ".join(
+            f"{k or '(sin entidad)'} ({v})" for k, v in pd.concat([at, otra_eps])
+            .assign(_e=lambda x: x["cod_entidad"].fillna("").astype(str) + " " + x["nombre_entidad"].fillna("").astype(str))
+            ["_e"].str.strip().value_counts().head(8).items()),
     }
     return {"resumen": resumen, "catalogo": catalogo, "matriz": matriz, "calidad": cal, "pacientes": unicos,
             "curso_vida": curso, "fuera_nota": fuera}

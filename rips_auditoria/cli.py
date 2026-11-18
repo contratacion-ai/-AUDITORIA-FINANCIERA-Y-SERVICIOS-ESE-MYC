@@ -126,7 +126,9 @@ def _nota_tecnica(args) -> int:
 
     salida = Path(args.salida)
     if args.plantilla:
-        print("Plantilla:", nota_tecnica_excel.exportar_nota(salida / "PLANTILLA_NOTA_TECNICA_CAPITACION.xlsx"))
+        cat = nota_tecnica.cargar_catalogo(args.nota) if args.nota else None  # con --nota: tabla con todos los servicios
+        anio = args.desde[:4] if args.desde else None
+        print("Plantilla:", nota_tecnica_excel.exportar_nota(salida / "PLANTILLA_NOTA_TECNICA_CAPITACION.xlsx", None, cat, anio))
         return 0
     if not args.nota or not args.entradas:
         print("Indique los RIPS/JSON a procesar y --nota con el archivo de códigos de la nota técnica.", file=sys.stderr)

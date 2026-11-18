@@ -156,7 +156,7 @@
           <div style="flex:1"><label for="nt-desde">Desde (AAAA-MM)</label><input type="text" id="nt-desde" placeholder="2023-01"></div>
           <div style="flex:1"><label for="nt-hasta">Hasta (AAAA-MM)</label><input type="text" id="nt-hasta" placeholder="2023-12"></div>
         </div>
-        <div class="ayuda">Sin período se toma del primer al último mes con atenciones. <a href="/api/nota-tecnica/plantilla" style="color:var(--verde-osc)">Descargar plantilla en blanco</a>.</div>
+        <div class="ayuda">Sin período se toma del primer al último mes con atenciones. <a href="/api/nota-tecnica/plantilla" id="nt-plantilla" style="color:var(--verde-osc)">Descargar plantilla con la tabla de servicios</a>.</div>
       </div>
       <div class="ayuda" style="margin-top:10px">¿Va a volver a cargar un mes o una sede? Revise y limpie antes lo ya cargado en
         <a href="/tablero#depuracion" style="color:var(--verde-osc)">Tablero › Depuración de datos</a>. Los RIPS en JSON (Res. 2275) se integran sin duplicar.</div>
@@ -360,7 +360,10 @@ function mostrarResultados(t){
     (${esc(nt.desde)} a ${esc(nt.hasta)}): ${ent(nt.pacientes_unicos_periodo)} pacientes únicos · ${nt.codigos_con_pacientes} de ${nt.codigos_nota}
     códigos con pacientes · ${nt.codigos_sin_registros} en 0 · duplicados ${ent(nt.duplicados)} · anulados ${ent(nt.excl_anulado)} ·
     con errores ${ent(nt.con_errores)} · fuera de período ${ent(nt.excl_fuera_periodo)}${nt.meses_sin_informacion.length ?
-    ` · <b>meses sin información: ${esc(nt.meses_sin_informacion.join(", "))}</b>` : ""}. Descargue los archivos NOTA_TECNICA/ de la lista.</div>` : "";
+    ` · <b>meses sin información: ${esc(nt.meses_sin_informacion.join(", "))}</b>` : ""}. Descargue los archivos NOTA_TECNICA/ de la lista.</div>` +
+    (!nt.registros_eps && nt.registros_otra_eps ? `<div class="aviso"><b>Ninguna atención coincidió con la EPS «${esc(nt.eps)}».</b>
+    Entidades encontradas en los AF: ${esc(nt.entidades_encontradas || "ninguna")}. Escriba en «EPS del contrato» el nombre como aparece
+    en el AF y vuelva a generar la nota.</div>` : "") : "";
   $("#aviso-envio").innerHTML = notaHtml + (r.aviso_envio ? `<div class="aviso">${esc(r.aviso_envio)}</div>` : "") + (r.json ?
     `<div class="aviso" style="background:var(--verde-claro);color:var(--verde-osc)">RIPS JSON: ${ent(r.json.registros_leidos)} registros leídos ·
      ${ent(r.json.repetidos_en_json)} repetidos en el JSON · ${ent(r.json.ya_cargadas)} ya cargados · <b>${ent(r.json.agregadas)} filas agregadas</b></div>` +
@@ -387,6 +390,8 @@ async function estadoNota(){
                                             : "No hay nota técnica guardada: seleccione el archivo (p. ej. NUEVA_EPS.xlsx).";
   }catch(err){}
 }
+$("#nt-desde").addEventListener("input", () => { const a = $("#nt-desde").value.trim().slice(0, 4);
+  $("#nt-plantilla").href = "/api/nota-tecnica/plantilla" + (/^\d{4}$/.test(a) ? "?anio=" + a : ""); });
 $("#nota-tecnica").onchange = e => { $("#nt-opciones").style.display = e.target.checked ? "block" : "none"; if (e.target.checked) estadoNota(); };
 verificarApp(); setInterval(verificarApp, 8000);
 </script>

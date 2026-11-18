@@ -133,7 +133,7 @@ capitación»**, seleccione una vez el archivo de la nota (p. ej. `NUEVA_EPS.xls
 ```bash
 python -m rips_auditoria nota-tecnica "D:/RIPS 2023/Hospital San Antonio" --nota NUEVA_EPS.xlsx \
     --desde 2023-01 --hasta 2023-12 -s salida_nota            # RIPS TXT, JSON, carpetas o ZIP
-python -m rips_auditoria nota-tecnica --plantilla -s plantilla  # plantilla en blanco
+python -m rips_auditoria nota-tecnica --plantilla --nota NUEVA_EPS.xlsx --desde 2023-01 -s plantilla  # plantilla con la tabla de servicios
 ```
 
 | Regla | Cómo |
