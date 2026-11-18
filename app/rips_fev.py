@@ -49,17 +49,30 @@ def fuentes(ruta, avance=None):
     """Fuentes RIPS de un archivo: un .zip se lee en su lugar (sin extraer); los comprimidos anidados y los .rar/.7z/.tar se extraen."""
     from .formatos import EXT_COMPRIMIDO, extension, extraer, util
     ext = extension(ruta)
-    if ext == ".zip" and zipfile.is_zipfile(ruta):
-        z = zipfile.ZipFile(ruta); out, n = [], 0
-        for m in z.infolist():
-            partes = [x.strip() for x in m.filename.replace("\\", "/").split("/") if x.strip()]
-            if m.is_dir() or not partes or any(x.startswith(("__MACOSX", ".")) for x in partes) or not util(m.filename): continue
+    if ext == ".zip":
+        # 1) directorio central del zip (lo normal); 2) si está dañado (descargas grandes de Google Drive, descarga incompleta),
+        #    recorrido secuencial de los encabezados locales (zipseq), también sin descomprimir al disco
+        miembros = None
+        try:
+            z = zipfile.ZipFile(ruta); miembros = [(m.filename, m.file_size, (lambda m=m: z.open(m))) for m in z.infolist() if not m.is_dir()]
+            for m in z.infolist():
+                if not m.is_dir() and util(m.filename): z.open(m).close()        # valida el encabezado local de cada miembro
+        except (zipfile.BadZipFile, zipfile.LargeZipFile, OSError, EOFError, ValueError, NotImplementedError):
+            from . import zipseq
+            if avance: avance("El índice del .zip está dañado: se recorre el archivo completo para encontrar los RIPS…")
+            ent = zipseq.indexar(ruta, avance)
+            if not ent: raise ValueError("El .zip está dañado o incompleto y no se encontró ningún archivo. Vuelva a descargarlo.")
+            miembros = [(e.nombre, e.usize, (lambda e=e: zipseq.abrir(ruta, e))) for e in ent]
+        out, n = [], 0
+        for nombre, tam, abrir in miembros:
+            partes = [x.strip() for x in nombre.replace("\\", "/").split("/") if x.strip()]
+            if not partes or any(x.startswith(("__MACOSX", ".")) for x in partes) or not util(nombre): continue
             e = extension(partes[-1])
             if e in EXT_COMPRIMIDO or e == ".tar.gz":
                 n += 1; dst = os.path.join(ruta + "_extraido", f"a{n:04d}{e}"); os.makedirs(os.path.dirname(dst), exist_ok=True)
-                with z.open(m) as s, open(dst, "wb") as o: shutil.copyfileobj(s, o, 1 << 20)
+                with abrir() as s_, open(dst, "wb") as o: shutil.copyfileobj(s_, o, 1 << 20)
                 out += [Fuente("/".join(partes) + " › " + f.nombre, f.abrir, f.tam) for f in fuentes(dst)]
-            else: out.append(Fuente("/".join(partes), (lambda m=m: z.open(m)), m.file_size))
+            else: out.append(Fuente("/".join(partes), abrir, tam))
         return out
     if ext in EXT_COMPRIMIDO or ext == ".tar.gz":
         from .formatos import nombre_interno

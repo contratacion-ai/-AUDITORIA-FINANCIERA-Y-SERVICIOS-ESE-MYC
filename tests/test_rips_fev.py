@@ -143,3 +143,39 @@ def test_json_grande_en_streaming(monkeypatch):
     with open(ruta, "wb") as f: f.write(js.dumps([{"numFactura": "FA1", "usuarios": us[:2]}, {"numFactura": "FA2", "usuarios": us[2:3]}]).encode())
     filas = list(RF.leer_json(RF.Fuente.ruta(ruta), val))
     assert [x[0] for x in filas].count("FA1") == 6 and [x[0] for x in filas].count("FA2") == 3
+
+def _zip_danado(origen, destino, modo):
+    """Zip como los de Google Drive con problemas: índice con posiciones erradas, encabezados sin tamaño (data descriptor) o truncado."""
+    import io, struct
+    with zipfile.ZipFile(origen) as z: datos = [(n, z.read(n)) for n in z.namelist() if not n.endswith("/")]
+    class NoSeek(io.RawIOBase):                                         # obliga a zipfile a escribir «data descriptors» (bit 3)
+        def __init__(self): self.b = bytearray()
+        def writable(self): return True
+        def write(self, x): self.b += x; return len(x)
+    w = NoSeek()
+    with zipfile.ZipFile(w, "w", zipfile.ZIP_DEFLATED) as z:
+        for n, d in datos: z.writestr("Hospital San Antonio /RIPS/" + n, d)
+    b = bytes(w.b)
+    if modo == "indice":                                                # posiciones del directorio central desplazadas
+        b = bytearray(b); i = b.find(b"PK\x01\x02")
+        while i >= 0:
+            off = struct.unpack("<I", b[i + 42:i + 46])[0]; b[i + 42:i + 46] = struct.pack("<I", off + 7); i = b.find(b"PK\x01\x02", i + 4)
+        b = bytes(b)
+    if modo == "truncado": b = b[:b.find(b"PK\x01\x02")]
+    with open(destino, "wb") as f: f.write(b)
+    return len(datos)
+
+@pytest.mark.parametrize("modo", ["indice", "descriptor", "truncado"])
+def test_zip_danado_se_lee_secuencialmente(modo):
+    from app import rips_fev as RF
+    ruta = os.path.join(CARPETA, f"danado_{modo}.zip"); n = _zip_danado(RUTAS["rips_json.zip"], ruta, modo)
+    fs = RF.fuentes(ruta); assert len(fs) == n
+    val = []; filas = [x for f in fs if f.base.endswith(".json") for x in RF.leer_json(f, val)]
+    assert filas and {x[0] for x in filas} >= {"FA00000"}
+    xml = [RF.leer_xml(f)[0]["factura"] for f in fs if f.base.endswith(".xml")]
+    assert "FA00000" in xml
+
+def test_zip_danado_por_la_api():
+    ruta = os.path.join(CARPETA, "Hospital San Antonio-20261117T191416Z-1-001.zip"); _zip_danado(RUTAS["rips_json.zip"], ruta, "indice")
+    r, c = _subir("rips_fev", ruta)
+    assert c["tipo"] == "rips_fev" and "29 facturas" in c["mensaje"], c

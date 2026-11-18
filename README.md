@@ -84,6 +84,12 @@ administrador: incluye Python 3.12 oficial y todas las librerías. Crea accesos 
   Versiones empaquetadas en `instalador/requirements-windows.txt`.
 - Windows SmartScreen puede advertir que el instalador no está firmado: «Más información» → «Ejecutar de todas formas».
 
+## Novedades v5.9 · ZIP con índice dañado («BadZipFile: Bad magic number»)
+
+| Cambio | Detalle |
+|---|---|
+| **Descargas grandes de Google Drive o incompletas** | Si el directorio central del .zip tiene posiciones erradas (Python: «Bad magic number for file header»; Windows tampoco lo abre) o el archivo está truncado, el aplicativo recorre el .zip encabezado por encabezado (`app/zipseq.py`), arma su propio índice y lee cada RIPS desde su posición, sin descomprimir al disco. Si la descarga quedó incompleta, se cargan los archivos completos que alcanzó a traer. |
+
 ## Novedades v5.8 · RIPS de varios GB y comparativo con las tres facturaciones
 
 | Cambio | Detalle |

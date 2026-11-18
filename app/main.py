@@ -129,7 +129,7 @@ class _Tareas:
 
 def _comprimido_en_segundo_plano(tipo, path, nombre, mes, cid):
     try:
-        prog = lambda i, n: P.estado(cid, "procesando", f"Descomprimiendo: {i:,} de {n:,} archivos…")
+        prog = lambda i, n=None: P.estado(cid, "procesando", i if n is None else f"Descomprimiendo: {i:,} de {n:,} archivos…")
         if tipo in ("rips", "rips_fev"):
             # un .zip de RIPS se lee en su lugar, sin descomprimir (envíos de varios GB)
             P.estado(cid, "procesando", "Revisando el contenido del comprimido…")
