@@ -126,9 +126,13 @@ Supuesto: el RIPS factura en la misma unidad del portafolio (unidad mínima de d
 
 ### Nota técnica de capitación: pacientes únicos por CUPS y mes (v1.5)
 
-Para contratos de capitación (p. ej. Nueva EPS). En la ventana de cargue marque **«Generar nota técnica de
-capitación»**, seleccione una vez el archivo de la nota (p. ej. `NUEVA_EPS.xlsx`: `CodigoCUP`, `Homologo`,
-`ESTADO CUPS`, `DescripcionCUP`; queda guardado) y, si quiere, el período. Por consola:
+Para contratos de capitación, **una nota por EPS** (Nueva EPS, Sanitas, Coosalud u otras). En la ventana de cargue
+marque **«Generar nota técnica de capitación»**, agregue la nota de cada EPS (archivo con `CodigoCUP`, `Homologo`,
+`ESTADO CUPS`, `DescripcionCUP`; queda guardada en `catalogos/nota_tecnica/<eps>/`), marque las EPS a generar y,
+si quiere, el período. Cada nota lleva su perfil de reconocimiento (textos del nombre y códigos de entidad/NIT,
+prellenados y editables): Nueva EPS `EPS037, EPSS37, EPS041, EPSS41, 900156264`; Sanitas `EPS005, EPSS05,
+800251440`; Coosalud `ESS024, EPS042, EPSS42, 900226715` (verifíquelos con el contrato). Con varias EPS a la vez,
+los JSON sin XML de la factura ni AF no se asignan a ninguna (se reportan). Por consola:
 
 ```bash
 python -m rips_auditoria nota-tecnica "D:/RIPS 2023/Hospital San Antonio" --nota NUEVA_EPS.xlsx \

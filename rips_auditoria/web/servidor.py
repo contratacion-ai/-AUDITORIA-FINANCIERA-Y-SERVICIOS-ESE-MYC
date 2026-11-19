@@ -162,25 +162,19 @@ async def crear_cargue(request: Request):
         ruta_local, hospital = _texto(form, "ruta_local"), _texto(form, "hospital")
         enviar = _texto(form, "enviar").lower() in ("true", "1", "on", "si", "sí")
         consolidado = _texto(form, "consolidado").lower() in ("true", "1", "on", "si", "sí")
-        nt = None  # nota técnica de capitación (pacientes únicos por CUPS y mes)
+        nt = None  # notas técnicas de capitación (pacientes únicos por CUPS y mes), una por EPS
         if _texto(form, "nota_tecnica").lower() in ("true", "1", "on", "si", "sí"):
             subida = form.get("nota_archivo")
             if subida is not None and not isinstance(subida, str) and subida.filename:
-                tmp = carpeta_datos() / "temporal" / f"nota_{uuid.uuid4().hex[:8]}"
-                ruta_nota = _ruta_segura(tmp, Path(subida.filename).name)
-                ruta_nota.parent.mkdir(parents=True, exist_ok=True)
-                with ruta_nota.open("wb") as fh:
-                    shutil.copyfileobj(subida.file, fh, 1 << 20)
-                try:
-                    nota_tecnica.guardar_nota(ruta_nota)
-                except (ValueError, KeyError) as exc:
-                    raise HTTPException(400, f"El archivo de la nota técnica no es válido: {exc}") from exc
-                finally:
-                    shutil.rmtree(tmp, ignore_errors=True)
-            if nota_tecnica.nota_vigente() is None:
-                raise HTTPException(400, "Cargue el archivo de la nota técnica (códigos CUPS) para generarla.")
+                _guardar_nota_subida(subida, _texto(form, "nt_eps") or "NUEVA EPS")
+            notas = nota_tecnica.notas_guardadas()
+            elegidas = [x for x in _texto(form, "nt_ids").split(",") if x.strip()]
+            if elegidas:
+                notas = [n for n in notas if n["id"] in elegidas]
+            if not notas:
+                raise HTTPException(400, "Cargue al menos una nota técnica (códigos CUPS de la EPS) para generarla.")
             nt = {"desde": _texto(form, "nt_desde").strip() or None, "hasta": _texto(form, "nt_hasta").strip() or None,
-                  "eps": _texto(form, "nt_eps").strip() or None}
+                  "notas": notas}
         entradas: list[Path] = []
         tid = uuid.uuid4().hex[:10]
         ruta_local = ruta_local.strip().strip('"').strip("'")
@@ -261,27 +255,32 @@ def _ejecutar(t: dict, entradas: list[Path], hospital, enviar: bool, consolidado
                                 f"{resumen_json['repetidos_en_json']} repetidos en el JSON, "
                                 f"{resumen_json['ya_cargadas']} ya cargados, {resumen_json['agregadas']} filas agregadas")
                 catalogo_cups.actualizar_descripciones(tb.cargar(tb.carpeta_acumulado(cfg))[0])
-            resumen_nt = None
+            resumenes_nt = []
             if nt:
-                # Nota técnica: pacientes únicos por código y mes, con los mismos RIPS (TXT validados + JSON)
-                t["fase"] = "Generando la nota técnica (pacientes únicos por CUPS y mes)"
-                if nt.get("eps"):
-                    cfg.setdefault("nota_tecnica", {})["eps_nombre"] = nt["eps"]
-                    cfg["nota_tecnica"].setdefault("eps_textos", [nt["eps"]] + nota_tecnica.DEFAULTS["eps_textos"])
+                # Notas técnicas: pacientes únicos por código y mes, una por EPS, con los mismos RIPS (TXT + JSON)
                 partes = [p for p in (nota_tecnica.atenciones_txt(res), nota_tecnica.atenciones_json(entradas, hospital))
                           if len(p)]
                 at = pd.concat(partes, ignore_index=True) if partes else pd.DataFrame(columns=nota_tecnica.COLS_AT)
-                calc = nota_tecnica.calcular(at, nota_tecnica.cargar_catalogo(nota_tecnica.nota_vigente()),
-                                             nt.get("desde"), nt.get("hasta"), cfg)
-                archivos += nota_tecnica_excel.generar(calc, salida / "NOTA_TECNICA")
-                r = calc["resumen"]
-                resumen_nt = {k: r[k] for k in ("eps", "desde", "hasta", "codigos_nota", "codigos_con_pacientes",
-                                                "codigos_sin_registros", "pacientes_unicos_periodo", "registros_incluidos",
-                                                "duplicados", "excl_anulado", "con_errores", "excl_fuera_periodo",
-                                                "meses_sin_informacion", "registros_otra_eps", "registros_eps",
-                                                "entidades_encontradas")}
-                t["log"].append(f"Nota técnica: {r['codigos_con_pacientes']} de {r['codigos_nota']} códigos con pacientes, "
-                                f"{r['pacientes_unicos_periodo']} pacientes únicos ({r['desde']} a {r['hasta']})")
+                varias = len(nt["notas"]) > 1
+                if varias:
+                    t["log"].append("Varias EPS: los JSON sin factura electrónica (XML) ni AF no se asignan a ninguna EPS "
+                                    "(cargue cada JSON con su XML); quedan reportados en «entidades encontradas».")
+                for nota in nt["notas"]:
+                    t["fase"] = f"Generando la nota técnica de {nota['eps_nombre']} (pacientes únicos por CUPS y mes)"
+                    cfg_n = nota_tecnica.cfg_nota(cfg, nota)
+                    if varias:  # un JSON sin EPS no puede sumarse a todas las EPS a la vez
+                        cfg_n["nota_tecnica"]["json_sin_eps"] = "excluir"
+                    calc = nota_tecnica.calcular(at, nota_tecnica.cargar_catalogo(nota["ruta"]), nt.get("desde"),
+                                                 nt.get("hasta"), cfg_n)
+                    archivos += nota_tecnica_excel.generar(calc, salida / "NOTA_TECNICA")
+                    r = calc["resumen"]
+                    resumenes_nt.append({k: r[k] for k in (
+                        "eps", "desde", "hasta", "codigos_nota", "codigos_con_pacientes", "codigos_sin_registros",
+                        "pacientes_unicos_periodo", "registros_incluidos", "duplicados", "excl_anulado", "con_errores",
+                        "excl_fuera_periodo", "meses_sin_informacion", "registros_otra_eps", "registros_eps",
+                        "entidades_encontradas")})
+                    t["log"].append(f"Nota técnica {r['eps']}: {r['codigos_con_pacientes']} de {r['codigos_nota']} códigos "
+                                    f"con pacientes, {r['pacientes_unicos_periodo']} pacientes únicos ({r['desde']} a {r['hasta']})")
             tabla = res.resumen_unidades()
             inc = res.resumen_incidencias().head(15)
             resultado = {
@@ -289,7 +288,8 @@ def _ejecutar(t: dict, entradas: list[Path], hospital, enviar: bool, consolidado
                 "unidades": json.loads(tabla.to_json(orient="records", force_ascii=False)),
                 "incidencias": json.loads(inc.to_json(orient="records", force_ascii=False)),
                 "archivos": [str(Path(a).relative_to(salida)).replace("\\", "/") for a in archivos],
-                "envio": None, "cruce": None, "aviso_envio": None, "json": resumen_json, "nota_tecnica": resumen_nt,
+                "envio": None, "cruce": None, "aviso_envio": None, "json": resumen_json,
+                "notas_tecnicas": resumenes_nt, "nota_tecnica": resumenes_nt[0] if resumenes_nt else None,
             }
             mensuales = [a for a in archivos if Path(a).parent.name == "APLICATIVO_AUDITORIA"]
             if enviar and mensuales:
@@ -505,22 +505,58 @@ async def _archivo_subido(request: Request, carpeta: Path) -> Path:
     return destino
 
 
+def _guardar_nota_subida(subida, eps: str, textos: str = "", codigos: str = "") -> dict:
+    tmp = carpeta_datos() / "temporal" / f"nota_{uuid.uuid4().hex[:8]}"
+    ruta_nota = _ruta_segura(tmp, Path(subida.filename).name)
+    ruta_nota.parent.mkdir(parents=True, exist_ok=True)
+    with ruta_nota.open("wb") as fh:
+        shutil.copyfileobj(subida.file, fh, 1 << 20)
+    try:
+        return nota_tecnica.guardar_nota(ruta_nota, eps, textos or None, codigos or None)
+    except (ValueError, KeyError) as exc:
+        raise HTTPException(400, f"El archivo de la nota técnica no es válido: {exc}") from exc
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 @app.get("/api/nota-tecnica/estado")
 def nota_tecnica_estado():
-    ruta = nota_tecnica.nota_vigente()
-    if ruta is None:
-        return {"archivo": None}
-    cat = nota_tecnica.cargar_catalogo(ruta)
-    return {"archivo": ruta.name, "codigos": len(cat), "inactivos": int((cat["estado"] != "ACTIVO").sum())}
+    notas = [{k: n[k] for k in ("id", "eps_nombre", "archivo", "codigos", "inactivos", "eps_textos", "eps_codigos")}
+             for n in nota_tecnica.notas_guardadas()]
+    primera = notas[0] if notas else {}
+    return {"notas": notas, "archivo": primera.get("archivo"), "codigos": primera.get("codigos"),
+            "inactivos": primera.get("inactivos"), "perfiles": nota_tecnica.PERFILES_EPS}
+
+
+@app.post("/api/nota-tecnica/notas")
+async def nota_tecnica_guardar(request: Request):
+    """Agrega (o reemplaza) la nota técnica de una EPS."""
+    async with request.form() as form:
+        subida = form.get("archivo")
+        if subida is None or isinstance(subida, str) or not subida.filename:
+            raise HTTPException(400, "Seleccione el archivo de la nota técnica.")
+        eps = _texto(form, "eps").strip()
+        if not eps:
+            raise HTTPException(400, "Indique la EPS de la nota técnica.")
+        r = _guardar_nota_subida(subida, eps, _texto(form, "textos"), _texto(form, "codigos"))
+    return r
+
+
+@app.delete("/api/nota-tecnica/notas/{id_nota}")
+def nota_tecnica_eliminar(id_nota: str):
+    if not nota_tecnica.eliminar_nota(id_nota):
+        raise HTTPException(404, "Nota técnica no encontrada")
+    return {"ok": True}
 
 
 @app.get("/api/nota-tecnica/plantilla")
-def nota_tecnica_plantilla(anio: str = ""):
+def nota_tecnica_plantilla(anio: str = "", id: str = ""):  # noqa: A002
     """Plantilla de la nota técnica con la tabla de todos los servicios de la nota guardada (si la hay)."""
-    vigente = nota_tecnica.nota_vigente()
-    cat = nota_tecnica.cargar_catalogo(vigente) if vigente else None
-    ruta = nota_tecnica_excel.exportar_nota(carpeta_datos() / "PLANTILLA_NOTA_TECNICA_CAPITACION.xlsx", None, cat,
-                                            anio.strip() or None)
+    notas = nota_tecnica.notas_guardadas()
+    nota = next((n for n in notas if n["id"] == id), notas[0] if notas else None)
+    cat = nota_tecnica.cargar_catalogo(nota["ruta"]) if nota else None
+    nombre = f"PLANTILLA_NOTA_TECNICA_{nota['id'].upper() if nota else 'CAPITACION'}.xlsx"
+    ruta = nota_tecnica_excel.exportar_nota(carpeta_datos() / nombre, None, cat, anio.strip() or None)
     return FileResponse(ruta, filename=ruta.name)
 
 

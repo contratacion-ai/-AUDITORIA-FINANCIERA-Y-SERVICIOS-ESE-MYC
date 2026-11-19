@@ -421,8 +421,18 @@ def procesar_nota(entradas, catalogo_ruta, desde=None, hasta=None, hospital=None
 
 
 # ---------------------------------------------------------------------------
-# Nota técnica guardada (para la ventana de cargue)
+# Notas técnicas guardadas: una por EPS (para la ventana de cargue)
 # ---------------------------------------------------------------------------
+# Perfil de cada EPS = textos del nombre de la entidad y códigos/NIT con que se
+# reconoce en el AF (Res. 3374) y en la factura electrónica (XML del JSON).
+# Los códigos son configurables al guardar la nota; verifíquelos con el contrato.
+PERFILES_EPS = {
+    "NUEVA EPS": {"eps_textos": ["NUEVA EPS", "NUEVA EMPRESA PROMOTORA"],
+                  "eps_codigos": ["EPS037", "EPSS37", "EPS041", "EPSS41", "900156264"]},
+    "SANITAS": {"eps_textos": ["SANITAS"], "eps_codigos": ["EPS005", "EPSS05", "800251440"]},
+    "COOSALUD": {"eps_textos": ["COOSALUD"], "eps_codigos": ["ESS024", "EPS042", "EPSS42", "900226715"]},
+}
+
 
 def carpeta_nota() -> Path:
     from .catalogo_cups import carpeta_catalogos
@@ -430,26 +440,95 @@ def carpeta_nota() -> Path:
     return carpeta_catalogos() / "nota_tecnica"
 
 
-def guardar_nota(ruta: str | Path) -> dict:
-    """Valida y guarda el archivo de la nota técnica (reemplaza el anterior)."""
+def id_eps(nombre: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", _n(nombre).lower()).strip("_") or "eps"
+
+
+def perfil_eps(nombre: str, textos=None, codigos=None) -> dict:
+    """Perfil de la EPS: el conocido (Nueva EPS, Sanitas, Coosalud) o uno con su nombre."""
+    nombre = (nombre or "").strip() or "NUEVA EPS"
+    conocida = next((k for k in PERFILES_EPS if _n(k) in _n(nombre)), None)
+    base = PERFILES_EPS.get(conocida)
+    nombre = conocida or nombre
+    lista = lambda x: [t.strip() for t in (x.split(",") if isinstance(x, str) else x) if t and t.strip()]  # noqa: E731
+    return {"eps_nombre": nombre.upper(),
+            "eps_textos": lista(textos) if textos else (base or {}).get("eps_textos", [nombre.upper()]),
+            "eps_codigos": [c.upper() for c in lista(codigos)] if codigos else (base or {}).get("eps_codigos", [])}
+
+
+def _migrar_formato_anterior() -> None:
+    """v1.5: una sola nota en la raíz de la carpeta -> carpeta de NUEVA EPS."""
+    import shutil
+
+    carpeta = carpeta_nota()
+    sueltos = [x for x in carpeta.iterdir() if x.is_file()] if carpeta.exists() else []
+    if sueltos:
+        destino = carpeta / id_eps("NUEVA EPS")
+        destino.mkdir(parents=True, exist_ok=True)
+        for x in sueltos:
+            shutil.move(str(x), destino / x.name)
+        (destino / "perfil.json").write_text(json.dumps({**perfil_eps("NUEVA EPS"), "id": destino.name,
+                                                         "archivo": sueltos[0].name}, ensure_ascii=False), encoding="utf-8")
+
+
+def notas_guardadas() -> list[dict]:
+    """Notas técnicas guardadas: id, EPS, archivo, códigos y perfil de reconocimiento."""
+    _migrar_formato_anterior()
+    carpeta = carpeta_nota()
+    salida = []
+    for d in sorted(x for x in carpeta.iterdir() if x.is_dir()) if carpeta.exists() else []:
+        try:
+            perfil = json.loads((d / "perfil.json").read_text(encoding="utf-8"))
+            ruta = d / perfil["archivo"]
+            cat = cargar_catalogo(ruta)
+        except (OSError, ValueError, KeyError):
+            continue
+        salida.append({**perfil, "id": d.name, "ruta": str(ruta), "codigos": len(cat),
+                       "inactivos": int((cat["estado"] != "ACTIVO").sum())})
+    return salida
+
+
+def guardar_nota(ruta: str | Path, eps: str = "NUEVA EPS", textos=None, codigos=None) -> dict:
+    """Valida y guarda la nota técnica de una EPS (reemplaza sólo la de esa EPS)."""
     import shutil
 
     cat = cargar_catalogo(ruta)  # falla si no tiene la estructura esperada
-    carpeta = carpeta_nota()
-    if carpeta.exists():
-        shutil.rmtree(carpeta)
-    carpeta.mkdir(parents=True)
-    destino = carpeta / Path(ruta).name
-    shutil.copyfile(ruta, destino)
-    return {"archivo": destino.name, "codigos": len(cat), "inactivos": int((cat["estado"] != "ACTIVO").sum()),
+    _migrar_formato_anterior()
+    perfil = perfil_eps(eps, textos, codigos)
+    destino = carpeta_nota() / id_eps(perfil["eps_nombre"])
+    if destino.exists():
+        shutil.rmtree(destino)
+    destino.mkdir(parents=True)
+    shutil.copyfile(ruta, destino / Path(ruta).name)
+    perfil.update(id=destino.name, archivo=Path(ruta).name, actualizado=dt.datetime.now().isoformat(timespec="seconds"))
+    (destino / "perfil.json").write_text(json.dumps(perfil, ensure_ascii=False), encoding="utf-8")
+    return {**perfil, "codigos": len(cat), "inactivos": int((cat["estado"] != "ACTIVO").sum()),
             "medicamentos": int((cat["tipo"] != "CUPS").sum())}
 
 
+def eliminar_nota(id_nota: str) -> bool:
+    import shutil
+
+    destino = carpeta_nota() / id_eps(id_nota)
+    if not destino.is_dir():
+        return False
+    shutil.rmtree(destino)
+    return True
+
+
 def nota_vigente() -> Path | None:
-    carpeta = carpeta_nota()
-    archivos = sorted(carpeta.iterdir()) if carpeta.exists() else []
-    return archivos[0] if archivos else None
+    """Compatibilidad: la primera nota guardada."""
+    notas = notas_guardadas()
+    return Path(notas[0]["ruta"]) if notas else None
 
 
-__all__ = ["atenciones_json", "atenciones_txt", "calcular", "cargar_catalogo", "clave", "guardar_nota", "nombre_mes",
-           "nota_vigente", "procesar_nota"]
+def cfg_nota(cfg: dict, nota: dict) -> dict:
+    """Configuración con el perfil de EPS de una nota guardada."""
+    nuevo = dict(cfg)
+    nuevo["nota_tecnica"] = {**(cfg.get("nota_tecnica") or {}),
+                             **{k: nota[k] for k in ("eps_nombre", "eps_textos", "eps_codigos") if k in nota}}
+    return nuevo
+
+
+__all__ = ["atenciones_json", "atenciones_txt", "calcular", "cargar_catalogo", "cfg_nota", "clave", "eliminar_nota",
+           "guardar_nota", "nombre_mes", "nota_vigente", "notas_guardadas", "perfil_eps", "procesar_nota"]

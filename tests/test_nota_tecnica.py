@@ -184,7 +184,7 @@ def test_ventana_de_cargue_genera_la_nota(catalogo, entradas, monkeypatch):
 
     monkeypatch.setenv("AUDITORIA_ESE_DIR", "/no/existe")
     c = TestClient(servidor.app, client=("127.0.0.1", 50000))
-    assert c.get("/api/nota-tecnica/estado").json() == {"archivo": None}
+    assert c.get("/api/nota-tecnica/estado").json()["notas"] == []
     # sin nota guardada ni archivo: error claro
     r = c.post("/api/cargues", data={"ruta_local": str(entradas[0]), "nota_tecnica": "true"})
     assert r.status_code == 400 and "nota técnica" in r.json()["detail"]
@@ -229,3 +229,61 @@ def test_aviso_si_ninguna_atencion_es_de_la_eps(catalogo, entradas, tmp_path):
     nota = nx.exportar_nota(tmp_path / "n.xlsx", calc)
     texto = "\n".join(str(c.value) for c in openpyxl.load_workbook(nota)["Nota técnica"]["A"] if c.value)
     assert "ninguna atención de los códigos de la nota coincidió con la EPS COOSALUD" in texto
+
+
+def test_varias_notas_tecnicas_una_por_eps(catalogo, entradas, monkeypatch):
+    pytest.importorskip("httpx")
+    import time
+
+    from fastapi.testclient import TestClient
+
+    from rips_auditoria.web import servidor
+
+    monkeypatch.setenv("AUDITORIA_ESE_DIR", "/no/existe")
+    c = TestClient(servidor.app, client=("127.0.0.1", 50000))
+    for eps in ("NUEVA EPS", "SANITAS", "Coosalud EPS"):
+        r = c.post("/api/nota-tecnica/notas", data={"eps": eps}, files={"archivo": ("nota.xlsx", catalogo.read_bytes())})
+        assert r.status_code == 200, r.text
+    notas = {n["id"]: n for n in c.get("/api/nota-tecnica/estado").json()["notas"]}
+    assert set(notas) == {"nueva_eps", "sanitas", "coosalud"}
+    assert "EPS005" in notas["sanitas"]["eps_codigos"] and "COOSALUD" in notas["coosalud"]["eps_textos"]
+    # reemplazar la de Sanitas no duplica; eliminar Coosalud
+    c.post("/api/nota-tecnica/notas", data={"eps": "Sanitas", "codigos": "EPS005, 800251440"},
+           files={"archivo": ("nota2.xlsx", catalogo.read_bytes())})
+    assert c.delete("/api/nota-tecnica/notas/coosalud").json() == {"ok": True}
+    notas = {n["id"]: n for n in c.get("/api/nota-tecnica/estado").json()["notas"]}
+    assert set(notas) == {"nueva_eps", "sanitas"} and notas["sanitas"]["eps_codigos"] == ["EPS005", "800251440"]
+    assert c.get("/api/nota-tecnica/plantilla", params={"id": "sanitas", "anio": "2023"}).status_code == 200
+
+    def cargue(ids):
+        r = c.post("/api/cargues", data={"ruta_local": str(entradas[0]), "nota_tecnica": "true", "nt_ids": ids,
+                                         "nt_desde": "2023-01", "nt_hasta": "2023-03"})
+        assert r.status_code == 200, r.text
+        for _ in range(300):
+            t = c.get(f"/api/cargues/{r.json()['id']}").json()
+            if t["estado"] in ("terminado", "error"):
+                return t
+            time.sleep(0.2)
+
+    t = cargue("nueva_eps,sanitas")
+    assert t["estado"] == "terminado", t["error"]
+    por_eps = {n["eps"]: n for n in t["resultado"]["notas_tecnicas"]}
+    assert set(por_eps) == {"NUEVA EPS", "SANITAS"}
+    assert por_eps["SANITAS"]["registros_eps"] == 1 and por_eps["SANITAS"]["pacientes_unicos_periodo"] == 1
+    # con varias EPS, los JSON sin XML ni AF no se asignan a ninguna (el paciente 7 del JSON queda fuera)
+    assert por_eps["NUEVA EPS"]["pacientes_unicos_periodo"] == 4
+    nombres = [a for a in t["resultado"]["archivos"] if a.startswith("NOTA_TECNICA/")]
+    assert len(nombres) == 4 and any("SANITAS" in a for a in nombres)
+    t = cargue("sanitas")  # sólo la elegida
+    assert [n["eps"] for n in t["resultado"]["notas_tecnicas"]] == ["SANITAS"]
+
+
+def test_migra_la_nota_unica_de_la_version_anterior(catalogo):
+    import shutil
+
+    carpeta = nt.carpeta_nota()
+    carpeta.mkdir(parents=True)
+    shutil.copyfile(catalogo, carpeta / "NUEVA EPS.xlsx")  # formato v1.5: archivo suelto
+    notas = nt.notas_guardadas()
+    assert [(n["id"], n["eps_nombre"], n["codigos"]) for n in notas] == [("nueva_eps", "NUEVA EPS", 6)]
+    assert nt.nota_vigente().name == "NUEVA EPS.xlsx"

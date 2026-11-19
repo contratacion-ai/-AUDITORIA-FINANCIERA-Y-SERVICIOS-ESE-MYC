@@ -149,16 +149,27 @@
         <div><b>Generar nota técnica de capitación</b>
         <span>Pacientes únicos por código CUPS y mes (tipo + número de identificación), con plantilla de la nota y hoja de cálculo con fórmulas y tabla dinámica.</span></div></label>
       <div id="nt-opciones" style="display:none;border:1px solid var(--borde);border-radius:10px;padding:10px 12px;margin-top:8px">
-        <label for="nt-archivo">Archivo de la nota técnica (CodigoCUP, Homologo, ESTADO CUPS, DescripcionCUP)</label>
-        <input type="file" id="nt-archivo" accept=".xlsx,.xls,.csv">
-        <div class="ayuda" id="nt-estado">Verificando nota técnica guardada…</div>
-        <label for="nt-eps">EPS del contrato</label>
-        <input type="text" id="nt-eps" value="NUEVA EPS">
+        <label>Notas técnicas guardadas (se genera una por cada EPS marcada)</label>
+        <div id="nt-lista" class="ayuda">Verificando notas técnicas guardadas…</div>
+        <details id="nt-agregar" style="margin-top:8px;border:1px dashed var(--borde);border-radius:8px;padding:6px 10px">
+          <summary style="cursor:pointer;font-weight:600;color:var(--verde-osc)">＋ Agregar o reemplazar la nota técnica de una EPS</summary>
+          <label for="nt-eps-sel">EPS</label>
+          <select id="nt-eps-sel" style="width:100%;padding:9px;border:1.5px solid var(--borde);border-radius:10px;font:inherit">
+            <option>NUEVA EPS</option><option>SANITAS</option><option>COOSALUD</option><option value="OTRA">Otra EPS…</option></select>
+          <input type="text" id="nt-eps-otra" placeholder="Nombre de la EPS como aparece en el AF o en la factura" style="display:none;margin-top:6px">
+          <label for="nt-codigos">Códigos de entidad y NIT con que se reconoce (separados por coma)</label>
+          <input type="text" id="nt-codigos" placeholder="EPS005, EPSS05, 800251440">
+          <div class="ayuda">Se prellenan para Nueva EPS, Sanitas y Coosalud; verifíquelos con el contrato.</div>
+          <label for="nt-archivo">Archivo de la nota técnica (CodigoCUP, Homologo, ESTADO CUPS, DescripcionCUP)</label>
+          <input type="file" id="nt-archivo" accept=".xlsx,.xls,.csv">
+          <button type="button" class="sec" id="nt-guardar" style="margin-top:8px">Guardar nota técnica</button>
+          <div id="nt-guardado" class="ayuda"></div>
+        </details>
         <div style="display:flex;gap:10px">
           <div style="flex:1"><label for="nt-desde">Desde (AAAA-MM)</label><input type="text" id="nt-desde" placeholder="2023-01"></div>
           <div style="flex:1"><label for="nt-hasta">Hasta (AAAA-MM)</label><input type="text" id="nt-hasta" placeholder="2023-12"></div>
         </div>
-        <div class="ayuda">Sin período se toma del primer al último mes con atenciones. <a href="/api/nota-tecnica/plantilla" id="nt-plantilla" style="color:var(--verde-osc)">Descargar plantilla con la tabla de servicios</a>.</div>
+        <div class="ayuda">Sin período se toma del primer al último mes con atenciones. La plantilla de cada EPS (con su tabla de servicios) se descarga en la lista.</div>
       </div>
       <div class="ayuda" style="margin-top:10px">¿Va a volver a cargar un mes o una sede? Revise y limpie antes lo ya cargado en
         <a href="/tablero#depuracion" style="color:var(--verde-osc)">Tablero › Depuración de datos</a>. Los RIPS en JSON (Res. 2275) se integran sin duplicar.</div>
@@ -299,9 +310,10 @@ $("#btn-iniciar").onclick = () => {
   fd.append("ruta_local", ruta); fd.append("hospital", $("#hospital").value.trim());
   fd.append("enviar", $("#enviar").checked); fd.append("consolidado", $("#consolidado").checked);
   if ($("#nota-tecnica").checked){
-    fd.append("nota_tecnica", "true"); fd.append("nt_eps", $("#nt-eps").value.trim());
+    const ids = [...document.querySelectorAll(".nt-id:checked")].map(x => x.value);
+    if (!ids.length){ alert("Marque al menos una nota técnica (o agregue una) para generarla."); return; }
+    fd.append("nota_tecnica", "true"); fd.append("nt_ids", ids.join(","));
     fd.append("nt_desde", $("#nt-desde").value.trim()); fd.append("nt_hasta", $("#nt-hasta").value.trim());
-    if ($("#nt-archivo").files.length) fd.append("nota_archivo", $("#nt-archivo").files[0]);
   }
   $("#btn-iniciar").disabled = true; $("#avance").style.display = "block"; $("#resultados").style.display = "none";
   $("#log").textContent = ""; estado.linea = 0; fase("subir");
@@ -357,15 +369,14 @@ function mostrarResultados(t){
     ["valor_neto_facturado_af", "Valor neto AF", "$"], ["valor_servicios_rips", "Valor servicios RIPS", "$"],
     ["facturas_con_diferencia", "Facturas con diferencia", "#"], ["inc_error", "Errores", "#"], ["inc_advertencia", "Advertencias", "#"]], u);
   tabla("#t-incidencias", [["severidad", "Severidad", "chip"], ["regla", "Regla"], ["descripcion", "Descripción"], ["cantidad", "Cantidad", "#"]], r.incidencias);
-  const nt = r.nota_tecnica;
-  const notaHtml = nt ? `<div class="aviso" style="background:var(--verde-claro);color:var(--verde-osc)"><b>Nota técnica ${esc(nt.eps)}</b>
+  const notaHtml = (r.notas_tecnicas || (r.nota_tecnica ? [r.nota_tecnica] : [])).map(nt => `<div class="aviso" style="background:var(--verde-claro);color:var(--verde-osc)"><b>Nota técnica ${esc(nt.eps)}</b>
     (${esc(nt.desde)} a ${esc(nt.hasta)}): ${ent(nt.pacientes_unicos_periodo)} pacientes únicos · ${nt.codigos_con_pacientes} de ${nt.codigos_nota}
     códigos con pacientes · ${nt.codigos_sin_registros} en 0 · duplicados ${ent(nt.duplicados)} · anulados ${ent(nt.excl_anulado)} ·
     con errores ${ent(nt.con_errores)} · fuera de período ${ent(nt.excl_fuera_periodo)}${nt.meses_sin_informacion.length ?
     ` · <b>meses sin información: ${esc(nt.meses_sin_informacion.join(", "))}</b>` : ""}. Descargue los archivos NOTA_TECNICA/ de la lista.</div>` +
     (!nt.registros_eps && nt.registros_otra_eps ? `<div class="aviso"><b>Ninguna atención coincidió con la EPS «${esc(nt.eps)}».</b>
     Entidades encontradas en los AF: ${esc(nt.entidades_encontradas || "ninguna")}. Escriba en «EPS del contrato» el nombre como aparece
-    en el AF y vuelva a generar la nota.</div>` : "") : "";
+    en el AF o revise los códigos de la nota de esa EPS.</div>` : "")).join("");
   $("#aviso-envio").innerHTML = notaHtml + (r.aviso_envio ? `<div class="aviso">${esc(r.aviso_envio)}</div>` : "") + (r.json ?
     `<div class="aviso" style="background:var(--verde-claro);color:var(--verde-osc)">RIPS JSON: ${ent(r.json.registros_leidos)} registros leídos ·
      ${ent(r.json.repetidos_en_json)} repetidos en el JSON · ${ent(r.json.ya_cargadas)} ya cargados · <b>${ent(r.json.agregadas)} filas agregadas</b></div>` +
@@ -385,15 +396,44 @@ function mostrarResultados(t){
   verificarApp();
 }
 
+const perfilesNota = {};
 async function estadoNota(){
   try{
     const e = await (await fetch("/api/nota-tecnica/estado")).json();
-    $("#nt-estado").textContent = e.archivo ? `Guardada: ${e.archivo} · ${e.codigos} códigos (${e.inactivos} inactivos). Cargue otro archivo sólo si cambió.`
-                                            : "No hay nota técnica guardada: seleccione el archivo (p. ej. NUEVA_EPS.xlsx).";
+    Object.assign(perfilesNota, e.perfiles || {});
+    const anio = $("#nt-desde").value.trim().slice(0, 4), qa = /^\d{4}$/.test(anio) ? "&anio=" + anio : "";
+    $("#nt-lista").innerHTML = e.notas.length ? e.notas.map(n => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--borde)">
+        <input type="checkbox" class="nt-id" value="${esc(n.id)}" checked style="width:18px;height:18px;accent-color:var(--verde)">
+        <div style="flex:1"><b style="color:var(--tinta)">${esc(n.eps_nombre)}</b> · ${esc(n.archivo)} · ${ent(n.codigos)} códigos (${n.inactivos} inactivos)<br>
+          <span>Reconoce: ${esc([...n.eps_textos, ...n.eps_codigos].join(", "))}</span></div>
+        <a href="/api/nota-tecnica/plantilla?id=${encodeURIComponent(n.id)}${qa}" style="color:var(--verde-osc);white-space:nowrap">Plantilla</a>
+        <button type="button" class="sec" data-borrar="${esc(n.id)}" style="padding:4px 10px">Eliminar</button></div>`).join("")
+      : "Todavía no hay notas técnicas: agréguelas abajo (una por EPS).";
+    if (!e.notas.length) $("#nt-agregar").open = true;
+    document.querySelectorAll("[data-borrar]").forEach(b => b.onclick = async () => {
+      if (!confirm(`¿Eliminar la nota técnica de ${b.dataset.borrar.toUpperCase()}?`)) return;
+      await fetch(`/api/nota-tecnica/notas/${encodeURIComponent(b.dataset.borrar)}`, {method: "DELETE"}); estadoNota(); });
+    prellenarCodigos();
   }catch(err){}
 }
-$("#nt-desde").addEventListener("input", () => { const a = $("#nt-desde").value.trim().slice(0, 4);
-  $("#nt-plantilla").href = "/api/nota-tecnica/plantilla" + (/^\d{4}$/.test(a) ? "?anio=" + a : ""); });
+function prellenarCodigos(){
+  const sel = $("#nt-eps-sel").value; $("#nt-eps-otra").style.display = sel === "OTRA" ? "block" : "none";
+  const p = perfilesNota[sel]; $("#nt-codigos").value = p ? p.eps_codigos.join(", ") : "";
+}
+$("#nt-eps-sel").onchange = prellenarCodigos;
+$("#nt-guardar").onclick = async () => {
+  const eps = $("#nt-eps-sel").value === "OTRA" ? $("#nt-eps-otra").value.trim() : $("#nt-eps-sel").value;
+  if (!eps){ alert("Escriba el nombre de la EPS."); return; }
+  if (!$("#nt-archivo").files.length){ alert("Seleccione el archivo de la nota técnica."); return; }
+  const fd = new FormData(); fd.append("archivo", $("#nt-archivo").files[0]); fd.append("eps", eps);
+  fd.append("codigos", $("#nt-codigos").value.trim());
+  if ($("#nt-eps-sel").value === "OTRA") fd.append("textos", eps);
+  $("#nt-guardar").disabled = true; $("#nt-guardado").textContent = "Guardando…";
+  const r = await fetch("/api/nota-tecnica/notas", {method: "POST", body: fd}); const d = await r.json(); $("#nt-guardar").disabled = false;
+  $("#nt-guardado").innerHTML = r.ok ? `Guardada la nota de <b>${esc(d.eps_nombre)}</b>: ${ent(d.codigos)} códigos.` : `<span style="color:var(--err)">${esc(d.detail)}</span>`;
+  if (r.ok){ $("#nt-archivo").value = ""; estadoNota(); }
+};
+$("#nt-desde").addEventListener("change", estadoNota);
 $("#nota-tecnica").onchange = e => { $("#nt-opciones").style.display = e.target.checked ? "block" : "none"; if (e.target.checked) estadoNota(); };
 verificarApp(); setInterval(verificarApp, 8000);
 </script>
