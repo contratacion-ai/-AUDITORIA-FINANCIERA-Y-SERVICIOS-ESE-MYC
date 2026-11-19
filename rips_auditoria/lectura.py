@@ -101,9 +101,25 @@ def _sin_tildes(texto: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFD", texto) if unicodedata.category(c) != "Mn")
 
 
+_RE_GENERICAS = re.compile(r"(?<![a-z])(json|rips|txt|xml|fev|archivos?|carpeta|mes|de|del)(?![a-z])")
+
+
+def _limpiar_hospital(nombre: str) -> str:
+    """'JSON CENTRO DE SALUD JESUS CORONEL' -> 'CENTRO DE SALUD JESUS CORONEL'."""
+    return re.sub(r"^(?:(?:json|rips|txt|xml)[\s_\-]+)+", "", nombre.strip(), flags=re.IGNORECASE).strip() or nombre.strip()
+
+
 def detectar_mes(componente: str) -> tuple[int | None, int | None]:
-    """Devuelve (mes, año) si el nombre de carpeta representa un mes."""
-    t = _sin_tildes(componente).lower().strip()
+    """Devuelve (mes, año) si el nombre de carpeta (o de ZIP) representa un mes.
+
+    Acepta «05. Mayo», «2026-05», «MAYO 2026» y nombres de descargas como
+    «JSON ABRIL-20261119T222228Z-1-001.zip» (Google Drive): se quitan la
+    extensión, el sufijo de exportación (su fecha no es el año de los RIPS) y
+    palabras genéricas como JSON, RIPS o TXT."""
+    base = re.sub(r"\.zip$", "", componente.strip(), flags=re.IGNORECASE)
+    base = _RE_EXPORT_DRIVE.sub("", base)
+    t = _sin_tildes(base).lower().strip()
+    t = _RE_GENERICAS.sub(" ", t).strip(" ._-")
     m = _RE_ANIO_MES.match(t)
     if m:
         return int(m.group(2)), int(m.group(1))
@@ -147,20 +163,21 @@ def contexto_desde_ruta(ruta: str) -> dict:
             previo = partes[idx_mes - 1]
             if _RE_ANIO_MES.match(previo) or re.fullmatch(r"20\d{2}", previo.strip()):
                 previo = partes[idx_mes - 2] if idx_mes > 1 else previo
-            ctx["hospital"] = _limpiar_nombre_zip(previo) if previo.lower().endswith(".zip") else previo.strip()
+            ctx["hospital"] = _limpiar_hospital(_limpiar_nombre_zip(previo) if previo.lower().endswith(".zip") else previo)
             ctx["fuente_hospital"] = "carpeta"
-        siguientes = [p for p in partes[idx_mes + 1:] if p.strip().lower() not in _CARPETAS_GENERICAS]
+        siguientes = [p for p in partes[idx_mes + 1:]
+                      if p.strip().lower() not in _CARPETAS_GENERICAS and not detectar_mes(p)[0]]
         ctx["carpeta_envio"] = siguientes[0].strip() if siguientes else ""
     else:
         dirs = [p for p in partes if not p.lower().endswith(".zip") and p.strip().lower() not in _CARPETAS_GENERICAS]
         if dirs:
-            ctx["hospital"] = dirs[0].strip()
+            ctx["hospital"] = _limpiar_hospital(dirs[0])
             ctx["fuente_hospital"] = "carpeta"
             ctx["carpeta_envio"] = dirs[-1].strip() if len(dirs) > 1 else ""
         else:
             zips = [p for p in partes if p.lower().endswith(".zip")]
             if zips:
-                ctx["hospital"] = _limpiar_nombre_zip(zips[0])
+                ctx["hospital"] = _limpiar_hospital(_limpiar_nombre_zip(zips[0]))
                 ctx["fuente_hospital"] = "zip"
     return ctx
 

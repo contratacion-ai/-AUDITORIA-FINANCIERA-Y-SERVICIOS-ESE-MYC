@@ -2,7 +2,7 @@
 auditoría financiera: carga TXT/ZIP, validación, organización por hospital y
 mes, plantillas Excel, exportación Excel/JSON y homologación configurable."""
 
-__version__ = "1.5.3"
+__version__ = "1.5.4"
 
 from .config import cargar_configuracion  # noqa: E402
 from .procesamiento import ResultadoProcesamiento, UnidadAnalisis, procesar  # noqa: E402

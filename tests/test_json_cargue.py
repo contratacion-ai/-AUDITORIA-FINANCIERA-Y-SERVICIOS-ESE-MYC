@@ -145,3 +145,51 @@ def test_nota_tecnica_usa_la_eps_de_la_fev_y_el_paciente_del_usuario(tmp_path):
     assert calc["matriz"].loc["890201", "2026-04"] == 2
     r = calc["resumen"]
     assert r["registros_otra_eps"] == 1 and r["json_eps_asumida"] == 0
+
+
+def _zip_mes(mes_nombre, facturas):
+    """ZIP como lo descarga Google Drive: «JSON ABRIL-20261119T222228Z-1-001.zip» con JSON ABRIL/<factura>/{json,xml}."""
+    import zipfile as zf
+
+    buf = io.BytesIO()
+    with zf.ZipFile(buf, "w") as z:
+        for numero, doc, fecha in facturas:
+            fac = _factura(numero, doc=doc, fecha=fecha)
+            z.writestr(f"JSON {mes_nombre}/{numero}/{numero}.json", json.dumps(fac))
+            z.writestr(f"JSON {mes_nombre}/{numero}/{numero}.xml",
+                       _fev_xml(numero, "NUEVA EMPRESA PROMOTORA DE SALUD S.A.", "900156264", 30000))
+    return buf.getvalue()
+
+
+def test_carpeta_del_hospital_con_zip_de_json_por_mes(cliente):
+    """Caso real: carpeta «JSON CENTRO DE SALUD JESUS CORONEL» con un ZIP de Drive por mes y el nombre
+    del hospital escrito por error en el campo de la ruta."""
+    hosp = "JSON CENTRO DE SALUD JESUS CORONEL"
+    archivos = [
+        ("archivos", (f"{hosp}/JSON ENERO-20261119T221543Z-1-001.zip",
+                      _zip_mes("ENERO", [("FE1", "1", "2026-01-10 08:00"), ("FE2", "2", "2026-01-12 08:00")]), "application/zip")),
+        ("archivos", (f"{hosp}/JSON ABRIL-20261119T222228Z-1-001.zip",
+                      _zip_mes("ABRIL", [("FA1", "1", "2026-04-03 08:00")]), "application/zip")),
+    ]
+    nota = io.BytesIO()
+    pd.DataFrame({"CodigoCUP": [890201], "Homologo": [890201], "ESTADO CUPS": ["ACTIVO"],
+                  "DescripcionCUP": ["CONSULTA"]}).to_excel(nota, index=False)
+    r = cliente.post("/api/cargues", files=[*archivos, ("nota_archivo", ("NUEVA EPS.xlsx", nota.getvalue()))],
+                     data={"ruta_local": "CENTRO DE SALUD JESUS CORONEL", "nota_tecnica": "true", "nt_eps": "NUEVA EPS",
+                           "nt_desde": "2026-01", "nt_hasta": "2026-12"})
+    assert r.status_code == 200, r.text
+    t = _esperar(cliente, r.json()["id"])
+    assert t["estado"] == "terminado", t["error"]
+    j = t["resultado"]["json"]
+    assert j["archivos_json"] == 3 and j["agregadas"] == 3 and j["meses"] == ["2026-01", "2026-04"]
+    df = tb.cargar(tb.carpeta_acumulado())[0]
+    assert set(df["SEDE"]) == {"CENTRO DE SALUD JESUS CORONEL"}
+    assert set(df["EPS"]) == {"NUEVA EMPRESA PROMOTORA DE SALUD S.A."} and set(df["CONTRATO"]) == {"CAP-001"}
+    nt = t["resultado"]["nota_tecnica"]
+    assert nt["registros_eps"] == 3 and nt["pacientes_unicos_periodo"] == 2 and nt["desde"] == "2026-01"
+    assert "2026-02" in nt["meses_sin_informacion"]
+
+
+def test_ruta_que_no_existe_da_un_mensaje_claro(cliente):
+    r = cliente.post("/api/cargues", data={"ruta_local": "E:/RIPS/NO EXISTE"})
+    assert r.status_code == 400 and "Hospital (opcional)" in r.json()["detail"]

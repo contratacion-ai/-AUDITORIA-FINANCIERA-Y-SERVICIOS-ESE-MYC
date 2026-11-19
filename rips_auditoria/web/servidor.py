@@ -186,9 +186,18 @@ async def crear_cargue(request: Request):
         ruta_local = ruta_local.strip().strip('"').strip("'")
         if ruta_local:
             p = Path(ruta_local)
-            if not p.exists():
-                raise HTTPException(400, f"No existe la ruta: {ruta_local}")
-            entradas.append(p)
+            parece_ruta = any(ch in ruta_local for ch in ("\\", "/", ":"))
+            if p.exists():
+                entradas.append(p)
+            elif archivos and not parece_ruta:
+                # Se escribió un nombre (p. ej. del hospital) en el campo de la ruta y ya hay archivos
+                # seleccionados: se usa como hospital en lugar de detener el cargue.
+                hospital = hospital.strip() or ruta_local
+                ruta_local = ""
+            else:
+                raise HTTPException(400, f"No existe la ruta «{ruta_local}» en el equipo donde corre la aplicación. "
+                                         "Ese campo es para la ruta de una carpeta o ZIP (p. ej. E:\\RIPS\\Hospital); "
+                                         "el nombre del hospital va en «Hospital (opcional)».")
         temporal = carpeta_datos() / "temporal" / tid
         if archivos:
             for a in archivos:

@@ -194,7 +194,7 @@ def leer_json(entradas, hospital: str | None = None, mes: str | None = None, cfg
         f = r["factura"].str.upper().map(lambda x: fev.get(x) or {})
         eps = f.map(lambda d: d.get("eps_nombre", "")).where(lambda x: x != "", EPS_JSON)
         cucon = f.map(lambda d: d.get("contrato", ""))
-        contrato = contrato.where(contrato != "", cucon)
+        contrato = cucon.where(cucon != "", contrato)  # el contrato de la FEV prima sobre el nombre de la carpeta
         modal_fev = f.map(lambda d: d.get("modalidad", ""))
         modal = pd.Series([_modalidad_nombre(c, reglas) for c in contrato], index=r.index)
         valor_fev = f.map(lambda d: d.get("valor"))
@@ -289,22 +289,33 @@ def cargar_json(entradas, hospital: str | None = None, mes: str | None = None, c
     return {**r["resumen"], **res, "avisos": r["avisos"]}
 
 
+def _zip_tiene_json(origen, profundidad: int = 0) -> bool:
+    """¿Hay algún .json en el ZIP (o en un ZIP dentro de él, hasta 3 niveles)?"""
+    import io
+    import zipfile
+
+    try:
+        with zipfile.ZipFile(origen) as z:
+            nombres = z.namelist()
+            if any(n.lower().endswith(".json") for n in nombres):
+                return True
+            if profundidad < 2:
+                return any(_zip_tiene_json(io.BytesIO(z.read(n)), profundidad + 1)
+                           for n in nombres if n.lower().endswith(".zip"))
+    except (zipfile.BadZipFile, OSError, RuntimeError, ValueError):
+        pass
+    return False
+
+
 def hay_json(entradas) -> bool:
+    """¿Las entradas traen RIPS JSON? Revisa archivos, carpetas y ZIP (también ZIP dentro de carpetas)."""
     for e in entradas:
         p = Path(e)
-        if p.is_file() and p.suffix.lower() == ".json":
-            return True
-        if p.is_dir() and next((x for x in p.rglob("*") if x.suffix.lower() == ".json"), None) is not None:
-            return True
-        if p.suffix.lower() == ".zip":
-            import zipfile
-
-            try:
-                with zipfile.ZipFile(p) as z:
-                    if any(n.lower().endswith(".json") for n in z.namelist()):
-                        return True
-            except (zipfile.BadZipFile, OSError):
-                pass
+        archivos = [p] if p.is_file() else (x for x in p.rglob("*") if x.is_file()) if p.is_dir() else []
+        for x in archivos:
+            ext = x.suffix.lower()
+            if ext == ".json" or (ext == ".zip" and _zip_tiene_json(x)):
+                return True
     return False
 
 
