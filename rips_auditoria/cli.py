@@ -139,16 +139,19 @@ def _nota_tecnica(args) -> int:
                          ("json_sin_eps", args.json_sin_eps)):
         if valor:
             nt_cfg[clave] = valor
-    calc = nota_tecnica.procesar_nota(args.entradas, args.nota, args.desde, args.hasta, args.hospital, cfg)
-    r = calc["resumen"]
-    print(f"{r['eps']} · {r['desde']} a {r['hasta']} · {r['codigos_con_pacientes']} de {r['codigos_nota']} códigos con "
-          f"pacientes · {r['pacientes_unicos_periodo']} pacientes únicos · {r['registros_incluidos']} registros incluidos")
-    print(f"Sin registros: {r['codigos_sin_registros']} códigos · duplicados: {r['duplicados']} · anulados: "
-          f"{r['excl_anulado']} · con errores: {r['con_errores']} · fuera de período: {r['excl_fuera_periodo']}")
-    if r["meses_sin_informacion"]:
-        print("[!] Meses sin información:", ", ".join(r["meses_sin_informacion"]))
-    for ruta in nota_tecnica_excel.generar(calc, salida):
-        print("Generado:", ruta)
+    for calc in nota_tecnica.procesar_notas(args.entradas, args.nota, args.desde, args.hasta, args.hospital, cfg):
+        r = calc["resumen"]
+        print(f"{r['eps']}{' · ' + r['ambito'] if r.get('ambito') else ''} · {r['desde']} a {r['hasta']} · "
+              f"{r['codigos_con_pacientes']} de {r['codigos_nota']} códigos con pacientes · "
+              f"{r['pacientes_unicos_periodo']} pacientes únicos · {r['registros_incluidos']} registros incluidos")
+        print(f"Sin registros: {r['codigos_sin_registros']} códigos · duplicados: {r['duplicados']} · anulados: "
+              f"{r['excl_anulado']} · con errores: {r['con_errores']} · fuera de período: {r['excl_fuera_periodo']}")
+        if r["meses_sin_informacion"]:
+            print("[!] Meses sin información:", ", ".join(r["meses_sin_informacion"]))
+        if r.get("sedes_sin_ambito"):
+            print("[!] Sedes sin municipio en la nota:", ", ".join(r["sedes_sin_ambito"]))
+        for ruta in nota_tecnica_excel.generar(calc, salida):
+            print("Generado:", ruta)
     return 0
 
 

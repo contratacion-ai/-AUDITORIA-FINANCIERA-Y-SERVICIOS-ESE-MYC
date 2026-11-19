@@ -13,8 +13,11 @@ Insumos
     **Homólogo**, que es el CUM (``19973908-1``), comparado sin ceros a la
     izquierda; también se acepta el propio código ``MD…`` si el RIPS lo trae.
   - ``ESTADO CUPS`` = INACTIVO: el código se cuenta igual y se señala.
-  - Columnas con otros nombres se reconocen por contener «COD», «HOMOLOG»,
-    «ESTADO» y «DESCRIP».
+  - Otros formatos (ver ``nota_lectura``): una hoja por municipio con el
+    contrato, la población y la meta «Actividades mes» (Sanitas), lista con
+    municipio por fila y matriz de PyM con varios códigos por celda (Coosalud).
+    Si la nota trae varios municipios se genera una nota por municipio y las
+    atenciones se asignan por la sede (``SEDES_MUNICIPIO``).
 
 * **RIPS Res. 3374** (TXT, carpetas o ZIP) que lee ``procesamiento.procesar``:
   AC (``cod_consulta``, ``fecha_consulta``), AP (``cod_procedimiento``,
@@ -51,6 +54,7 @@ Reglas de conteo
 from __future__ import annotations
 
 import datetime as dt
+import functools
 import json
 import logging
 import re
@@ -116,34 +120,69 @@ def clave(codigo) -> str:
 # Catálogo (nota técnica)
 # ---------------------------------------------------------------------------
 
-def cargar_catalogo(ruta: str | Path) -> pd.DataFrame:
-    """Lee la nota técnica: codigo, homologo, estado, descripcion, tipo y las llaves de búsqueda."""
+@functools.lru_cache(maxsize=16)
+def _leer_nota_cache(ruta: str, _mtime: float) -> pd.DataFrame:
+    from .nota_lectura import leer_nota
+
+    return leer_nota(ruta)
+
+
+def cargar_catalogo(ruta: str | Path, ambito: str | None = None) -> pd.DataFrame:
+    """Lee la nota técnica: codigo, homologo, estado, descripcion, tipo, llaves de búsqueda y, si la nota
+    las trae, agrupador, meta mensual y ámbito (municipio) con su contrato y población.
+
+    Con ``ambito`` sólo se toman los códigos de ese municipio. Un código repetido se deja una vez (la
+    meta mensual se suma: varias actividades de la nota pueden facturarse con el mismo CUPS).
+    ``attrs["ambitos"]`` lista los municipios de la nota con su contrato, contratista y población."""
     ruta = Path(ruta)
-    df = (pd.read_csv(ruta, dtype=object, sep=None, engine="python") if ruta.suffix.lower() == ".csv"
-          else pd.read_excel(ruta, dtype=object))
-    cols = {_n(c): c for c in df.columns}
-
-    def col(*claves):
-        return next((c for n, c in cols.items() if any(k in n for k in claves)), None)
-
-    c_cod, c_hom, c_est, c_des = col("CODIGO", "COD"), col("HOMOLOG"), col("ESTADO"), col("DESCRIP")
-    if c_cod is None:
-        raise ValueError("La nota técnica debe tener una columna de código (CodigoCUP).")
-    cat = pd.DataFrame({
-        "codigo": df[c_cod].map(normalizar_codigo),
-        "homologo": df[c_hom].map(normalizar_codigo) if c_hom else "",
-        "estado": df[c_est].fillna("ACTIVO").astype(str).str.strip().str.upper() if c_est else "ACTIVO",
-        "descripcion": df[c_des].fillna("").astype(str).str.strip() if c_des else "",
-    })
-    cat = cat[cat["codigo"] != ""]
+    df = _leer_nota_cache(str(ruta), ruta.stat().st_mtime).copy()
+    ambitos = []
+    for amb, g in df.groupby("ambito", sort=False):
+        if amb:
+            ambitos.append({"ambito": amb, "codigos": int(g["codigo"].nunique()),
+                            **{k: next((x for x in g[k] if x), "") for k in ("contrato", "contratista", "poblacion",
+                                                                             "regimen")}})
+    if ambito:
+        df = df[df["ambito"] == _n(ambito)]
+        if df.empty:
+            raise ValueError(f"La nota técnica no tiene códigos para el municipio {ambito}.")
+    cat = df.copy()
     cat["homologo"] = cat["homologo"].where(cat["homologo"] != "", cat["codigo"])
     cat["tipo"] = cat["codigo"].str.startswith("MD").map({True: "Medicamento (CUM)", False: "CUPS"})
     cat["clave"] = cat["homologo"].map(clave)
     cat["clave_alterna"] = cat["codigo"].map(clave)
-    repetidos = int(cat["codigo"].duplicated().sum())
+    cat["meta_mes"] = pd.to_numeric(cat["meta_mes"], errors="coerce")
+    metas = cat.groupby("codigo", sort=False)["meta_mes"].sum(min_count=1)
+    repetidos = int(cat.duplicated(["ambito", "codigo"]).sum())
     cat = cat.drop_duplicates("codigo").reset_index(drop=True)
+    cat["meta_mes"] = cat["codigo"].map(metas)
     cat.attrs["repetidos"] = repetidos
+    cat.attrs["ambitos"] = ambitos
     return cat
+
+
+# Sede (hospital) de la ESE -> municipio de cobertura de las notas por municipio.
+# Configurable en config: nota_tecnica.sedes_municipio = {"TEXTO EN LA SEDE": "MUNICIPIO"}.
+SEDES_MUNICIPIO = {
+    "SAN ANTONIO": "TAME", "SAN FRANCISCO": "FORTUL", "SAN LORENZO": "ARAUQUITA",
+    "SAN JOSE": "CRAVO NORTE", "SAN JUAN DE DIOS": "PUERTO RONDON",
+}
+
+
+def municipio_de_sede(sede, ambitos, mapa: dict | None = None) -> str:
+    """Municipio (ámbito de la nota) de una sede: por el nombre del municipio en la sede o por la tabla
+    sede -> municipio. '' si no se reconoce."""
+    n = _n(sede)
+    if not n:
+        return ""
+    nombres = {_n(a): a for a in ambitos}
+    for na, a in sorted(nombres.items(), key=lambda x: -len(x[0])):
+        if na and re.search(rf"\b{re.escape(na)}\b", n):
+            return a
+    for k, v in sorted((mapa or SEDES_MUNICIPIO).items(), key=lambda x: -len(_n(x[0]))):
+        if _n(k) and re.search(rf"\b{re.escape(_n(k))}\b", n) and _n(v) in nombres:
+            return nombres[_n(v)]
+    return ""
 
 
 # ---------------------------------------------------------------------------
@@ -295,13 +334,14 @@ def calcular(at: pd.DataFrame, catalogo: pd.DataFrame, desde: str | None = None,
     nom = at["nombre_entidad"].fillna("").map(_n)
     cod = at["cod_entidad"].fillna("").astype(str).str.strip().str.upper()
     nit = cod.str.replace(r"[^0-9]", "", regex=True).str[:9]  # NIT sin puntos ni dígito de verificación
-    de_eps = nom.map(lambda x: any(t in x for t in textos if t)) | cod.isin(codigos) | (nit.isin(codigos) & (nit != ""))
+    de_eps = (nom.map(lambda x: any(t in x for t in textos if t)).astype(bool) | cod.isin(codigos)
+              | (nit.isin(codigos) & (nit != "")))
     json_asumido = es_json & (at["nombre_entidad"].fillna("") == "")
     if c["json_sin_eps"] == "asumir":
         de_eps |= json_asumido
     fechas_archivos = at["fecha"].dt.strftime("%Y-%m").dropna()  # período por defecto si ninguna es de la EPS
-    otra_eps = at[~de_eps]
-    at = at[de_eps].copy()
+    otra_eps = at.loc[~de_eps]
+    at = at.loc[de_eps].copy()
     at["json_eps_asumida"] = json_asumido[de_eps]
 
     # 3) Período
@@ -420,6 +460,50 @@ def procesar_nota(entradas, catalogo_ruta, desde=None, hasta=None, hospital=None
     return calcular(at, catalogo, desde, hasta, cfg)
 
 
+def calcular_nota(at: pd.DataFrame, ruta, desde=None, hasta=None, cfg: dict | None = None) -> list[dict]:
+    """Una nota (archivo) -> uno o varios resultados de ``calcular``: uno por municipio si la nota trae
+    varios (p. ej. Sanitas, una hoja por municipio). Las atenciones se asignan al municipio por la sede."""
+    cat = cargar_catalogo(ruta)
+    ambitos = cat.attrs["ambitos"]
+    if len(ambitos) <= 1:
+        calc = calcular(at, cat, desde, hasta, cfg)
+        calc["resumen"].update(_info_ambito(ambitos[0] if ambitos else None, [], []))
+        return [calc]
+    mapa = {**SEDES_MUNICIPIO, **((cfg or {}).get("nota_tecnica") or {}).get("sedes_municipio", {})}
+    nombres = [a["ambito"] for a in ambitos]
+    sedes = at["sede"].fillna("").astype(str) if "sede" in at else pd.Series("", index=at.index)
+    asignado = sedes.map({s: municipio_de_sede(s, nombres, mapa) for s in sedes.unique()})
+    sin_ambito = sorted({s for s, a in zip(sedes, asignado, strict=False) if not a and s})
+    # mismo período para todos los municipios: el de la EPS en todos los RIPS
+    base = calcular(at, cat, desde, hasta, cfg)["resumen"]
+    salida = []
+    for a in ambitos:
+        calc = calcular(at[asignado == a["ambito"]], cargar_catalogo(ruta, a["ambito"]), base["desde"], base["hasta"], cfg)
+        sedes_a = sorted({s for s, x in zip(sedes, asignado, strict=False) if x == a["ambito"] and s})
+        calc["resumen"].update(_info_ambito(a, sedes_a, sin_ambito))
+        salida.append(calc)
+    return salida
+
+
+def _info_ambito(a: dict | None, sedes: list, sin_ambito: list) -> dict:
+    a = a or {}
+    return {"ambito": a.get("ambito", ""), "contrato": a.get("contrato", ""), "contratista": a.get("contratista", ""),
+            "poblacion": a.get("poblacion", ""), "regimen": a.get("regimen", ""), "sedes_ambito": sedes,
+            "sedes_sin_ambito": sin_ambito}
+
+
+def procesar_notas(entradas, catalogo_ruta, desde=None, hasta=None, hospital=None, cfg=None) -> list[dict]:
+    """Como ``procesar_nota`` pero con un resultado por municipio si la nota trae varios."""
+    from .config import cargar_configuracion
+    from .procesamiento import procesar
+
+    cfg = cfg or cargar_configuracion()
+    res = procesar(entradas, cfg, hospital=hospital)
+    partes = [p for p in (atenciones_txt(res), atenciones_json(entradas, hospital)) if len(p)]
+    at = pd.concat(partes, ignore_index=True) if partes else pd.DataFrame(columns=COLS_AT)
+    return calcular_nota(at, catalogo_ruta, desde, hasta, cfg)
+
+
 # ---------------------------------------------------------------------------
 # Notas técnicas guardadas: una por EPS (para la ventana de cargue)
 # ---------------------------------------------------------------------------
@@ -484,7 +568,7 @@ def notas_guardadas() -> list[dict]:
         except (OSError, ValueError, KeyError):
             continue
         salida.append({**perfil, "id": d.name, "ruta": str(ruta), "codigos": len(cat),
-                       "inactivos": int((cat["estado"] != "ACTIVO").sum())})
+                       "inactivos": int((cat["estado"] != "ACTIVO").sum()), "ambitos": cat.attrs["ambitos"]})
     return salida
 
 
@@ -503,7 +587,7 @@ def guardar_nota(ruta: str | Path, eps: str = "NUEVA EPS", textos=None, codigos=
     perfil.update(id=destino.name, archivo=Path(ruta).name, actualizado=dt.datetime.now().isoformat(timespec="seconds"))
     (destino / "perfil.json").write_text(json.dumps(perfil, ensure_ascii=False), encoding="utf-8")
     return {**perfil, "codigos": len(cat), "inactivos": int((cat["estado"] != "ACTIVO").sum()),
-            "medicamentos": int((cat["tipo"] != "CUPS").sum())}
+            "medicamentos": int((cat["tipo"] != "CUPS").sum()), "ambitos": cat.attrs["ambitos"]}
 
 
 def eliminar_nota(id_nota: str) -> bool:
@@ -530,5 +614,6 @@ def cfg_nota(cfg: dict, nota: dict) -> dict:
     return nuevo
 
 
-__all__ = ["atenciones_json", "atenciones_txt", "calcular", "cargar_catalogo", "cfg_nota", "clave", "eliminar_nota",
-           "guardar_nota", "nombre_mes", "nota_vigente", "notas_guardadas", "perfil_eps", "procesar_nota"]
+__all__ = ["atenciones_json", "atenciones_txt", "calcular", "calcular_nota", "cargar_catalogo", "cfg_nota", "clave", "eliminar_nota",
+           "guardar_nota", "municipio_de_sede", "nombre_mes", "nota_vigente", "notas_guardadas", "perfil_eps",
+           "procesar_nota", "procesar_notas"]

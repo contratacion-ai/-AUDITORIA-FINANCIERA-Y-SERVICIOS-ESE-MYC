@@ -160,7 +160,7 @@
           <label for="nt-codigos">Códigos de entidad y NIT con que se reconoce (separados por coma)</label>
           <input type="text" id="nt-codigos" placeholder="EPS005, EPSS05, 800251440">
           <div class="ayuda">Se prellenan para Nueva EPS, Sanitas y Coosalud; verifíquelos con el contrato.</div>
-          <label for="nt-archivo">Archivo de la nota técnica (CodigoCUP, Homologo, ESTADO CUPS, DescripcionCUP)</label>
+          <label for="nt-archivo">Archivo de la nota técnica (lista de CUPS, una hoja por municipio o matriz de PyM)</label>
           <input type="file" id="nt-archivo" accept=".xlsx,.xls,.csv">
           <button type="button" class="sec" id="nt-guardar" style="margin-top:8px">Guardar nota técnica</button>
           <div id="nt-guardado" class="ayuda"></div>
@@ -369,14 +369,16 @@ function mostrarResultados(t){
     ["valor_neto_facturado_af", "Valor neto AF", "$"], ["valor_servicios_rips", "Valor servicios RIPS", "$"],
     ["facturas_con_diferencia", "Facturas con diferencia", "#"], ["inc_error", "Errores", "#"], ["inc_advertencia", "Advertencias", "#"]], u);
   tabla("#t-incidencias", [["severidad", "Severidad", "chip"], ["regla", "Regla"], ["descripcion", "Descripción"], ["cantidad", "Cantidad", "#"]], r.incidencias);
-  const notaHtml = (r.notas_tecnicas || (r.nota_tecnica ? [r.nota_tecnica] : [])).map(nt => `<div class="aviso" style="background:var(--verde-claro);color:var(--verde-osc)"><b>Nota técnica ${esc(nt.eps)}</b>
+  const notaHtml = (r.notas_tecnicas || (r.nota_tecnica ? [r.nota_tecnica] : [])).map(nt => `<div class="aviso" style="background:var(--verde-claro);color:var(--verde-osc)"><b>Nota técnica ${esc(nt.eps)}${nt.ambito ? " · " + esc(nt.ambito) : ""}</b>${nt.contrato ? " · contrato " + esc(nt.contrato) : ""}
     (${esc(nt.desde)} a ${esc(nt.hasta)}): ${ent(nt.pacientes_unicos_periodo)} pacientes únicos · ${nt.codigos_con_pacientes} de ${nt.codigos_nota}
     códigos con pacientes · ${nt.codigos_sin_registros} en 0 · duplicados ${ent(nt.duplicados)} · anulados ${ent(nt.excl_anulado)} ·
     con errores ${ent(nt.con_errores)} · fuera de período ${ent(nt.excl_fuera_periodo)}${nt.meses_sin_informacion.length ?
     ` · <b>meses sin información: ${esc(nt.meses_sin_informacion.join(", "))}</b>` : ""}. Descargue los archivos NOTA_TECNICA/ de la lista.</div>` +
     (!nt.registros_eps && nt.registros_otra_eps ? `<div class="aviso"><b>Ninguna atención coincidió con la EPS «${esc(nt.eps)}».</b>
     Entidades encontradas en los AF: ${esc(nt.entidades_encontradas || "ninguna")}. Escriba en «EPS del contrato» el nombre como aparece
-    en el AF o revise los códigos de la nota de esa EPS.</div>` : "")).join("");
+    en el AF o revise los códigos de la nota de esa EPS.</div>` : "") +
+    ((nt.sedes_sin_ambito || []).length ? `<div class="aviso">Sedes sin municipio reconocido para la nota de ${esc(nt.eps)}:
+    ${esc(nt.sedes_sin_ambito.join(", "))} (sus atenciones no entran en las notas por municipio).</div>` : "")).join("");
   $("#aviso-envio").innerHTML = notaHtml + (r.aviso_envio ? `<div class="aviso">${esc(r.aviso_envio)}</div>` : "") + (r.json ?
     `<div class="aviso" style="background:var(--verde-claro);color:var(--verde-osc)">RIPS JSON: ${ent(r.json.registros_leidos)} registros leídos ·
      ${ent(r.json.repetidos_en_json)} repetidos en el JSON · ${ent(r.json.ya_cargadas)} ya cargados · <b>${ent(r.json.agregadas)} filas agregadas</b></div>` +
@@ -405,7 +407,8 @@ async function estadoNota(){
     $("#nt-lista").innerHTML = e.notas.length ? e.notas.map(n => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--borde)">
         <input type="checkbox" class="nt-id" value="${esc(n.id)}" checked style="width:18px;height:18px;accent-color:var(--verde)">
         <div style="flex:1"><b style="color:var(--tinta)">${esc(n.eps_nombre)}</b> · ${esc(n.archivo)} · ${ent(n.codigos)} códigos (${n.inactivos} inactivos)<br>
-          <span>Reconoce: ${esc([...n.eps_textos, ...n.eps_codigos].join(", "))}</span></div>
+          <span>Reconoce: ${esc([...n.eps_textos, ...n.eps_codigos].join(", "))}</span>
+          ${(n.ambitos || []).length ? `<br><span>Municipios: ${esc(n.ambitos.map(a => a.ambito + (a.contrato ? " (" + a.contrato + ")" : "")).join(" · "))}${n.ambitos.length > 1 ? " — se genera una nota por municipio" : ""}</span>` : ""}</div>
         <a href="/api/nota-tecnica/plantilla?id=${encodeURIComponent(n.id)}${qa}" style="color:var(--verde-osc);white-space:nowrap">Plantilla</a>
         <button type="button" class="sec" data-borrar="${esc(n.id)}" style="padding:4px 10px">Eliminar</button></div>`).join("")
       : "Todavía no hay notas técnicas: agréguelas abajo (una por EPS).";

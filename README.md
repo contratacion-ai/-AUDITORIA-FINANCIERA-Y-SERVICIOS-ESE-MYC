@@ -124,7 +124,7 @@ descripción de los CUM que llegan sin ella (fuente «portafolio farmacia»). La
 CUM no encontrados en el maestro, maestro sin portafolio, insumos) se consultan en la misma pestaña.
 Supuesto: el RIPS factura en la misma unidad del portafolio (unidad mínima de dispensación).
 
-### Nota técnica de capitación: pacientes únicos por CUPS y mes (v1.5)
+### Nota técnica de capitación: pacientes únicos por CUPS y mes (v1.5–v1.7)
 
 Para contratos de capitación, **una nota por EPS** (Nueva EPS, Sanitas, Coosalud u otras). En la ventana de cargue
 marque **«Generar nota técnica de capitación»**, agregue la nota de cada EPS (archivo con `CodigoCUP`, `Homologo`,
@@ -132,7 +132,23 @@ marque **«Generar nota técnica de capitación»**, agregue la nota de cada EPS
 si quiere, el período. Cada nota lleva su perfil de reconocimiento (textos del nombre y códigos de entidad/NIT,
 prellenados y editables): Nueva EPS `EPS037, EPSS37, EPS041, EPSS41, 900156264`; Sanitas `EPS005, EPSS05,
 800251440`; Coosalud `ESS024, EPS042, EPSS42, 900226715` (verifíquelos con el contrato). Con varias EPS a la vez,
-los JSON sin XML de la factura ni AF no se asignan a ninguna (se reportan). Por consola:
+los JSON sin XML de la factura ni AF no se asignan a ninguna (se reportan).
+
+**Formatos de nota (v1.7)** — se reconocen en cualquier hoja (`rips_auditoria/nota_lectura.py`):
+
+| Formato | Ejemplo | Cómo se lee |
+|---|---|---|
+| Lista de CUPS | Nueva EPS (357 códigos) | `CodigoCUP`, `Homologo`, `ESTADO CUPS`, `DescripcionCUP` |
+| Una hoja por municipio | Sanitas «FORMATO CAPITA TAME»… | contrato, municipio, población y régimen de la cabecera; tabla `Agrupador`, `CUPS`, `DESCRIPCIÓN`, `Actividades mes` (meta) |
+| Lista con municipio por fila + matriz de PyM | Coosalud «NT_SERVICIOS SUB» y «NT 2025 PYM» | `MUNICIPIO`, `CodigoCUPS`…; en la matriz, varios códigos por celda (saltos de línea, comas, rangos «990201 al 990206») con la actividad y el curso de vida como descripción |
+
+Si la nota trae **varios municipios** se genera una nota por municipio (`NOTA_TECNICA_SANITAS_TAME_…`) y cada
+atención va al municipio de su sede: por el nombre del municipio en la sede o por la tabla
+`nota_tecnica.sedes_municipio` (por defecto San Antonio → Tame, San Francisco → Fortul, San Lorenzo → Arauquita,
+San José → Cravo Norte, San Juan de Dios → Puerto Rondón). Las sedes sin municipio se avisan en la ventana y en la
+nota. Un código repetido en el mismo municipio se cuenta una vez y su meta mensual se suma; con meta, la «Tabla
+resumen» agrega meta del mes, meta del período y % de cumplimiento (pacientes-mes / meta × meses). Los datos de
+contrato, población, régimen y municipio llenan la sección 1 de la nota. Por consola:
 
 ```bash
 python -m rips_auditoria nota-tecnica "D:/RIPS 2023/Hospital San Antonio" --nota NUEVA_EPS.xlsx \
@@ -369,6 +385,7 @@ rips_auditoria/
   json_rips.py        lectura de RIPS JSON (Res. 2275 u homologados) e integración sin duplicar
   cruce_medicamentos.py  medicamentos facturados en RIPS vs. portafolio de farmacia (por CUM)
   nota_tecnica.py     nota técnica de capitación: pacientes únicos por CUPS y mes, calidad de datos
+  nota_lectura.py     lectura de notas técnicas (lista, una hoja por municipio, matriz de PyM)
   nota_tecnica_excel.py  plantilla de la nota y hoja de cálculo con fórmulas y tabla dinámica nativa
   web/                ventana de cargue y tablero (FastAPI + páginas con la imagen de la ESE)
   web/red.py          acceso en red con clave y puente hacia el aplicativo de auditoría

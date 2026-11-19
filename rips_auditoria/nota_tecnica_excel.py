@@ -60,15 +60,19 @@ def _secciones(r: dict | None) -> list[tuple[str, list[str]]]:
     def v(clave, por_defecto):
         return str(r[clave]) if r and clave in r else por_defecto
 
+    def w(clave, por_defecto):  # dato de la nota técnica (puede venir vacío)
+        return str(r[clave]) if r and r.get(clave) else por_defecto
+
     periodo = (f"{nombre_mes(r['desde'])} a {nombre_mes(r['hasta'])}" if r else "[MES INICIAL] a [MES FINAL] de [AÑO]")
     fuentes = ", ".join(r["fuentes"]) if r else "[RIPS TXT Res. 3374 / RIPS JSON Res. 2275]"
     sedes = ", ".join(r["sedes"]) if r and r["sedes"] else "[SEDES / HOSPITALES]"
     return [
         ("1. IDENTIFICACIÓN DEL CONTRATO", [
             f"Prestador: {INSTITUCION} · NIT 900034131",
-            f"EPS: {v('eps', '[NOMBRE DE LA EPS]')} · Régimen: [SUBSIDIADO / CONTRIBUTIVO]",
-            "Contrato N.º: [NÚMERO DEL CONTRATO] · Modalidad: CAPITACIÓN · Valor per cápita: [VALOR]",
-            "Población asignada: [NÚMERO DE AFILIADOS] · Municipio(s): [MUNICIPIOS]",
+            f"EPS: {v('eps', '[NOMBRE DE LA EPS]')} · Régimen: {w('regimen', '[SUBSIDIADO / CONTRIBUTIVO]')}",
+            f"Contrato N.º: {w('contrato', '[NÚMERO DEL CONTRATO]')} · Modalidad: CAPITACIÓN · Valor per cápita: [VALOR]",
+            f"Población asignada: {w('poblacion', '[NÚMERO DE AFILIADOS]')} · Municipio(s): {w('ambito', '[MUNICIPIOS]')}"
+            + (f" · Sedes: {', '.join(r['sedes_ambito'])}" if r and r.get("sedes_ambito") else ""),
             f"Período analizado: {periodo} · Fecha de corte: [FECHA DE CORTE]",
             "Elaboró: [NOMBRE Y CARGO] · Revisó: [NOMBRE Y CARGO] · Fecha: [FECHA]",
         ]),
@@ -127,6 +131,9 @@ def _secciones(r: dict | None) -> list[tuple[str, list[str]]]:
             f"Códigos de la nota sin registros: {r['codigos_sin_registros']} de {r['codigos_nota']} (en 0, ver hoja «Calidad»).",
             "Meses sin información en todo el período: " + (", ".join(nombre_mes(m) for m in r["meses_sin_informacion"])
                                                              or "ninguno") + ".",
+            *([f"Sedes sin municipio reconocido (sus atenciones no entran en ninguna nota por municipio): "
+               f"{', '.join(r['sedes_sin_ambito'])}. Agregue la sede en nota_tecnica.sedes_municipio de la configuración."]
+              if r.get("sedes_sin_ambito") else []),
             *([f"ATENCIÓN: ninguna atención de los códigos de la nota coincidió con la EPS {r['eps']}. Entidades "
                f"encontradas en los AF: {r.get('entidades_encontradas') or 'ninguna'}. Verifique el nombre o código de "
                "la EPS (opción «EPS del contrato» o nota_tecnica.eps_codigos)."]
@@ -252,8 +259,11 @@ def _hoja_tabla_resumen(wb, calc):
                           "bg_color": "#FBEAEF"})
     tot = wb.add_format({"bold": True, "num_format": "#,##0", "border": 1, "bg_color": "#E8F6E9"})
     txt = wb.add_format({"border": 1, "border_color": "#DCE3DD", "text_wrap": True, "valign": "top"})
+    con_meta = "meta_mes" in cat and cat["meta_mes"].notna().any()
     cols = ["CÓDIGO CUPS", "DESCRIPCIÓN", "ESTADO"] + [nombre_mes(x) for x in m.columns] + [
-        "TOTAL PACIENTES-MES", "PACIENTES ÚNICOS DEL PERÍODO", "OBSERVACIONES"]
+        "TOTAL PACIENTES-MES", "PACIENTES ÚNICOS DEL PERÍODO", "OBSERVACIONES"] + (
+        ["META MES (nota técnica)", "META DEL PERÍODO", "% CUMPLIMIENTO"] if con_meta else [])
+    pct = wb.add_format({"num_format": "0.0%", "border": 1, "border_color": "#DCE3DD"})
     for j, c in enumerate(cols):
         w.write(0, j, c, enc)
     n_m = len(m.columns)
@@ -267,6 +277,13 @@ def _hoja_tabla_resumen(wb, calc):
                                      f"{xlsxwriter.utility.xl_rowcol_to_cell(i, 2 + n_m)})", tot, int(fila.sum()))
         w.write_number(i, 4 + n_m, int(cal.loc[cod, "pacientes_periodo"]), num)
         w.write_string(i, 5 + n_m, cal.loc[cod, "observaciones"], txt)
+        meta = cat.loc[cod, "meta_mes"] if con_meta else None
+        if con_meta and pd.notna(meta):
+            c_tot, c_meta, c_per = (xlsxwriter.utility.xl_rowcol_to_cell(i, j) for j in (3 + n_m, 6 + n_m, 7 + n_m))
+            w.write_number(i, 6 + n_m, round(float(meta), 2), num)
+            w.write_formula(i, 7 + n_m, f"={c_meta}*{n_m}", num, round(float(meta) * n_m, 2))
+            w.write_formula(i, 8 + n_m, f'=IF({c_per}>0,{c_tot}/{c_per},"")', pct,
+                            (int(fila.sum()) / (float(meta) * n_m)) if meta else "")
     ult = len(m)
     w.write(ult + 1, 1, "TOTAL POR MES", tot)
     for j in range(3, 4 + n_m):
@@ -279,6 +296,10 @@ def _hoja_tabla_resumen(wb, calc):
     w.set_column(2, 2, 10)
     w.set_column(3, 4 + n_m, 11)
     w.set_column(5 + n_m, 5 + n_m, 60)
+    if con_meta:
+        w.set_column(6 + n_m, 8 + n_m, 14)
+        w.write(ult + 3, 1, "% cumplimiento = pacientes-mes del período / (meta mensual de la nota × meses). La meta de la "
+                            "nota está en actividades: compárela con el número de atenciones si el contrato lo pide así.")
 
 
 def _hoja_calidad(wb, calc):
@@ -535,7 +556,7 @@ def generar(calc: dict, carpeta: str | Path) -> list[Path]:
     """Nota técnica + hoja de cálculo del resultado de ``nota_tecnica.calcular``."""
     carpeta = Path(carpeta)
     r = calc["resumen"]
-    eps = "".join(ch if ch.isalnum() else "_" for ch in r["eps"].upper()).strip("_")
+    eps = "".join(ch if ch.isalnum() else "_" for ch in f"{r['eps']} {r.get('ambito') or ''}".strip().upper()).strip("_")
     periodo = f"{r['desde']}_{r['hasta']}"
     return [exportar_nota(carpeta / f"NOTA_TECNICA_{eps}_{periodo}.xlsx", calc),
             exportar_hoja(carpeta / f"HOJA_PACIENTES_CUPS_{eps}_{periodo}.xlsx", calc)]

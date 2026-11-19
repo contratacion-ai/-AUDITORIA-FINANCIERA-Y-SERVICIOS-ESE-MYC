@@ -270,17 +270,22 @@ def _ejecutar(t: dict, entradas: list[Path], hospital, enviar: bool, consolidado
                     cfg_n = nota_tecnica.cfg_nota(cfg, nota)
                     if varias:  # un JSON sin EPS no puede sumarse a todas las EPS a la vez
                         cfg_n["nota_tecnica"]["json_sin_eps"] = "excluir"
-                    calc = nota_tecnica.calcular(at, nota_tecnica.cargar_catalogo(nota["ruta"]), nt.get("desde"),
-                                                 nt.get("hasta"), cfg_n)
-                    archivos += nota_tecnica_excel.generar(calc, salida / "NOTA_TECNICA")
-                    r = calc["resumen"]
-                    resumenes_nt.append({k: r[k] for k in (
-                        "eps", "desde", "hasta", "codigos_nota", "codigos_con_pacientes", "codigos_sin_registros",
-                        "pacientes_unicos_periodo", "registros_incluidos", "duplicados", "excl_anulado", "con_errores",
-                        "excl_fuera_periodo", "meses_sin_informacion", "registros_otra_eps", "registros_eps",
-                        "entidades_encontradas")})
-                    t["log"].append(f"Nota técnica {r['eps']}: {r['codigos_con_pacientes']} de {r['codigos_nota']} códigos "
-                                    f"con pacientes, {r['pacientes_unicos_periodo']} pacientes únicos ({r['desde']} a {r['hasta']})")
+                    # una nota por municipio si la nota de la EPS trae varios (p. ej. Sanitas)
+                    calcs = nota_tecnica.calcular_nota(at, nota["ruta"], nt.get("desde"), nt.get("hasta"), cfg_n)
+                    for i_calc, calc in enumerate(calcs):
+                        archivos += nota_tecnica_excel.generar(calc, salida / "NOTA_TECNICA")
+                        r = calc["resumen"]
+                        resumenes_nt.append({k: r.get(k) for k in (
+                            "eps", "ambito", "contrato", "poblacion", "sedes_ambito", "sedes_sin_ambito", "desde",
+                            "hasta", "codigos_nota", "codigos_con_pacientes", "codigos_sin_registros",
+                            "pacientes_unicos_periodo", "registros_incluidos", "duplicados", "excl_anulado",
+                            "con_errores", "excl_fuera_periodo", "meses_sin_informacion", "registros_otra_eps",
+                            "registros_eps", "entidades_encontradas")})
+                        if i_calc:  # las sedes sin municipio se avisan una vez por EPS
+                            resumenes_nt[-1]["sedes_sin_ambito"] = []
+                        t["log"].append(f"Nota técnica {r['eps']}{' · ' + r['ambito'] if r.get('ambito') else ''}: "
+                                        f"{r['codigos_con_pacientes']} de {r['codigos_nota']} códigos con pacientes, "
+                                        f"{r['pacientes_unicos_periodo']} pacientes únicos ({r['desde']} a {r['hasta']})")
             tabla = res.resumen_unidades()
             inc = res.resumen_incidencias().head(15)
             resultado = {
@@ -521,7 +526,8 @@ def _guardar_nota_subida(subida, eps: str, textos: str = "", codigos: str = "") 
 
 @app.get("/api/nota-tecnica/estado")
 def nota_tecnica_estado():
-    notas = [{k: n[k] for k in ("id", "eps_nombre", "archivo", "codigos", "inactivos", "eps_textos", "eps_codigos")}
+    notas = [{k: n[k] for k in ("id", "eps_nombre", "archivo", "codigos", "inactivos", "eps_textos", "eps_codigos",
+                                "ambitos")}
              for n in nota_tecnica.notas_guardadas()]
     primera = notas[0] if notas else {}
     return {"notas": notas, "archivo": primera.get("archivo"), "codigos": primera.get("codigos"),
