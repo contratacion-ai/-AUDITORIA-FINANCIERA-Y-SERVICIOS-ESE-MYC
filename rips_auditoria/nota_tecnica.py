@@ -165,7 +165,7 @@ def cargar_catalogo(ruta: str | Path, ambito: str | None = None) -> pd.DataFrame
 # Configurable en config: nota_tecnica.sedes_municipio = {"TEXTO EN LA SEDE": "MUNICIPIO"}.
 SEDES_MUNICIPIO = {
     "SAN ANTONIO": "TAME", "SAN FRANCISCO": "FORTUL", "SAN LORENZO": "ARAUQUITA",
-    "SAN JOSE": "CRAVO NORTE", "SAN JUAN DE DIOS": "PUERTO RONDON",
+    "SAN JOSE": "CRAVO NORTE", "SAN JUAN DE DIOS": "PUERTO RONDON", "JESUS CORONEL": "TAME",
 }
 
 
@@ -389,6 +389,14 @@ def calcular(at: pd.DataFrame, catalogo: pd.DataFrame, desde: str | None = None,
     cal["registros_otra_eps"] = otra_eps.groupby("codigo").size()
     cal = cal.fillna(0).astype(int)
     cal["meses_sin_informacion"] = (matriz == 0).sum(axis=1)
+    # Atenciones (para la meta de la nota, que está en actividades): registros incluidos sin duplicados
+    atenciones = (incl[~incl["duplicado"]].groupby(["codigo", "mes"]).size().unstack("mes")
+                  .reindex(index=catalogo["codigo"], columns=meses).fillna(0).astype(int))
+    atenciones.columns.name = None
+    cal["atenciones_periodo"] = atenciones.sum(axis=1)
+    meta = (catalogo.set_index("codigo")["meta_mes"] if "meta_mes" in catalogo else pd.Series(dtype=float))
+    meta_periodo = pd.to_numeric(meta, errors="coerce") * len(meses)
+    con_meta = meta_periodo[meta_periodo > 0]
     reglas = incl[incl["con_error"].fillna(False).astype(bool)].groupby("codigo")["error"].agg(
         lambda s: ", ".join(sorted({r for x in s for r in str(x).split(", ") if r})))
     estado = catalogo.set_index("codigo")["estado"]
@@ -411,6 +419,9 @@ def calcular(at: pd.DataFrame, catalogo: pd.DataFrame, desde: str | None = None,
             partes.append(f"{r['fecha_de_factura']} registro(s) sin fecha de prestación (AT/AM): mes por la factura")
         if r["json_eps_asumida"]:
             partes.append(f"{r['json_eps_asumida']} registro(s) JSON sin EPS: se asumió {c['eps_nombre']}")
+        if cod in con_meta.index:
+            partes.append(f"cumplimiento de la meta: {r['atenciones_periodo'] / con_meta[cod]:.0%} "
+                          f"({r['atenciones_periodo']} atenciones de {con_meta[cod]:,.0f})")
         if 0 < r["meses_sin_informacion"] < len(meses) and r["registros_eps"]:
             partes.append(f"{r['meses_sin_informacion']} mes(es) sin pacientes")
         obs.append("; ".join(partes))
@@ -430,6 +441,14 @@ def calcular(at: pd.DataFrame, catalogo: pd.DataFrame, desde: str | None = None,
         "codigos_con_pacientes": int((matriz.sum(axis=1) > 0).sum()),
         "codigos_sin_registros": int((cal["registros_eps"] == 0).sum()),
         "pacientes_unicos_periodo": int(incl["paciente"].nunique()), "meses_sin_informacion": meses_vacios,
+        "atenciones_periodo": int(atenciones.values.sum()),
+        "codigos_con_meta": int(len(con_meta)),
+        "meta_periodo": round(float(con_meta.sum()), 1),
+        "atenciones_con_meta": int(cal.loc[con_meta.index, "atenciones_periodo"].sum()) if len(con_meta) else 0,
+        "cumplimiento_meta": (round(float(cal.loc[con_meta.index, "atenciones_periodo"].sum() / con_meta.sum()), 4)
+                              if len(con_meta) else None),
+        "codigos_bajo_80": int(((cal.loc[con_meta.index, "atenciones_periodo"] / con_meta) < 0.8).sum())
+                           if len(con_meta) else 0,
         **{f"excl_{k}": int((at["motivo"] == k).sum()) for k in MOTIVOS},
         "duplicados": int(incl["duplicado"].sum()), "con_errores": int(incl["con_error"].fillna(False).astype(bool).sum()),
         "fecha_de_factura": int(incl["fecha_de_factura"].fillna(False).astype(bool).sum()),
@@ -444,6 +463,7 @@ def calcular(at: pd.DataFrame, catalogo: pd.DataFrame, desde: str | None = None,
             ["_e"].str.strip().value_counts().head(8).items()),
     }
     return {"resumen": resumen, "catalogo": catalogo, "matriz": matriz, "calidad": cal, "pacientes": unicos,
+            "atenciones": atenciones,
             "curso_vida": curso, "fuera_nota": fuera}
 
 

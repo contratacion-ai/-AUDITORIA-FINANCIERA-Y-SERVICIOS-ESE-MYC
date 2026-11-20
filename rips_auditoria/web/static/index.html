@@ -373,7 +373,8 @@ function mostrarResultados(t){
     (${esc(nt.desde)} a ${esc(nt.hasta)}): ${ent(nt.pacientes_unicos_periodo)} pacientes únicos · ${nt.codigos_con_pacientes} de ${nt.codigos_nota}
     códigos con pacientes · ${nt.codigos_sin_registros} en 0 · duplicados ${ent(nt.duplicados)} · anulados ${ent(nt.excl_anulado)} ·
     con errores ${ent(nt.con_errores)} · fuera de período ${ent(nt.excl_fuera_periodo)}${nt.meses_sin_informacion.length ?
-    ` · <b>meses sin información: ${esc(nt.meses_sin_informacion.join(", "))}</b>` : ""}. Descargue los archivos NOTA_TECNICA/ de la lista.</div>` +
+    ` · <b>meses sin información: ${esc(nt.meses_sin_informacion.join(", "))}</b>` : ""}${nt.cumplimiento_meta != null ?
+    ` · <b>cumplimiento de metas: ${(nt.cumplimiento_meta * 100).toFixed(1)} %</b> (atenciones; ${nt.codigos_bajo_80} de ${nt.codigos_con_meta} códigos bajo el 80 %)` : ""}. Descargue los archivos NOTA_TECNICA/ de la lista.</div>` +
     (!nt.registros_eps && nt.registros_otra_eps ? `<div class="aviso"><b>Ninguna atención coincidió con la EPS «${esc(nt.eps)}».</b>
     Entidades encontradas en los AF: ${esc(nt.entidades_encontradas || "ninguna")}. Escriba en «EPS del contrato» el nombre como aparece
     en el AF o revise los códigos de la nota de esa EPS.</div>` : "") +

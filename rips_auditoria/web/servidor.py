@@ -280,7 +280,8 @@ def _ejecutar(t: dict, entradas: list[Path], hospital, enviar: bool, consolidado
                             "hasta", "codigos_nota", "codigos_con_pacientes", "codigos_sin_registros",
                             "pacientes_unicos_periodo", "registros_incluidos", "duplicados", "excl_anulado",
                             "con_errores", "excl_fuera_periodo", "meses_sin_informacion", "registros_otra_eps",
-                            "registros_eps", "entidades_encontradas")})
+                            "registros_eps", "entidades_encontradas", "atenciones_periodo", "cumplimiento_meta",
+                            "codigos_con_meta", "codigos_bajo_80")})
                         if i_calc:  # las sedes sin municipio se avisan una vez por EPS
                             resumenes_nt[-1]["sedes_sin_ambito"] = []
                         t["log"].append(f"Nota técnica {r['eps']}{' · ' + r['ambito'] if r.get('ambito') else ''}: "

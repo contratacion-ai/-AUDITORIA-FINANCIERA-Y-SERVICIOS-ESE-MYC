@@ -106,8 +106,8 @@ NOTA TÉCNICA DE CAPITACIÓN: en esta ventana marque "Generar nota técnica de c
  el período. Se genera una nota por EPS y, si la nota trae varios municipios (Sanitas: una hoja
  por municipio), una por municipio: las atenciones van al municipio de su sede (San Antonio=Tame,
  San Francisco=Fortul, San Lorenzo=Arauquita, San José=Cravo Norte, San Juan de Dios=Puerto
- Rondón). Las sedes sin municipio se avisan. Con la meta "Actividades mes" se calcula el % de
- cumplimiento.
+ Rondón, Jesús Coronel=Tame). Las sedes sin municipio se avisan. Con la meta "Actividades mes"
+ se calcula el % de cumplimiento con las ATENCIONES (hoja "Cumplimiento de metas", semáforo).
  Cuenta pacientes únicos por código CUPS y mes y genera, en la carpeta NOTA_TECNICA del cargue,
  la nota técnica (campos del contrato entre [corchetes]) y la hoja de cálculo con fórmulas,
  tabla dinámica y validación de meses sin información.

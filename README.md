@@ -145,9 +145,11 @@ los JSON sin XML de la factura ni AF no se asignan a ninguna (se reportan).
 Si la nota trae **varios municipios** se genera una nota por municipio (`NOTA_TECNICA_SANITAS_TAME_…`) y cada
 atención va al municipio de su sede: por el nombre del municipio en la sede o por la tabla
 `nota_tecnica.sedes_municipio` (por defecto San Antonio → Tame, San Francisco → Fortul, San Lorenzo → Arauquita,
-San José → Cravo Norte, San Juan de Dios → Puerto Rondón). Las sedes sin municipio se avisan en la ventana y en la
-nota. Un código repetido en el mismo municipio se cuenta una vez y su meta mensual se suma; con meta, la «Tabla
-resumen» agrega meta del mes, meta del período y % de cumplimiento (pacientes-mes / meta × meses). Los datos de
+San José → Cravo Norte, San Juan de Dios → Puerto Rondón, Centro de Salud Jesús Coronel → Tame). Las sedes sin
+municipio se avisan en la ventana y en la nota. Un código repetido en el mismo municipio se cuenta una vez y su meta mensual se suma. La meta de la nota está en
+actividades, así que el **cumplimiento se mide con atenciones** (registros incluidos sin duplicados): la «Tabla
+resumen» agrega atenciones del período, meta del mes, meta del período y % de cumplimiento, y la hoja «Cumplimiento
+de metas» trae las atenciones por mes, la brecha y un semáforo (verde ≥ 100 %, amarillo 80–99 %, rojo < 80 %). Los datos de
 contrato, población, régimen y municipio llenan la sección 1 de la nota. Por consola:
 
 ```bash

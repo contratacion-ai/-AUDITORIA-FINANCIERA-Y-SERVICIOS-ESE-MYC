@@ -107,7 +107,9 @@ def test_una_nota_por_municipio_segun_la_sede(nota_sanitas, tmp_path):
         ("HOSPITAL SAN ANTONIO", "1", "903841", "2025-02-03", "SANITAS"),
         ("HOSPITAL SAN FRANCISCO", "3", "890201", "2025-02-05", "SANITAS"),
         ("HOSPITAL SAN FRANCISCO", "4", "997301", "2025-02-06", "SANITAS"),
-        ("CENTRO DE SALUD JESUS CORONEL", "5", "890201", "2025-01-15", "SANITAS"),
+        ("CENTRO DE SALUD JESUS CORONEL", "5", "890201", "2025-01-15", "SANITAS"),  # Tame
+        ("CENTRO DE SALUD JESUS CORONEL", "5", "890201", "2025-01-20", "SANITAS"),  # 2.ª atención, mismo paciente
+        ("PUESTO DE SALUD LA ESPERANZA", "7", "890201", "2025-01-15", "SANITAS"),
         ("HOSPITAL SAN ANTONIO", "6", "890201", "2025-01-15", "NUEVA EPS"),
     ])
     cfg = {"nota_tecnica": {**nt.perfil_eps("SANITAS"), "json_sin_eps": "excluir"}}
@@ -115,14 +117,18 @@ def test_una_nota_por_municipio_segun_la_sede(nota_sanitas, tmp_path):
     assert set(calcs) == {"TAME", "FORTUL"}
     tame, fortul = calcs["TAME"], calcs["FORTUL"]
     assert tame["resumen"]["desde"] == fortul["resumen"]["desde"] == "2025-01"  # mismo período
-    assert tame["matriz"].loc["890201"].tolist() == [2, 0] and tame["matriz"].loc["903841"].tolist() == [0, 1]
+    assert tame["matriz"].loc["890201"].tolist() == [3, 0] and tame["matriz"].loc["903841"].tolist() == [0, 1]
+    # la meta se mide con atenciones: 4 atenciones de 890201 frente a 400 × 2 meses
+    assert tame["atenciones"].loc["890201"].tolist() == [4, 0] and tame["calidad"].loc["890201", "atenciones_periodo"] == 4
+    assert tame["resumen"]["cumplimiento_meta"] == round((4 + 1) / (800 + 100), 4)
+    assert tame["resumen"]["codigos_bajo_80"] == 2
     assert fortul["matriz"].loc["890201"].tolist() == [0, 1] and fortul["matriz"].loc["997301"].tolist() == [0, 1]
-    assert tame["resumen"]["sedes_sin_ambito"] == ["CENTRO DE SALUD JESUS CORONEL"]
+    assert tame["resumen"]["sedes_sin_ambito"] == ["PUESTO DE SALUD LA ESPERANZA"]
     assert tame["resumen"]["contrato"] == "IBUGCU1529"
     # sede configurable -> municipio
-    cfg["nota_tecnica"]["sedes_municipio"] = {"JESUS CORONEL": "TAME"}
+    cfg["nota_tecnica"]["sedes_municipio"] = {"LA ESPERANZA": "TAME"}
     tame2 = {c["resumen"]["ambito"]: c for c in nt.calcular_nota(at, nota_sanitas, cfg=cfg)}["TAME"]
-    assert tame2["matriz"].loc["890201"].tolist() == [3, 0] and tame2["resumen"]["sedes_sin_ambito"] == []
+    assert tame2["matriz"].loc["890201"].tolist() == [4, 0] and tame2["resumen"]["sedes_sin_ambito"] == []
 
     nota, _hoja = nx.generar(tame, tmp_path)
     assert nota.name == "NOTA_TECNICA_SANITAS_TAME_2025-01_2025-02.xlsx"
@@ -132,7 +138,12 @@ def test_una_nota_por_municipio_segun_la_sede(nota_sanitas, tmp_path):
     enc = [c.value for c in wb["Tabla resumen"][1]]
     assert "META MES (nota técnica)" in enc and "% CUMPLIMIENTO" in enc
     fila = next(r for r in wb["Tabla resumen"].iter_rows(min_row=2, values_only=True) if r[0] == "890201")
-    assert fila[enc.index("META MES (nota técnica)")] == 400
+    assert fila[enc.index("META MES (nota técnica)")] == 400 and fila[enc.index("ATENCIONES DEL PERÍODO")] == 4
+    assert "Cumplimiento de metas (atenciones): 0,6%" in texto
+    cm = wb["Cumplimiento de metas"]
+    enc2 = [c.value for c in cm[1]]
+    fila = next(r for r in cm.iter_rows(min_row=2, values_only=True) if r[0] == "890201")
+    assert fila[enc2.index("TOTAL ATENCIONES")].startswith("=SUM(") and fila[enc2.index("META MES")] == 400
 
 
 def test_municipio_de_sede():
@@ -142,3 +153,4 @@ def test_municipio_de_sede():
     assert nt.municipio_de_sede("HOSPITAL SAN JUAN DE DIOS", amb) == "PUERTO RONDON"
     assert nt.municipio_de_sede("HOSPITAL SAN JOSE", amb) == "CRAVO NORTE"
     assert nt.municipio_de_sede("HOSPITAL SAN JOSE", ["TAME"]) == ""  # el municipio no está en la nota
+    assert nt.municipio_de_sede("CENTRO DE SALUD JESÚS CORONEL", amb) == "TAME"

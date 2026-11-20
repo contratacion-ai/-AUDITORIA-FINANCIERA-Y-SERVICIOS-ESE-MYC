@@ -147,6 +147,11 @@ def _secciones(r: dict | None) -> list[tuple[str, list[str]]]:
         ("8. CONCLUSIONES", ([
             f"Se atendieron {r['pacientes_unicos_periodo']:,} pacientes únicos en {r['codigos_con_pacientes']} de los "
             f"{r['codigos_nota']} códigos de la nota técnica.".replace(",", "."),
+            *([f"Cumplimiento de metas (atenciones): {r['cumplimiento_meta']:.1%} — {r['atenciones_con_meta']:,} "
+               f"atenciones frente a una meta de {r['meta_periodo']:,.0f} en {r['codigos_con_meta']} códigos con meta; "
+               f"{r['codigos_bajo_80']} código(s) por debajo del 80 % (ver «Cumplimiento de metas»)."
+               .replace(",", "X").replace(".", ",").replace("X", ".")]
+              if r.get("cumplimiento_meta") is not None else []),
             "[CONCLUSIONES SOBRE EL CUMPLIMIENTO DE METAS Y LA EJECUCIÓN DEL CONTRATO]",
             "[RECOMENDACIONES PARA LA EPS Y PARA LA ESE]",
         ] if r else ["[CONCLUSIONES]", "[RECOMENDACIONES]"])),
@@ -185,6 +190,7 @@ def exportar_nota(ruta: str | Path, calc: dict | None = None, catalogo: pd.DataF
     ws.set_column(0, 0, 120)
     if calc:
         _hoja_tabla_resumen(wb, calc)
+        _hoja_cumplimiento(wb, calc)
         _hoja_calidad(wb, calc)
         _hoja_curso_vida(wb, calc)
     else:
@@ -262,7 +268,7 @@ def _hoja_tabla_resumen(wb, calc):
     con_meta = "meta_mes" in cat and cat["meta_mes"].notna().any()
     cols = ["CÓDIGO CUPS", "DESCRIPCIÓN", "ESTADO"] + [nombre_mes(x) for x in m.columns] + [
         "TOTAL PACIENTES-MES", "PACIENTES ÚNICOS DEL PERÍODO", "OBSERVACIONES"] + (
-        ["META MES (nota técnica)", "META DEL PERÍODO", "% CUMPLIMIENTO"] if con_meta else [])
+        ["ATENCIONES DEL PERÍODO", "META MES (nota técnica)", "META DEL PERÍODO", "% CUMPLIMIENTO"] if con_meta else [])
     pct = wb.add_format({"num_format": "0.0%", "border": 1, "border_color": "#DCE3DD"})
     for j, c in enumerate(cols):
         w.write(0, j, c, enc)
@@ -278,12 +284,15 @@ def _hoja_tabla_resumen(wb, calc):
         w.write_number(i, 4 + n_m, int(cal.loc[cod, "pacientes_periodo"]), num)
         w.write_string(i, 5 + n_m, cal.loc[cod, "observaciones"], txt)
         meta = cat.loc[cod, "meta_mes"] if con_meta else None
+        if con_meta:
+            aten = int(cal.loc[cod, "atenciones_periodo"])
+            w.write_number(i, 6 + n_m, aten, num)
         if con_meta and pd.notna(meta):
-            c_tot, c_meta, c_per = (xlsxwriter.utility.xl_rowcol_to_cell(i, j) for j in (3 + n_m, 6 + n_m, 7 + n_m))
-            w.write_number(i, 6 + n_m, round(float(meta), 2), num)
-            w.write_formula(i, 7 + n_m, f"={c_meta}*{n_m}", num, round(float(meta) * n_m, 2))
-            w.write_formula(i, 8 + n_m, f'=IF({c_per}>0,{c_tot}/{c_per},"")', pct,
-                            (int(fila.sum()) / (float(meta) * n_m)) if meta else "")
+            c_at, c_meta, c_per = (xlsxwriter.utility.xl_rowcol_to_cell(i, j) for j in (6 + n_m, 7 + n_m, 8 + n_m))
+            w.write_number(i, 7 + n_m, round(float(meta), 2), num)
+            w.write_formula(i, 8 + n_m, f"={c_meta}*{n_m}", num, round(float(meta) * n_m, 2))
+            w.write_formula(i, 9 + n_m, f'=IF({c_per}>0,{c_at}/{c_per},"")', pct,
+                            (aten / (float(meta) * n_m)) if meta else "")
     ult = len(m)
     w.write(ult + 1, 1, "TOTAL POR MES", tot)
     for j in range(3, 4 + n_m):
@@ -297,9 +306,67 @@ def _hoja_tabla_resumen(wb, calc):
     w.set_column(3, 4 + n_m, 11)
     w.set_column(5 + n_m, 5 + n_m, 60)
     if con_meta:
-        w.set_column(6 + n_m, 8 + n_m, 14)
-        w.write(ult + 3, 1, "% cumplimiento = pacientes-mes del período / (meta mensual de la nota × meses). La meta de la "
-                            "nota está en actividades: compárela con el número de atenciones si el contrato lo pide así.")
+        w.set_column(6 + n_m, 9 + n_m, 14)
+        _semaforo(wb, w, 1, 9 + n_m, ult)
+        w.write(ult + 3, 1, "% cumplimiento = atenciones del período (sin duplicados) / (meta mensual de la nota × meses). "
+                            "Semáforo: verde ≥ 100 %, amarillo 80 % a 99 %, rojo < 80 %. Detalle por mes en «Cumplimiento de metas».")
+
+
+def _semaforo(wb, w, fila_ini, col, fila_fin):
+    for criterio, valor, color, letra in ((">=", 1, "#E8F6E9", "#0F6B15"), ("between", (0.8, 0.9999), "#FFF4D6", "#8A5A00"),
+                                          ("<", 0.8, "#FBEAEF", f"#{VINO}")):
+        fmt = wb.add_format({"bg_color": color, "font_color": letra, "num_format": "0.0%", "bold": True})
+        regla = ({"type": "cell", "criteria": "between", "minimum": valor[0], "maximum": valor[1], "format": fmt}
+                 if criterio == "between" else {"type": "cell", "criteria": criterio, "value": valor, "format": fmt})
+        w.conditional_format(fila_ini, col, fila_fin, col, regla)
+
+
+def _hoja_cumplimiento(wb, calc):
+    """Atenciones por mes contra la meta mensual de la nota técnica (sólo códigos con meta)."""
+    cat = calc["catalogo"].set_index("codigo")
+    if "meta_mes" not in cat or not cat["meta_mes"].notna().any():
+        return
+    at = calc["atenciones"]
+    codigos = [c for c in at.index if pd.notna(cat.loc[c, "meta_mes"]) and cat.loc[c, "meta_mes"] > 0]
+    w = wb.add_worksheet("Cumplimiento de metas")
+    enc, num = _enc(wb), wb.add_format({"num_format": "#,##0", "border": 1, "border_color": "#DCE3DD"})
+    dec = wb.add_format({"num_format": "#,##0.0", "border": 1, "border_color": "#DCE3DD"})
+    pct = wb.add_format({"num_format": "0.0%", "border": 1, "border_color": "#DCE3DD"})
+    tot = wb.add_format({"bold": True, "num_format": "#,##0", "border": 1, "bg_color": "#E8F6E9"})
+    totp = wb.add_format({"bold": True, "num_format": "0.0%", "border": 1, "bg_color": "#E8F6E9"})
+    meses = list(at.columns)
+    n = len(meses)
+    w.write_row(0, 0, ["CÓDIGO", "DESCRIPCIÓN", "AGRUPADOR", *[nombre_mes(m) for m in meses], "TOTAL ATENCIONES",
+                       "META MES", "META DEL PERÍODO", "% CUMPLIMIENTO", "BRECHA (atenciones)"], enc)
+    cel = xlsxwriter.utility.xl_rowcol_to_cell
+    for i, cod in enumerate(codigos, start=1):
+        meta = float(cat.loc[cod, "meta_mes"])
+        w.write_string(i, 0, cod)
+        w.write_string(i, 1, str(cat.loc[cod, "descripcion"]))
+        w.write_string(i, 2, str(cat.loc[cod, "agrupador"] if "agrupador" in cat else ""))
+        for j, m in enumerate(meses, start=3):
+            w.write_number(i, j, int(at.loc[cod, m]), num)
+        total = int(at.loc[cod].sum())
+        w.write_formula(i, 3 + n, f"=SUM({cel(i, 3)}:{cel(i, 2 + n)})", num, total)
+        w.write_number(i, 4 + n, round(meta, 2), dec)
+        w.write_formula(i, 5 + n, f"={cel(i, 4 + n)}*{n}", dec, round(meta * n, 2))
+        w.write_formula(i, 6 + n, f'=IF({cel(i, 5 + n)}>0,{cel(i, 3 + n)}/{cel(i, 5 + n)},"")', pct, total / (meta * n))
+        w.write_formula(i, 7 + n, f"={cel(i, 3 + n)}-{cel(i, 5 + n)}", dec, round(total - meta * n, 2))
+    ult = len(codigos)
+    w.write(ult + 1, 1, "TOTAL", tot)
+    for j in (*range(3, 4 + n), 5 + n, 7 + n):
+        col = xlsxwriter.utility.xl_col_to_name(j)
+        w.write_formula(ult + 1, j, f"=SUM({col}2:{col}{ult + 1})", tot)
+    w.write_formula(ult + 1, 6 + n, f'=IF({cel(ult + 1, 5 + n)}>0,{cel(ult + 1, 3 + n)}/{cel(ult + 1, 5 + n)},"")', totp)
+    _semaforo(wb, w, 1, 6 + n, ult + 1)
+    w.freeze_panes(1, 3)
+    w.autofilter(0, 0, ult, 7 + n)
+    w.set_column(0, 0, 11)
+    w.set_column(1, 1, 50)
+    w.set_column(2, 2, 26)
+    w.set_column(3, 7 + n, 12)
+    w.write(ult + 3, 1, "Atenciones = registros incluidos de la EPS sin duplicados (mismo paciente, código, fecha y factura). "
+                        "Meta mes = «Actividades mes» de la nota técnica (suma si el código está en varias actividades).")
 
 
 def _hoja_calidad(wb, calc):
