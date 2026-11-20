@@ -1,0 +1,285 @@
+# =============================================================================
+# Homologación RIPS (Res. 3374/2000) -> herramienta de auditoría financiera
+# =============================================================================
+# Perfil por defecto: "Plantilla_RIPS_Servicios" (plantilla de carga masiva que
+# entregó la ESE; columnas idénticas a sus hojas Usuarios, Consultas,
+# Procedimientos, Medicamentos, Hospitalizaciones, Urgencias, RecienNacidos y
+# OtrosServicios, que siguen la Resolución 2275 de 2023). Se agrega la hoja
+# "Transacciones" (cabecera de factura) y la columna numFactura en cada hoja de
+# servicios, que la auditoría financiera necesita para cruzar contra cartera.
+#
+# Para adaptar a otra herramienta: copie este archivo, cambie nombres de hojas
+# y columnas, y apúntelo en config/configuracion.yaml (homologacion.archivo_mapeo)
+# o con --mapeo en la línea de comandos. Ver rips_auditoria/homologacion.py para
+# la sintaxis (origen / plantilla / constante / condicional / tabla / ...).
+#
+# Campos disponibles: los nombres técnicos del Diccionario (hoja "Diccionario"
+# del Excel), la trazabilidad (hospital, periodo, remision, archivo, linea) y,
+# en hojas de servicios, los datos de su factura con prefijo af_ (af_fecha_inicio,
+# af_cod_entidad, af_num_contrato, ...).
+# =============================================================================
+
+perfil: "Plantilla_RIPS_Servicios - carga masiva RIPS (Res. 2275/2023) + extensiones de auditoría"
+version: "1.0"
+incluir_trazabilidad: true   # agrega _hospital, _periodo, _remision, _archivo, _linea
+
+supuestos:
+  - "La Res. 3374 no reporta fecha de nacimiento, país ni incapacidad: fechaNacimiento queda vacía, codPaisResidencia y codPaisOrigen = 170 (Colombia) e incapacidad = NO."
+  - "codMunicipioResidencia = código DANE departamento (2) + municipio (3) del archivo US."
+  - "Zona: U (urbana) -> 02 y R (rural) -> 01, según tabla de zona territorial de la Res. 2275."
+  - "Tipo de usuario 3374 -> 2275: 1 Contributivo -> 01 (cotizante, no se distingue beneficiario), 2 Subsidiado -> 04, 3 Vinculado -> 05 (no asegurado), 4 Particular -> 12, 5 Otro -> 06 (régimen especial/excepción, uso observado en Fiduprevisora)."
+  - "Causa externa 3374 -> causaMotivoAtencion 2275 según tabla 'causa_externa'. Los RIPS que ya traen códigos 21-49 se conservan."
+  - "Finalidad de consulta 3374 -> finalidadTecnologiaSalud 2275 según tabla 'finalidad_consulta'; 10 (No aplica) -> 44, alineado con el uso observado en los RIPS de la ESE para consultas de morbilidad. Los códigos 11-44 ya presentes se conservan."
+  - "Finalidad de procedimiento: 1 Diagnóstico -> 15, 2 Terapéutico -> 16, 3 Protección específica -> 14, 4 Detección temprana enf. general -> 12, 5 Detección temprana enf. laboral -> 13."
+  - "fechaInicioAtencion usa la fecha del servicio con hora 00:00 cuando la 3374 no reporta hora (AC, AP). AM y AT no tienen fecha en la 3374: se usa la fecha de inicio del período facturado (AF) como aproximación."
+  - "modalidadGrupoServicioTecSal, grupoServicios, codServicio, idMIPRES y documento del profesional no existen en la 3374 y quedan vacíos; deben completarse desde el REPS / historia clínica si la herramienta los exige."
+  - "conceptoRecaudo: consultas con cuota moderadora > 0 -> 02 (cuota moderadora); demás -> 05 (no aplica). El copago de la factura queda en la hoja Transacciones."
+  - "Vía de ingreso (procedimientos) se deriva del ámbito 3374: 1 Ambulatorio -> 01, 2 Hospitalario -> 04, 3 Urgencias -> 03. Hospitalización: 1 Urgencias -> 03, 2 Consulta externa -> 02, 3 Remitido -> 13, 4 Nacido en la institución -> 07."
+  - "condicionDestinoUsuarioEgreso: muerto -> 02; urgencias alta -> 01, remisión -> 04, hospitalización -> 03; hospitalización vivo -> 01. Verificar contra la tabla vigente de SISPRO."
+  - "Recién nacidos: control prenatal 1 (Sí) -> 1 consulta (mínimo conocido), 2 (No) -> 0. Documento del RN no existe en la 3374."
+  - "tipoMedicamento: POS y no POS -> 01 (medicamento con registro sanitario); tipoOS: 1 insumos -> 01, 2 traslados -> 02, 3 estancias -> 03, 4 honorarios -> 04."
+  - "Códigos sin equivalencia se conservan tal cual y se reportan como HOMOLOGACION_SIN_EQUIVALENCIA."
+
+tablas:
+  tipo_usuario:
+    valores: {"1": "01", "2": "04", "3": "05", "4": "12", "5": "06"}
+    destino_valido: ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13"]
+  zona:
+    valores: {"U": "02", "R": "01"}
+    destino_valido: ["01", "02"]
+  tipo_diagnostico:
+    valores: {"1": "01", "2": "02", "3": "03"}
+    destino_valido: ["01", "02", "03"]
+  causa_externa:
+    valores: {"01": "21", "02": "23", "03": "26", "04": "26", "05": "26", "06": "27", "07": "28",
+              "08": "29", "09": "30", "10": "32", "11": "32", "12": "31", "13": "38", "14": "39", "15": "38"}
+    destino_valido: ["21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35",
+                     "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49"]
+  finalidad_consulta:
+    valores: {"01": "25", "02": "26", "03": "19", "04": "11", "05": "11", "06": "23", "07": "11",
+              "08": "12", "09": "13", "10": "44"}
+    destino_valido: ["11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25",
+                     "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40",
+                     "41", "42", "43", "44"]
+  finalidad_procedimiento:
+    valores: {"1": "15", "2": "16", "3": "14", "4": "12", "5": "13"}
+    destino_valido: ["11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25",
+                     "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40",
+                     "41", "42", "43", "44"]
+  via_ingreso_ambito:
+    valores: {"1": "01", "2": "04", "3": "03"}
+  via_ingreso_hospital:
+    valores: {"1": "03", "2": "02", "3": "13", "4": "07"}
+  destino_urgencias:   # clave = estado_salida + destino_salida
+    valores: {"11": "01", "12": "04", "13": "03", "1": "01", "2": "02", "21": "02", "22": "02", "23": "02"}
+  estado_hospitalizacion:
+    valores: {"1": "01", "2": "02"}
+  control_prenatal:
+    valores: {"1": "1", "2": "0"}
+  tipo_medicamento:
+    valores: {"1": "01", "2": "01"}
+    destino_valido: ["01", "02", "03", "04", "05"]
+  tipo_otro_servicio:
+    valores: {"1": "01", "2": "02", "3": "03", "4": "04"}
+
+hojas:
+  - nombre: Transacciones
+    origen: AF
+    columnas:
+      - {destino: numDocumentoIdObligado, origen: num_id_prestador}
+      - {destino: numFactura, origen: num_factura}
+      - {destino: tipoNota, constante: ""}
+      - {destino: numNota, constante: ""}
+      - {destino: codPrestador, origen: cod_prestador}
+      - {destino: razonSocialPrestador, origen: razon_social}
+      - {destino: fechaExpedicion, origen: fecha_expedicion, transformacion: fecha_iso}
+      - {destino: fechaInicioPeriodo, origen: fecha_inicio, transformacion: fecha_iso}
+      - {destino: fechaFinPeriodo, origen: fecha_final, transformacion: fecha_iso}
+      - {destino: codEntidadAdministradora, origen: cod_entidad}
+      - {destino: nombreEntidadAdministradora, origen: nombre_entidad}
+      - {destino: numContrato, origen: num_contrato}
+      - {destino: planBeneficios, origen: plan_beneficios}
+      - {destino: numPoliza, origen: num_poliza}
+      - {destino: valorCopago, origen: valor_copago, transformacion: numero, por_defecto: "0"}
+      - {destino: valorComision, origen: valor_comision, transformacion: numero, por_defecto: "0"}
+      - {destino: valorDescuentos, origen: valor_descuentos, transformacion: numero, por_defecto: "0"}
+      - {destino: valorNetoPagar, origen: valor_neto, transformacion: numero}
+
+  - nombre: Usuarios
+    origen: US
+    unicos_por: [tipoDocumentoIdentificacion, numDocumentoIdentificacion, _remision]
+    columnas:
+      - {destino: tipoDocumentoIdentificacion, origen: tipo_id_usuario}
+      - {destino: numDocumentoIdentificacion, origen: num_id_usuario}
+      - {destino: tipoUsuario, origen: tipo_usuario, tabla: tipo_usuario}
+      - {destino: "fechaNacimiento (yyyy-MM-dd)", constante: ""}
+      - {destino: "codSexo (M/F)", origen: sexo}
+      - {destino: codPaisResidencia, constante: "170"}
+      - {destino: "codMunicipioResidencia (5 dig)", plantilla: "{cod_departamento:0>2}{cod_municipio:0>3}"}
+      - {destino: codZonaTerritorialResidencia, origen: zona, tabla: zona}
+      - {destino: "incapacidad (SI/NO)", constante: "NO"}
+      - {destino: codPaisOrigen, constante: "170"}
+
+  - nombre: Consultas
+    origen: AC
+    columnas:
+      - {destino: "tipoDocumentoIdentificacion (FK Usuarios)", origen: tipo_id_usuario}
+      - {destino: "numDocumentoIdentificacion (FK Usuarios)", origen: num_id_usuario}
+      - {destino: codPrestador, origen: cod_prestador}
+      - {destino: "fechaInicioAtencion (yyyy-MM-dd HH:mm)", origen: fecha_consulta, transformacion: fecha_hora_iso}
+      - {destino: "numAutorizacion (opcional)", origen: num_autorizacion}
+      - {destino: "codConsulta (CUPS)", origen: cod_consulta}
+      - {destino: modalidadGrupoServicioTecSal, constante: ""}
+      - {destino: grupoServicios, constante: ""}
+      - {destino: codServicio, constante: ""}
+      - {destino: finalidadTecnologiaSalud, origen: finalidad, tabla: finalidad_consulta}
+      - {destino: causaMotivoAtencion, origen: causa_externa, tabla: causa_externa}
+      - {destino: codDiagnosticoPrincipal, origen: dx_principal, transformacion: mayusculas}
+      - {destino: "codDiagnosticoRelacionado1 (opcional)", origen: dx_relacionado1, transformacion: mayusculas}
+      - {destino: "codDiagnosticoRelacionado2 (opcional)", origen: dx_relacionado2, transformacion: mayusculas}
+      - {destino: "codDiagnosticoRelacionado3 (opcional)", origen: dx_relacionado3, transformacion: mayusculas}
+      - {destino: tipoDiagnosticoPrincipal, origen: tipo_dx_principal, tabla: tipo_diagnostico}
+      - {destino: tipoDocumentoIdentificacionProf, constante: ""}
+      - {destino: numDocumentoIdentificacionProf, constante: ""}
+      - {destino: vrServicio, origen: valor_consulta, transformacion: numero}
+      - {destino: conceptoRecaudo, condicional: {campo: valor_cuota_moderadora, mayor_que: 0, entonces: "02", si_no: "05"}}
+      - {destino: valorPagoModerador, origen: valor_cuota_moderadora, transformacion: numero, por_defecto: "0"}
+      - {destino: "numFEVPagoModerador (opcional)", constante: ""}
+      - {destino: numFactura, origen: num_factura}
+      - {destino: valorNetoRIPS, origen: valor_neto, transformacion: numero}
+
+  - nombre: Procedimientos
+    origen: AP
+    columnas:
+      - {destino: "tipoDocumentoIdentificacion (FK Usuarios)", origen: tipo_id_usuario}
+      - {destino: "numDocumentoIdentificacion (FK Usuarios)", origen: num_id_usuario}
+      - {destino: codPrestador, origen: cod_prestador}
+      - {destino: "fechaInicioAtencion (yyyy-MM-dd HH:mm)", origen: fecha_procedimiento, transformacion: fecha_hora_iso}
+      - {destino: "idMIPRES (opcional)", constante: ""}
+      - {destino: "numAutorizacion (opcional)", origen: num_autorizacion}
+      - {destino: "codProcedimiento (CUPS)", origen: cod_procedimiento}
+      - {destino: viaIngresoServicioSalud, origen: ambito, tabla: via_ingreso_ambito}
+      - {destino: modalidadGrupoServicioTecSal, constante: ""}
+      - {destino: grupoServicios, constante: ""}
+      - {destino: codServicio, constante: ""}
+      - {destino: finalidadTecnologiaSalud, origen: finalidad, tabla: finalidad_procedimiento}
+      - {destino: tipoDocumentoIdentificacionProf, constante: ""}
+      - {destino: numDocumentoIdentificacionProf, constante: ""}
+      - {destino: codDiagnosticoPrincipal, origen: dx_principal, transformacion: mayusculas}
+      - {destino: "codDiagnosticoRelacionado (opcional)", origen: dx_relacionado, transformacion: mayusculas}
+      - {destino: "codComplicacion (opcional)", origen: dx_complicacion, transformacion: mayusculas}
+      - {destino: vrServicio, origen: valor, transformacion: numero}
+      - {destino: conceptoRecaudo, constante: "05"}
+      - {destino: valorPagoModerador, constante: "0"}
+      - {destino: "numFEVPagoModerador (opcional)", constante: ""}
+      - {destino: numFactura, origen: num_factura}
+
+  - nombre: Medicamentos
+    origen: AM
+    columnas:
+      - {destino: "tipoDocumentoIdentificacion (FK Usuarios)", origen: tipo_id_usuario}
+      - {destino: "numDocumentoIdentificacion (FK Usuarios)", origen: num_id_usuario}
+      - {destino: "codPrestador (opcional)", origen: cod_prestador}
+      - {destino: "numAutorizacion (opcional)", origen: num_autorizacion}
+      - {destino: "idMIPRES (opcional)", constante: ""}
+      - {destino: "fechaDispensAdmon (yyyy-MM-dd HH:mm)", origen: af_fecha_inicio, transformacion: fecha_hora_iso}
+      - {destino: codDiagnosticoPrincipal, constante: ""}
+      - {destino: "codDiagnosticoRelacionado (opcional)", constante: ""}
+      - {destino: tipoMedicamento, origen: tipo_medicamento, tabla: tipo_medicamento}
+      - {destino: codTecnologiaSalud, origen: cod_medicamento}
+      - {destino: nomTecnologiaSalud, origen: nombre_generico}
+      - {destino: concentracionMedicamento, origen: concentracion}
+      - {destino: unidadMedida, origen: unidad_medida}
+      - {destino: "formaFarmaceutica (opcional)", origen: forma_farmaceutica}
+      - {destino: unidadMinDispensa, constante: ""}
+      - {destino: cantidadMedicamento, origen: num_unidades, transformacion: numero}
+      - {destino: diasTratamiento, constante: ""}
+      - {destino: tipoDocumentoIdentificacionProf, constante: ""}
+      - {destino: numDocumentoIdentificacionProf, constante: ""}
+      - {destino: vrUnitMedicamento, origen: valor_unitario, transformacion: numero}
+      - {destino: vrServicio, origen: valor_total, transformacion: numero}
+      - {destino: conceptoRecaudo, constante: "05"}
+      - {destino: valorPagoModerador, constante: "0"}
+      - {destino: "numFEVPagoModerador (opcional)", constante: ""}
+      - {destino: numFactura, origen: num_factura}
+
+  - nombre: Hospitalizaciones
+    origen: AH
+    columnas:
+      - {destino: "tipoDocumentoIdentificacion (FK Usuarios)", origen: tipo_id_usuario}
+      - {destino: "numDocumentoIdentificacion (FK Usuarios)", origen: num_id_usuario}
+      - {destino: "codPrestador (opcional)", origen: cod_prestador}
+      - {destino: viaIngresoServicioSalud, origen: via_ingreso, tabla: via_ingreso_hospital}
+      - {destino: "fechaInicioAtencion (yyyy-MM-dd HH:mm)", origen: fecha_ingreso, transformacion: fecha_hora_iso, hora: hora_ingreso}
+      - {destino: "numAutorizacion (opcional)", origen: num_autorizacion}
+      - {destino: causaMotivoAtencion, origen: causa_externa, tabla: causa_externa}
+      - {destino: codDiagnosticoPrincipal, origen: dx_ingreso, transformacion: mayusculas}
+      - {destino: codDiagnosticoPrincipalE, origen: dx_egreso, transformacion: mayusculas}
+      - {destino: "codDiagnosticoRelacionadoE1 (opcional)", origen: dx_relacionado1, transformacion: mayusculas}
+      - {destino: "codDiagnosticoRelacionadoE2 (opcional)", origen: dx_relacionado2, transformacion: mayusculas}
+      - {destino: "codDiagnosticoRelacionadoE3 (opcional)", origen: dx_relacionado3, transformacion: mayusculas}
+      - {destino: "codComplicacion (opcional)", origen: dx_complicacion, transformacion: mayusculas}
+      - {destino: condicionDestinoUsuarioEgreso, origen: estado_salida, tabla: estado_hospitalizacion}
+      - {destino: "codDiagnosticoCausaMuerte (opcional)", origen: causa_muerte, transformacion: mayusculas}
+      - {destino: "fechaEgreso (yyyy-MM-dd HH:mm)", origen: fecha_egreso, transformacion: fecha_hora_iso, hora: hora_egreso}
+      - {destino: numFactura, origen: num_factura}
+
+  - nombre: Urgencias
+    origen: AU
+    columnas:
+      - {destino: "tipoDocumentoIdentificacion (FK Usuarios)", origen: tipo_id_usuario}
+      - {destino: "numDocumentoIdentificacion (FK Usuarios)", origen: num_id_usuario}
+      - {destino: codPrestador, origen: cod_prestador}
+      - {destino: "fechaInicioAtencion (yyyy-MM-dd HH:mm)", origen: fecha_ingreso, transformacion: fecha_hora_iso, hora: hora_ingreso}
+      - {destino: causaMotivoAtencion, origen: causa_externa, tabla: causa_externa}
+      # La 3374 sólo reporta diagnóstico a la salida: se usa como principal de ingreso y de egreso.
+      - {destino: codDiagnosticoPrincipal, origen: dx_salida, transformacion: mayusculas}
+      - {destino: codDiagnosticoPrincipalE, origen: dx_salida, transformacion: mayusculas}
+      - {destino: "codDiagnosticoRelacionadoE1 (opcional)", origen: dx_relacionado1, transformacion: mayusculas}
+      - {destino: "codDiagnosticoRelacionadoE2 (opcional)", origen: dx_relacionado2, transformacion: mayusculas}
+      - {destino: "codDiagnosticoRelacionadoE3 (opcional)", origen: dx_relacionado3, transformacion: mayusculas}
+      - {destino: condicionDestinoUsuarioEgreso, plantilla: "{estado_salida}{destino_salida}", tabla: destino_urgencias}
+      - {destino: "codDiagnosticoCausaMuerte (opcional)", origen: causa_muerte, transformacion: mayusculas}
+      - {destino: "fechaEgreso (yyyy-MM-dd HH:mm)", origen: fecha_salida, transformacion: fecha_hora_iso, hora: hora_salida}
+      - {destino: numFactura, origen: num_factura}
+
+  - nombre: RecienNacidos
+    origen: AN
+    columnas:
+      - {destino: "tipoDocumentoIdentificacion (FK Usuarios - madre)", origen: tipo_id_madre}
+      - {destino: "numDocumentoIdentificacion (FK Usuarios - madre)", origen: num_id_madre}
+      - {destino: "codPrestador (opcional)", origen: cod_prestador}
+      - {destino: tipoDocumentoIdentificacionRN, constante: ""}
+      - {destino: numDocumentoIdentificacionRN, constante: ""}
+      - {destino: "fechaNacimientoRN (yyyy-MM-dd HH:mm)", origen: fecha_nacimiento, transformacion: fecha_hora_iso, hora: hora_nacimiento}
+      - {destino: "edadGestacional (semanas)", origen: edad_gestacional, transformacion: numero}
+      - {destino: numConsultasCPrenatal, origen: control_prenatal, tabla: control_prenatal}
+      - {destino: "codSexoBiologico (M/F/I)", origen: sexo}
+      - {destino: "peso (gramos)", origen: peso, transformacion: numero}
+      - {destino: codDiagnosticoPrincipal, origen: dx_recien_nacido, transformacion: mayusculas}
+      - {destino: condicionDestinoUsuarioEgreso, condicional: {campo: causa_muerte, no_vacio: true, entonces: "02", si_no: "01"}}
+      - {destino: "codDiagnosticoCausaMuerte (opcional)", origen: causa_muerte, transformacion: mayusculas}
+      - {destino: "fechaEgreso (yyyy-MM-dd HH:mm)", origen: fecha_muerte, transformacion: fecha_hora_iso, hora: hora_muerte}
+      - {destino: numFactura, origen: num_factura}
+
+  - nombre: OtrosServicios
+    origen: AT
+    columnas:
+      - {destino: "tipoDocumentoIdentificacion (FK Usuarios)", origen: tipo_id_usuario}
+      - {destino: "numDocumentoIdentificacion (FK Usuarios)", origen: num_id_usuario}
+      - {destino: "codPrestador (opcional)", origen: cod_prestador}
+      - {destino: "numAutorizacion (opcional)", origen: num_autorizacion}
+      - {destino: "idMIPRES (opcional)", constante: ""}
+      - {destino: "fechaSuministroTecnologia (yyyy-MM-dd HH:mm)", origen: af_fecha_inicio, transformacion: fecha_hora_iso}
+      - {destino: tipoOS, origen: tipo_servicio, tabla: tipo_otro_servicio}
+      - {destino: codTecnologiaSalud, origen: cod_servicio}
+      - {destino: nomTecnologiaSalud, origen: nombre_servicio}
+      - {destino: cantidadOS, origen: cantidad, transformacion: numero}
+      - {destino: tipoDocumentoIdentificacionProf, constante: ""}
+      - {destino: numDocumentoIdentificacionProf, constante: ""}
+      - {destino: vrUnitOS, origen: valor_unitario, transformacion: numero}
+      - {destino: vrServicio, origen: valor_total, transformacion: numero}
+      - {destino: conceptoRecaudo, constante: "05"}
+      - {destino: valorPagoModerador, constante: "0"}
+      - {destino: "numFEVPagoModerador (opcional)", constante: ""}
+      - {destino: numFactura, origen: num_factura}
