@@ -79,6 +79,10 @@ FunctionEnd
 
 Section "Cargue RIPS" SEC_APP
   SectionIn RO
+  ; Cierra la ventana de cargue que esté abierta (versión anterior): si no, seguiría atendiendo con el código viejo
+  nsExec::Exec 'powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Process python,pythonw -ErrorAction SilentlyContinue | Where-Object { $$_.Path -like \"$INSTDIR\*\" } | Stop-Process -Force"'
+  Pop $0
+  Sleep 1000
   SetOutPath "$INSTDIR"
   ; La configuración editable no se sobrescribe al actualizar
   SetOverwrite off

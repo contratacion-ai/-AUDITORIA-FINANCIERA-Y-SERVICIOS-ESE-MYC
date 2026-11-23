@@ -19,12 +19,29 @@ import webbrowser
 PUERTOS = range(int(os.environ.get("RIPS_PUERTO", "8100")), 8111)
 
 
-def _nuestro(puerto: int) -> bool:
+def _nuestro(puerto: int) -> str | None:
+    """Versión de la ventana de cargue que atiende en ``puerto`` (None si no es la nuestra)."""
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{puerto}/api/estado", timeout=2) as r:
-            return "carpeta_datos" in json.load(r)
+            d = json.load(r)
+            return str(d.get("version") or "?") if "carpeta_datos" in d else None
+    except Exception:
+        return None
+
+
+def _apagar_anterior(puerto: int) -> bool:
+    """Pide a una ventana de cargue de otra versión que se cierre (ver /api/apagar) y espera el puerto."""
+    import time
+
+    try:
+        urllib.request.urlopen(urllib.request.Request(f"http://127.0.0.1:{puerto}/api/apagar", method="POST"), timeout=3)
     except Exception:
         return False
+    for _ in range(30):
+        time.sleep(0.5)
+        if _nuestro(puerto) is None:
+            return True
+    return False
 
 
 def _libre(puerto: int, host: str = "127.0.0.1") -> bool:
@@ -44,8 +61,17 @@ def main() -> int:
     en_red = "--red" in sys.argv or red.red_habilitada(cfg)
     # Modo red: todas las interfaces; los equipos remotos deben dar la clave (red.ProteccionRed).
     host = "0.0.0.0" if en_red else "127.0.0.1"  # noqa: S104
+    from .. import __version__
+
     for puerto in PUERTOS:
-        if _nuestro(puerto):
+        abierta = _nuestro(puerto)
+        if abierta and abierta != __version__:
+            print(f"Hay abierta la versión {abierta} de la ventana de cargue; se cierra para abrir la {__version__} …")
+            if _apagar_anterior(puerto):
+                abierta = None
+            else:
+                print(f"[!] No se pudo cerrar la versión {abierta}: cierre su ventana negra «CARGUE DE RIPS» y vuelva a abrir.")
+        if abierta:
             if en_red:
                 print("La ventana de cargue ya está abierta. Si la abrió sin «en red», ciérrela y vuelva a abrir "
                       "«Cargue RIPS ESE MyC (en red)».")

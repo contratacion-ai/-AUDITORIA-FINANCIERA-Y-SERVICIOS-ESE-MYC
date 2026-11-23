@@ -132,6 +132,17 @@ def estado(request: Request):
                     "clave": red.clave_acceso(cfg) if (en_red and local) else None}}
 
 
+@app.post("/api/apagar")
+def apagar(request: Request):
+    """Cierra esta ventana de cargue (sólo desde este equipo): lo usa el acceso directo al actualizar de versión."""
+    if not _es_local(request):
+        raise HTTPException(403, "Sólo desde este equipo.")
+    if _turno.locked():
+        raise HTTPException(409, "Hay un cargue en curso; espere a que termine.")
+    threading.Timer(0.5, lambda: os._exit(0)).start()
+    return {"ok": True}
+
+
 @app.post("/api/aplicativo/abrir")
 def abrir_aplicativo(request: Request):
     cfg = _cfg_app(cargar_configuracion())
