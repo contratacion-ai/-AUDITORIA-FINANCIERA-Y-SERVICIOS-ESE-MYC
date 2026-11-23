@@ -126,6 +126,13 @@ RIPS JSON (Res. 2275): botón "Elegir JSON + XML (Res. 2275)" en la ventana de c
  toman la EPS, el NIT, el contrato, la modalidad y el valor. Si van sueltos, escriba el
  hospital. No se duplican con lo ya cargado y también cuentan en la nota técnica.
 
+GOOGLE DRIVE (sección "Google Drive" de la ventana de cargue): trae de la carpeta de
+ facturación (Hospital / 01. Enero / JSON ENERO / factura) sólo lo nuevo, lo carga sin duplicar,
+ lee el CUV del Ministerio de cada factura y envía esos meses al aplicativo de auditoría.
+ Forma sencilla: instale "Google Drive para escritorio", agregue la carpeta compartida a
+ "Mi unidad" (Organizar > Agregar acceso directo) y escriba su ruta, p. ej.
+ G:\Mi unidad\Rips TXT y JSON 2026. Puede programar la revisión cada hora.
+
 CARGUE SIN LÍMITE: se pueden subir carpetas con miles de TXT y archivos con todas sus líneas.
 
 USO EN RED (otros computadores):

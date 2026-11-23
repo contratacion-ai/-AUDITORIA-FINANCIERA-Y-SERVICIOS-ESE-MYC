@@ -80,6 +80,14 @@ def _parser() -> argparse.ArgumentParser:
     nt_.add_argument("--json-sin-eps", choices=["asumir", "excluir"], help="JSON cuya factura no está en un AF cargado")
     nt_.add_argument("--plantilla", action="store_true", help="Sólo generar la plantilla en blanco de la nota técnica")
 
+    dr = sub.add_parser("drive", help="Traer de la carpeta de Google Drive lo nuevo (JSON + XML + CUV por hospital y mes), "
+                                      "cargarlo y enviarlo al aplicativo de auditoría")
+    dr.add_argument("--carpeta", help="Carpeta sincronizada por Google Drive para escritorio (modo local)")
+    dr.add_argument("--enlace", help="Enlace o id de la carpeta de Drive (modo api, requiere credenciales y autorización)")
+    dr.add_argument("--sin-enviar", action="store_true", help="No enviar los meses al aplicativo de auditoría")
+    dr.add_argument("--solo-revisar", action="store_true", help="Sólo listar los hospital-mes con archivos nuevos")
+    dr.add_argument("--releer-todo", action="store_true", help="Olvidar lo procesado y volver a leer todo (sin duplicar)")
+
     dt_ = sub.add_parser("datos", help="Limpiar o depurar los datos cargados, leer JSON y cargar catálogos de CUPS")
     ds = dt_.add_subparsers(dest="accion", required=True)
     li = ds.add_parser("limpiar", help="Eliminar lo cargado de un mes, una sede o ambos (muestra y pide confirmación)")
@@ -155,6 +163,27 @@ def _nota_tecnica(args) -> int:
     return 0
 
 
+def _drive(args) -> int:
+    from . import drive
+
+    if args.carpeta:
+        drive.guardar_configuracion({"modo": "local", "carpeta_local": args.carpeta})
+    if args.enlace:
+        drive.guardar_configuracion({"modo": "api", "carpeta_id": args.enlace})
+    if args.releer_todo:
+        drive.reiniciar_procesado()
+    try:
+        r = drive.sincronizar(enviar=False if args.sin_enviar else None, aviso=print, solo_revisar=args.solo_revisar)
+    except drive.ErrorDrive as exc:
+        print(exc, file=sys.stderr)
+        return 1
+    for a in r.get("archivos", []):
+        print("Generado:", a)
+    if r.get("aviso_envio"):
+        print("[!]", r["aviso_envio"])
+    return 0
+
+
 def _datos(args) -> int:
     from . import catalogo_cups, depuracion, json_rips
 
@@ -205,6 +234,8 @@ def main(argv: list[str] | None = None) -> int:
         return _datos(args)
     if args.comando == "nota-tecnica":
         return _nota_tecnica(args)
+    if args.comando == "drive":
+        return _drive(args)
 
     if args.comando == "plantilla":
         from .excel import generar_plantilla

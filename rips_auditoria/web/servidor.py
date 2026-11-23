@@ -24,6 +24,7 @@ import datetime as dt
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -35,10 +36,10 @@ from pathlib import Path, PurePosixPath
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from .. import __version__, catalogo_cups, cruce_medicamentos, depuracion, json_rips, nota_tecnica, nota_tecnica_excel
+from .. import __version__, catalogo_cups, cruce_medicamentos, depuracion, drive, json_rips, nota_tecnica, nota_tecnica_excel
 from .. import tablero as tb
 from ..aplicativo import ClienteAplicativo, ErrorAplicativo, enviar_meses, escribir_mes, resumen_cruce
 from ..config import cargar_configuracion, carpeta_datos
@@ -251,6 +252,14 @@ def _ejecutar(t: dict, entradas: list[Path], hospital, enviar: bool, consolidado
                 t["fase"] = "Leyendo RIPS en JSON y agregándolos sin duplicar"
                 resumen_json = json_rips.cargar_json(entradas, hospital=hospital, cfg=cfg,
                                                      carpeta=tb.carpeta_acumulado(cfg))
+                indice_cuv = resumen_json.pop("cuv", {})
+                if indice_cuv:  # validación del Ministerio (CUV) por factura
+                    from ..cuv import reporte
+
+                    ruta_cuv = salida / "VALIDACION_MSPS.xlsx"
+                    ruta_cuv.parent.mkdir(parents=True, exist_ok=True)
+                    reporte(indice_cuv).to_excel(ruta_cuv, index=False, sheet_name="CUV por factura")
+                    archivos.append(ruta_cuv)
                 t["log"].append(f"JSON: {resumen_json['registros_leidos']} registros leídos, "
                                 f"{resumen_json['repetidos_en_json']} repetidos en el JSON, "
                                 f"{resumen_json['ya_cargadas']} ya cargados, {resumen_json['agregadas']} filas agregadas")
@@ -298,6 +307,14 @@ def _ejecutar(t: dict, entradas: list[Path], hospital, enviar: bool, consolidado
                 "notas_tecnicas": resumenes_nt, "nota_tecnica": resumenes_nt[0] if resumenes_nt else None,
             }
             mensuales = [a for a in archivos if Path(a).parent.name == "APLICATIVO_AUDITORIA"]
+            if resumen_json and resumen_json.get("meses_json"):
+                # los meses con JSON se regeneran desde el acumulado (TXT + JSON, todas las sedes) para el aplicativo
+                meses = {m.group(1) for a in mensuales for m in [re.search(r"(\d{4}-\d{2})", Path(a).name)] if m}
+                meses |= set(resumen_json["meses_json"])
+                nuevos = tb.exportar_meses(meses, salida / "APLICATIVO_AUDITORIA", cfg)
+                archivos = [a for a in archivos if Path(a).parent.name != "APLICATIVO_AUDITORIA"] + nuevos
+                resultado["archivos"] = [str(Path(a).relative_to(salida)).replace("\\", "/") for a in archivos]
+                mensuales = nuevos
             if enviar and mensuales:
                 t["fase"] = "Enviando cada mes al aplicativo de auditoría"
                 try:
@@ -668,3 +685,152 @@ async def datos_json(request: Request):
         return r
     finally:
         shutil.rmtree(temporal, ignore_errors=True)
+
+
+# ---------------------------------------------------------------------------
+# Google Drive: carpeta de RIPS (JSON + XML + CUV) por hospital y mes
+# ---------------------------------------------------------------------------
+
+@app.get("/api/drive/estado")
+def drive_estado():
+    e = drive.estado()
+    tid = _drive_en_curso.get("id")
+    e["en_curso"] = tid if tid and _trabajos.get(tid, {}).get("estado") in ("en cola", "procesando") else None
+    return e
+
+
+@app.post("/api/drive/config")
+async def drive_config(request: Request):
+    datos = await request.json()
+    c = drive.guardar_configuracion(datos if isinstance(datos, dict) else {})
+    _programar_drive()
+    return c
+
+
+@app.post("/api/drive/credenciales")
+async def drive_credenciales(request: Request):
+    async with request.form() as form:
+        archivo = form.get("archivo")
+        if archivo is None or not hasattr(archivo, "read"):
+            raise HTTPException(400, "Seleccione el archivo de credenciales (JSON) descargado de Google Cloud.")
+        try:
+            datos = json.loads((await archivo.read()).decode("utf-8-sig"))
+            drive.guardar_credenciales(datos)
+        except (ValueError, drive.ErrorDrive) as exc:
+            raise HTTPException(400, str(exc)) from exc
+    return drive.estado_api()
+
+
+@app.get("/api/drive/conectar")
+def drive_conectar(request: Request):
+    if not _es_local(request):
+        raise HTTPException(403, "La conexión con Google se hace desde el equipo donde corre la aplicación.")
+    redirect = f"http://127.0.0.1:{request.url.port or 8100}/api/drive/oauth"
+    try:
+        url, _estado = drive.url_autorizacion(redirect)
+    except drive.ErrorDrive as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return RedirectResponse(url)
+
+
+@app.get("/api/drive/oauth", response_class=HTMLResponse)
+def drive_oauth(code: str = "", state: str = "", error: str = ""):
+    if error or not code:
+        return HTMLResponse(f"<p>Google no autorizó el acceso ({error or 'sin código'}). Cierre esta pestaña.</p>", 400)
+    try:
+        e = drive.canjear_codigo(code, state)
+    except drive.ErrorDrive as exc:
+        return HTMLResponse(f"<p>{exc}</p>", 400)
+    return HTMLResponse(f"<p>Conectado a Google Drive {e.get('cuenta') or ''}. Ya puede cerrar esta pestaña y "
+                        "volver a la ventana de cargue.</p><script>setTimeout(() => location.href = '/', 2500)</script>")
+
+
+@app.post("/api/drive/desconectar")
+def drive_desconectar():
+    drive.desconectar()
+    return drive.estado_api()
+
+
+@app.post("/api/drive/reiniciar")
+def drive_reiniciar():
+    drive.reiniciar_procesado()
+    return {"ok": True}
+
+
+_drive_en_curso: dict = {}
+
+
+@app.post("/api/drive/sincronizar")
+def drive_sincronizar(cuerpo: dict | None = None):
+    if _drive_en_curso.get("id") and _trabajos.get(_drive_en_curso["id"], {}).get("estado") in ("en cola", "procesando"):
+        return {"id": _drive_en_curso["id"]}
+    return {"id": _lanzar_drive(bool((cuerpo or {}).get("solo_revisar")))}
+
+
+def _lanzar_drive(solo_revisar: bool = False) -> str:
+    tid = uuid.uuid4().hex[:10]
+    t = {"id": tid, "estado": "en cola", "fase": "En cola", "inicio": dt.datetime.now().isoformat(timespec="seconds"),
+         "entradas": ["Google Drive"], "log": [], "resultado": None, "error": None, "salida": None}
+    _trabajos[tid] = t
+    _drive_en_curso["id"] = tid
+    threading.Thread(target=_ejecutar_drive, args=(t, solo_revisar), daemon=True).start()
+    return tid
+
+
+def _ejecutar_drive(t: dict, solo_revisar: bool):
+    raiz = logging.getLogger("rips_auditoria")
+    manejador = _CapturaLog(t)
+    raiz.addHandler(manejador)
+    nivel = raiz.level
+    raiz.setLevel(logging.INFO)
+    try:
+        with _turno:
+            t["estado"] = "procesando"
+            t["fase"] = "Sincronizando con Google Drive"
+            r = drive.sincronizar(aviso=lambda m: t["log"].append(f"{dt.datetime.now():%H:%M:%S}  {m}"),
+                                  solo_revisar=solo_revisar)
+            t["salida"] = r.get("salida")
+            base = Path(r["salida"]) if r.get("salida") else None
+            r["archivos"] = [str(Path(a).relative_to(base)).replace("\\", "/") if base else a for a in r["archivos"]]
+            t["resultado"] = {"drive": r, "envio": r.get("envio"), "cruce": r.get("cruce"), "unidades": [],
+                              "incidencias": [], "aviso_envio": r.get("aviso_envio"), "archivos": r["archivos"]}
+            t["estado"] = "terminado"
+            t["fase"] = "Sincronización terminada"
+    except Exception as exc:  # se muestra en la ventana
+        t["estado"] = "error"
+        t["fase"] = "La sincronización no se completó"
+        t["error"] = str(exc) if isinstance(exc, drive.ErrorDrive) else f"{type(exc).__name__}: {exc}"
+        t["log"].append(traceback.format_exc(limit=3))
+    finally:
+        raiz.removeHandler(manejador)
+        raiz.setLevel(nivel)
+
+
+_programador: dict = {"hilo": None, "detener": threading.Event()}
+
+
+def _programar_drive() -> None:
+    """Revisión automática de Drive cada ``revisar_cada_min`` minutos mientras la aplicación esté abierta."""
+    minutos = int(drive.configuracion(cargar_configuracion()).get("revisar_cada_min") or 0)
+    _programador["detener"].set()
+    if minutos <= 0:
+        return
+    detener = threading.Event()
+    _programador["detener"] = detener
+
+    def ciclo():
+        while not detener.wait(minutos * 60):
+            if not _turno.locked():
+                try:
+                    _lanzar_drive()
+                except Exception:  # noqa: BLE001 - la revisión automática no debe tumbar el servidor
+                    logging.getLogger(__name__).exception("Revisión automática de Drive")
+
+    _programador["hilo"] = threading.Thread(target=ciclo, daemon=True)
+    _programador["hilo"].start()
+
+
+try:  # al abrir la aplicación
+    _programar_drive()
+except Exception:  # noqa: BLE001
+    logging.getLogger(__name__).exception("No se pudo programar la revisión de Drive")

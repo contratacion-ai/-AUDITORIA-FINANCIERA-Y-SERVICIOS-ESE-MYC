@@ -89,6 +89,17 @@ def carpeta_acumulado(cfg: dict | None = None) -> Path:
     return Path(app.get("carpeta_acumulado") or carpeta_datos() / "acumulado_aplicativo")
 
 
+def exportar_meses(meses, destino: str | Path, cfg: dict | None = None) -> list[Path]:
+    """``RIPS_AUDITORIA_<mes>.xlsx`` de los meses pedidos con todo lo acumulado (todas las sedes, TXT y JSON),
+    listos para enviar al aplicativo de auditoría."""
+    from .aplicativo import escribir_mes
+
+    df = cargar(carpeta_acumulado(cfg))[0]
+    destino = Path(destino)
+    return [escribir_mes(df[df["MES"] == m][list(COLUMNAS)], m, destino / f"RIPS_AUDITORIA_{m}.xlsx")
+            for m in sorted(set(meses)) if (df["MES"] == m).any()]
+
+
 def _archivos_mes(carpeta: Path) -> list[Path]:
     return sorted(p for p in carpeta.glob("*.csv") if re.fullmatch(r"\d{4}-\d{2}\.csv", p.name))
 

@@ -48,6 +48,30 @@ Las dos aplicaciones trabajan juntas por la API local del aplicativo (`http://lo
 - Verificado contra el código real del aplicativo v5: los 8 meses del ZIP de Hospital San Antonio
   quedaron cargados en estado «ok», con sedes y EPS homologadas a los nombres de Software 360.
 
+### Google Drive: RIPS JSON por hospital y mes (v1.8)
+
+La ventana de cargue tiene la sección **«Google Drive · RIPS JSON por hospital y mes»**
+(`rips_auditoria/drive.py`). Lee la carpeta de facturación con la estructura
+`Hospital / 01. Enero / JSON ENERO / <factura>/ {factura.json, factura.xml, ResultadosMSPS_…_CUV.txt}`
+(también TXT de la Res. 3374 y ZIP), **sólo lo nuevo o modificado**, y por cada hospital-mes con novedades:
+
+1. carga los JSON con la EPS, contrato, modalidad y valor de su XML (FEV), sin duplicar lo ya cargado;
+2. lee el **resultado de validación del Ministerio (CUV)** de cada factura (`cuv.py`): estado
+   (validada/rechazada), CUV, fecha de radicación, rechazos y notificaciones. Va a la columna `VALIDACION`
+   de la plantilla del aplicativo y al informe `VALIDACION_MSPS.xlsx`;
+3. regenera esos meses desde el acumulado (todas las sedes, TXT + JSON) y los **envía al aplicativo de
+   Auditoría de Facturación** (`POST /api/cargas/rips`).
+
+| Conexión | Cómo |
+|---|---|
+| Carpeta sincronizada (recomendada, sin credenciales) | Instale **Google Drive para escritorio** con la cuenta que tiene acceso, agregue la carpeta compartida a «Mi unidad» (clic derecho > Organizar > Agregar acceso directo) y escriba su ruta, p. ej. `G:\Mi unidad\Rips TXT y JSON 2026` (la ventana la busca sola en G:…Z:). |
+| API de Google Drive | En Google Cloud de la ESE: habilitar la API de Drive, pantalla de consentimiento **Interna** y un **ID de cliente OAuth «Aplicación de escritorio»**. En la ventana: «Cargar credenciales OAuth (JSON)», «Conectar con Google» (permiso de sólo lectura) y el enlace de la carpeta. Descarga una copia en `<datos>/drive/espejo` (sólo lo nuevo, por md5). |
+
+Revisión automática cada 30 min a 12 h mientras la aplicación esté abierta, o «Sincronizar ahora». «Volver a
+leer todo» olvida lo procesado (no duplica). Consola: `python -m rips_auditoria drive --carpeta "G:\Mi unidad\Rips
+TXT y JSON 2026"` (`--solo-revisar`, `--sin-enviar`, `--releer-todo`). Cualquier cargue con JSON (no sólo desde Drive)
+ahora también envía al aplicativo los meses con JSON, completos desde el acumulado.
+
 ### Tablero de análisis (`/tablero`)
 
 Botón **«Tablero de análisis»** de la ventana de cargue (`http://localhost:8100/tablero`). Lee el
@@ -385,6 +409,8 @@ rips_auditoria/
   catalogo_cups.py    archivo complementario y tarifario UVB: informe por CUPS enriquecido y descripciones
   depuracion.py       limpieza por mes/sede y duplicados, con vista previa y confirmación
   json_rips.py        lectura de RIPS JSON (Res. 2275 u homologados) e integración sin duplicar
+  drive.py            carpeta de Google Drive (sincronizada o por API): novedades por hospital-mes y envío al aplicativo
+  cuv.py              resultado de validación del Ministerio (CUV) por factura
   cruce_medicamentos.py  medicamentos facturados en RIPS vs. portafolio de farmacia (por CUM)
   nota_tecnica.py     nota técnica de capitación: pacientes únicos por CUPS y mes, calidad de datos
   nota_lectura.py     lectura de notas técnicas (lista, una hoja por municipio, matriz de PyM)

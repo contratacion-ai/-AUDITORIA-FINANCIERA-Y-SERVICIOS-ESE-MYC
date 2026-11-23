@@ -138,7 +138,10 @@ def leer_json(entradas, hospital: str | None = None, mes: str | None = None, cfg
     archivos = 0
     from .fev_xml import indice_fev
 
+    from .cuv import indice_cuv, texto_validacion
+
     fev = indice_fev(entradas)  # XML de la factura electrónica junto a cada JSON
+    cuv = indice_cuv(entradas)  # resultado de la validación del Ministerio (ResultadosMSPS_…_CUV.txt)
     for fuente in descubrir_archivos(list(entradas), inc):
         if not fuente.ruta.lower().endswith(".json"):
             continue
@@ -205,7 +208,9 @@ def leer_json(entradas, hospital: str | None = None, mes: str | None = None, cfg
             "FACTURA_FEV": r["factura"], "FACTURA_RIPS": "", "TIPO_SERVICIO": r["tipo"],
             "CODIGO_CUPS_CUMS": r["codigo"], "DESCRIPCION_SERVICIO": r["descripcion"], "CANTIDAD": r["cantidad"],
             "VALOR_SERVICIO": r["valor"], "VALOR_FACTURA_FEV": valor_fev.where(valor_fev.notna(), r["factura"].map(suma)),
-            "VALIDACION": f.map(lambda d: "RIPS JSON (Res. 2275) · FEV XML" if d else "RIPS JSON (Res. 2275) · SIN FEV XML"),
+            "VALIDACION": pd.Series([texto_validacion(cuv.get(x)) or ("RIPS JSON (Res. 2275) · FEV XML" if d else
+                                                                     "RIPS JSON (Res. 2275) · SIN FEV XML")
+                                     for x, d in zip(r["factura"].str.upper(), f, strict=False)], index=r.index),
         }))
     if homologadas:
         h = pd.concat(homologadas, ignore_index=True)
@@ -216,10 +221,12 @@ def leer_json(entradas, hospital: str | None = None, mes: str | None = None, cfg
     filas = pd.concat(partes, ignore_index=True) if partes else pd.DataFrame(columns=COLUMNAS)
     filas, descartadas = _normalizar(filas)
     resumen = {"archivos_json": archivos, "registros_leidos": leidos, "repetidos_en_json": repetidos,
-               "filas": len(filas), "sin_mes_o_sede": descartadas}
+               "filas": len(filas), "sin_mes_o_sede": descartadas,
+               "facturas_validadas_msps": sum(d["estado"] == "VALIDADA" for d in cuv.values()),
+               "facturas_rechazadas_msps": sum(d["estado"] != "VALIDADA" for d in cuv.values())}
     if descartadas:
         avisos.append(f"{descartadas} registro(s) sin mes (AAAA-MM) o sin sede: indique el hospital y el mes del JSON.")
-    return {"filas": filas, "resumen": resumen, "avisos": avisos}
+    return {"filas": filas, "resumen": resumen, "avisos": avisos, "cuv": cuv}
 
 
 def _normalizar(filas: pd.DataFrame) -> tuple[pd.DataFrame, int]:
@@ -286,7 +293,8 @@ def cargar_json(entradas, hospital: str | None = None, mes: str | None = None, c
     """Lee, depura e integra; devuelve el resumen para la pantalla o la consola."""
     r = leer_json(entradas, hospital, mes, cfg)
     res = integrar(r["filas"], carpeta)
-    return {**r["resumen"], **res, "avisos": r["avisos"]}
+    return {**r["resumen"], **res, "avisos": r["avisos"], "cuv": r["cuv"],
+            "meses_json": sorted(set(r["filas"]["MES"])) if len(r["filas"]) else []}
 
 
 def _zip_tiene_json(origen, profundidad: int = 0) -> bool:

@@ -108,6 +108,42 @@
     <button class="sec" id="btn-abrir-app">Abrir aplicativo de auditoría</button>
   </div>
 
+  <section class="tarjeta" id="drive" style="margin-bottom:18px">
+    <h2><span class="num">☁</span> Google Drive · RIPS JSON por hospital y mes</h2>
+    <div class="ayuda">Trae de la carpeta de Drive de facturación (Hospital / 01. Enero / JSON ENERO / factura: JSON + XML + CUV)
+      sólo lo nuevo, lo carga sin duplicar y envía esos meses al aplicativo de Auditoría de Facturación.</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin-top:8px">
+      <div><label for="dr-modo">Conexión</label>
+        <select id="dr-modo" style="width:100%;padding:9px;border:1.5px solid var(--borde);border-radius:10px;font:inherit">
+          <option value="local">Carpeta sincronizada en este equipo (Google Drive para escritorio)</option>
+          <option value="api">Descargar con la API de Google Drive (credenciales OAuth)</option></select></div>
+      <div id="dr-bloque-local"><label for="dr-local">Ruta de la carpeta sincronizada</label>
+        <input type="text" id="dr-local" placeholder="G:\Mi unidad\Rips TXT y JSON 2026"></div>
+      <div id="dr-bloque-api" style="display:none"><label for="dr-id">Enlace de la carpeta en Drive</label>
+        <input type="text" id="dr-id" placeholder="https://drive.google.com/drive/folders/…"></div>
+      <div><label for="dr-cada">Revisar automáticamente</label>
+        <select id="dr-cada" style="width:100%;padding:9px;border:1.5px solid var(--borde);border-radius:10px;font:inherit">
+          <option value="0">Sólo cuando pulse «Sincronizar ahora»</option><option value="30">Cada 30 minutos</option>
+          <option value="60">Cada hora</option><option value="240">Cada 4 horas</option><option value="720">Cada 12 horas</option></select></div>
+    </div>
+    <div id="dr-api" style="display:none;margin-top:8px" class="ayuda">
+      <input type="file" id="dr-cred" accept=".json,application/json" hidden>
+      <button type="button" class="sec" id="dr-btn-cred">Cargar credenciales OAuth (JSON)</button>
+      <a class="sec" id="dr-conectar" href="/api/drive/conectar" target="_blank" style="padding:8px 12px;border-radius:10px;border:1.5px solid var(--borde);text-decoration:none;color:var(--verde-osc)">Conectar con Google</a>
+      <button type="button" class="sec" id="dr-desconectar">Desconectar</button>
+      <span id="dr-api-estado"></span>
+    </div>
+    <label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" id="dr-enviar" checked style="width:18px;height:18px;accent-color:var(--verde)">
+      Enviar los meses actualizados al aplicativo de Auditoría de Facturación</label>
+    <div class="botones">
+      <button class="sec" id="dr-guardar">Guardar</button>
+      <button id="dr-sincronizar">Sincronizar ahora</button>
+      <button class="sec" id="dr-revisar">Sólo ver qué hay nuevo</button>
+      <button class="sec" id="dr-reiniciar" title="La próxima sincronización vuelve a leer todo (no duplica lo ya cargado)">Volver a leer todo</button>
+    </div>
+    <div class="ayuda" id="dr-estado">Verificando…</div>
+  </section>
+
   <div class="rejilla">
     <section class="tarjeta">
       <h2><span class="num">1</span> Archivos RIPS descargados</h2>
@@ -357,7 +393,8 @@ function tabla(sel, columnas, filas){
 }
 
 function mostrarResultados(t){
-  const r = t.resultado, u = r.unidades;
+  const r = t.resultado, u = r.unidades || [];
+  if (r.drive) estadoDrive();
   $("#resultados").style.display = "block";
   const suma = k => u.reduce((a, x) => a + (Number(x[k]) || 0), 0);
   $("#kpis").innerHTML = [
@@ -368,7 +405,17 @@ function mostrarResultados(t){
   tabla("#t-unidades", [["hospital", "Hospital"], ["periodo", "Mes"], ["remisiones", "Remisiones", "#"], ["facturas", "Facturas", "#"],
     ["valor_neto_facturado_af", "Valor neto AF", "$"], ["valor_servicios_rips", "Valor servicios RIPS", "$"],
     ["facturas_con_diferencia", "Facturas con diferencia", "#"], ["inc_error", "Errores", "#"], ["inc_advertencia", "Advertencias", "#"]], u);
-  tabla("#t-incidencias", [["severidad", "Severidad", "chip"], ["regla", "Regla"], ["descripcion", "Descripción"], ["cantidad", "Cantidad", "#"]], r.incidencias);
+  tabla("#t-incidencias", [["severidad", "Severidad", "chip"], ["regla", "Regla"], ["descripcion", "Descripción"], ["cantidad", "Cantidad", "#"]], r.incidencias || []);
+  if (r.drive){
+    const d = r.drive, s = k => d.procesadas.reduce((a, x) => a + (Number(x[k]) || 0), 0);
+    $("#kpis").innerHTML = [["Hospital-mes con novedades", ent(d.unidades.length), ""], ["Filas JSON agregadas", ent(s("filas_agregadas")), ""],
+      ["Ya cargadas (no se duplican)", ent(s("ya_cargadas")), ""], ["Facturas validadas MSPS (CUV)", ent(s("validadas_msps")), ""],
+      ["Facturas rechazadas MSPS", ent(s("rechazadas_msps")), "v"], [d.envio ? "Meses enviados al aplicativo" : "Meses listos para el aplicativo", esc(d.meses_enviados.join(", ") || "ninguno"), ""],
+    ].map(k => `<div class="kpi ${k[2]}"><small>${k[0]}</small><b>${k[1]}</b></div>`).join("");
+    tabla("#t-unidades", [["hospital", "Hospital"], ["meses", "Meses"], ["json_leidos", "Registros JSON", "#"], ["filas_agregadas", "Filas agregadas", "#"],
+      ["ya_cargadas", "Ya cargadas", "#"], ["remisiones_txt", "Remisiones TXT", "#"], ["validadas_msps", "CUV validadas", "#"], ["rechazadas_msps", "Rechazadas", "#"]],
+      d.procesadas.map(x => ({...x, meses: x.meses.join(", ") || "todo"})));
+  }
   const notaHtml = (r.notas_tecnicas || (r.nota_tecnica ? [r.nota_tecnica] : [])).map(nt => `<div class="aviso" style="background:var(--verde-claro);color:var(--verde-osc)"><b>Nota técnica ${esc(nt.eps)}${nt.ambito ? " · " + esc(nt.ambito) : ""}</b>${nt.contrato ? " · contrato " + esc(nt.contrato) : ""}
     (${esc(nt.desde)} a ${esc(nt.hasta)}): ${ent(nt.pacientes_unicos_periodo)} pacientes únicos · ${nt.codigos_con_pacientes} de ${nt.codigos_nota}
     códigos con pacientes · ${nt.codigos_sin_registros} en 0 · duplicados ${ent(nt.duplicados)} · anulados ${ent(nt.excl_anulado)} ·
@@ -400,6 +447,65 @@ function mostrarResultados(t){
 }
 
 const perfilesNota = {};
+async function estadoDrive(){
+  try{
+    const e = await (await fetch("/api/drive/estado")).json(), c = e.config;
+    if (!document.activeElement || !document.activeElement.closest || !document.activeElement.closest("#drive")){
+      $("#dr-modo").value = c.modo; $("#dr-local").value = c.carpeta_local || e.carpeta_detectada || "";
+      $("#dr-id").value = c.carpeta_id || ""; $("#dr-cada").value = String(c.revisar_cada_min || 0); $("#dr-enviar").checked = !!c.enviar_aplicativo;
+      modoDrive();
+    }
+    $("#dr-api-estado").innerHTML = e.api.autorizado ? `<b style="color:var(--verde-osc)">Conectado ${esc(e.api.cuenta || "")}</b>`
+      : e.api.credenciales ? "Credenciales cargadas: pulse «Conectar con Google»." : "Sin credenciales OAuth.";
+    const u = e.ultima;
+    $("#dr-estado").innerHTML = (u ? `Última revisión: ${esc((u.fin || u.inicio || "").replace("T", " "))} · ${u.unidades.length} hospital-mes con novedades` +
+      (u.meses_enviados && u.meses_enviados.length ? ` · ${u.envio ? "enviados al aplicativo" : "meses listos para el aplicativo"}: ${esc(u.meses_enviados.join(", "))}` : "") +
+      (u.aviso_envio ? ` · <span style="color:var(--err)">${esc(u.aviso_envio)}</span>` : "") : "Todavía no se ha sincronizado.") +
+      ` · ${ent(e.archivos_procesados)} archivos ya procesados` + (e.en_curso ? " · <b>sincronización en curso…</b>" : "") +
+      (!c.carpeta_local && e.carpeta_detectada ? `<br>Carpeta encontrada en este equipo: ${esc(e.carpeta_detectada)}` : "");
+  }catch(err){ $("#dr-estado").textContent = "No se pudo consultar el estado de Drive."; }
+}
+function modoDrive(){
+  const api = $("#dr-modo").value === "api";
+  $("#dr-bloque-local").style.display = api ? "none" : "block"; $("#dr-bloque-api").style.display = api ? "block" : "none";
+  $("#dr-api").style.display = api ? "block" : "none";
+}
+$("#dr-modo").onchange = modoDrive;
+async function guardarDrive(){
+  const r = await fetch("/api/drive/config", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({
+    modo: $("#dr-modo").value, carpeta_local: $("#dr-local").value.trim(), carpeta_id: $("#dr-id").value.trim(),
+    revisar_cada_min: Number($("#dr-cada").value), enviar_aplicativo: $("#dr-enviar").checked})});
+  if (!r.ok){ alert((await r.json()).detail || "No se pudo guardar"); return false; }
+  return true;
+}
+$("#dr-guardar").onclick = async () => { if (await guardarDrive()){ document.activeElement.blur(); estadoDrive(); } };
+async function lanzarDrive(soloRevisar){
+  if (!(await guardarDrive())) return;
+  const r = await fetch("/api/drive/sincronizar", {method: "POST", headers: {"Content-Type": "application/json"},
+                                                   body: JSON.stringify({solo_revisar: soloRevisar})});
+  const d = await r.json();
+  if (!r.ok){ alert(d.detail || "No se pudo iniciar"); return; }
+  $("#btn-iniciar").disabled = true; $("#avance").style.display = "block"; $("#resultados").style.display = "none";
+  $("#log").textContent = ""; estado.linea = 0; estado.trabajo = d.id; fase("validar");
+  $("#fase-texto").textContent = "Sincronizando con Google Drive…"; $("#avance").scrollIntoView({behavior: "smooth"});
+  consultar();
+}
+$("#dr-sincronizar").onclick = () => lanzarDrive(false);
+$("#dr-revisar").onclick = () => lanzarDrive(true);
+$("#dr-reiniciar").onclick = async () => {
+  if (!confirm("La próxima sincronización volverá a leer todos los archivos de Drive (lo ya cargado no se duplica). ¿Continuar?")) return;
+  await fetch("/api/drive/reiniciar", {method: "POST"}); estadoDrive();
+};
+$("#dr-btn-cred").onclick = () => $("#dr-cred").click();
+$("#dr-cred").onchange = async () => {
+  if (!$("#dr-cred").files.length) return;
+  const fd = new FormData(); fd.append("archivo", $("#dr-cred").files[0]);
+  const r = await fetch("/api/drive/credenciales", {method: "POST", body: fd});
+  if (!r.ok) alert((await r.json()).detail); $("#dr-cred").value = ""; estadoDrive();
+};
+$("#dr-desconectar").onclick = async () => { await fetch("/api/drive/desconectar", {method: "POST"}); estadoDrive(); };
+estadoDrive(); setInterval(estadoDrive, 60000);
+
 async function estadoNota(){
   try{
     const e = await (await fetch("/api/nota-tecnica/estado")).json();
