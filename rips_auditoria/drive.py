@@ -534,10 +534,13 @@ def sincronizar(cfg: dict | None = None, enviar: bool | None = None, aviso=log.i
                "unidades": [{"hospital": h, "mes": m or "(sin mes)"} for h, m in sorted(unidades)],
                "procesadas": [], "meses_enviados": [], "envio": None, "cruce": None, "aviso_envio": None,
                "archivos": []}
-    if not unidades:
+    pendientes = [m for m in _leer("pendientes_envio.json", []) if enviar]
+    if not unidades and not pendientes:
         aviso("No hay archivos nuevos en Drive desde la última revisión.")
         _guardar("ultima.json", {**resumen, "fin": dt.datetime.now().isoformat(timespec="seconds")})
         return resumen
+    if not unidades:
+        aviso(f"Sin archivos nuevos; se reintenta el envío al aplicativo de: {', '.join(pendientes)}")
     aviso(f"Novedades en {len(unidades)} hospital-mes: " +
           ", ".join(f"{h} / {m or 'sin mes'}" for h, m in sorted(unidades)))
     if solo_revisar:
@@ -584,7 +587,7 @@ def sincronizar(cfg: dict | None = None, enviar: bool | None = None, aviso=log.i
         ruta.parent.mkdir(parents=True, exist_ok=True)
         reporte(cuv_total).to_excel(ruta, index=False, sheet_name="CUV por factura")
         resumen["archivos"].append(str(ruta))
-    meses = sorted(m for m in meses_tocados if re.fullmatch(r"\d{4}-\d{2}", m))
+    meses = sorted({m for m in meses_tocados if re.fullmatch(r"\d{4}-\d{2}", m)} | set(pendientes))
     resumen["meses_enviados"] = meses
     if meses:
         archivos = tb.exportar_meses(meses, salida / "APLICATIVO_AUDITORIA", cfg)
@@ -594,23 +597,46 @@ def sincronizar(cfg: dict | None = None, enviar: bool | None = None, aviso=log.i
                 app = (cfg.get("aplicativo_auditoria") or {})
                 resumen["envio"] = enviar_meses(archivos, app, aviso=aviso)
                 resumen["cruce"] = resumen_cruce(app)
+                _guardar("pendientes_envio.json", [])
             except ErrorAplicativo as exc:
-                resumen["aviso_envio"] = str(exc)
-                aviso(str(exc))
+                # se reintentan en la próxima revisión, aunque no llegue nada nuevo
+                _guardar("pendientes_envio.json", meses)
+                resumen["aviso_envio"] = f"{exc} Los meses {', '.join(meses)} se reenviarán en la próxima revisión."
+                aviso(resumen["aviso_envio"])
     resumen["salida"] = str(salida)
     resumen["fin"] = dt.datetime.now().isoformat(timespec="seconds")
     _guardar("ultima.json", {k: v for k, v in resumen.items() if k != "cruce"})
     return resumen
 
 
+def autovincular(c: dict | None = None) -> str:
+    """Si no hay una carpeta válida configurada, busca la de Google Drive en este equipo y la deja vinculada
+    (con envío al aplicativo y revisión cada hora). Devuelve la ruta vinculada o ''."""
+    from .config import cargar_configuracion
+
+    c = c or configuracion(cargar_configuracion())
+    actual = (c.get("carpeta_local") or "").strip()
+    if c.get("modo") != "local" or (actual and Path(actual).is_dir()):
+        return ""
+    encontrada = buscar_carpeta_local()
+    if not encontrada:
+        return ""
+    guardar_configuracion({"carpeta_local": str(encontrada), "enviar_aplicativo": True,
+                           "revisar_cada_min": int(c.get("revisar_cada_min") or 0) or 60})
+    log.info("Carpeta de Google Drive vinculada automáticamente: %s", encontrada)
+    return str(encontrada)
+
+
 def estado() -> dict:
     """Configuración, conexión y última sincronización (para la ventana)."""
     from .config import cargar_configuracion
 
+    vinculada = autovincular()
     c = configuracion(cargar_configuracion())
     local = c.get("carpeta_local") or ""
     detectada = None if local else buscar_carpeta_local()
-    return {"config": {k: c[k] for k in ("modo", "carpeta_local", "carpeta_id", "revisar_cada_min", "enviar_aplicativo")},
+    return {"autovinculada": vinculada, "pendientes_envio": _leer("pendientes_envio.json", []),
+            "config": {k: c[k] for k in ("modo", "carpeta_local", "carpeta_id", "revisar_cada_min", "enviar_aplicativo")},
             "carpeta_detectada": str(detectada) if detectada else "", "api": estado_api(),
             "ultima": _leer("ultima.json", None), "archivos_procesados": len(_leer("procesado.json", {}))}
 
@@ -620,6 +646,6 @@ def reiniciar_procesado() -> None:
     (carpeta_drive() / "procesado.json").unlink(missing_ok=True)
 
 
-__all__ = ["ClienteDrive", "ErrorDrive", "buscar_carpeta_local", "buscar_carpetas_locales", "diagnostico_local",
+__all__ = ["ClienteDrive", "ErrorDrive", "autovincular", "buscar_carpeta_local", "buscar_carpetas_locales", "diagnostico_local",
            "canjear_codigo", "configuracion", "espejo", "estado",
            "guardar_configuracion", "guardar_credenciales", "id_de_enlace", "novedades", "sincronizar", "url_autorizacion"]

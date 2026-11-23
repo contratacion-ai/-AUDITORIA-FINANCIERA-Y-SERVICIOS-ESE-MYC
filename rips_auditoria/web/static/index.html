@@ -467,7 +467,13 @@ async function estadoDrive(){
       (u.meses_enviados && u.meses_enviados.length ? ` · ${u.envio ? "enviados al aplicativo" : "meses listos para el aplicativo"}: ${esc(u.meses_enviados.join(", "))}` : "") +
       (u.aviso_envio ? ` · <span style="color:var(--err)">${esc(u.aviso_envio)}</span>` : "") : "Todavía no se ha sincronizado.") +
       ` · ${ent(e.archivos_procesados)} archivos ya procesados` + (e.en_curso ? " · <b>sincronización en curso…</b>" : "") +
-      (!c.carpeta_local && e.carpeta_detectada ? `<br>Carpeta encontrada en este equipo: ${esc(e.carpeta_detectada)}` : "");
+      (!c.carpeta_local && e.carpeta_detectada ? `<br>Carpeta encontrada en este equipo: ${esc(e.carpeta_detectada)}` : "") +
+      (e.autovinculada ? `<br><b style="color:var(--verde-osc)">Carpeta de Google Drive vinculada automáticamente: ${esc(e.autovinculada)}</b> · revisión cada hora y envío al aplicativo activados` : "") +
+      ((e.pendientes_envio || []).length ? `<br>Meses pendientes de enviar al aplicativo (se reintentan en cada revisión): ${esc(e.pendientes_envio.join(", "))}` : "");
+    if (e.autovinculada && e.en_curso && !estado.trabajo){
+      estado.trabajo = e.en_curso; estado.linea = 0; $("#avance").style.display = "block"; $("#log").textContent = "";
+      $("#fase-texto").textContent = "Primera sincronización con Google Drive…"; consultar();
+    }
   }catch(err){ $("#dr-estado").textContent = "No se pudo consultar el estado de Drive."; }
 }
 function modoDrive(){

@@ -707,6 +707,11 @@ def drive_estado():
     e = drive.estado()
     tid = _drive_en_curso.get("id")
     e["en_curso"] = tid if tid and _trabajos.get(tid, {}).get("estado") in ("en cola", "procesando") else None
+    if e.get("autovinculada"):
+        # carpeta recién vinculada sola: se programa la revisión y, si nunca se ha sincronizado, se hace la primera
+        _programar_drive()
+        if not e.get("ultima") and not e["en_curso"] and not _turno.locked():
+            e["en_curso"] = _lanzar_drive()
     return e
 
 

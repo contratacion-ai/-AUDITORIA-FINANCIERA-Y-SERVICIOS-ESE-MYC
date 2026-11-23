@@ -281,3 +281,28 @@ def test_carpeta_dentro_de_unidad_compartida_y_enlace_web(tmp_path, enviados, mo
     assert "no el enlace web" in drive.diagnostico_local("https://drive.google.com/drive/folders/abc")
     drive.guardar_configuracion({"modo": "local", "carpeta_local": "https://drive.google.com/drive/folders/abc"})
     assert drive.sincronizar()["carpeta"] == str(raiz)  # el enlace se ignora y se usa la carpeta encontrada
+
+
+def test_se_vincula_sola_y_reenvia_si_el_aplicativo_estaba_cerrado(tmp_path, monkeypatch):
+    casa = tmp_path / "casa"
+    raiz = casa / "Mi unidad" / "Rips TXT y JSON 2026"
+    _factura_drive(raiz, "Hospital San Antonio", "06. Junio", "JSON JUNIO", "FHSA6", "2026-06-06 08:00")
+    monkeypatch.setattr(drive.Path, "home", classmethod(lambda cls: casa))
+    e = drive.estado()
+    assert e["autovinculada"] == str(raiz)
+    assert e["config"]["carpeta_local"] == str(raiz) and e["config"]["revisar_cada_min"] == 60
+    assert e["config"]["enviar_aplicativo"] is True
+    assert drive.estado()["autovinculada"] == ""  # sólo la primera vez
+
+    def cerrado(archivos, cfg=None, aviso=None):
+        raise aplicativo.ErrorAplicativo("El aplicativo de auditoría no está abierto.")
+
+    monkeypatch.setattr(aplicativo, "enviar_meses", cerrado)
+    r = drive.sincronizar()
+    assert "2026-06" in r["aviso_envio"] and drive.estado()["pendientes_envio"] == ["2026-06"]
+    enviados = []
+    monkeypatch.setattr(aplicativo, "enviar_meses", lambda a, cfg=None, aviso=None: enviados.extend(a) or [])
+    monkeypatch.setattr(aplicativo, "resumen_cruce", lambda cfg=None: [])
+    r = drive.sincronizar()  # sin archivos nuevos: igual reenvía lo pendiente
+    assert r["unidades"] == [] and [a.name for a in enviados] == ["RIPS_AUDITORIA_2026-06.xlsx"]
+    assert drive.estado()["pendientes_envio"] == []
