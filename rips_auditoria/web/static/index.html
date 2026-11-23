@@ -111,14 +111,17 @@
   <section class="tarjeta" id="drive" style="margin-bottom:18px">
     <h2><span class="num">☁</span> Google Drive · RIPS JSON por hospital y mes</h2>
     <div class="ayuda">Trae de la carpeta de Drive de facturación (Hospital / 01. Enero / JSON ENERO / factura: JSON + XML + CUV)
-      sólo lo nuevo, lo carga sin duplicar y envía esos meses al aplicativo de Auditoría de Facturación.</div>
+      sólo lo nuevo, lo carga sin duplicar y envía esos meses al aplicativo de Auditoría de Facturación.
+      <b>Si Google Drive para escritorio está bloqueado</b> («Tu administrador debe aprobar este dispositivo»): en
+      drive.google.com, clic derecho sobre la carpeta &gt; <b>Descargar</b>, guarde todos los ZIP en una carpeta (p. ej.
+      Descargas\RIPS DRIVE) y escriba esa ruta. Cada vez que descargue de nuevo, sólo se procesa lo nuevo.</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin-top:8px">
       <div><label for="dr-modo">Conexión</label>
         <select id="dr-modo" style="width:100%;padding:9px;border:1.5px solid var(--borde);border-radius:10px;font:inherit">
           <option value="local">Carpeta sincronizada en este equipo (Google Drive para escritorio)</option>
           <option value="api">Descargar con la API de Google Drive (credenciales OAuth)</option></select></div>
-      <div id="dr-bloque-local"><label for="dr-local">Ruta de la carpeta sincronizada</label>
-        <input type="text" id="dr-local" placeholder="G:\Mi unidad\Rips TXT y JSON 2026"></div>
+      <div id="dr-bloque-local"><label for="dr-local">Ruta de la carpeta sincronizada o de los ZIP descargados de Drive</label>
+        <input type="text" id="dr-local" placeholder="G:\Mi unidad\Rips TXT y JSON 2026  ó  C:\Users\…\Downloads\RIPS DRIVE"></div>
       <div id="dr-bloque-api" style="display:none"><label for="dr-id">Enlace de la carpeta en Drive</label>
         <input type="text" id="dr-id" placeholder="https://drive.google.com/drive/folders/…"></div>
       <div><label for="dr-cada">Revisar automáticamente</label>

@@ -132,6 +132,9 @@ GOOGLE DRIVE (sección "Google Drive" de la ventana de cargue): trae de la carpe
  Forma sencilla: instale "Google Drive para escritorio", agregue la carpeta compartida a
  "Mi unidad" (Organizar > Agregar acceso directo) y escriba su ruta, p. ej.
  G:\Mi unidad\Rips TXT y JSON 2026. Puede programar la revisión cada hora.
+ Si sale "Tu administrador debe aprobar este dispositivo": en drive.google.com, clic derecho
+ sobre la carpeta > Descargar; guarde los ZIP en una carpeta (p. ej. Descargas\RIPS DRIVE)
+ y escriba esa ruta en la sección Google Drive. Sólo se procesa lo nuevo en cada descarga.
 
 CARGUE SIN LÍMITE: se pueden subir carpetas con miles de TXT y archivos con todas sus líneas.
 

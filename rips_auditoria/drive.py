@@ -372,11 +372,76 @@ def raiz_actual(c: dict, aviso=log.info) -> Path:
         aviso(f"Drive: {r['archivos']} archivos en la carpeta, {r['descargados']} descargados (nuevos o modificados).")
         return destino
     ruta = Path(c.get("carpeta_local") or "") if c.get("carpeta_local") else buscar_carpeta_local()
+    if ruta and ruta.is_file() and ruta.suffix.lower() == ".zip":
+        ruta = ruta.parent
     if not ruta or not ruta.is_dir():
-        raise ErrorDrive("No se encontró la carpeta sincronizada de Google Drive. Instale Google Drive para escritorio, "
-                         "agregue la carpeta «Rips TXT y JSON» a «Mi unidad» (acceso directo) y escriba su ruta "
-                         "(p. ej. G:\\Mi unidad\\Rips TXT y JSON 2026).")
+        raise ErrorDrive("No se encontró la carpeta. Opción 1: instale Google Drive para escritorio, agregue la carpeta "
+                         "«Rips TXT y JSON» a «Mi unidad» (acceso directo) y escriba su ruta (p. ej. G:\\Mi unidad\\Rips TXT "
+                         "y JSON 2026). Opción 2 (sin instalar nada): en drive.google.com, clic derecho sobre la carpeta > "
+                         "Descargar, guarde los ZIP en una carpeta (p. ej. Descargas\\RIPS DRIVE) y escriba esa ruta.")
+    zips = zips_de_drive(ruta)
+    if zips:
+        destino = carpeta_drive() / "desde_zip"
+        r = extraer_zips(zips, destino, c.get("extensiones") or DEFAULTS["extensiones"])
+        aviso(f"ZIP descargados de Drive: {len(zips)} archivo(s), {r['archivos']} archivos RIPS, {r['nuevos']} nuevos o "
+              f"modificados" + (f", {r['sin_hospital']} sin carpeta de hospital/mes (omitidos)" if r["sin_hospital"] else ""))
+        return destino
     return ruta
+
+
+_RE_ZIP_DRIVE = re.compile(r"-\d{8}T\d{6}Z(-\d+)*-\d{3}\.zip$", re.I)
+
+
+def zips_de_drive(carpeta: Path) -> list[Path]:
+    """ZIP que entrega «Descargar» de drive.google.com (``Nombre-20261123T140000Z-1-001.zip``) en la carpeta.
+    Si la carpeta no tiene subcarpetas, cualquier ZIP suyo cuenta."""
+    try:
+        hijos = list(carpeta.iterdir())
+    except OSError:
+        return []
+    zips = sorted(x for x in hijos if x.is_file() and x.suffix.lower() == ".zip")
+    de_drive = [z for z in zips if _RE_ZIP_DRIVE.search(z.name)]
+    if de_drive:
+        return de_drive
+    return zips if zips and not any(x.is_dir() for x in hijos) else []
+
+
+def extraer_zips(zips: list[Path], destino: Path, extensiones=DEFAULTS["extensiones"]) -> dict:
+    """Extrae los ZIP de Drive en ``destino/Hospital/Mes/...`` (la carpeta raíz exportada se quita). Un archivo
+    sólo se reescribe si cambió (CRC), para que la siguiente sincronización vea únicamente lo nuevo."""
+    import zipfile
+
+    crc = _leer("zip_crc.json", {})
+    archivos = nuevos = sin_hospital = 0
+    for z in zips:
+        try:
+            zf = zipfile.ZipFile(z)
+        except (OSError, zipfile.BadZipFile) as exc:
+            raise ErrorDrive(f"No se pudo abrir {z.name}: {exc}. Vuelva a descargarlo de Drive.") from exc
+        with zf:
+            for info in zf.infolist():
+                if info.is_dir():
+                    continue
+                partes = [x for x in info.filename.replace("\\", "/").split("/") if x not in ("", ".", "..")]
+                if Path(partes[-1]).suffix.lower() not in extensiones:
+                    continue
+                i = next((k for k, x in enumerate(partes[:-1]) if k > 0 and detectar_mes(x)[0]), None)
+                if i is None:
+                    sin_hospital += 1
+                    continue
+                rel = "/".join(_nombre_seguro(x) for x in partes[i - 1:])  # Hospital/Mes/...
+                archivos += 1
+                ruta = destino / rel
+                if crc.get(rel) == f"{info.CRC}:{info.file_size}" and ruta.exists():
+                    continue
+                ruta.parent.mkdir(parents=True, exist_ok=True)
+                with zf.open(info) as origen, ruta.open("wb") as fh:
+                    while bloque := origen.read(1 << 20):
+                        fh.write(bloque)
+                crc[rel] = f"{info.CRC}:{info.file_size}"
+                nuevos += 1
+    _guardar("zip_crc.json", crc)
+    return {"archivos": archivos, "nuevos": nuevos, "sin_hospital": sin_hospital}
 
 
 def sincronizar(cfg: dict | None = None, enviar: bool | None = None, aviso=log.info, salida: Path | None = None,

@@ -210,3 +210,43 @@ def test_ventana_configura_y_sincroniza(tmp_path, enviados, monkeypatch):
     assert c.get("/api/drive/conectar").status_code == 400  # sin credenciales: mensaje claro
     r = c.post("/api/drive/credenciales", files={"archivo": ("c.json", b'{"installed": {"client_id": "x"}}')})
     assert r.status_code == 400 and "client_secret" in r.json()["detail"]
+
+
+def _zip_drive(destino, nombre, carpeta):
+    """ZIP como lo entrega «Descargar» de drive.google.com: con la carpeta raíz exportada adentro."""
+    import zipfile
+
+    with zipfile.ZipFile(destino / nombre, "w") as z:
+        for f in sorted(carpeta.rglob("*")):
+            if f.is_file():
+                z.write(f, f"{carpeta.name}/{f.relative_to(carpeta).as_posix()}")
+
+
+def test_zip_descargados_de_drive_sin_drive_para_escritorio(tmp_path, enviados):
+    origen = tmp_path / "origen" / "Rips TXT y JSON 2026"
+    _factura_drive(origen, "Hospital San Lorenzo", "01. Enero", "1.ENERO JSON", "FHSL1", "2026-01-20 08:00")
+    _factura_drive(origen, "Hospital San Ricardo Pampuri", "10. Octubre", "RIPS JSON OCTUBRE", "FHRP1",
+                   "2026-10-05 08:00")
+    descargas = tmp_path / "Descargas" / "RIPS DRIVE"
+    descargas.mkdir(parents=True)
+    (descargas / "Hospital San Lorenzo").mkdir()  # otras carpetas en Descargas no estorban
+    _zip_drive(descargas, "Rips TXT y JSON 2026-20261123T140000Z-1-001.zip", origen)
+    drive.guardar_configuracion({"modo": "local", "carpeta_local": str(descargas)})
+
+    r = drive.sincronizar()
+    assert {(u["hospital"], u["mes"]) for u in r["unidades"]} == {
+        ("Hospital San Lorenzo", "01. Enero"), ("Hospital San Ricardo Pampuri", "10. Octubre")}
+    assert r["meses_enviados"] == ["2026-01", "2026-10"]
+    df = tb.cargar(tb.carpeta_acumulado())[0]
+    assert set(df["SEDE"]) == {"HOSPITAL SAN LORENZO", "HOSPITAL SAN RICARDO PAMPURI"}
+
+    # se vuelve a descargar todo de Drive con una factura más: sólo se procesa su hospital-mes
+    _factura_drive(origen, "Hospital San Lorenzo", "01. Enero", "1.ENERO JSON", "FHSL2", "2026-01-21 08:00")
+    for z in descargas.glob("*.zip"):
+        z.unlink()
+    _zip_drive(descargas, "Rips TXT y JSON 2026-20261124T090000Z-1-001.zip", origen)
+    enviados.clear()
+    r = drive.sincronizar()
+    assert [(u["hospital"], u["mes"]) for u in r["unidades"]] == [("Hospital San Lorenzo", "01. Enero")]
+    assert [a.name for a in enviados] == ["RIPS_AUDITORIA_2026-01.xlsx"]
+    assert drive.sincronizar()["unidades"] == []

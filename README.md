@@ -65,6 +65,7 @@ La ventana de cargue tiene la sección **«Google Drive · RIPS JSON por hospita
 | Conexión | Cómo |
 |---|---|
 | Carpeta sincronizada (recomendada, sin credenciales) | Instale **Google Drive para escritorio** con la cuenta que tiene acceso, agregue la carpeta compartida a «Mi unidad» (clic derecho > Organizar > Agregar acceso directo) y escriba su ruta, p. ej. `G:\Mi unidad\Rips TXT y JSON 2026` (la ventana la busca sola en G:…Z:). |
+| ZIP descargados de Drive (sin instalar nada, si el administrador bloquea Drive para escritorio) | En drive.google.com, clic derecho sobre la carpeta > **Descargar**; guarde los ZIP (`…-20261123T140000Z-1-001.zip`, `-002`…) en una carpeta y escriba esa ruta. Se extraen en `<datos>/drive/desde_zip` (sólo se reescribe lo que cambió, por CRC) y en cada descarga nueva sólo se procesa lo nuevo. |
 | API de Google Drive | En Google Cloud de la ESE: habilitar la API de Drive, pantalla de consentimiento **Interna** y un **ID de cliente OAuth «Aplicación de escritorio»**. En la ventana: «Cargar credenciales OAuth (JSON)», «Conectar con Google» (permiso de sólo lectura) y el enlace de la carpeta. Descarga una copia en `<datos>/drive/espejo` (sólo lo nuevo, por md5). |
 
 Revisión automática cada 30 min a 12 h mientras la aplicación esté abierta, o «Sincronizar ahora». «Volver a
