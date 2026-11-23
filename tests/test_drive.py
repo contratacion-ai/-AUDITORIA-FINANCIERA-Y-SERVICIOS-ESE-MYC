@@ -306,3 +306,29 @@ def test_se_vincula_sola_y_reenvia_si_el_aplicativo_estaba_cerrado(tmp_path, mon
     r = drive.sincronizar()  # sin archivos nuevos: igual reenvía lo pendiente
     assert r["unidades"] == [] and [a.name for a in enviados] == ["RIPS_AUDITORIA_2026-06.xlsx"]
     assert drive.estado()["pendientes_envio"] == []
+
+
+def _lnk(destino) -> bytes:
+    """Acceso directo de Windows (.lnk) mínimo con LinkInfo (ruta ANSI y Unicode), como el de Drive."""
+    import struct
+
+    ansi, uni = str(destino).encode("latin-1", "replace") + b"\x00", str(destino).encode("utf-16-le") + b"\x00\x00"
+    off_ansi, off_uni = 0x24, 0x24 + len(ansi)
+    info = struct.pack("<9I", 0x24 + len(ansi) + len(uni), 0x24, 1, 0, off_ansi, 0, 0, off_uni, 0) + ansi + uni
+    cab = struct.pack("<I16sI", 0x4C, b"\x01\x14\x02\x00" + b"\x00" * 4 + b"\xc0" + b"\x00" * 6 + b"\x46", 0x2)
+    return cab + b"\x00" * (76 - len(cab)) + info
+
+
+def test_acceso_directo_lnk_de_drive_para_escritorio(tmp_path, enviados, monkeypatch):
+    casa = tmp_path / "casa"
+    destino = casa / ".shortcut-targets-by-id" / "1tWZ5" / "Rips TXT y JSON 2026"
+    _factura_drive(destino, "Hospital Juan de Dios", "07. Julio", "JSON JULIO", "FHJD7", "2026-07-07 08:00")
+    carpeta = casa / "Unidades compartidas" / "RIPS , TXT, JASON" / "RIPS TXT JASON"
+    carpeta.mkdir(parents=True)
+    (carpeta / "Rips TXT y JSON 2026.lnk").write_bytes(_lnk(destino))
+    (casa / "Mi unidad").mkdir()
+    monkeypatch.setattr(drive.Path, "home", classmethod(lambda cls: casa))
+    assert drive.destino_lnk(carpeta / "Rips TXT y JSON 2026.lnk") == destino
+    assert drive.buscar_carpetas_locales()[0] == destino
+    texto = drive.diagnostico_local("")
+    assert "Dentro de «RIPS , TXT, JASON»: RIPS TXT JASON" in texto

@@ -131,7 +131,8 @@ def unidades_drive() -> list[Path]:
             if not raiz.is_dir():
                 continue
             for x in raiz.iterdir():
-                if x.is_dir() and x.name.lower() in _MARCAS_DRIVE:
+                # «.shortcut-targets-by-id»: donde Drive para escritorio pone el destino de los accesos directos
+                if x.is_dir() and (x.name.lower() in _MARCAS_DRIVE or x.name.lower() == ".shortcut-targets-by-id"):
                     raices.append(x)
         except OSError:
             continue
@@ -149,6 +150,63 @@ def _parece_raiz_rips(carpeta: Path) -> bool:
     return False
 
 
+def destino_lnk(ruta: Path) -> Path | None:
+    """Carpeta a la que apunta un acceso directo de Windows (.lnk), como los que crea Drive para escritorio."""
+    import struct
+
+    try:
+        d = ruta.read_bytes()
+        if len(d) < 76 or d[:4] != b"\x4c\x00\x00\x00":
+            return None
+        flags = struct.unpack_from("<I", d, 20)[0]
+        pos = 76
+        if flags & 0x1:  # HasLinkTargetIDList
+            pos += 2 + struct.unpack_from("<H", d, pos)[0]
+        if flags & 0x2:  # HasLinkInfo
+            inicio = pos
+            cab = struct.unpack_from("<I", d, inicio + 4)[0]
+            base = struct.unpack_from("<I", d, inicio + 16)[0]
+            if cab >= 0x24:  # ruta en Unicode
+                off = struct.unpack_from("<I", d, inicio + 28)[0]
+                fin = d.index(b"\x00\x00", inicio + off)
+                while (fin - inicio - off) % 2:
+                    fin = d.index(b"\x00\x00", fin + 1)
+                destino = d[inicio + off:fin].decode("utf-16-le", "ignore")
+            else:
+                fin = d.index(b"\x00", inicio + base)
+                destino = d[inicio + base:fin].decode("mbcs" if os.name == "nt" else "latin-1", "ignore")
+            if destino:
+                return Path(destino)
+    except (OSError, ValueError, struct.error, LookupError):
+        pass
+    if os.name == "nt":  # respaldo: el propio Windows resuelve el acceso directo
+        import subprocess
+
+        try:
+            ps = str(ruta).replace("'", "''")
+            r = subprocess.run(["powershell", "-NoProfile", "-Command",
+                                f"(New-Object -ComObject WScript.Shell).CreateShortcut('{ps}').TargetPath"],
+                               capture_output=True, text=True, timeout=15, creationflags=0x08000000)
+            t = r.stdout.strip()
+            return Path(t) if t else None
+        except (OSError, subprocess.SubprocessError):
+            return None
+    return None
+
+
+def _subcarpetas(carpeta: Path) -> list[Path]:
+    """Subcarpetas, incluidos los accesos directos (.lnk) a carpetas, ya resueltos."""
+    salida = []
+    for x in sorted(carpeta.iterdir()):
+        if x.is_dir():
+            salida.append(x)
+        elif x.suffix.lower() == ".lnk":
+            destino = destino_lnk(x)
+            if destino and destino.is_dir():
+                salida.append(destino)
+    return salida
+
+
 def buscar_carpetas_locales(nombre: str = "rips", profundidad: int = 4, limite: int = 3000) -> list[Path]:
     """Carpetas candidatas dentro de las unidades de Google Drive: las que se llaman «…RIPS…» o tienen la
     estructura Hospital/Mes. Las de nombre «Rips TXT y JSON» van primero."""
@@ -158,7 +216,7 @@ def buscar_carpetas_locales(nombre: str = "rips", profundidad: int = 4, limite: 
         while pendientes and vistas < limite:
             carpeta, nivel = pendientes.pop(0)
             try:
-                hijos = sorted(x for x in carpeta.iterdir() if x.is_dir())
+                hijos = _subcarpetas(carpeta)
             except OSError:
                 continue
             for x in hijos:
@@ -190,12 +248,23 @@ def diagnostico_local(ruta: str = "") -> str:
     if not raices:
         partes.append("No se encontró Google Drive para escritorio en este equipo (ninguna unidad con «Mi unidad»): "
                       "ábralo e inicie sesión con la cuenta institucional, o use los ZIP descargados de drive.google.com.")
-    for r in raices[:4]:
+    for r in raices[:5]:
         try:
-            hijos = sorted(x.name for x in r.iterdir() if x.is_dir())
+            hijos = sorted(x for x in r.iterdir() if x.is_dir() or x.suffix.lower() == ".lnk")
         except OSError:
             hijos = []
-        partes.append(f"En «{r}» hay: {', '.join(hijos[:15]) or '(vacío)'}" + (" …" if len(hijos) > 15 else "") + ".")
+        partes.append(f"En «{r}» hay: {', '.join(x.name for x in hijos[:15]) or '(vacío)'}" +
+                      (" …" if len(hijos) > 15 else "") + ".")
+        for h in hijos:  # dentro de las carpetas «RIPS…»: qué hay (para ver dónde quedó el acceso directo)
+            if not any(k in h.name.lower() for k in ("rips", "json", "jason")):
+                continue
+            try:
+                nietos = sorted(h.iterdir())[:12] if h.is_dir() else []
+            except OSError:
+                nietos = []
+            partes.append(f"Dentro de «{h.name}»: " + (", ".join(
+                x.name + (" (acceso directo)" if x.suffix.lower() == ".lnk" else "" if x.is_dir() else " (archivo)")
+                for x in nietos) or "(vacío)") + ".")
     if raices:
         partes.append("Si «Rips TXT y JSON 2026» no aparece en «Mi unidad»: en drive.google.com > Compartido conmigo, clic "
                       "derecho sobre la carpeta > Organizar > Agregar acceso directo > Mi unidad; espere un minuto y pulse "
