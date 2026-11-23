@@ -111,3 +111,7 @@ def test_url_sin_signo_de_pregunta_en_medicamentos():
     html = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "index.html"), encoding="utf-8").read()
     assert "const URLQ=" in html and "u=URLQ(u)" in html
     assert cli.get("/api/medicamentos/resumen?clase=MEDICAMENTO").status_code == 200
+
+def test_jesus_coronel_es_de_tame():
+    from app.notas import MUNICIPIO_SEDE
+    assert MUNICIPIO_SEDE["CENTRO DE SALUD JESUS CORONEL"] == "TAME"

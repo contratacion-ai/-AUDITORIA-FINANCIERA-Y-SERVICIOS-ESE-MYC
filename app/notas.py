@@ -19,7 +19,7 @@ import pandas as pd
 from .loaders import canon_eps, hojas_df, norm, num
 
 # municipio de cobertura de cada sede de la ESE (para cruzar las notas técnicas por municipio con lo facturado por sede)
-MUNICIPIO_SEDE = {"HOSPITAL SAN ANTONIO": "TAME", "HOSPITAL SAN FRANCISCO": "FORTUL", "HOSPITAL SAN LORENZO": "ARAUQUITA",
+MUNICIPIO_SEDE = {"HOSPITAL SAN ANTONIO": "TAME", "CENTRO DE SALUD JESUS CORONEL": "TAME", "HOSPITAL SAN FRANCISCO": "FORTUL", "HOSPITAL SAN LORENZO": "ARAUQUITA",
                   "HOSPITAL SAN RICARDO PAMPURI": "ARAUQUITA", "CENTRO DE SALUD PANAMA DE ARAUCA": "ARAUQUITA",
                   "HOSPITAL SAN JOSE": "CRAVO NORTE", "HOSPITAL SAN JUAN DE DIOS": "PUERTO RONDON"}
 COLS = ["eps", "modalidad", "contrato", "regimen", "municipio", "poblacion", "cups", "descripcion", "categoria", "grupo", "clave", "tarifa",

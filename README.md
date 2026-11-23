@@ -84,6 +84,10 @@ administrador: incluye Python 3.12 oficial y todas las librerías. Crea accesos 
   Versiones empaquetadas en `instalador/requirements-windows.txt`.
 - Windows SmartScreen puede advertir que el instalador no está firmado: «Más información» → «Ejecutar de todas formas».
 
+## Novedades v5.13
+
+- El **Centro de Salud Jesús Coronel** queda en el municipio de **Tame**: su facturación cuenta para la nota técnica de Tame (Sanitas) y en los informes de CUPS por municipio.
+
 ## Novedades v5.12 · Notas técnicas nativas, pestaña «📑 CUPS mes a mes · notas técnicas» y arreglo de «Not Found»
 
 | Cambio | Detalle |
