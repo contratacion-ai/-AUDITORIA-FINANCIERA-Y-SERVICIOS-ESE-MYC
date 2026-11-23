@@ -269,3 +269,15 @@ def test_busca_la_carpeta_en_mi_unidad_y_explica_si_falta(tmp_path, enviados, mo
     r = drive.sincronizar()
     assert r["carpeta"] == str(raiz) and r["meses_enviados"] == ["2026-03"]
     assert drive.configuracion()["carpeta_local"] == str(raiz)
+
+
+def test_carpeta_dentro_de_unidad_compartida_y_enlace_web(tmp_path, enviados, monkeypatch):
+    casa = tmp_path / "casa"
+    raiz = casa / "Unidades compartidas" / "RIPS , TXT, JASON" / "RIPS TXT JASON" / "Rips TXT y JSON 2026"
+    _factura_drive(raiz, "Hospital San Lorenzo", "05. Mayo", "JSON MAYO", "FHSL5", "2026-05-05 08:00")
+    (casa / "Mi unidad").mkdir(parents=True)
+    monkeypatch.setattr(drive.Path, "home", classmethod(lambda cls: casa))
+    assert drive.buscar_carpetas_locales()[0] == raiz
+    assert "no el enlace web" in drive.diagnostico_local("https://drive.google.com/drive/folders/abc")
+    drive.guardar_configuracion({"modo": "local", "carpeta_local": "https://drive.google.com/drive/folders/abc"})
+    assert drive.sincronizar()["carpeta"] == str(raiz)  # el enlace se ignora y se usa la carpeta encontrada

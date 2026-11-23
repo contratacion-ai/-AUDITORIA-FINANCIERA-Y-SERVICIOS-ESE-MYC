@@ -149,7 +149,7 @@ def _parece_raiz_rips(carpeta: Path) -> bool:
     return False
 
 
-def buscar_carpetas_locales(nombre: str = "rips", profundidad: int = 3, limite: int = 2000) -> list[Path]:
+def buscar_carpetas_locales(nombre: str = "rips", profundidad: int = 4, limite: int = 3000) -> list[Path]:
     """Carpetas candidatas dentro de las unidades de Google Drive: las que se llaman «…RIPS…» o tienen la
     estructura Hospital/Mes. Las de nombre «Rips TXT y JSON» van primero."""
     candidatas, vistas = [], 0
@@ -181,7 +181,11 @@ def buscar_carpeta_local(nombre: str = "Rips TXT y JSON") -> Path | None:
 
 def diagnostico_local(ruta: str = "") -> str:
     """Texto para el usuario: qué ruta se probó y qué hay en las unidades de Google Drive del equipo."""
-    partes = [f"No existe la carpeta «{ruta}» en este equipo." if ruta else "No se escribió la ruta de la carpeta."]
+    if ruta.lower().startswith(("http://", "https://")):
+        partes = ["En este campo va la carpeta del computador (p. ej. G:\\Mi unidad\\Rips TXT y JSON 2026), no el enlace "
+                  "web de Drive; pulse «Buscar la carpeta en este equipo»."]
+    else:
+        partes = [f"No existe la carpeta «{ruta}» en este equipo." if ruta else "No se escribió la ruta de la carpeta."]
     raices = unidades_drive()
     if not raices:
         partes.append("No se encontró Google Drive para escritorio en este equipo (ninguna unidad con «Mi unidad»): "
