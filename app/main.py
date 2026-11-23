@@ -15,6 +15,7 @@ from . import rips_fev as RF
 from . import maestro as MA
 from . import actividad as AC
 from . import comparativo as CP
+from . import cups as CU
 
 app = FastAPI(title="Auditoría de facturación · ESE Moreno y Clavijo", version="5.5",
               description="Carga mensual de facturación por ámbito (Software 360), RIPS, costos y notas técnicas; conciliación y reportes.")
@@ -394,6 +395,34 @@ def md_hom_xlsx(mes: str | None = None):
 
 @app.get("/api/rips-fev/resumen", tags=["RIPS JSON/TXT"], summary="KPIs de los RIPS JSON/TXT, estados del cruce y reglas de estructura")
 def rf_res(mes: str | None = None): return _limpio(RF.resumen(mes))
+
+@app.get("/api/cups/mes-a-mes", tags=["CUPS"], summary="Informe de CUPS mes a mes por empresa (fuente: actividad | ambito | rips; métrica: cantidad | valor)")
+def cu_mm(fuente: str | None = None, metrica: str = "cantidad", nivel: str = "eps", eps: str | None = None, familia: str | None = None, limit: int = 5000):
+    fuente = fuente or CU.fuente_default()
+    if fuente not in CU.FUENTES or metrica not in ("cantidad", "valor") or nivel not in CU.NIVELES: raise HTTPException(422, "Parámetros inválidos")
+    return _json(CU.mes_a_mes(fuente, metrica, nivel, eps, familia), limit)
+
+@app.get("/api/cups/cruce", tags=["CUPS"], summary="RIPS ↔ facturación por ámbito ↔ facturación por actividad por mes, EPS, sede y CUPS")
+def cu_cruce(mes: str | None = None, estado: str | None = None, eps: str | None = None, limit: int = 4000):
+    d = CU.cruce(mes)
+    if eps and len(d): d = d[d.eps == eps]
+    if estado and len(d): d = d[d.estado.str.contains(estado, regex=False)]
+    return _json(d, limit)
+
+@app.get("/api/cups/nota-tecnica", tags=["CUPS"], summary="Ejecución de la nota técnica (cápita/PYM) mes a mes por CUPS o bloque")
+def cu_nt(fuente: str | None = None, estado: str | None = None, eps: str | None = None, limit: int = 5000):
+    fuente = fuente or CU.fuente_default()
+    if fuente not in CU.FUENTES: raise HTTPException(422, "Fuente inválida")
+    d = CU.ejecucion_nt(fuente)
+    if eps and len(d): d = d[d.eps == eps]
+    if estado and len(d): d = d[d.estado.str.contains(estado, regex=False)]
+    return _json(d, limit)
+
+@app.get("/api/cups/resumen", tags=["CUPS"], summary="Resumen: EPS disponibles, ejecución de notas técnicas por contrato/municipio y estados")
+def cu_res(fuente: str | None = None):
+    fuente = fuente or CU.fuente_default(); b = CU.base(None, (fuente,))
+    return _limpio(dict(eps=sorted(b.eps.unique().tolist()) if len(b) else [], meses=sorted(b.mes.unique().tolist()) if len(b) else [],
+                        notas=CU.resumen_nt(fuente), notas_cargadas=int(df("SELECT COUNT(*) n FROM nota").n.iloc[0]), fuente=fuente))
 
 @app.get("/api/comparativo/resumen", tags=["RIPS vs facturación 360"], summary="RIPS vs facturación por ámbito, facturas generadas, por actividad y XML: por mes y fuente")
 def cp_res(mes: str | None = None): return _limpio(CP.resumen(mes))

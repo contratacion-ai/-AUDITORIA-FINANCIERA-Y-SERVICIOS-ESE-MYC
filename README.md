@@ -84,6 +84,14 @@ administrador: incluye Python 3.12 oficial y todas las librerías. Crea accesos 
   Versiones empaquetadas en `instalador/requirements-windows.txt`.
 - Windows SmartScreen puede advertir que el instalador no está firmado: «Más información» → «Ejecutar de todas formas».
 
+## Novedades v5.12 · Notas técnicas nativas, pestaña «📑 CUPS mes a mes · notas técnicas» y arreglo de «Not Found»
+
+| Cambio | Detalle |
+|---|---|
+| **«Not Found» en Medicamentos** | Con «Todos los meses» y un filtro de clase (Medicamentos / Insumos) la pantalla pedía `/api/medicamentos/resumen&clase=…` (sin «?»). Toda consulta se corrige ahora antes de enviarse. El pie de página muestra la versión real. |
+| **Notas técnicas en su formato original** (carga «4») | `app/notas.py`: SANITAS cápita por municipio (una hoja por municipio; contrato, municipio, población, régimen; sin subtotales), NUEVA EPS «Servicios_Estudio» (eventos de la EPS y propuestos por la ESE, tarifa, régimen), COOSALUD matriz PYM Res. 3280 (solo actividades contratadas; varios CUPS por celda; metas por mes) y COOSALUD servicios incluidos en cápita. Las actividades PYM que comparten CUPS forman un **bloque** (meta = suma de metas; ejecución = suma de sus CUPS) para no contar doble. Cada nota reemplaza solo la del mismo contrato, régimen y municipio. |
+| **Pestaña 📑 CUPS mes a mes · notas técnicas** | (1) **CUPS mes a mes por empresa**: CUPS × mes por EPS, contrato, municipio, sede o cápita/evento y régimen; fuente actividad, ámbito o RIPS; cantidad o valor; meta de la nota técnica y % de ejecución. (2) **RIPS ↔ ámbito ↔ actividad por CUPS**: por mes, EPS, sede y CUPS (FACTURADO SIN RIPS, EN RIPS NO FACTURADO, CANTIDAD RIPS ≠ …, ÁMBITO ≠ ACTIVIDAD; solo se exige el RIPS en las sedes que lo tienen cargado). (3) **Ejecución de la nota técnica**: meta vs ejecutado mes a mes por CUPS o bloque (SIN EJECUCIÓN, BAJA EJECUCIÓN < 50 %, EXCEDE > 120 %, FACTURADO EN CÁPITA SIN NOTA). La cápita se reconoce por el nombre del contrato en 360 (CAPITA, PYM, GLOBAL, ASISTENCIAL, PGP) y el municipio por la sede. Hojas CUPS_* en el Excel y recomendaciones en el informe gerencial. |
+
 ## Novedades v5.11 · «PermissionError: [WinError 32]» al terminar una carga
 
 | Cambio | Detalle |

@@ -18,7 +18,7 @@ CARGO = "Profesional de Costos"
 IDENTIDAD = f"{AUTOR} – {CARGO}"
 INSTITUCION = "ESE Departamental de Primer Nivel Moreno y Clavijo"
 NIT = "900034131"
-VERSION = "5.11"
+VERSION = "5.12"
 # Paleta sobria y coherente (hex sin #) para Excel y dashboard
 AZUL, AZUL_MED, AZUL_CLARO, GRIS, GRIS_CLARO = "1F4E79", "2E75B6", "DDEBF7", "595959", "F2F2F2"
 FUENTE = "Calibri"
@@ -144,7 +144,8 @@ def conn():
     return c
 
 # Columnas agregadas después de la v2/v3: se añaden con ALTER TABLE si la base ya existía
-COLUMNAS_NUEVAS = {"fact": [("origen_cups", "TEXT")], "rips": [("descripcion", "TEXT")], "costo": [("tipo_costo", "TEXT")], "carga": [("ruta", "TEXT")], "hom_codigo": [("fuente", "TEXT")], "rips_det": [("moderadora", "REAL"), ("fk", "TEXT")],
+COLUMNAS_NUEVAS = {"fact": [("origen_cups", "TEXT")], "rips": [("descripcion", "TEXT")], "costo": [("tipo_costo", "TEXT")], "carga": [("ruta", "TEXT")], "hom_codigo": [("fuente", "TEXT")], "rips_det": [("moderadora", "REAL"), ("fk", "TEXT")], "nota": [("regimen", "TEXT"), ("municipio", "TEXT"), ("poblacion", "REAL"), ("grupo", "TEXT"), ("clave", "TEXT"),
+                   ("eventos_propuesta", "REAL"), ("formato", "TEXT"), ("hoja", "TEXT")],
                    "factura": [("paciente_id", "TEXT"), ("n_pacientes", "INT"), ("valor_factura", "REAL"), ("fecha_radicado", "TEXT"), ("radicado_eps", "TEXT")]}
 # Tablas con datos de una carga (columna carga_id): se borran al eliminar la carga o limpiar un mes
 TABLAS_DATOS = ["fact", "linea", "dim", "factura", "hallazgo", "medins", "med_det", "rips", "rips_factura", "costo", "costo_unitario",

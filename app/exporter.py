@@ -8,7 +8,7 @@ import pandas as pd
 from openpyxl.chart import BarChart, Reference
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
-from . import actividad as AC, analysis as A, comparativo as CP, costos as C, facturas as F, gerencial as G, maestro as MA, medicamentos as MD, rips_fev as RF
+from . import actividad as AC, analysis as A, comparativo as CP, cups as CU, costos as C, facturas as F, gerencial as G, maestro as MA, medicamentos as MD, rips_fev as RF
 from .db import AUTOR, AZUL, AZUL_CLARO, AZUL_MED, CARGO, FUENTE, GRIS, GRIS_CLARO, IDENTIDAD, INSTITUCION, NIT, VERSION, df
 
 TOP = 5            # filas ocupadas por el bloque de título antes de la tabla (títulos en 1-3, fila 4 en blanco, encabezado en la 5)
@@ -38,7 +38,7 @@ DESCRIPCION = {
     "ACT_Facturas_Cruce": "Facturación por actividad: cruce integral por factura (valor factura, RIPS, XML, encabezado, ámbito, radicación).",
     "ACT_Factura_Codigo_RIPS": "Facturación por actividad vs RIPS/XML por factura y código.", "ACT_Ambito_vs_Actividad": "Por ámbito vs por actividad, por servicio.",
     "ACT_Reglas": "Reglas de línea A01–A08 de la facturación por actividad.", "ACT_Medicamentos_Maestro": "Medicamentos de la facturación por actividad vs maestro.",
-    "MAESTRO_Observaciones": "Observaciones de revisión del maestro para corregir en Software 360.", "RIPS_FEV_Facturas": "RIPS JSON/TXT vs Software 360, factura a factura.", "COMP_RIPS_Facturas": "RIPS vs facturación por ámbito, facturas generadas, por actividad y XML (FEV), factura a factura.", "COMP_RIPS_Resumen": "Por mes y fuente: facturas, valor y cobertura de RIPS.", "COMP_RIPS_Medicamentos": "Medicamentos e insumos por código 360: RIPS vs por ámbito vs por actividad.",
+    "MAESTRO_Observaciones": "Observaciones de revisión del maestro para corregir en Software 360.", "RIPS_FEV_Facturas": "RIPS JSON/TXT vs Software 360, factura a factura.", "CUPS_Mes_a_Mes_Cantidad": "CUPS y códigos mes a mes por EPS (facturación por actividad, cantidades) con la meta de la nota técnica.", "CUPS_Mes_a_Mes_Valor": "CUPS mes a mes por EPS (facturación por actividad, valor).", "CUPS_Mes_a_Mes_RIPS": "CUPS mes a mes por EPS según los RIPS.", "CUPS_Cruce_RIPS_Amb_Act": "RIPS vs facturación por ámbito vs por actividad por mes, EPS, sede y CUPS.", "CUPS_Ejecucion_NT": "Ejecución de las notas técnicas (cápita/PYM) por CUPS o bloque, mes a mes.", "CUPS_NT_Resumen": "Ejecución de cada nota técnica por contrato y municipio.", "COMP_RIPS_Facturas": "RIPS vs facturación por ámbito, facturas generadas, por actividad y XML (FEV), factura a factura.", "COMP_RIPS_Resumen": "Por mes y fuente: facturas, valor y cobertura de RIPS.", "COMP_RIPS_Medicamentos": "Medicamentos e insumos por código 360: RIPS vs por ámbito vs por actividad.",
     "RIPS_FEV_Servicios": "RIPS JSON/TXT vs Software 360 por factura y código.", "RIPS_FEV_Estructura": "Reglas de estructura del RIPS (RV01–RV10).", "MED_Homologacion_CUM": "Códigos que no homologan: 360 sin CUM y CUM del RIPS sin código 360.",
 }
 
@@ -73,6 +73,12 @@ def _hojas_v5(mes=None):
     rs = RF.resumen(mes)
     if not rs.get("vacio"):
         h["RIPS_FEV_Facturas"] = RF.cruce_facturas(mes); h["RIPS_FEV_Servicios"] = RF.cruce_servicios(mes); h["RIPS_FEV_Estructura"] = RF.validacion(mes)
+    fu = CU.fuente_default(); mm = CU.mes_a_mes(fu, "cantidad", "eps")
+    if len(mm):
+        h["CUPS_Mes_a_Mes_Cantidad"] = mm; h["CUPS_Mes_a_Mes_Valor"] = CU.mes_a_mes(fu, "valor", "eps")
+        h["CUPS_Mes_a_Mes_RIPS"] = CU.mes_a_mes("rips", "cantidad", "eps"); h["CUPS_Cruce_RIPS_Amb_Act"] = CU.cruce(mes)
+    nt = CU.ejecucion_nt(fu)
+    if len(nt): h["CUPS_Ejecucion_NT"] = nt; h["CUPS_NT_Resumen"] = pd.DataFrame(CU.resumen_nt().get("filas", []))
     cf = CP.facturas(mes)
     if len(cf) and cf.valor_rips.notna().any():
         h["COMP_RIPS_Resumen"] = pd.DataFrame(CP.resumen(mes).get("filas", [])); h["COMP_RIPS_Facturas"] = cf; h["COMP_RIPS_Medicamentos"] = CP.medicamentos(mes)

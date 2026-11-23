@@ -4,6 +4,7 @@ from datetime import datetime
 from .db import conn, df, TOL_COSTO_UNIT, TABLAS_DATOS, CONSERVAR_ARCHIVOS, UPLOADS
 from .formatos import abrir_libro
 from . import rips_fev as RF
+from . import notas as NT
 import pandas as pd
 from .loaders import cum_norm
 from .loaders import (_shared, hojas_mensuales, param_hojas, procesar_hoja, leer_tabla, leer_rips, leer_facturas_generadas, norm, ALIAS)
@@ -80,6 +81,11 @@ def limpiar(mes=None, tipo=None, todo=False, incluir_parametros=False):
             if df("SELECT COUNT(*) n FROM carga WHERE ruta LIKE ? AND estado IN ('en cola','procesando')", (e.path + "%",)).n.iloc[0]: continue
             shutil.rmtree(e.path, ignore_errors=True) if e.is_dir() else os.remove(e.path)
     return dict(cargas=len(ids), registros=int(registros))
+
+def archivo_carga(cid):
+    with conn() as c:
+        r = c.execute("SELECT archivo FROM carga WHERE id=?", (cid,)).fetchone()
+    return (r[0] if r else "") or ""
 
 def estado(cid, est, mensaje="", filas=0, mes=None):
     with conn() as c:
@@ -220,6 +226,18 @@ def _procesar_tabla(cid, tipo, path, mes_param=None):
                 c.execute("INSERT OR IGNORE INTO contrato_eps SELECT contrato, tercero, 'facturas generadas' FROM (SELECT contrato, tercero, COUNT(*) n "
                           "FROM fac_gen WHERE carga_id=? AND tercero<>'' AND contrato<>'' GROUP BY 1, 2 ORDER BY n DESC)", (cid,))
                 msg = f"{len(t):,} facturas por ${t.total.sum():,.0f} en {', '.join(meses)}"
+            elif tipo == "notas" and (nt := NT.leer(path, archivo_carga(cid), eps_alias())) is not None:
+                # nota técnica en su formato nativo (Sanitas por municipio, Nueva EPS estudio de servicios, Coosalud matriz PYM / servicios)
+                meses = []
+                claves = nt[["eps", "modalidad", "contrato", "regimen", "municipio"]].drop_duplicates()
+                c.executemany("DELETE FROM nota WHERE eps=? AND modalidad=? AND COALESCE(contrato,'')=? AND COALESCE(regimen,'')=? AND COALESCE(municipio,'')=?",
+                              claves.values.tolist())
+                nt.assign(carga_id=cid)[["carga_id"] + NT.COLS].to_sql("nota", c, if_exists="append", index=False)
+                res = nt.groupby(["formato", "eps"]).agg(n=("cups", "size"), m=("municipio", lambda x: ", ".join(sorted({v for v in x if v}))),
+                                                         r=("regimen", lambda x: ", ".join(sorted({v for v in x if v}))))
+                msg = " · ".join(f"{e.split(' ')[0] if not e.startswith('ENTIDAD') else 'SANITAS'} ({f.lower()}): {x.n:,} CUPS"
+                                 + (f", {x.m}" if x.m else "") + (f", {x.r}" if x.r else "") for (f, e), x in res.iterrows())
+                t = nt
             else:
                 t = leer_tabla(path, tipo, mes_param, eps_alias())
                 if tipo == "farmacia":
