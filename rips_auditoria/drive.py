@@ -434,6 +434,7 @@ def espejo(cliente: ClienteDrive, carpeta_id: str, destino: Path, extensiones=DE
     """Copia local de la carpeta de Drive: descarga sólo lo nuevo o modificado (por md5 / fecha)."""
     estado = _leer("espejo_estado.json", {})
     vistos, descargados, pendientes = set(), 0, [(carpeta_id, destino)]
+    carpetas_vistas = {carpeta_id}  # un acceso directo a una carpeta ya recorrida (o a sí misma) no se repite
     while pendientes:
         fid, local = pendientes.pop()
         for f in cliente.listar(fid):
@@ -443,7 +444,9 @@ def espejo(cliente: ClienteDrive, carpeta_id: str, destino: Path, extensiones=DE
                 mime, ident = det.get("targetMimeType"), det.get("targetId") or ident
             ruta = local / _nombre_seguro(f["name"])
             if mime == CARPETA:
-                pendientes.append((ident, ruta))
+                if ident not in carpetas_vistas:
+                    carpetas_vistas.add(ident)
+                    pendientes.append((ident, ruta))
                 continue
             if ruta.suffix.lower() not in extensiones:
                 continue
@@ -471,14 +474,26 @@ def _firma(p: Path) -> str:
     return f"{st.st_size}:{st.st_mtime_ns}"
 
 
+def _archivos(raiz: Path, profundidad: int = 8) -> list[Path]:
+    """Archivos bajo ``raiz`` sin entrar en un acceso directo a la misma carpeta (p. ej. «Rips TXT y JSON 2026»
+    dentro de sí misma), ni en carpetas ocultas, ni a más de ``profundidad`` niveles."""
+    salida = []
+    for base, dirs, files in os.walk(raiz, followlinks=False):
+        nivel = len(Path(base).relative_to(raiz).parts)
+        dirs[:] = sorted(d for d in dirs if not d.startswith(".") and d.lower() != raiz.name.lower()
+                         and nivel < profundidad)
+        salida += [Path(base) / f for f in sorted(files)]
+    return salida
+
+
 def novedades(raiz: Path, extensiones=DEFAULTS["extensiones"]) -> tuple[dict[tuple[str, str], list[Path]], dict]:
     """Unidades (hospital, carpeta del mes) con archivos nuevos o modificados desde lo procesado.
 
     Devuelve ({(hospital, mes): [carpeta a procesar]}, firmas actuales por archivo)."""
     previas = _leer("procesado.json", {})
     actuales, unidades = {}, {}
-    for f in sorted(raiz.rglob("*")):
-        if not f.is_file() or f.suffix.lower() not in extensiones:
+    for f in _archivos(raiz):
+        if f.suffix.lower() not in extensiones:
             continue
         rel = f.relative_to(raiz)
         if len(rel.parts) < 2:  # archivos sueltos en la raíz: sin hospital

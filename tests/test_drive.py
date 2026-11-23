@@ -332,3 +332,12 @@ def test_acceso_directo_lnk_de_drive_para_escritorio(tmp_path, enviados, monkeyp
     assert drive.buscar_carpetas_locales()[0] == destino
     texto = drive.diagnostico_local("")
     assert "Dentro de «RIPS , TXT, JASON»: RIPS TXT JASON" in texto
+
+
+def test_acceso_directo_a_si_misma_no_se_recorre(tmp_path, enviados):
+    raiz = tmp_path / "Rips TXT y JSON 2026"
+    _factura_drive(raiz, "Hospital San Antonio", "08. Agosto", "JSON AGOSTO", "FHSA8", "2026-08-08 08:00")
+    copia = raiz / "Rips TXT y JSON 2026"  # así se ve el acceso directo creado dentro de la propia carpeta
+    _factura_drive(copia, "Hospital San Antonio", "08. Agosto", "JSON AGOSTO", "FHSA8", "2026-08-08 08:00")
+    unidades, _f = drive.novedades(raiz)
+    assert list(unidades) == [("Hospital San Antonio", "08. Agosto")]

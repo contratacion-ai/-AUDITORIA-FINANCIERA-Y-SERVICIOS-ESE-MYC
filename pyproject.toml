@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rips-auditoria"
-version = "1.8.6"
+version = "1.8.7"
 description = "Procesamiento de RIPS (Res. 3374 de 2000, Anexo Técnico No. 1) para auditoría financiera de la ESE Moreno y Clavijo"
 readme = "README.md"
 requires-python = ">=3.10"
