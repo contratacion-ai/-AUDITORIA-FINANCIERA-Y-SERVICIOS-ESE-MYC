@@ -117,24 +117,86 @@ def id_de_enlace(texto: str) -> str:
     return m.group(1) if m else t
 
 
-def buscar_carpeta_local(nombre: str = "Rips TXT y JSON") -> Path | None:
-    """Busca la carpeta sincronizada por Google Drive para escritorio (unidades G: a Z: y la carpeta personal)."""
-    raices = []
-    if os.name == "nt":
-        raices += [Path(f"{letra}:/") for letra in string.ascii_uppercase[6:]]
-    raices += [Path.home() / "Google Drive", Path.home() / "GoogleDrive", Path.home() / "Mi unidad"]
-    clave = nombre.lower()
-    for raiz in raices:
+_MARCAS_DRIVE = ("mi unidad", "my drive", "unidades compartidas", "shared drives", "otros ordenadores", "other computers",
+                 "compartido conmigo", "shared with me")
+
+
+def unidades_drive() -> list[Path]:
+    """Raíces de Google Drive para escritorio en este equipo: «G:\\Mi unidad», «G:\\Unidades compartidas»…
+    (en cualquier letra de unidad) y las carpetas espejo de la carpeta personal."""
+    raices: list[Path] = []
+    letras = [Path(f"{x}:/") for x in string.ascii_uppercase[3:]] if os.name == "nt" else []
+    for raiz in letras + [Path.home(), Path.home() / "Google Drive", Path.home() / "GoogleDrive"]:
         try:
-            if not raiz.exists():
+            if not raiz.is_dir():
                 continue
-            for nivel1 in [raiz, *(x for x in raiz.iterdir() if x.is_dir())]:
-                for x in (nivel1.iterdir() if nivel1.is_dir() else []):
-                    if x.is_dir() and clave in x.name.lower():
-                        return x
+            for x in raiz.iterdir():
+                if x.is_dir() and x.name.lower() in _MARCAS_DRIVE:
+                    raices.append(x)
         except OSError:
             continue
-    return None
+    return raices
+
+
+def _parece_raiz_rips(carpeta: Path) -> bool:
+    """Carpeta con hospitales que tienen carpetas de mes («Hospital X/01. Enero»)."""
+    try:
+        for h in list(carpeta.iterdir())[:40]:
+            if h.is_dir() and any(m.is_dir() and detectar_mes(m.name)[0] for m in list(h.iterdir())[:40]):
+                return True
+    except OSError:
+        pass
+    return False
+
+
+def buscar_carpetas_locales(nombre: str = "rips", profundidad: int = 3, limite: int = 2000) -> list[Path]:
+    """Carpetas candidatas dentro de las unidades de Google Drive: las que se llaman «…RIPS…» o tienen la
+    estructura Hospital/Mes. Las de nombre «Rips TXT y JSON» van primero."""
+    candidatas, vistas = [], 0
+    for raiz in unidades_drive():
+        pendientes = [(raiz, 0)]
+        while pendientes and vistas < limite:
+            carpeta, nivel = pendientes.pop(0)
+            try:
+                hijos = sorted(x for x in carpeta.iterdir() if x.is_dir())
+            except OSError:
+                continue
+            for x in hijos:
+                vistas += 1
+                if detectar_mes(x.name)[0]:
+                    continue
+                if nombre in x.name.lower() and _parece_raiz_rips(x) or (nivel == 0 and _parece_raiz_rips(x)):
+                    candidatas.append(x)
+                elif nivel + 1 < profundidad:
+                    pendientes.append((x, nivel + 1))
+    candidatas.sort(key=lambda x: ("rips txt y json" not in x.name.lower(), len(str(x))))
+    return list(dict.fromkeys(candidatas))
+
+
+def buscar_carpeta_local(nombre: str = "Rips TXT y JSON") -> Path | None:
+    """La mejor candidata (ver ``buscar_carpetas_locales``) o None."""
+    c = buscar_carpetas_locales()
+    return c[0] if c else None
+
+
+def diagnostico_local(ruta: str = "") -> str:
+    """Texto para el usuario: qué ruta se probó y qué hay en las unidades de Google Drive del equipo."""
+    partes = [f"No existe la carpeta «{ruta}» en este equipo." if ruta else "No se escribió la ruta de la carpeta."]
+    raices = unidades_drive()
+    if not raices:
+        partes.append("No se encontró Google Drive para escritorio en este equipo (ninguna unidad con «Mi unidad»): "
+                      "ábralo e inicie sesión con la cuenta institucional, o use los ZIP descargados de drive.google.com.")
+    for r in raices[:4]:
+        try:
+            hijos = sorted(x.name for x in r.iterdir() if x.is_dir())
+        except OSError:
+            hijos = []
+        partes.append(f"En «{r}» hay: {', '.join(hijos[:15]) or '(vacío)'}" + (" …" if len(hijos) > 15 else "") + ".")
+    if raices:
+        partes.append("Si «Rips TXT y JSON 2026» no aparece en «Mi unidad»: en drive.google.com > Compartido conmigo, clic "
+                      "derecho sobre la carpeta > Organizar > Agregar acceso directo > Mi unidad; espere un minuto y pulse "
+                      "«Buscar la carpeta».")
+    return " ".join(partes)
 
 
 # ---------------------------------------------------------------------------
@@ -371,14 +433,18 @@ def raiz_actual(c: dict, aviso=log.info) -> Path:
         r = espejo(cliente, carpeta_id, destino, c.get("extensiones") or DEFAULTS["extensiones"], aviso)
         aviso(f"Drive: {r['archivos']} archivos en la carpeta, {r['descargados']} descargados (nuevos o modificados).")
         return destino
-    ruta = Path(c.get("carpeta_local") or "") if c.get("carpeta_local") else buscar_carpeta_local()
+    escrita = (c.get("carpeta_local") or "").strip().strip('"')
+    ruta = Path(escrita) if escrita else None
     if ruta and ruta.is_file() and ruta.suffix.lower() == ".zip":
         ruta = ruta.parent
     if not ruta or not ruta.is_dir():
-        raise ErrorDrive("No se encontró la carpeta. Opción 1: instale Google Drive para escritorio, agregue la carpeta "
-                         "«Rips TXT y JSON» a «Mi unidad» (acceso directo) y escriba su ruta (p. ej. G:\\Mi unidad\\Rips TXT "
-                         "y JSON 2026). Opción 2 (sin instalar nada): en drive.google.com, clic derecho sobre la carpeta > "
-                         "Descargar, guarde los ZIP en una carpeta (p. ej. Descargas\\RIPS DRIVE) y escriba esa ruta.")
+        detectada = buscar_carpeta_local()
+        if detectada:
+            aviso(f"Se usa la carpeta encontrada en Google Drive: {detectada}")
+            guardar_configuracion({"carpeta_local": str(detectada)})
+            ruta = detectada
+    if not ruta or not ruta.is_dir():
+        raise ErrorDrive(diagnostico_local(escrita))
     zips = zips_de_drive(ruta)
     if zips:
         destino = carpeta_drive() / "desde_zip"
@@ -550,5 +616,6 @@ def reiniciar_procesado() -> None:
     (carpeta_drive() / "procesado.json").unlink(missing_ok=True)
 
 
-__all__ = ["ClienteDrive", "ErrorDrive", "buscar_carpeta_local", "canjear_codigo", "configuracion", "espejo", "estado",
+__all__ = ["ClienteDrive", "ErrorDrive", "buscar_carpeta_local", "buscar_carpetas_locales", "diagnostico_local",
+           "canjear_codigo", "configuracion", "espejo", "estado",
            "guardar_configuracion", "guardar_credenciales", "id_de_enlace", "novedades", "sincronizar", "url_autorizacion"]

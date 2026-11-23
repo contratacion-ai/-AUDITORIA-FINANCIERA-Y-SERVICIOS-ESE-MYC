@@ -250,3 +250,22 @@ def test_zip_descargados_de_drive_sin_drive_para_escritorio(tmp_path, enviados):
     assert [(u["hospital"], u["mes"]) for u in r["unidades"]] == [("Hospital San Lorenzo", "01. Enero")]
     assert [a.name for a in enviados] == ["RIPS_AUDITORIA_2026-01.xlsx"]
     assert drive.sincronizar()["unidades"] == []
+
+
+def test_busca_la_carpeta_en_mi_unidad_y_explica_si_falta(tmp_path, enviados, monkeypatch):
+    casa = tmp_path / "casa"
+    mi_unidad = casa / "Mi unidad"
+    (mi_unidad / "Facturas viejas").mkdir(parents=True)
+    monkeypatch.setattr(drive.Path, "home", classmethod(lambda cls: casa))
+    # sin el acceso directo: el mensaje dice qué hay en «Mi unidad» y cómo agregarlo
+    drive.guardar_configuracion({"modo": "local", "carpeta_local": "G:\\Mi unidad\\Rips TXT y JSON 2026"})
+    with pytest.raises(drive.ErrorDrive) as e:
+        drive.sincronizar()
+    assert "Facturas viejas" in str(e.value) and "Agregar acceso directo" in str(e.value)
+    # con el acceso directo: se encuentra sola aunque la ruta escrita esté mal, y se guarda
+    raiz = mi_unidad / "Rips TXT y JSON 2026"
+    _factura_drive(raiz, "Hospital San Jose de Cravo Norte", "03. Marzo", "JSON MARZO", "FHSJ1", "2026-03-03 08:00")
+    assert drive.buscar_carpetas_locales() == [raiz]
+    r = drive.sincronizar()
+    assert r["carpeta"] == str(raiz) and r["meses_enviados"] == ["2026-03"]
+    assert drive.configuracion()["carpeta_local"] == str(raiz)

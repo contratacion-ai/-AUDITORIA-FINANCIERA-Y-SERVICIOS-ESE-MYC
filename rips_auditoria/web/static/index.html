@@ -121,7 +121,9 @@
           <option value="local">Carpeta sincronizada en este equipo (Google Drive para escritorio)</option>
           <option value="api">Descargar con la API de Google Drive (credenciales OAuth)</option></select></div>
       <div id="dr-bloque-local"><label for="dr-local">Ruta de la carpeta sincronizada o de los ZIP descargados de Drive</label>
-        <input type="text" id="dr-local" placeholder="G:\Mi unidad\Rips TXT y JSON 2026  ó  C:\Users\…\Downloads\RIPS DRIVE"></div>
+        <input type="text" id="dr-local" placeholder="G:\Mi unidad\Rips TXT y JSON 2026  ó  C:\Users\…\Downloads\RIPS DRIVE">
+        <button type="button" class="sec" id="dr-buscar" style="margin-top:6px">Buscar la carpeta en este equipo</button>
+        <div id="dr-candidatas" class="ayuda"></div></div>
       <div id="dr-bloque-api" style="display:none"><label for="dr-id">Enlace de la carpeta en Drive</label>
         <input type="text" id="dr-id" placeholder="https://drive.google.com/drive/folders/…"></div>
       <div><label for="dr-cada">Revisar automáticamente</label>
@@ -474,6 +476,17 @@ function modoDrive(){
   $("#dr-api").style.display = api ? "block" : "none";
 }
 $("#dr-modo").onchange = modoDrive;
+$("#dr-buscar").onclick = async () => {
+  $("#dr-candidatas").textContent = "Buscando en las unidades de Google Drive…";
+  const d = await (await fetch("/api/drive/buscar")).json();
+  if (!d.candidatas.length){ $("#dr-candidatas").innerHTML = `<span style="color:var(--err)">${esc(d.diagnostico)}</span>`; return; }
+  $("#dr-candidatas").innerHTML = "Elija la carpeta: " + d.candidatas.map((c, i) =>
+    `<button type="button" class="sec" data-cand="${i}" style="margin:3px;padding:4px 10px">${esc(c)}</button>`).join("");
+  document.querySelectorAll("[data-cand]").forEach(b => b.onclick = async () => {
+    $("#dr-local").value = d.candidatas[Number(b.dataset.cand)]; $("#dr-modo").value = "local"; modoDrive();
+    if (await guardarDrive()){ $("#dr-candidatas").innerHTML = `<b style="color:var(--verde-osc)">Guardada: ${esc($("#dr-local").value)}</b>. Pulse «Sincronizar ahora».`; estadoDrive(); }
+  });
+};
 async function guardarDrive(){
   const r = await fetch("/api/drive/config", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({
     modo: $("#dr-modo").value, carpeta_local: $("#dr-local").value.trim(), carpeta_id: $("#dr-id").value.trim(),

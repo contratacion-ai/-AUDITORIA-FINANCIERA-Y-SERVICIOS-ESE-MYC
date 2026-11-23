@@ -699,6 +699,14 @@ def drive_estado():
     return e
 
 
+@app.get("/api/drive/buscar")
+def drive_buscar():
+    """Carpetas candidatas en las unidades de Google Drive para escritorio de este equipo."""
+    candidatas = [str(x) for x in drive.buscar_carpetas_locales()]
+    return {"candidatas": candidatas, "unidades": [str(x) for x in drive.unidades_drive()],
+            "diagnostico": "" if candidatas else drive.diagnostico_local("")}
+
+
 @app.post("/api/drive/config")
 async def drive_config(request: Request):
     datos = await request.json()
@@ -799,8 +807,12 @@ def _ejecutar_drive(t: dict, solo_revisar: bool):
     except Exception as exc:  # se muestra en la ventana
         t["estado"] = "error"
         t["fase"] = "La sincronización no se completó"
-        t["error"] = str(exc) if isinstance(exc, drive.ErrorDrive) else f"{type(exc).__name__}: {exc}"
-        t["log"].append(traceback.format_exc(limit=3))
+        if isinstance(exc, drive.ErrorDrive):  # mensaje para el usuario, sin detalle técnico
+            t["error"] = str(exc)
+            t["log"].append(str(exc))
+        else:
+            t["error"] = f"{type(exc).__name__}: {exc}"
+            t["log"].append(traceback.format_exc(limit=3))
     finally:
         raiz.removeHandler(manejador)
         raiz.setLevel(nivel)
