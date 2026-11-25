@@ -132,6 +132,7 @@
     <button data-v="cups">RIPS por CUPS</button>
     <button data-v="consolidado">Consolidado RIPS</button>
     <button data-v="alertas">Alertas y análisis</button>
+    <button data-v="plan">Plan de acción</button>
     <button data-v="aplicativo">Aplicativo de auditoría</button>
     <button data-v="cupsenr">CUPS enriquecido</button>
     <button data-v="farmacia">Medicamentos vs farmacia</button>
@@ -241,6 +242,24 @@
       <div class="barra-tabla"><label>Nivel <select id="a-nivel"><option value="">Todos</option><option>CRÍTICA</option><option>ALTA</option><option>MEDIA</option><option>INFORMATIVA</option></select></label>
         <label>Categoría <select id="a-cat"><option value="">Todas</option></select></label><span class="crece"></span><span id="a-cuenta"></span></div>
       <div id="a-lista"></div></div>
+  </section>
+
+  <section class="vista" id="v-plan">
+    <div class="kpis" id="pl-kpis"></div>
+    <div class="tarjeta"><h2>Plan de acción</h2>
+      <p class="nota">Cada alerta es una tarea con responsable y fecha límite. Cambie el estado, el responsable o las
+        observaciones y se guarda solo. Cuando la alerta deja de aparecer con los datos corregidos (por ejemplo, la sede
+        subió los RIPS que faltaban), la tarea pasa sola a <b>RESUELTA (verificada)</b>.</p>
+      <div class="barra-tabla"><label>Estado <select id="pl-estado"><option value="abiertas">Abiertas</option>
+        <option value="">Todas</option><option>PENDIENTE</option><option>EN PROCESO</option><option>RESUELTA</option>
+        <option>RESUELTA (verificada)</option><option>NO APLICA</option></select></label>
+        <label>Prioridad <select id="pl-prio"><option value="">Todas</option><option value="1">1 · esta semana</option>
+        <option value="2">2 · antes del cierre</option><option value="3">3 · seguimiento</option></select></label>
+        <label>Responsable <select id="pl-resp"><option value="">Todos</option></select></label>
+        <input type="search" id="pl-buscar" placeholder="Buscar sede, mes, hallazgo…" class="crece">
+        <span id="pl-cuenta"></span></div>
+      <div class="tabla"><table id="pl-tabla"></table></div></div>
+    <div class="tarjeta"><h2>Tareas abiertas por responsable</h2><div class="tabla"><table id="pl-resp-tabla"></table></div></div>
   </section>
 
   <section class="vista" id="v-aplicativo">
@@ -505,8 +524,63 @@ function pintarVista(todo){
   if (!d) return;
   ({resumen: pintarResumen, comparativos: pintarComparativo, frecuencias: pintarFrecuencias, empresa: pintarEmpresa, sede: pintarSede,
     servicio: pintarServicio, cups: pintarCups, consolidado: () => tablaPaginada("tp-consolidado", "consolidado"),
-    alertas: pintarAlertas, aplicativo: pintarAplicativo})[v](d);
+    alertas: pintarAlertas, aplicativo: pintarAplicativo, plan: pintarPlan})[v](d);
 }
+
+/* ---------- Plan de acción ---------- */
+async function pintarPlan(){
+  const r = await (await fetch("/api/tablero/plan?" + parametros())).json();
+  estado.plan = r;
+  const s = r.resumen;
+  $("#pl-kpis").innerHTML = [
+    kpi("Tareas abiertas", ent(s.abiertas), `${ent(s.en_proceso)} en proceso`),
+    kpi("Vencidas", `<span style="color:var(--critica)">${ent(s.vencidas)}</span>`, "pasaron la fecha límite"),
+    kpi("Resueltas", ent(s.resueltas + s.verificadas), `${ent(s.verificadas)} verificadas con los datos`),
+    kpi("Avance del plan", `${dec(s.avance_pct, 1)}%`, `${ent(s.total)} tareas`),
+    kpi("Dinero en riesgo abierto", pesos(s.valor_en_riesgo_abierto), "facturas con diferencia, sin servicios o sin AF"),
+  ].join("");
+  const resp = [...new Set(r.filas.map(f => f.responsable))].sort();
+  const sel = $("#pl-resp"), actual = sel.value;
+  sel.innerHTML = `<option value="">Todos</option>` + resp.map(x => `<option>${esc(x)}</option>`).join(""); sel.value = actual;
+  $("#pl-resp-tabla").innerHTML = "<thead><tr><th>Responsable</th><th class='n'>Abiertas</th><th class='n'>Vencidas</th></tr></thead><tbody>" +
+    (s.por_responsable.map(x => `<tr><td>${esc(x.responsable)}</td><td class="n">${ent(x.abiertas)}</td><td class="n">${x.vencidas ? `<b style="color:var(--critica)">${ent(x.vencidas)}</b>` : 0}</td></tr>`).join("")
+     || "<tr><td colspan='3' class='vacio'>Sin tareas abiertas</td></tr>") + "</tbody>";
+  tablaPlan();
+}
+function tablaPlan(){
+  const r = estado.plan; if (!r) return;
+  const est = $("#pl-estado").value, pr = $("#pl-prio").value, resp = $("#pl-resp").value, q = $("#pl-buscar").value.trim().toLowerCase();
+  const filas = r.filas.filter(f => (est === "abiertas" ? ["PENDIENTE", "EN PROCESO"].includes(f.estado) : !est || f.estado === est)
+    && (!pr || String(f.prioridad) === pr) && (!resp || f.responsable === resp)
+    && (!q || [f.sede, f.mes, f.hallazgo, f.categoria, f.observaciones].join(" ").toLowerCase().includes(q)));
+  $("#pl-cuenta").textContent = `${ent(filas.length)} tarea(s)`;
+  const opciones = v => (v === "RESUELTA (verificada)" ? [v] : r.estados).map(e => `<option ${e === v ? "selected" : ""}>${esc(e)}</option>`).join("");
+  $("#pl-tabla").innerHTML = "<thead><tr><th>Prioridad</th><th>Estado</th><th>Fecha límite</th><th>Sede</th><th>Mes</th><th>Hallazgo</th>" +
+    "<th>Acción</th><th class='n'>En riesgo</th><th>Responsable</th><th>Observaciones</th></tr></thead><tbody>" +
+    (filas.slice(0, 500).map(f => `<tr data-id="${esc(f.id)}">
+      <td><span class="chip n-${f.prioridad === 1 ? "CRÍTICA" : f.prioridad === 2 ? "ALTA" : "MEDIA"}">${f.prioridad}</span></td>
+      <td><select class="pl-e" ${f.estado === "RESUELTA (verificada)" ? "disabled" : ""}>${opciones(f.estado)}</select></td>
+      <td>${esc(f.fecha_limite || "")}${f.dias_restantes != null && f.dias_restantes < 0 && ["PENDIENTE", "EN PROCESO"].includes(f.estado) ? ` <b style="color:var(--critica)">vencida</b>` : ""}</td>
+      <td>${esc(f.sede)}</td><td>${esc(f.mes)}</td><td>${esc(f.hallazgo)}</td><td>${esc(f.accion)}</td>
+      <td class="n">${f.valor_en_riesgo ? pesos(f.valor_en_riesgo) : ""}</td>
+      <td><input class="pl-r" value="${esc(f.responsable)}" style="min-width:170px"></td>
+      <td><input class="pl-o" value="${esc(f.observaciones || "")}" placeholder="Qué se hizo…" style="min-width:200px"></td></tr>`).join("")
+     || `<tr><td colspan="10" class="vacio">Sin tareas para este filtro</td></tr>`) + "</tbody>";
+  $$("#pl-tabla tr[data-id]").forEach(tr => {
+    const guardar = async campo => {
+      const cuerpo = {estado: tr.querySelector(".pl-e").value, responsable: tr.querySelector(".pl-r").value, observaciones: tr.querySelector(".pl-o").value};
+      const resp = await fetch(`/api/tablero/plan/${encodeURIComponent(tr.dataset.id)}`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(cuerpo)});
+      tr.style.background = resp.ok ? "var(--verde-claro, #E8F6E9)" : "#FBEAEF"; setTimeout(() => tr.style.background = "", 900);
+      const f = r.filas.find(x => x.id === tr.dataset.id); if (resp.ok && f) Object.assign(f, cuerpo);
+      if (campo === "estado") pintarPlan();
+    };
+    tr.querySelector(".pl-e").onchange = () => guardar("estado");
+    tr.querySelector(".pl-r").onchange = () => guardar("responsable");
+    tr.querySelector(".pl-o").onchange = () => guardar("observaciones");
+  });
+}
+["#pl-estado", "#pl-prio", "#pl-resp"].forEach(x => document.addEventListener("change", e => { if (e.target.matches(x)) tablaPlan(); }));
+document.addEventListener("input", e => { if (e.target.matches("#pl-buscar")) tablaPlan(); });
 
 function kpi(t, v, sub = ""){ return `<div class="kpi"><small>${t}</small><b>${v}</b>${sub ? `<span>${sub}</span>` : ""}</div>`; }
 function pintarResumen(d){

@@ -89,12 +89,15 @@ def carpeta_acumulado(cfg: dict | None = None) -> Path:
     return Path(app.get("carpeta_acumulado") or carpeta_datos() / "acumulado_aplicativo")
 
 
-def exportar_meses(meses, destino: str | Path, cfg: dict | None = None) -> list[Path]:
-    """``RIPS_AUDITORIA_<mes>.xlsx`` de los meses pedidos con todo lo acumulado (todas las sedes, TXT y JSON),
-    listos para enviar al aplicativo de auditoría."""
+def exportar_meses(meses, destino: str | Path, cfg: dict | None = None, solo_json: bool = False) -> list[Path]:
+    """``RIPS_AUDITORIA_<mes>.xlsx`` de los meses pedidos con todo lo acumulado (todas las sedes), listos para
+    enviar al aplicativo de auditoría. Con ``solo_json`` sólo van las filas leídas de RIPS JSON (Res. 2275)."""
     from .aplicativo import escribir_mes
+    from .depuracion import es_json
 
     df = cargar(carpeta_acumulado(cfg))[0]
+    if solo_json and len(df):
+        df = df[es_json(df)]
     destino = Path(destino)
     return [escribir_mes(df[df["MES"] == m][list(COLUMNAS)], m, destino / f"RIPS_AUDITORIA_{m}.xlsx")
             for m in sorted(set(meses)) if (df["MES"] == m).any()]
@@ -556,6 +559,9 @@ def analisis(df: pd.DataFrame, ind: pd.DataFrame, lista_alertas: list[dict]) -> 
             recomendaciones.append(f"{acciones[cat]} ({cuenta[cat]} alerta(s)).")
     recomendaciones.append("Enviar los meses revisados al aplicativo de Auditoría de Facturación y revisar su "
                            "«validación del cruce» (RIPS ↔ Software 360).")
+    if lista_alertas:
+        recomendaciones.append("Asignar y seguir cada alerta en la pestaña «Plan de acción» (responsable, fecha límite y "
+                               "estado); las que se corrigen en los datos se cierran solas como «RESUELTA (verificada)».")
     return {"hallazgos": hallazgos, "recomendaciones": recomendaciones}
 
 
@@ -648,11 +654,32 @@ TABLAS = {
     "farmacia_no_encontrados": "CUM del portafolio no encontrados en el maestro",
     "farmacia_maestro_sin_portafolio": "Maestro de medicamentos sin portafolio",
     "farmacia_insumos": "Análisis de insumos de farmacia",
+    "plan_accion": "Plan de acción (alertas con responsable, fecha límite y estado)",
 }
+
+
+def plan(df: pd.DataFrame, ind: pd.DataFrame, filtros: dict | None = None, params: dict | None = None) -> pd.DataFrame:
+    """Plan de acción: se construye con TODAS las alertas (para verificar bien los cierres) y luego se
+    filtra por sede y mes."""
+    from . import plan_accion
+
+    pa = plan_accion.construir(alertas(df, ind, params), (params or {}).get("reglas_plan"))
+    f = filtros or {}
+    if len(pa):
+        sedes = _lista(f.get("sede"))
+        if sedes:
+            pa = pa[pa["sede"].isin(sedes) | (pa["sede"] == "")]
+        if f.get("desde"):
+            pa = pa[(pa["mes"] == "") | (pa["mes"] >= f["desde"])]
+        if f.get("hasta"):
+            pa = pa[(pa["mes"] == "") | (pa["mes"] <= f["hasta"])]
+    return pa.reset_index(drop=True)
 
 
 def tabla(df: pd.DataFrame, ind: pd.DataFrame, nombre: str, filtros: dict | None = None,
           params: dict | None = None) -> pd.DataFrame:
+    if nombre == "plan_accion":
+        return plan(df, ind, filtros, params)
     d = filtrar(df, filtros)
     if nombre == "consolidado":
         return d[COLUMNAS].sort_values(["MES", "SEDE", "EPS", "FACTURA_FEV"]).reset_index(drop=True)
@@ -797,6 +824,8 @@ def exportar_excel(df: pd.DataFrame, ind: pd.DataFrame, ruta: str | Path, filtro
         ws.write_string(fila, 0, f"{n}.")
         ws.write_string(fila, 1, r, f_txt)
 
+    hoja("Plan de acción", plan(df, ind, filtros, params),
+         "Plan de acción · responsable, fecha límite y estado (RESUELTA (verificada) = la alerta ya no aparece)")
     hoja("Alertas", tabla(df, ind, "alertas", filtros, params), "Alertas priorizadas y acciones")
     wm, nm = hoja("Por mes", tabla(df, ind, "meses", filtros), "RIPS por mes")
     _, ns = hoja("Resumen sedes", tabla(df, ind, "sedes", filtros), "Resumen por sede (de mayor a menor valor)")

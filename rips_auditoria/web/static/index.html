@@ -140,12 +140,19 @@
     </div>
     <label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" id="dr-enviar" checked style="width:18px;height:18px;accent-color:var(--verde)">
       Enviar los meses actualizados al aplicativo de Auditoría de Facturación</label>
+    <label style="display:flex;gap:8px;align-items:center;margin-top:6px"><input type="checkbox" id="dr-solojson" checked style="width:18px;height:18px;accent-color:var(--verde)">
+      <span><b>Sólo RIPS JSON (Res. 2275)</b> con su XML y su CUV: no lee los TXT y al aplicativo sólo envía lo de los JSON (la fuente más confiable)</span></label>
     <div class="botones">
       <button class="sec" id="dr-guardar">Guardar</button>
       <button id="dr-sincronizar">Sincronizar ahora</button>
       <button class="sec" id="dr-revisar">Sólo ver qué hay nuevo</button>
       <button class="sec" id="dr-reiniciar" title="La próxima sincronización vuelve a leer todo (no duplica lo ya cargado)">Volver a leer todo</button>
     </div>
+    <div class="botones">
+      <button class="sec" id="dr-notas" title="Usa las notas técnicas guardadas (una por EPS) y el período de «Generar nota técnica de capitación»">Generar notas técnicas con los JSON de Drive</button>
+      <button class="sec" id="dr-quitar-txt" title="Muestra primero qué se quitaría; lo quitado queda en la papelera">Quitar del tablero lo cargado desde TXT</button>
+    </div>
+    <div class="ayuda" id="dr-txt"></div>
     <div class="ayuda" id="dr-estado">Verificando…</div>
   </section>
 
@@ -457,7 +464,7 @@ async function estadoDrive(){
     const e = await (await fetch("/api/drive/estado")).json(), c = e.config;
     if (!document.activeElement || !document.activeElement.closest || !document.activeElement.closest("#drive")){
       $("#dr-modo").value = c.modo; $("#dr-local").value = c.carpeta_local || e.carpeta_detectada || "";
-      $("#dr-id").value = c.carpeta_id || ""; $("#dr-cada").value = String(c.revisar_cada_min || 0); $("#dr-enviar").checked = !!c.enviar_aplicativo;
+      $("#dr-id").value = c.carpeta_id || ""; $("#dr-cada").value = String(c.revisar_cada_min || 0); $("#dr-enviar").checked = !!c.enviar_aplicativo; $("#dr-solojson").checked = c.solo_json !== false;
       modoDrive();
     }
     $("#dr-api-estado").innerHTML = e.api.autorizado ? `<b style="color:var(--verde-osc)">Conectado ${esc(e.api.cuenta || "")}</b>`
@@ -496,7 +503,8 @@ $("#dr-buscar").onclick = async () => {
 async function guardarDrive(){
   const r = await fetch("/api/drive/config", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({
     modo: $("#dr-modo").value, carpeta_local: $("#dr-local").value.trim(), carpeta_id: $("#dr-id").value.trim(),
-    revisar_cada_min: Number($("#dr-cada").value), enviar_aplicativo: $("#dr-enviar").checked})});
+    revisar_cada_min: Number($("#dr-cada").value), enviar_aplicativo: $("#dr-enviar").checked,
+    solo_json: $("#dr-solojson").checked})});
   if (!r.ok){ alert((await r.json()).detail || "No se pudo guardar"); return false; }
   return true;
 }
@@ -513,6 +521,34 @@ async function lanzarDrive(soloRevisar){
   consultar();
 }
 $("#dr-sincronizar").onclick = () => lanzarDrive(false);
+function seguirTrabajo(id, texto){
+  $("#btn-iniciar").disabled = true; $("#avance").style.display = "block"; $("#resultados").style.display = "none";
+  $("#log").textContent = ""; estado.linea = 0; estado.trabajo = id; fase("validar");
+  $("#fase-texto").textContent = texto; $("#avance").scrollIntoView({behavior: "smooth"}); consultar();
+}
+$("#dr-notas").onclick = async () => {
+  if (!(await guardarDrive())) return;
+  const ids = [...document.querySelectorAll(".nt-id:checked")].map(x => x.value);
+  const desde = ($("#nt-desde") || {}).value || "", hasta = ($("#nt-hasta") || {}).value || "";
+  const r = await fetch("/api/drive/notas", {method: "POST", headers: {"Content-Type": "application/json"},
+                                             body: JSON.stringify({ids, desde: desde.trim(), hasta: hasta.trim()})});
+  const d = await r.json();
+  if (!r.ok){ alert(d.detail || "No se pudo iniciar"); return; }
+  seguirTrabajo(d.id, "Generando las notas técnicas con los JSON de Drive…");
+};
+$("#dr-quitar-txt").onclick = async () => {
+  const v = await (await fetch("/api/datos/txt/vista", {method: "POST"})).json();
+  if (!v.total_filas){ $("#dr-txt").innerHTML = "<b style='color:var(--verde-osc)'>El tablero ya tiene sólo datos de RIPS JSON.</b>"; return; }
+  const meses = [...new Set(v.resumen.map(x => x.MES))].join(", ");
+  if (!confirm(`Se quitarán del tablero ${ent(v.total_filas)} filas cargadas desde TXT (${ent(v.facturas)} facturas, meses ${meses}). ` +
+               "Quedan copiadas en la papelera del acumulado. Los datos de JSON no se tocan. ¿Continuar?")) return;
+  const r = await fetch("/api/datos/txt/confirmar", {method: "POST", headers: {"Content-Type": "application/json"},
+                                                    body: JSON.stringify({confirmar: true, ficha: v.ficha})});
+  const d = await r.json();
+  $("#dr-txt").innerHTML = r.ok ? `<b style="color:var(--verde-osc)">Se quitaron ${ent(d.eliminadas)} filas de TXT.</b> ` +
+    "Para que el aplicativo de auditoría también quede sólo con JSON, pulse «Volver a leer todo» y luego «Sincronizar ahora»."
+    : `<span style="color:var(--err)">${esc(d.detail || "No se pudo")}</span>`;
+};
 $("#dr-revisar").onclick = () => lanzarDrive(true);
 $("#dr-reiniciar").onclick = async () => {
   if (!confirm("La próxima sincronización volverá a leer todos los archivos de Drive (lo ya cargado no se duplica). ¿Continuar?")) return;

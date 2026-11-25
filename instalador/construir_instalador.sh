@@ -136,6 +136,13 @@ GOOGLE DRIVE (sección "Google Drive" de la ventana de cargue): trae de la carpe
  sobre la carpeta > Descargar; guarde los ZIP en una carpeta (p. ej. Descargas\RIPS DRIVE)
  y escriba esa ruta en la sección Google Drive. Sólo se procesa lo nuevo en cada descarga.
 
+SÓLO JSON (recomendado, viene marcado): la sincronización con Drive lee sólo los JSON con su XML
+ y su CUV y al aplicativo envía sólo eso. Botones: "Generar notas técnicas con los JSON de Drive"
+ y "Quitar del tablero lo cargado desde TXT".
+
+PLAN DE ACCIÓN (Tablero > Plan de acción): cada alerta con responsable, fecha límite y estado.
+ Las alertas que se corrigen en los datos se cierran solas como RESUELTA (verificada).
+
 CARGUE SIN LÍMITE: se pueden subir carpetas con miles de TXT y archivos con todas sus líneas.
 
 USO EN RED (otros computadores):

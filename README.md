@@ -73,6 +73,21 @@ leer todo» olvida lo procesado (no duplica). Consola: `python -m rips_auditoria
 TXT y JSON 2026"` (`--solo-revisar`, `--sin-enviar`, `--releer-todo`). Cualquier cargue con JSON (no sólo desde Drive)
 ahora también envía al aplicativo los meses con JSON, completos desde el acumulado.
 
+**Sólo JSON (v1.9, predeterminado):** la sincronización lee únicamente los RIPS JSON (Res. 2275) con su XML y su
+CUV (los `ResultadosMSPS_…`); no lee los RIPS TXT de Drive y al aplicativo envía sólo las filas que vienen de JSON.
+«Quitar del tablero lo cargado desde TXT» deja el acumulado sólo con JSON (vista previa, confirmación y copia en la
+papelera). **«Generar notas técnicas con los JSON de Drive»** arma las notas de las EPS guardadas (una por municipio
+cuando la nota los trae) con todos los JSON de la carpeta, sin volver a cargar nada.
+
+### Plan de acción (v1.9, pestaña del tablero)
+
+Cada alerta del tablero es una tarea (`plan_accion.py`) con prioridad (1 esta semana · 2 antes del cierre · 3
+seguimiento), responsable sugerido, fecha límite (días según la categoría), dinero en riesgo y estado
+(PENDIENTE, EN PROCESO, RESUELTA, NO APLICA). Estado, responsable y observaciones se editan en la tabla y se guardan
+en `<datos>/plan_accion.json`. **Cierre verificado:** si una alerta deja de aparecer con los datos corregidos, la
+tarea pasa sola a «RESUELTA (verificada)»; si vuelve, se reabre. Indicadores: abiertas, vencidas, resueltas, avance y
+dinero en riesgo abierto, y tareas por responsable. El informe Excel del tablero trae la hoja «Plan de acción».
+
 ### Tablero de análisis (`/tablero`)
 
 Botón **«Tablero de análisis»** de la ventana de cargue (`http://localhost:8100/tablero`). Lee el
@@ -412,6 +427,7 @@ rips_auditoria/
   json_rips.py        lectura de RIPS JSON (Res. 2275 u homologados) e integración sin duplicar
   drive.py            carpeta de Google Drive (sincronizada o por API): novedades por hospital-mes y envío al aplicativo
   cuv.py              resultado de validación del Ministerio (CUV) por factura
+  plan_accion.py      plan de acción de las alertas: responsable, fecha límite, estado y cierre verificado
   cruce_medicamentos.py  medicamentos facturados en RIPS vs. portafolio de farmacia (por CUM)
   nota_tecnica.py     nota técnica de capitación: pacientes únicos por CUPS y mes, calidad de datos
   nota_lectura.py     lectura de notas técnicas (lista, una hoja por municipio, matriz de PyM)

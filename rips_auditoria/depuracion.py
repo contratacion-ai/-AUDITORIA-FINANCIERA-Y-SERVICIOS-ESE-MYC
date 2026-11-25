@@ -140,6 +140,34 @@ def aplicar_limpieza(ficha: str, mes: str | None = None, sede: str | None = None
 
 
 # ---------------------------------------------------------------------------
+# Sólo JSON: quitar lo cargado desde TXT (Res. 3374)
+# ---------------------------------------------------------------------------
+
+ORIGEN_JSON = ("CUV MSPS", "RIPS JSON")  # inicio de VALIDACION en las filas leídas de RIPS JSON (Res. 2275)
+
+
+def es_json(df: pd.DataFrame) -> pd.Series:
+    return df["VALIDACION"].astype(str).str.startswith(ORIGEN_JSON)
+
+
+def vista_txt(carpeta=None) -> dict:
+    """Filas del acumulado que vienen de RIPS TXT (no de JSON): las que se quitarían (no borra nada)."""
+    carpeta = _carpeta(carpeta)
+    df = _leer(carpeta)
+    filas = df[~es_json(df)] if len(df) else df
+    return _vista(filas, _ficha(carpeta, "txt"))
+
+
+def aplicar_txt(ficha: str, carpeta=None) -> dict:
+    """Quita del acumulado las filas de RIPS TXT que mostró ``vista_txt`` (copia en la papelera)."""
+    carpeta = _carpeta(carpeta)
+    if ficha != _ficha(carpeta, "txt"):
+        raise FichaVencida("Los datos cambiaron desde la vista previa. Vuelva a revisar antes de confirmar.")
+    df = _leer(carpeta)
+    return {"eliminadas": _eliminar(carpeta, df, ~es_json(df), "solo_json_quitar_txt") if len(df) else 0}
+
+
+# ---------------------------------------------------------------------------
 # Duplicados reales
 # ---------------------------------------------------------------------------
 
@@ -219,5 +247,5 @@ def _eliminar(carpeta: Path, df: pd.DataFrame, sel: pd.Series, motivo: str) -> i
     return int(sel.sum())
 
 
-__all__ = ["FichaVencida", "aplicar_duplicados", "aplicar_limpieza", "detectar_duplicados", "vista_duplicados",
-           "vista_limpieza"]
+__all__ = ["FichaVencida", "aplicar_duplicados", "aplicar_limpieza", "aplicar_txt", "detectar_duplicados", "es_json",
+           "vista_duplicados", "vista_limpieza", "vista_txt"]

@@ -54,6 +54,7 @@ DEFAULTS = {
     "carpeta_id": "",             # id o enlace de la carpeta en Drive (modo api)
     "revisar_cada_min": 0,        # 0 = sólo a mano; > 0 = revisión automática mientras la ventana esté abierta
     "enviar_aplicativo": True,    # enviar los meses actualizados al aplicativo de auditoría
+    "solo_json": True,            # sólo RIPS JSON (Res. 2275) + XML + CUV: no se leen ni se envían los TXT
     "extensiones": [".json", ".xml", ".txt", ".zip"],
 }
 API = "https://www.googleapis.com/drive/v3"
@@ -99,7 +100,7 @@ def configuracion(cfg: dict | None = None) -> dict:
 
 def guardar_configuracion(cambios: dict) -> dict:
     actual = _leer("config.json", {})
-    permitidas = {"modo", "carpeta_local", "carpeta_id", "revisar_cada_min", "enviar_aplicativo"}
+    permitidas = {"modo", "carpeta_local", "carpeta_id", "revisar_cada_min", "enviar_aplicativo", "solo_json"}
     actual.update({k: v for k, v in cambios.items() if k in permitidas and v is not None})
     if "carpeta_id" in actual:
         actual["carpeta_id"] = id_de_enlace(actual["carpeta_id"])
@@ -493,7 +494,16 @@ def _scandir(carpeta: Path) -> list[tuple[str, bool, int, int]]:
         return []
 
 
-def _listar(raiz: Path, extensiones=DEFAULTS["extensiones"], aviso=None, profundidad: int = 8) -> dict[str, str]:
+def _incluir(nombre: str, extensiones, solo_json: bool) -> bool:
+    ext = Path(nombre).suffix.lower()
+    if ext not in extensiones:
+        return False
+    # sólo JSON: de los .txt sólo el resultado de validación del Ministerio (CUV), no los RIPS TXT
+    return not (solo_json and ext == ".txt" and not nombre.lower().startswith("resultadosmsps"))
+
+
+def _listar(raiz: Path, extensiones=DEFAULTS["extensiones"], aviso=None, profundidad: int = 8,
+            solo_json: bool = False) -> dict[str, str]:
     """{ruta relativa: «tamaño:fecha»} de los archivos bajo ``raiz``, listando varias carpetas en paralelo.
     No entra en un acceso directo a la misma carpeta, ni en carpetas ocultas, ni a más de ``profundidad``."""
     from concurrent.futures import ThreadPoolExecutor
@@ -509,7 +519,7 @@ def _listar(raiz: Path, extensiones=DEFAULTS["extensiones"], aviso=None, profund
                     if es_dir:
                         if not nombre.startswith(".") and nombre.lower() != raiz.name.lower() and nivel + 1 < profundidad:
                             pendientes.append((carpeta / nombre, nivel + 1))
-                    elif Path(nombre).suffix.lower() in extensiones:
+                    elif _incluir(nombre, extensiones, solo_json):
                         archivos[(carpeta / nombre).relative_to(raiz).as_posix()] = f"{tam}:{fecha}"
                 if aviso and time.time() - ultimo > 5:
                     ultimo = time.time()
@@ -531,12 +541,12 @@ class _Todas:
 _TODAS = _Todas()
 
 
-def precargar(rutas: list[Path], extensiones=DEFAULTS["extensiones"], aviso=None) -> int:
+def precargar(rutas: list[Path], extensiones=DEFAULTS["extensiones"], aviso=None, solo_json: bool = False) -> int:
     """Lee en paralelo los archivos de ``rutas`` para que Drive para escritorio los descargue a la vez
     (después el procesamiento los lee de la copia local, sin esperar a internet)."""
     from concurrent.futures import ThreadPoolExecutor
 
-    archivos = [r / x for r in rutas for x in _listar(r, extensiones)] if rutas else []
+    archivos = [r / x for r in rutas for x in _listar(r, extensiones, solo_json=solo_json)] if rutas else []
 
     def leer(f: Path) -> None:
         try:
@@ -556,13 +566,15 @@ def precargar(rutas: list[Path], extensiones=DEFAULTS["extensiones"], aviso=None
     return len(archivos)
 
 
-def novedades(raiz: Path, extensiones=DEFAULTS["extensiones"], aviso=None) -> tuple[dict[tuple[str, str], list[Path]], dict]:
+def novedades(raiz: Path, extensiones=DEFAULTS["extensiones"], aviso=None,
+              solo_json: bool = False) -> tuple[dict[tuple[str, str], list[Path]], dict]:
     """Unidades (hospital, carpeta del mes) con archivos nuevos o modificados desde lo procesado.
 
     Devuelve ({(hospital, mes): [carpeta a procesar]}, firmas actuales por archivo)."""
     previas = _leer("procesado.json", {})
     unidades = {}
-    actuales = {k: v for k, v in _listar(raiz, extensiones, aviso).items() if "/" in k}  # sin archivos sueltos en la raíz
+    # sin archivos sueltos en la raíz (no tienen hospital)
+    actuales = {k: v for k, v in _listar(raiz, extensiones, aviso, solo_json=solo_json).items() if "/" in k}
     for clave, firma in sorted(actuales.items()):
         if previas.get(clave) == firma:
             continue
@@ -679,7 +691,10 @@ def sincronizar(cfg: dict | None = None, enviar: bool | None = None, aviso=log.i
     enviar = c["enviar_aplicativo"] if enviar is None else enviar
     raiz = raiz_actual(c, aviso)
     aviso(f"Revisando la carpeta de Drive: {raiz} (la primera vez puede tardar varios minutos) …")
-    unidades, actuales = novedades(raiz, c.get("extensiones") or DEFAULTS["extensiones"], aviso)
+    solo_json = bool(c.get("solo_json", True))
+    if solo_json:
+        aviso("Modo sólo JSON: se leen los RIPS JSON (Res. 2275) con su XML y su CUV; los TXT no se cargan ni se envían.")
+    unidades, actuales = novedades(raiz, c.get("extensiones") or DEFAULTS["extensiones"], aviso, solo_json=solo_json)
     resumen = {"carpeta": str(raiz), "inicio": dt.datetime.now().isoformat(timespec="seconds"),
                "unidades": [{"hospital": h, "mes": m or "(sin mes)"} for h, m in sorted(unidades)],
                "procesadas": [], "meses_enviados": [], "envio": None, "cruce": None, "aviso_envio": None,
@@ -705,10 +720,10 @@ def sincronizar(cfg: dict | None = None, enviar: bool | None = None, aviso=log.i
     for hospital, lista in por_hospital.items():
         entradas = [r for _m, rutas in lista for r in rutas]
         aviso(f"Procesando {hospital}: {', '.join(m or 'todo' for m, _r in lista)}")
-        n = precargar(entradas, c.get("extensiones") or DEFAULTS["extensiones"], aviso)
+        n = precargar(entradas, c.get("extensiones") or DEFAULTS["extensiones"], aviso, solo_json=solo_json)
         aviso(f"  {n:,} archivos listos; leyendo y validando …".replace(",", "."))
-        res = procesar(entradas, cfg, hospital=hospital)
-        if not res.envios.empty:
+        res = None if solo_json else procesar(entradas, cfg, hospital=hospital)
+        if res is not None and not res.envios.empty:
             generados = exportar_todo(res, salida, cfg)
             resumen["archivos"] += [str(a) for a in generados if Path(a).parent.name != "APLICATIVO_AUDITORIA"]
             meses_tocados |= {m.group(1) for a in generados if Path(a).parent.name == "APLICATIVO_AUDITORIA"
@@ -721,12 +736,13 @@ def sincronizar(cfg: dict | None = None, enviar: bool | None = None, aviso=log.i
             for a in r_json.get("avisos") or []:
                 aviso(f"  {a}")
         resumen["procesadas"].append({
-            "hospital": hospital, "meses": [m for m, _r in lista], "remisiones_txt": len(res.envios),
+            "hospital": hospital, "meses": [m for m, _r in lista], "remisiones_txt": len(res.envios) if res else 0,
             "json_leidos": r_json.get("registros_leidos", 0), "filas_agregadas": r_json.get("agregadas", 0),
             "ya_cargadas": r_json.get("ya_cargadas", 0), "validadas_msps": r_json.get("facturas_validadas_msps", 0),
             "rechazadas_msps": r_json.get("facturas_rechazadas_msps", 0)})
         aviso(f"  {hospital}: {r_json.get('agregadas', 0)} filas nuevas de JSON, {r_json.get('ya_cargadas', 0)} ya "
-              f"cargadas, {len(res.envios)} remisiones TXT; CUV: {r_json.get('facturas_validadas_msps', 0)} validadas, "
+              f"cargadas{'' if res is None else f', {len(res.envios)} remisiones TXT'}; "
+              f"CUV: {r_json.get('facturas_validadas_msps', 0)} validadas, "
               f"{r_json.get('facturas_rechazadas_msps', 0)} rechazadas")
         # se marca como procesado lo de este hospital (si falla otro hospital, éste no se repite)
         for clave, firma in actuales.items():
@@ -742,7 +758,7 @@ def sincronizar(cfg: dict | None = None, enviar: bool | None = None, aviso=log.i
     meses = sorted({m for m in meses_tocados if re.fullmatch(r"\d{4}-\d{2}", m)} | set(pendientes))
     resumen["meses_enviados"] = meses
     if meses:
-        archivos = tb.exportar_meses(meses, salida / "APLICATIVO_AUDITORIA", cfg)
+        archivos = tb.exportar_meses(meses, salida / "APLICATIVO_AUDITORIA", cfg, solo_json=solo_json)
         resumen["archivos"] += [str(a) for a in archivos]
         if enviar and archivos:
             try:
@@ -788,9 +804,66 @@ def estado() -> dict:
     local = c.get("carpeta_local") or ""
     detectada = None if local else buscar_carpeta_local()
     return {"autovinculada": vinculada, "pendientes_envio": _leer("pendientes_envio.json", []),
-            "config": {k: c[k] for k in ("modo", "carpeta_local", "carpeta_id", "revisar_cada_min", "enviar_aplicativo")},
+            "config": {k: c[k] for k in ("modo", "carpeta_local", "carpeta_id", "revisar_cada_min", "enviar_aplicativo",
+                                         "solo_json")},
             "carpeta_detectada": str(detectada) if detectada else "", "api": estado_api(),
             "ultima": _leer("ultima.json", None), "archivos_procesados": len(_leer("procesado.json", {}))}
+
+
+def generar_notas(ids: list[str] | None = None, desde: str | None = None, hasta: str | None = None,
+                  cfg: dict | None = None, aviso=log.info, salida: Path | None = None) -> dict:
+    """Notas técnicas de capitación con TODOS los RIPS JSON de la carpeta de Drive (cada hospital con su
+    nombre de carpeta; la EPS de cada factura sale de su XML). Una nota por EPS guardada (y por municipio si
+    la nota los trae)."""
+    import pandas as pd
+
+    from . import nota_tecnica, nota_tecnica_excel
+    from .config import cargar_configuracion
+
+    cfg = cfg or cargar_configuracion()
+    c = configuracion(cfg)
+    notas = nota_tecnica.notas_guardadas()
+    if ids:
+        notas = [n for n in notas if n["id"] in set(ids)]
+    if not notas:
+        raise ErrorDrive("No hay notas técnicas guardadas: agréguelas en «Generar nota técnica de capitación» (una por EPS).")
+    raiz = raiz_actual(c, aviso)
+    hospitales = sorted(x for x in raiz.iterdir() if x.is_dir() and not x.name.startswith(".")
+                        and x.name.lower() != raiz.name.lower())
+    partes = []
+    for h in hospitales:
+        aviso(f"Leyendo los JSON de {h.name} …")
+        precargar([h], c.get("extensiones") or DEFAULTS["extensiones"], aviso, solo_json=True)
+        at = nota_tecnica.atenciones_json([h], h.name)
+        aviso(f"  {h.name}: {len(at):,} atenciones".replace(",", "."))
+        if len(at):
+            partes.append(at)
+    at = pd.concat(partes, ignore_index=True) if partes else pd.DataFrame(columns=nota_tecnica.COLS_AT)
+    salida = salida or carpeta_datos() / f"notas_drive_{dt.datetime.now():%Y%m%d_%H%M%S}"
+    resumenes, archivos = [], []
+    for nota in notas:
+        cfg_n = nota_tecnica.cfg_nota(cfg, nota)
+        if len(notas) > 1:  # un JSON sin EPS no puede sumarse a todas las EPS a la vez
+            cfg_n["nota_tecnica"]["json_sin_eps"] = "excluir"
+        for calc in nota_tecnica.calcular_nota(at, nota["ruta"], desde or None, hasta or None, cfg_n):
+            archivos += nota_tecnica_excel.generar(calc, salida / "NOTA_TECNICA")
+            r = calc["resumen"]
+            resumenes.append({k: r.get(k) for k in (
+                "eps", "ambito", "contrato", "poblacion", "sedes_ambito", "sedes_sin_ambito", "desde", "hasta",
+                "codigos_nota", "codigos_con_pacientes", "codigos_sin_registros", "pacientes_unicos_periodo",
+                "registros_incluidos", "duplicados", "excl_anulado", "con_errores", "excl_fuera_periodo",
+                "meses_sin_informacion", "registros_otra_eps", "registros_eps", "entidades_encontradas",
+                "atenciones_periodo", "cumplimiento_meta", "codigos_con_meta", "codigos_bajo_80")})
+            aviso(f"Nota técnica {r['eps']}{' · ' + r['ambito'] if r.get('ambito') else ''}: "
+                  f"{r['pacientes_unicos_periodo']} pacientes únicos, {r['codigos_con_pacientes']} de {r['codigos_nota']} "
+                  f"códigos con pacientes ({r['desde']} a {r['hasta']})")
+    vistas = set()
+    for r in resumenes:  # las sedes sin municipio se avisan una vez por EPS
+        if r["eps"] in vistas:
+            r["sedes_sin_ambito"] = []
+        vistas.add(r["eps"])
+    return {"notas_tecnicas": resumenes, "archivos": [str(a) for a in archivos], "salida": str(salida),
+            "atenciones": len(at)}
 
 
 def reiniciar_procesado() -> None:

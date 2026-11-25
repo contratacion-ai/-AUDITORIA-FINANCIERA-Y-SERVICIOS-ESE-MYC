@@ -452,6 +452,29 @@ def tablero_tabla(request: Request, nombre: str, pagina: int = 1, tam: int = 100
             "columnas": [str(c) for c in t.columns], "filas": tb._registros(parte)}
 
 
+@app.get("/api/tablero/plan")
+def tablero_plan(request: Request):
+    """Plan de acción (todas las tareas del filtro) con su avance."""
+    from .. import plan_accion
+
+    df, ind, params = _datos_tablero()
+    p = tb.plan(df, ind, _filtros(request), params)
+    return {"resumen": plan_accion.resumen(p), "filas": tb._registros(p), "estados": plan_accion.ESTADOS}
+
+
+@app.post("/api/tablero/plan/{id_tarea}")
+async def tablero_plan_actualizar(id_tarea: str, request: Request):
+    from .. import plan_accion
+
+    c = await request.json()
+    try:
+        return plan_accion.actualizar(id_tarea, c.get("estado"), c.get("responsable"), c.get("observaciones"))
+    except KeyError as exc:
+        raise HTTPException(404, "Tarea no encontrada: vuelva a cargar el plan de acción.") from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
 @app.get("/api/tablero/excel")
 def tablero_excel(request: Request):
     df, ind, params = _datos_tablero()
@@ -656,6 +679,23 @@ async def limpieza_confirmar(request: Request):
         raise HTTPException(400, str(exc)) from exc
 
 
+@app.post("/api/datos/txt/vista")
+def txt_vista():
+    """Filas del tablero que vienen de RIPS TXT (para dejar sólo los JSON); no borra nada."""
+    return depuracion.vista_txt(_carpeta_datos_acumulado())
+
+
+@app.post("/api/datos/txt/confirmar")
+async def txt_confirmar(request: Request):
+    c = await request.json()
+    if c.get("confirmar") is not True:
+        raise HTTPException(400, "Falta la confirmación explícita.")
+    try:
+        return depuracion.aplicar_txt(str(c.get("ficha") or ""), _carpeta_datos_acumulado())
+    except depuracion.FichaVencida as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
 @app.post("/api/datos/duplicados/vista")
 def duplicados_vista():
     return depuracion.vista_duplicados(_carpeta_datos_acumulado())
@@ -832,6 +872,38 @@ def _ejecutar_drive(t: dict, solo_revisar: bool):
     finally:
         raiz.removeHandler(manejador)
         raiz.setLevel(nivel)
+
+
+@app.post("/api/drive/notas")
+def drive_notas(cuerpo: dict | None = None):
+    """Notas técnicas con todos los JSON de la carpeta de Drive (sin volver a cargar nada)."""
+    c = cuerpo or {}
+    ids = [x for x in (c.get("ids") or []) if isinstance(x, str)]
+    tid = uuid.uuid4().hex[:10]
+    t = {"id": tid, "estado": "en cola", "fase": "En cola", "inicio": dt.datetime.now().isoformat(timespec="seconds"),
+         "entradas": ["Google Drive · notas técnicas"], "log": [], "resultado": None, "error": None, "salida": None}
+    _trabajos[tid] = t
+
+    def correr():
+        try:
+            with _turno:
+                t["estado"], t["fase"] = "procesando", "Leyendo los JSON de Drive para las notas técnicas"
+                r = drive.generar_notas(ids or None, (c.get("desde") or "").strip() or None,
+                                        (c.get("hasta") or "").strip() or None,
+                                        aviso=lambda m: t["log"].append(f"{dt.datetime.now():%H:%M:%S}  {m}"))
+                t["salida"] = r["salida"]
+                base = Path(r["salida"])
+                t["resultado"] = {"unidades": [], "incidencias": [], "envio": None, "cruce": None, "aviso_envio": None,
+                                  "notas_tecnicas": r["notas_tecnicas"],
+                                  "archivos": [str(Path(a).relative_to(base)).replace("\\", "/") for a in r["archivos"]]}
+                t["estado"], t["fase"] = "terminado", "Notas técnicas generadas"
+        except Exception as exc:  # se muestra en la ventana
+            t["estado"], t["fase"] = "error", "No se generaron las notas técnicas"
+            t["error"] = str(exc) if isinstance(exc, drive.ErrorDrive) else f"{type(exc).__name__}: {exc}"
+            t["log"].append(t["error"] if isinstance(exc, drive.ErrorDrive) else traceback.format_exc(limit=3))
+
+    threading.Thread(target=correr, daemon=True).start()
+    return {"id": tid}
 
 
 _programador: dict = {"hilo": None, "detener": threading.Event()}
