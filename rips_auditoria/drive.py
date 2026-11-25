@@ -474,36 +474,101 @@ def _firma(p: Path) -> str:
     return f"{st.st_size}:{st.st_mtime_ns}"
 
 
+HILOS = 16  # Drive para escritorio atiende varias carpetas a la vez: se listan y se leen en paralelo
+
+
+def _scandir(carpeta: Path) -> list[tuple[str, bool, int, int]]:
+    try:
+        with os.scandir(carpeta) as it:
+            salida = []
+            for e in it:
+                try:
+                    es_dir = e.is_dir(follow_symlinks=False)
+                    st = None if es_dir else e.stat(follow_symlinks=False)  # en Windows viene con el listado
+                    salida.append((e.name, es_dir, st.st_size if st else 0, st.st_mtime_ns if st else 0))
+                except OSError:
+                    continue
+            return salida
+    except OSError:
+        return []
+
+
+def _listar(raiz: Path, extensiones=DEFAULTS["extensiones"], aviso=None, profundidad: int = 8) -> dict[str, str]:
+    """{ruta relativa: «tamaño:fecha»} de los archivos bajo ``raiz``, listando varias carpetas en paralelo.
+    No entra en un acceso directo a la misma carpeta, ni en carpetas ocultas, ni a más de ``profundidad``."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    archivos: dict[str, str] = {}
+    pendientes, carpetas, ultimo = [(raiz, 0)], 0, time.time()
+    with ThreadPoolExecutor(HILOS) as ex:
+        while pendientes:
+            lote, pendientes = pendientes, []
+            for (carpeta, nivel), entradas in zip(lote, ex.map(_scandir, [c for c, _n in lote]), strict=False):
+                carpetas += 1
+                for nombre, es_dir, tam, fecha in entradas:
+                    if es_dir:
+                        if not nombre.startswith(".") and nombre.lower() != raiz.name.lower() and nivel + 1 < profundidad:
+                            pendientes.append((carpeta / nombre, nivel + 1))
+                    elif Path(nombre).suffix.lower() in extensiones:
+                        archivos[(carpeta / nombre).relative_to(raiz).as_posix()] = f"{tam}:{fecha}"
+                if aviso and time.time() - ultimo > 5:
+                    ultimo = time.time()
+                    aviso(f"Revisando la carpeta de Drive: {carpetas:,} carpetas y {len(archivos):,} archivos …"
+                          .replace(",", "."))
+    return archivos
+
+
 def _archivos(raiz: Path, profundidad: int = 8) -> list[Path]:
-    """Archivos bajo ``raiz`` sin entrar en un acceso directo a la misma carpeta (p. ej. «Rips TXT y JSON 2026»
-    dentro de sí misma), ni en carpetas ocultas, ni a más de ``profundidad`` niveles."""
-    salida = []
-    for base, dirs, files in os.walk(raiz, followlinks=False):
-        nivel = len(Path(base).relative_to(raiz).parts)
-        dirs[:] = sorted(d for d in dirs if not d.startswith(".") and d.lower() != raiz.name.lower()
-                         and nivel < profundidad)
-        salida += [Path(base) / f for f in sorted(files)]
-    return salida
+    """Compatibilidad: rutas de los archivos bajo ``raiz`` (ver ``_listar``)."""
+    return [raiz / r for r in sorted(_listar(raiz, extensiones=_TODAS, profundidad=profundidad))]
 
 
-def novedades(raiz: Path, extensiones=DEFAULTS["extensiones"]) -> tuple[dict[tuple[str, str], list[Path]], dict]:
+class _Todas:
+    def __contains__(self, _x):
+        return True
+
+
+_TODAS = _Todas()
+
+
+def precargar(rutas: list[Path], extensiones=DEFAULTS["extensiones"], aviso=None) -> int:
+    """Lee en paralelo los archivos de ``rutas`` para que Drive para escritorio los descargue a la vez
+    (después el procesamiento los lee de la copia local, sin esperar a internet)."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    archivos = [r / x for r in rutas for x in _listar(r, extensiones)] if rutas else []
+
+    def leer(f: Path) -> None:
+        try:
+            with f.open("rb") as fh:
+                while fh.read(1 << 20):
+                    pass
+        except OSError:
+            pass
+
+    hechos, ultimo = 0, time.time()
+    with ThreadPoolExecutor(HILOS) as ex:
+        for _ in ex.map(leer, archivos):
+            hechos += 1
+            if aviso and time.time() - ultimo > 5:
+                ultimo = time.time()
+                aviso(f"  Descargando de Drive: {hechos:,} de {len(archivos):,} archivos …".replace(",", "."))
+    return len(archivos)
+
+
+def novedades(raiz: Path, extensiones=DEFAULTS["extensiones"], aviso=None) -> tuple[dict[tuple[str, str], list[Path]], dict]:
     """Unidades (hospital, carpeta del mes) con archivos nuevos o modificados desde lo procesado.
 
     Devuelve ({(hospital, mes): [carpeta a procesar]}, firmas actuales por archivo)."""
     previas = _leer("procesado.json", {})
-    actuales, unidades = {}, {}
-    for f in _archivos(raiz):
-        if f.suffix.lower() not in extensiones:
+    unidades = {}
+    actuales = {k: v for k, v in _listar(raiz, extensiones, aviso).items() if "/" in k}  # sin archivos sueltos en la raíz
+    for clave, firma in sorted(actuales.items()):
+        if previas.get(clave) == firma:
             continue
-        rel = f.relative_to(raiz)
-        if len(rel.parts) < 2:  # archivos sueltos en la raíz: sin hospital
-            continue
-        clave = rel.as_posix()
-        actuales[clave] = _firma(f)
-        if previas.get(clave) == actuales[clave]:
-            continue
-        hospital = rel.parts[0]
-        mes = rel.parts[1] if len(rel.parts) > 2 and detectar_mes(rel.parts[1])[0] else ""
+        partes = clave.split("/")
+        hospital = partes[0]
+        mes = partes[1] if len(partes) > 2 and detectar_mes(partes[1])[0] else ""
         unidades.setdefault((hospital, mes), [raiz / hospital / mes if mes else raiz / hospital])
     return unidades, actuales
 
@@ -613,7 +678,8 @@ def sincronizar(cfg: dict | None = None, enviar: bool | None = None, aviso=log.i
     c = configuracion(cfg)
     enviar = c["enviar_aplicativo"] if enviar is None else enviar
     raiz = raiz_actual(c, aviso)
-    unidades, actuales = novedades(raiz, c.get("extensiones") or DEFAULTS["extensiones"])
+    aviso(f"Revisando la carpeta de Drive: {raiz} (la primera vez puede tardar varios minutos) …")
+    unidades, actuales = novedades(raiz, c.get("extensiones") or DEFAULTS["extensiones"], aviso)
     resumen = {"carpeta": str(raiz), "inicio": dt.datetime.now().isoformat(timespec="seconds"),
                "unidades": [{"hospital": h, "mes": m or "(sin mes)"} for h, m in sorted(unidades)],
                "procesadas": [], "meses_enviados": [], "envio": None, "cruce": None, "aviso_envio": None,
@@ -639,6 +705,8 @@ def sincronizar(cfg: dict | None = None, enviar: bool | None = None, aviso=log.i
     for hospital, lista in por_hospital.items():
         entradas = [r for _m, rutas in lista for r in rutas]
         aviso(f"Procesando {hospital}: {', '.join(m or 'todo' for m, _r in lista)}")
+        n = precargar(entradas, c.get("extensiones") or DEFAULTS["extensiones"], aviso)
+        aviso(f"  {n:,} archivos listos; leyendo y validando …".replace(",", "."))
         res = procesar(entradas, cfg, hospital=hospital)
         if not res.envios.empty:
             generados = exportar_todo(res, salida, cfg)
