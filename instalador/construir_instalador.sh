@@ -171,7 +171,8 @@ makensis -V2 -DVERSION="$VERSION" -DAPPDIR="$APP" -DRECURSOS="$BUILD/recursos" -
 
 echo "[6/6] Empaquetando ZIP"
 ( cd "$DIST" && rm -f "Instalador_Cargue_RIPS_ESE_MyC_v$VERSION.zip" && \
-  cp "$APP/LEAME.txt" LEAME_PRIMERO.txt && \
-  zip -q -9 "Instalador_Cargue_RIPS_ESE_MyC_v$VERSION.zip" "$(basename "$SALIDA")" LEAME_PRIMERO.txt && rm LEAME_PRIMERO.txt )
+  cp "$APP/LEAME.txt" LEAME_PRIMERO.txt && cp "$RAIZ/instalador/HACER_TODO.bat" HACER_TODO.bat && \
+  zip -q -9 "Instalador_Cargue_RIPS_ESE_MyC_v$VERSION.zip" "$(basename "$SALIDA")" LEAME_PRIMERO.txt HACER_TODO.bat && \
+  rm LEAME_PRIMERO.txt HACER_TODO.bat )
 ls -la "$DIST"
 echo "Listo: $SALIDA"
