@@ -832,9 +832,15 @@ def generar_notas(ids: list[str] | None = None, desde: str | None = None, hasta:
                         and x.name.lower() != raiz.name.lower())
     partes = []
     for h in hospitales:
-        aviso(f"Leyendo los JSON de {h.name} …")
-        precargar([h], c.get("extensiones") or DEFAULTS["extensiones"], aviso, solo_json=True)
-        at = nota_tecnica.atenciones_json([h], h.name)
+        # sólo los JSON, los XML de la factura (EPS) y los ZIP: no se leen los TXT ni los demás archivos
+        rel = _listar(h, (".json", ".xml", ".zip"), solo_json=True)
+        archivos = [h / r for r in sorted(rel)]
+        aviso(f"Leyendo los JSON de {h.name}: {sum(r.endswith('.json') for r in rel):,} JSON y "
+              f"{sum(r.endswith('.xml') for r in rel):,} XML …".replace(",", "."))
+        if not archivos:
+            continue
+        precargar([h], (".json", ".xml", ".zip"), aviso, solo_json=True)
+        at = nota_tecnica.atenciones_json(archivos, h.name)
         aviso(f"  {h.name}: {len(at):,} atenciones".replace(",", "."))
         if len(at):
             partes.append(at)

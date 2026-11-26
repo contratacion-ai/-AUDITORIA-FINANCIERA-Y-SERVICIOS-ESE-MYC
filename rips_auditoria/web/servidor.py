@@ -66,6 +66,12 @@ class _CapturaLog(logging.Handler):
         self.trabajo["log"].append(f"{dt.datetime.now():%H:%M:%S}  {record.getMessage()}")
 
 
+def _en_curso() -> str:
+    """« (Generando las notas técnicas…)»: qué está haciendo el proceso que ocupa la aplicación."""
+    activos = [t for t in _trabajos.values() if t.get("estado") == "procesando"]
+    return f" ({activos[-1]['fase']}; vea el avance en la ventana de Cargue de RIPS)" if activos else ""
+
+
 def _cfg_app(cfg: dict) -> dict:
     return cfg.get("aplicativo_auditoria") or {}
 
@@ -138,7 +144,7 @@ def apagar(request: Request):
     if not _es_local(request):
         raise HTTPException(403, "Sólo desde este equipo.")
     if _turno.locked():
-        raise HTTPException(409, "Hay un cargue en curso; espere a que termine.")
+        raise HTTPException(409, "Hay un proceso en curso" + _en_curso() + "; espere a que termine.")
     threading.Timer(0.5, lambda: os._exit(0)).start()
     return {"ok": True}
 
@@ -651,7 +657,7 @@ async def catalogos_cargar(tipo: str, request: Request):
 
 def _carpeta_datos_acumulado() -> Path:
     if _turno.locked():
-        raise HTTPException(409, "Hay un cargue en curso. Espere a que termine para limpiar o depurar.")
+        raise HTTPException(409, "Hay un proceso en curso" + _en_curso() + ". Espere a que termine para limpiar o depurar.")
     return tb.carpeta_acumulado(cargar_configuracion())
 
 
