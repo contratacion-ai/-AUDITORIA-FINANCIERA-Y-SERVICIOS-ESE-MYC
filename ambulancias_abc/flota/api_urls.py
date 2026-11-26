@@ -13,4 +13,5 @@ urlpatterns = [
     path("consumos", api.consumos, name="consumos"),
     path("hallazgos", api.hallazgos, name="hallazgos"),
     path("rips", api.importar_rips, name="importar_rips"),
+    path("archivos", api.importar_archivos, name="importar_archivos"),
 ]

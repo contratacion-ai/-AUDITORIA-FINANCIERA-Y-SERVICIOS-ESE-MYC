@@ -158,11 +158,15 @@ def _encabezado(ws, titulo: str, ultima_col: int, logo: bool):
     for fila in range(1, 5):
         ws.row_dimensions[fila].height = 18
     if logo and LOGO.exists():
-        from openpyxl.drawing.image import Image
+        try:
+            from openpyxl.drawing.image import Image
 
-        img = Image(str(LOGO))
-        img.width, img.height = 210, 57
-        ws.add_image(img, "A1")
+            img = Image(str(LOGO))  # requiere Pillow; sin él el formato sale sin logo
+        except ImportError:
+            img = None
+        if img is not None:
+            img.width, img.height = 210, 57
+            ws.add_image(img, "A1")
     ws.sheet_properties.pageSetUpPr.fitToPage = True
     ws.page_setup.fitToWidth = 1
     ws.page_setup.fitToHeight = 0

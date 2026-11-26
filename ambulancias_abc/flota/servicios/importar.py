@@ -380,17 +380,44 @@ def prefijos_por_sede() -> dict[str, Sede]:
     return mapa
 
 
-def resolver_sede_rips(r, sede, sedes_prestador, sedes_prefijo):
-    """Sede de una línea RIPS: la elegida en el cargue, o la del código de prestador,
-    o la del prefijo del número de factura. Devuelve (sede, cómo)."""
+def resolver_sede_rips(r, sede, sedes_prestador, sedes_prefijo, sedes_codigo=None):
+    """Sede de una línea RIPS: la elegida en el cargue, la que envía la aplicación de
+    origen (sede_codigo), la del código de prestador o la del prefijo del número de
+    factura. Devuelve (sede, cómo)."""
     if sede is not None:
         return sede, "elegida"
+    if sedes_codigo and r.get("sede_codigo") in sedes_codigo:
+        return sedes_codigo[r["sede_codigo"]], "código de sede enviado"
     if r.get("cod_prestador") and r["cod_prestador"] in sedes_prestador:
         return sedes_prestador[r["cod_prestador"]], "código de prestador"
     pre = prefijo_factura(r.get("numero_factura"))
     if pre in sedes_prefijo:
         return sedes_prefijo[pre], f"prefijo de factura {pre}"
     return None, ""
+
+
+def _aplicar_extras(t: Traslado, r: dict, res: ResolutorCatalogos) -> list[str]:
+    """Placa, recorrido, km y EPS que envía la aplicación de origen (JSON de
+    intercambio). Solo completa lo que falta: no cambia placa ni ruta asignadas."""
+    campos = []
+    if r.get("placa") and t.ambulancia_id is None:
+        amb = res.ambulancia(r["placa"])
+        if amb is not None:
+            t.ambulancia = amb
+            campos.append("ambulancia")
+    if r.get("municipio_destino") and t.ruta_id is None:
+        destino = r["municipio_destino"]
+        ruta = next((x for x in res.rutas.get(normalizar(t.sede.origen_tarifa), []) if normalizar(x.destino) == destino), None)
+        if ruta is not None:
+            t.ruta, t.ruta_inferida = ruta, True
+            campos += ["ruta", "ruta_inferida"]
+    if r.get("km_reportado") and t.origen_registro == Traslado.RIPS and t.km_recorridos != r["km_reportado"]:
+        t.km_recorridos = r["km_reportado"]
+        campos.append("km_recorridos")
+    if r.get("eps_nombre") and not t.eps_nombre:
+        t.eps_nombre = r["eps_nombre"]
+        campos.append("eps_nombre")
+    return campos
 
 
 def importar_rips(contenido, usuario=None, nombre="RIPS.json", mes: dt.date | None = None, sede: Sede | None = None) -> LoteImportacion:
@@ -424,6 +451,9 @@ def importar_rips(contenido, usuario=None, nombre="RIPS.json", mes: dt.date | No
     pars = parametros()
     sedes_prestador = {s.codigo_prestador: s for s in Sede.objects.exclude(codigo_prestador="")}
     sedes_prefijo = prefijos_por_sede()
+    sedes_codigo = {s.codigo: s for s in Sede.objects.all()}
+    extras_aplicados = 0
+    placas_desconocidas = Counter()
     nuevos = conciliados = con_diferencia = omitidos = fuera_mes = prestador_distinto = otra_sede = 0
     sin_sede = Counter()
     prestadores_vistos: dict[int, Counter] = defaultdict(Counter)
@@ -434,13 +464,13 @@ def importar_rips(contenido, usuario=None, nombre="RIPS.json", mes: dt.date | No
     with transaction.atomic():
         for r in datos["registros"]:
             obs = list(r["observaciones"])
-            sede_r, como = resolver_sede_rips(r, sede, sedes_prestador, sedes_prefijo)
+            sede_r, como = resolver_sede_rips(r, sede, sedes_prestador, sedes_prefijo, sedes_codigo)
             if sede_r is None:
                 sin_sede[(r["cod_prestador"], prefijo_factura(r["numero_factura"]))] += 1
                 omitidos += 1
                 continue
             if sede is not None:
-                propia, como_propia = resolver_sede_rips(r, None, sedes_prestador, sedes_prefijo)
+                propia, como_propia = resolver_sede_rips(r, None, sedes_prestador, sedes_prefijo, sedes_codigo)
                 if propia is not None and propia != sede:
                     otra_sede += 1
                     obs.append(f"según {como_propia} la factura es de {propia.nombre}")
@@ -480,12 +510,17 @@ def importar_rips(contenido, usuario=None, nombre="RIPS.json", mes: dt.date | No
                     Q(valor_rips=r["valor_facturado"]) | Q(valor_rips__isnull=True, valor_facturado=r["valor_facturado"])
                 )
                 if previas.count() >= ocurrencia:
-                    omitidos += 1
-                    continue
+                    ya = previas.order_by("id")[ocurrencia - 1]
+            if r.get("placa") and res.ambulancia(r["placa"]) is None:
+                placas_desconocidas[r["placa"]] += 1
             if ya:
+                campos = _aplicar_extras(ya, r, res)
                 if ya.lote_rips_id is None:
                     ya.lote_rips = lote
-                    ya.save(update_fields=["lote_rips"])
+                    campos.append("lote_rips")
+                if campos:
+                    ya.save(update_fields=campos)
+                    extras_aplicados += bool(set(campos) - {"lote_rips"})
                 omitidos += 1
                 continue
             base = Traslado.objects.filter(numero_factura=r["numero_factura"], codigo_cups=r["codigo_cups"], conciliado_rips=False)
@@ -513,8 +548,10 @@ def importar_rips(contenido, usuario=None, nombre="RIPS.json", mes: dt.date | No
                     campos.append("observaciones_calidad")
                     con_diferencia += 1
                     psm["diferencia_valor"] += 1
+                extra = _aplicar_extras(existente, r, res)
+                extras_aplicados += bool(extra)
                 existente.version += 1
-                existente.save(update_fields=campos)
+                existente.save(update_fields=campos + extra)
                 conciliados += 1
                 psm["conciliados"] += 1
                 continue
@@ -539,6 +576,7 @@ def importar_rips(contenido, usuario=None, nombre="RIPS.json", mes: dt.date | No
                                      "tipo_documento", "documento_hash", "rips_consecutivo")},
             )
             t.km_recorridos = calcular_km(t.cantidad, por_km, pars)
+            extras_aplicados += bool(_aplicar_extras(t, r, res))
             obs.insert(0, f"creado desde RIPS ({r['regla']}; hospital por {como}): no estaba en la facturación HIS")
             t.observaciones_calidad = "; ".join(obs)[:2000]
             t.save()
@@ -575,6 +613,10 @@ def importar_rips(contenido, usuario=None, nombre="RIPS.json", mes: dt.date | No
     if otra_sede:
         hallazgos.append(hallazgo(nombre[:200], f"RIPS {sede}", "INCONSISTENCIA",
                                   f"{otra_sede} líneas cuyo prefijo de factura o prestador corresponde a otro hospital; se cargaron en {sede}", "MEDIA"))
+    if placas_desconocidas:
+        hallazgos.append(hallazgo(nombre[:200], "placa", "FALTANTE",
+                                  "Placas que no están en la flota: " + ", ".join(f"{p} ({n})" for p, n in placas_desconocidas.most_common(10)),
+                                  "MEDIA"))
     if con_diferencia:
         hallazgos.append(hallazgo(nombre[:200], "valores", "INCONSISTENCIA",
                                   f"{con_diferencia} líneas de RIPS con valor o cantidad distintos a la facturación HIS (ver Auditoría RIPS)", "MEDIA"))
@@ -594,6 +636,7 @@ def importar_rips(contenido, usuario=None, nombre="RIPS.json", mes: dt.date | No
         "prestador_distinto": prestador_distinto,
         "con_diferencia_valor": con_diferencia,
         "sin_hospital": sum(sin_sede.values()),
+        "placa_o_ruta_asignada": extras_aplicados,
         "lineas_repetidas": datos["lineas_repetidas"],
         "facturas_repetidas": datos["facturas_repetidas"],
         "meses": meses,

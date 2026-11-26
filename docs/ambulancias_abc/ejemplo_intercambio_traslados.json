@@ -1,0 +1,40 @@
+{
+  "formato": "costeo-abc-traslados",
+  "version": "1.0",
+  "origen": "app-rips",
+  "generado": "2026-11-26T10:00:00-05:00",
+  "traslados": [
+    {
+      "numero_factura": "FHSA15037",
+      "fecha_servicio": "2026-09-20",
+      "codigo_cups": "601T02",
+      "descripcion": "TRASLADO ASISTENCIAL BASICO TERRESTRE SECUNDARIO",
+      "cantidad": 101,
+      "valor_unitario": 17000,
+      "valor_facturado": 1717000,
+      "categoria": "TRASLADO",
+      "sede_codigo": "tame",
+      "cod_prestador": "",
+      "tipo_documento": "CC",
+      "numero_documento": "0000000",
+      "eps_nombre": "NUEVA EPS",
+      "ambito": "Urgencias",
+      "autorizacion": "AUT-123",
+      "consecutivo": "1",
+      "placa": "OEU846",
+      "municipio_destino": "SARAVENA",
+      "km": 202
+    },
+    {
+      "numero_factura": "FHSA15037",
+      "fecha_servicio": "2026-09-20",
+      "codigo_cups": "601T01",
+      "cantidad": 1,
+      "valor_facturado": 459300,
+      "sede_codigo": "tame",
+      "tipo_documento": "CC",
+      "numero_documento": "0000000",
+      "placa": "OEU846"
+    }
+  ]
+}

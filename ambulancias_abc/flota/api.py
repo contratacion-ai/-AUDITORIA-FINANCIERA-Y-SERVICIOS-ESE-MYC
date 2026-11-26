@@ -304,6 +304,32 @@ def hallazgos(request):
 @csrf_exempt
 @require_POST
 @requiere_clave(escritura=True)
+def importar_archivos(request):
+    """Cualquier archivo (multipart, campo «archivo», uno o varios; o el cuerpo crudo con X-Nombre-Archivo):
+    se reconoce por su contenido y se envía a la carga que corresponde."""
+    from .models import Sede
+    from .servicios.carga_universal import cargar_archivos
+
+    mes = _mes(request)
+    if mes == "error":
+        return JsonResponse({"error": "mes debe ser AAAA-MM"}, status=400)
+    sede = Sede.objects.filter(codigo=request.GET["sede"]).first() if request.GET.get("sede") else None
+    archivos = [(f.name, f.read()) for f in request.FILES.getlist("archivo")]
+    if not archivos and request.body:
+        archivos = [(request.headers.get("X-Nombre-Archivo", "archivo.json"), request.body)]
+    if not archivos:
+        return JsonResponse({"error": "envíe uno o varios archivos en el campo «archivo» o en el cuerpo"}, status=400)
+    resultados = cargar_archivos(archivos, request.user if request.user.is_authenticated else None, mes, sede)
+    return JsonResponse({"contrato": "1.0", "resultados": [
+        {"archivo": r.archivo, "tipo": r.tipo, "lote": r.lote.pk if r.lote else None, "error": r.error, "mensaje": r.mensaje,
+         "nuevos": r.lote.nuevos if r.lote else 0, "actualizados": r.lote.actualizados if r.lote else 0,
+         "hallazgos": r.lote.hallazgos if r.lote else 0}
+        for r in resultados]}, status=200 if not all(r.error for r in resultados) else 422)
+
+
+@csrf_exempt
+@require_POST
+@requiere_clave(escritura=True)
 def importar_rips(request):
     from .servicios.importar import importar_rips as _importar
 

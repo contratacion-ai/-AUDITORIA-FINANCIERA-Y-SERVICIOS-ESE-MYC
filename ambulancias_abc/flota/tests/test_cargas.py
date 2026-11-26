@@ -646,3 +646,141 @@ class ReferenciaTests(BaseDatos):
         self.assertEqual(load_workbook(io.BytesIO(x.content)).sheetnames,
                          ["Por mes y hospital", "Por EPS", "Por destino", "Remisiones", "Facturado sin remisión"])
         self.assertContains(self.client.get(reverse("flota:cargas")), "Cargar referencia y contrarreferencia del mes")
+
+
+# ---------------------------------------------------------------------------
+# JSON de intercambio desde la aplicación de RIPS y carga de cualquier archivo
+# ---------------------------------------------------------------------------
+
+
+def json_intercambio(**kw):
+    t = {
+        "numero_factura": "FR100", "fecha_servicio": "2026-09-20", "codigo_cups": "601T02", "descripcion": "TRASLADO SECUNDARIO",
+        "cantidad": 101, "valor_unitario": 17000, "valor_facturado": 1717000, "sede_codigo": "tame", "tipo_documento": "CC",
+        "numero_documento": "1000001", "placa": "OEU846", "municipio_destino": "SARAVENA", "km": 202, "categoria": "TRASLADO",
+    }
+    t.update(kw)
+    return json.dumps({"formato": "costeo-abc-traslados", "version": "1.0", "origen": "app-rips", "traslados": [t]}).encode()
+
+
+class IntercambioRipsTests(BaseDatos):
+    def test_lector(self):
+        r = leer_rips_archivos([("traslados.json", json_intercambio())], "sal", CATALOGO)
+        x = r["registros"][0]
+        self.assertEqual((x["placa"], x["municipio_destino"], x["sede_codigo"], x["km_reportado"]), ("OEU846", "SARAVENA", "tame", Decimal("202")))
+        self.assertNotIn("1000001", x["documento_hash"])
+        # también una lista simple de traslados
+        lista = json.dumps([json.loads(json_intercambio())["traslados"][0]]).encode()
+        self.assertEqual(len(leer_rips_archivos([("t.json", lista)], "sal", CATALOGO)["registros"]), 1)
+
+    def test_crea_y_asigna_placa_ruta_y_km(self):
+        lote = importar.importar_rips([("traslados.json", json_intercambio())], nombre="traslados.json")
+        t = Traslado.objects.get()
+        self.assertEqual((t.sede, t.ambulancia.placa, t.ruta.destino, t.km_recorridos), (self.tame, "OEU846", "SARAVENA", Decimal("202")))
+        self.assertEqual((lote.nuevos, lote.detalle["placa_o_ruta_asignada"]), (1, 1))
+        # reenviar no duplica
+        lote2 = importar.importar_rips([("traslados.json", json_intercambio())], nombre="traslados.json")
+        self.assertEqual((lote2.nuevos, Traslado.objects.count()), (0, 1))
+
+    def test_completa_la_facturacion_his(self):
+        importar.importar_facturacion(xlsx_his([fila_his("HOSPITAL SAN ANTONIO", "601T02", 101, 17000, 77, "FR100")]), nombre="f.xlsx")
+        importar.importar_rips([("t.json", json_intercambio(placa="", municipio_destino=""))], nombre="t.json")
+        his = Traslado.objects.get()
+        self.assertTrue(his.conciliado_rips)
+        self.assertIsNone(his.ambulancia)
+        # la aplicación de RIPS reenvía el traslado ya con placa y destino: se completan sin duplicar
+        importar.importar_rips([("t.json", json_intercambio())], nombre="t.json")
+        his.refresh_from_db()
+        self.assertEqual((Traslado.objects.count(), his.ambulancia.placa, his.ruta.destino), (1, "OEU846", "SARAVENA"))
+
+    def test_api(self):
+        from flota.api import crear_clave
+
+        _, clave = crear_clave("rips", escritura=True)
+        r = self.client.post(reverse("api:importar_rips"), json_intercambio(), content_type="application/json", HTTP_X_API_KEY=clave)
+        self.assertEqual(r.json()["nuevos"], 1)
+
+
+class CargaUniversalTests(BaseDatos):
+    def _consumos_csv(self):
+        return "placa;fecha;tipo;descripcion;cantidad;unidad;valor\nOEU846;2026-09-03;COMBUSTIBLE;Tanqueo;10;gal;236500\n".encode()
+
+    def test_detecta_cada_tipo(self):
+        from flota.servicios.carga_universal import (
+            CECO, CONSUMOS, COSTOS_MENSUALES, FACTURACION, REFERENCIA, RIPS, TARIFAS, detectar,
+        )
+
+        tarifas = Workbook()
+        tarifas.active.title = "TRASLADOS Anexo 3"
+        tarifas.active.append(["ORIGEN", "DESTINO", "Km", 2026])
+        b_tarifas = io.BytesIO()
+        tarifas.save(b_tarifas)
+        ceco = Workbook()
+        ceco.active.append(["", "", "VR. PESOS MES"])
+        b_ceco = io.BytesIO()
+        ceco.save(b_ceco)
+        casos = [
+            ("rips.zip", zip_rips(), "ZIP"), ("traslados.json", json_intercambio(), RIPS),
+            ("factura.json", json.dumps({"numFactura": "F1", "usuarios": []}).encode(), RIPS),
+            ("AT000001.txt", AT.encode("latin-1"), RIPS),
+            ("fact.xlsx", xlsx_his([fila_his("HOSPITAL SAN ANTONIO", "601T02", 101, 17000, 1)]).getvalue(), FACTURACION),
+            ("costos.xlsx", libro_costos_mensuales().getvalue(), COSTOS_MENSUALES),
+            ("ref.xlsx", libro_referencia_v2([fila_ref()]).getvalue(), REFERENCIA),
+            ("consumos.csv", self._consumos_csv(), CONSUMOS), ("tarifas.xlsx", b_tarifas.getvalue(), TARIFAS),
+            ("ceco.xlsx", b_ceco.getvalue(), CECO), ("sin_extension", libro_costos_mensuales().getvalue(), COSTOS_MENSUALES),
+        ]
+        for nombre, contenido, esperado in casos:
+            self.assertEqual(detectar(nombre, contenido)[0], esperado, nombre)
+        for nombre, contenido in [("FHSA1.xml", b"<Invoice/>"), ("acta.pdf", b"%PDF-1.4"), ("x.json", b'{"a": 1}'),
+                                  ("raro.bin", b"\x00\x01\x02")]:
+            tipo, motivo = detectar(nombre, contenido)
+            self.assertIsNone(tipo, nombre)
+            self.assertTrue(motivo, nombre)
+        self.assertEqual(detectar("viejo.xls", b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"\x00" * 100)[0], "XLS")
+
+    def test_zip_mezclado_y_pantalla(self):
+        from flota.models import Remision
+
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as z:
+            z.writestr("septiembre/rips_tame.zip", zip_rips())
+            z.writestr("septiembre/traslados_app_rips.json", json_intercambio(numero_factura="FR200", numero_documento="5"))
+            z.writestr("septiembre/RYC-FO-015_TAME.xlsx", libro_referencia_v2([fila_ref()]).getvalue())
+            z.writestr("septiembre/consumos.csv", self._consumos_csv())
+            z.writestr("septiembre/FHSA1.xml", "<Invoice/>")
+        self.client.force_login(User.objects.create_superuser("uni", "", "Clave-Prueba-1"))
+        r = self.client.post(reverse("flota:cargar_universal"), {
+            "archivos": [SimpleUploadedFile("todo_septiembre.zip", buf.getvalue()),
+                         SimpleUploadedFile("acta.pdf", b"%PDF-1.4 ...")],
+        })
+        self.assertEqual(r.status_code, 200)
+        tipos = {x.tipo for x in r.context["resultados"]}
+        self.assertEqual(tipos, {"RIPS", "REFERENCIA", "CONSUMOS", None})
+        errores = [x for x in r.context["resultados"] if x.error]
+        self.assertEqual([x.archivo for x in errores], ["acta.pdf"])
+        self.assertTrue(Traslado.objects.filter(numero_factura="FR200").exists())
+        self.assertEqual(Remision.objects.count(), 1)
+        self.assertEqual(Consumo.objects.filter(ambulancia__placa="OEU846").count(), 1)
+        self.assertContains(r, "Resultado de la carga")
+        self.assertContains(self.client.get(reverse("flota:cargas")), "Cargar cualquier archivo")
+
+    def test_api_archivos(self):
+        from flota.api import crear_clave
+
+        _, clave = crear_clave("rips", escritura=True)
+        r = self.client.post(reverse("api:importar_archivos"), {"archivo": [SimpleUploadedFile("t.json", json_intercambio())]},
+                             HTTP_X_API_KEY=clave)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["resultados"][0]["tipo"], "RIPS")
+        r2 = self.client.post(reverse("api:importar_archivos"), {"archivo": [SimpleUploadedFile("a.pdf", b"%PDF-1.4")]},
+                              HTTP_X_API_KEY=clave)
+        self.assertEqual(r2.status_code, 422)
+
+    def test_formato_referencia_sin_pillow(self):
+        from unittest import mock
+
+        from flota.servicios.referencia import formato_vacio
+
+        with mock.patch("openpyxl.drawing.image.PILImage", False):
+            wb = load_workbook(io.BytesIO(formato_vacio()))
+        self.assertEqual(wb.sheetnames[0], "REGISTRO")

@@ -11,7 +11,7 @@
   {% if perms.flota.add_consumo %}
   <form class="boton-grande az" method="post" enctype="multipart/form-data" action="{% url 'flota:cargar_consumos' clave %}">{% csrf_token %}
     <b>Cargar {{ datos.titulo|lower }} (Excel o CSV)</b>
-    <input type="file" name="archivo" accept=".xlsx,.csv" required>
+    <input type="file" name="archivo" required>
     <button type="submit">Cargar</button>
   </form>{% endif %}
   <a class="boton-grande" href="?{{ request.GET.urlencode }}&formato=xlsx"><b>Descargar tabla (Excel)</b><span>Matriz mensual y detalle.</span></a>

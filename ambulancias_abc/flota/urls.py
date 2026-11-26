@@ -30,6 +30,7 @@ urlpatterns = [
     path("referencia/", views_cargas.referencia_vista, name="referencia"),
     path("referencia/formato.xlsx", views_cargas.formato_referencia, name="formato_referencia"),
     path("cargas/referencia/", views_cargas.cargar_referencia, name="cargar_referencia"),
+    path("cargas/archivos/", views_cargas.cargar_universal, name="cargar_universal"),
     path("consumos/tabla/<slug:clave>/", views_cargas.consumos_tabla, name="consumos_tabla"),
     path("consumos/tabla/<slug:clave>/cargar/", views_cargas.cargar_consumos, name="cargar_consumos"),
     path("consumos/tabla/<slug:clave>/plantilla.xlsx", views_cargas.plantilla_consumos_tabla, name="plantilla_consumos_tabla"),

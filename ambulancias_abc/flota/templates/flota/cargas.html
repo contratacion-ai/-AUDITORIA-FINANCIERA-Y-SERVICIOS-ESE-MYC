@@ -2,6 +2,9 @@
 {% block titulo %}Cargas del mes{% endblock %}
 {% block contenido %}
 <h1>Cargas del mes</h1>
+<div class="botonera">
+  <a class="boton-grande az" href="{% url 'flota:cargar_universal' %}"><b>Cargar cualquier archivo</b><span>Excel, XLS, CSV, JSON, TXT o ZIP, uno o varios: la aplicación reconoce qué es cada uno (RIPS, facturación, referencia, mantenimiento y combustible, consumos, tarifas, centro de costos) y lo carga.</span></a>
+</div>
 <h2>Facturación y RIPS</h2>
 <div class="botonera">
   <a class="boton-grande" href="{% url 'flota:cargar_facturacion' %}"><b>Cargar facturación del mes</b><span>Reporte del HIS por ámbito y unidad funcional (.xlsx), todos los hospitales o uno.</span></a>

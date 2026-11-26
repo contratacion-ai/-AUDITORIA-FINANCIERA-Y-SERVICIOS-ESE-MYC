@@ -15,7 +15,14 @@ from django.urls import reverse
 from abc_engine.calculo import METODO_REAL
 
 from .exportar import FORMATO_NUM, FORMATO_PESOS, respuesta_xlsx
-from .forms import CargaConsumosForm, CargaCostosMensualesForm, CargaFacturacionForm, CargaReferenciaForm, CargaRipsForm
+from .forms import (
+    CargaConsumosForm,
+    CargaCostosMensualesForm,
+    CargaFacturacionForm,
+    CargaReferenciaForm,
+    CargaRipsForm,
+    CargaUniversalForm,
+)
 from .models import APH, CATEGORIAS_SERVICIO, Ambulancia, Consumo, LoteImportacion, Sede, Traslado, sumar_meses
 from .servicios import importar
 from .servicios.comunes import registrar
@@ -196,6 +203,24 @@ def costos_reales_vista(request):
     return render(request, "flota/costos_reales.html", {
         **datos, "desde": desde, "hasta": hasta, "sede": sede or "", "sedes": Sede.objects.filter(activa=True),
     })
+
+
+@login_required
+@permission_required("flota.add_traslado", raise_exception=True)
+def cargar_universal(request):
+    from .servicios.carga_universal import cargar_archivos
+
+    form = CargaUniversalForm(request.POST or None, request.FILES or None)
+    resultados = None
+    if request.method == "POST" and form.is_valid():
+        archivos = [(f.name, f.read()) for f in form.cleaned_data["archivos"]]
+        resultados = cargar_archivos(archivos, request.user, form.cleaned_data["mes"], form.cleaned_data["sede"],
+                                     form.cleaned_data["vigencia"])
+        for r in resultados:
+            if r.lote is not None:
+                registrar(request.user, r.lote, "importar", {"tipo": r.tipo, "archivo": r.archivo, "carga": "universal"})
+        form = CargaUniversalForm()
+    return render(request, "flota/cargar_universal.html", {"form": form, "resultados": resultados})
 
 
 @login_required

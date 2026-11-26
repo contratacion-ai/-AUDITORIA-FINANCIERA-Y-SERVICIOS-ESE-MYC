@@ -139,6 +139,9 @@ def _leer_json(nombre: str, contenido: bytes, sal: str, catalogo: dict, salida: 
     except json.JSONDecodeError as e:
         salida["hallazgos"].append(hallazgo(nombre, "archivo", "FALTANTE", f"JSON inválido: {e}", "ALTA"))
         return
+    if es_intercambio(datos):
+        _leer_intercambio(nombre, datos, sal, catalogo, salida)
+        return
     facturas = datos if isinstance(datos, list) else [datos]
     for factura in facturas:
         if not isinstance(factura, dict):
@@ -174,6 +177,58 @@ def _leer_json(nombre: str, contenido: bytes, sal: str, catalogo: dict, salida: 
                 salida["lineas_revisadas"] += 1
                 _cobertura(salida, num_factura, ln["cod_prestador"], _fecha(ln["fecha"]))
                 _agregar(nombre, num_factura, tipo_doc, doc_hash, ln, catalogo, salida)
+
+
+# ---------------------------------------------------------------------------
+# JSON de intercambio de traslados (desde la aplicación de RIPS u otra)
+# ---------------------------------------------------------------------------
+
+FORMATO_INTERCAMBIO = "costeo-abc-traslados"
+
+
+def es_intercambio(datos) -> bool:
+    """{"formato": "costeo-abc-traslados", "traslados": [...]} o una lista de
+    traslados con codigo_cups y fecha_servicio."""
+    if isinstance(datos, dict):
+        return datos.get("formato") == FORMATO_INTERCAMBIO or isinstance(datos.get("traslados"), list)
+    return (isinstance(datos, list) and bool(datos) and isinstance(datos[0], dict)
+            and "codigo_cups" in datos[0] and "fecha_servicio" in datos[0])
+
+
+def _leer_intercambio(nombre, datos, sal, catalogo, salida):
+    items = datos.get("traslados", []) if isinstance(datos, dict) else datos
+    for n, t in enumerate(items, start=1):
+        if not isinstance(t, dict):
+            continue
+        salida["lineas_revisadas"] += 1
+        factura = str(t.get("numero_factura") or "").strip()
+        tipo_doc = str(t.get("tipo_documento") or "").strip()
+        doc_hash = str(t.get("documento_hash") or "") or hash_documento(tipo_doc, t.get("numero_documento"), sal)
+        fecha = _fecha(t.get("fecha_servicio"))
+        if factura:
+            salida["facturas"].add(factura)
+        if fecha:
+            _cobertura(salida, factura, t.get("cod_prestador"), fecha)
+        if not t.get("codigo_cups") or fecha is None or t.get("valor_facturado") in (None, ""):
+            salida["hallazgos"].append(hallazgo(nombre, f"traslado {n}", "FALTANTE",
+                                                "Traslado sin codigo_cups, fecha_servicio o valor_facturado; se omite", "ALTA"))
+            continue
+        cat = str(t.get("categoria") or "").strip().upper()
+        ln = {
+            "codigo": t.get("codigo_cups"), "nombre": t.get("descripcion") or "", "cantidad": t.get("cantidad") or 1,
+            "valor_unitario": t.get("valor_unitario"), "valor": t.get("valor_facturado"), "fecha": fecha.isoformat(),
+            "consecutivo": t.get("consecutivo") or t.get("llave") or n, "autorizacion": t.get("autorizacion") or "",
+            "cod_prestador": t.get("cod_prestador") or "", "tipo": "intercambio", "tipo_servicio": "",
+            "ambito": t.get("ambito") or "", "categoria": cat if cat in (TRASLADO, APH) else None,
+            "extra": {
+                "sede_codigo": str(t.get("sede_codigo") or "").strip(),
+                "placa": re.sub(r"[^A-Z0-9]", "", str(t.get("placa") or "").upper()),
+                "municipio_destino": normalizar(t.get("municipio_destino") or ""),
+                "km_reportado": _dec(t.get("km")),
+                "eps_nombre": str(t.get("eps_nombre") or "")[:150],
+            },
+        }
+        _agregar(nombre, factura, tipo_doc, doc_hash, ln, catalogo, salida)
 
 
 # ---------------------------------------------------------------------------
@@ -276,7 +331,10 @@ def _leer_txt(archivos: dict[str, bytes], sal: str, catalogo: dict, salida: dict
 
 
 def _agregar(nombre, num_factura, tipo_doc, doc_hash, ln, catalogo, salida):
-    categoria, regla = clasificar(ln["codigo"], ln["nombre"], ln["autorizacion"], ln["tipo_servicio"], catalogo)
+    if ln.get("categoria") in (TRASLADO, APH):
+        categoria, regla = ln["categoria"], "categoría enviada por la aplicación de origen"
+    else:
+        categoria, regla = clasificar(ln["codigo"], ln["nombre"], ln["autorizacion"], ln["tipo_servicio"], catalogo)
     if categoria is None:
         return
     cod = normalizar_cups(ln["codigo"])
@@ -316,6 +374,7 @@ def _agregar(nombre, num_factura, tipo_doc, doc_hash, ln, catalogo, salida):
         "regla": regla,
         "archivo": nombre,
         "observaciones": obs,
+        **ln.get("extra", {}),
     })
 
 

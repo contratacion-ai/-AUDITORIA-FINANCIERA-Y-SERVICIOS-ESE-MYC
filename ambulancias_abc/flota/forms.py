@@ -108,7 +108,7 @@ class ArchivosMultiples(forms.ClearableFileInput):
 
 class CampoArchivos(forms.FileField):
     def __init__(self, *args, **kwargs):
-        kwargs.setdefault("widget", ArchivosMultiples(attrs={"accept": ".json,.txt,.zip"}))
+        kwargs.setdefault("widget", ArchivosMultiples())
         super().__init__(*args, **kwargs)
 
     def clean(self, data, initial=None):
@@ -129,7 +129,7 @@ class CargaFacturacionForm(forms.Form):
         empty_label="Todos los hospitales del archivo",
         help_text="Si elige un hospital, solo se cargan sus líneas",
     )
-    archivo = forms.FileField(label="Reporte de facturación de traslados (.xlsx)", widget=forms.ClearableFileInput(attrs={"accept": ".xlsx"}))
+    archivo = forms.FileField(label="Reporte de facturación de traslados (.xlsx)", widget=forms.ClearableFileInput())
 
 
 class CargaRipsForm(forms.Form):
@@ -152,7 +152,7 @@ class CargaRipsForm(forms.Form):
 class CargaCostosMensualesForm(forms.Form):
     archivo = forms.FileField(
         label="Informe de costos por ambulancia y mes (.xlsx)",
-        widget=forms.ClearableFileInput(attrs={"accept": ".xlsx,.xlsm"}),
+        widget=forms.ClearableFileInput(),
         help_text="Libro del parque automotor: una hoja por sede (Placa, Mes, Mantenimiento ($), Viajes, Km estimados, "
         "Galones esperados, Combustible asignado ($)) y la hoja Resumen.",
     )
@@ -166,10 +166,24 @@ class CargaCostosMensualesForm(forms.Form):
     )
 
 
+class CargaUniversalForm(forms.Form):
+    archivos = CampoArchivos(
+        label="Archivos",
+        help_text="Cualquier archivo o varios a la vez: Excel (.xlsx, .xls), CSV, JSON, TXT o ZIP (con carpetas, Excel y RIPS "
+        "mezclados). La aplicación reconoce cada uno por su contenido.",
+    )
+    mes = CampoMes(label="Mes (opcional)", required=False,
+                   help_text="Solo para facturación o RIPS de un mes; vacío = se toma de las fechas de cada archivo.")
+    sede = forms.ModelChoiceField(Sede.objects.filter(activa=True), label="Hospital (opcional)", required=False,
+                                  empty_label="Detectar en cada archivo")
+    vigencia = forms.IntegerField(label="Vigencia del manual tarifario", required=False, min_value=2020, max_value=2040,
+                                  help_text="Solo si carga el Anexo 3 de tarifas; vacío = año actual.")
+
+
 class CargaReferenciaForm(forms.Form):
     archivo = forms.FileField(
         label="Formato RYC-FO-015 de referencia y contrarreferencia (.xlsx)",
-        widget=forms.ClearableFileInput(attrs={"accept": ".xlsx,.xlsm"}),
+        widget=forms.ClearableFileInput(),
         help_text="Versión 002 (descargada de esta pantalla) o la versión 001 que usa hoy el proceso. Un mes de un hospital o el consolidado.",
     )
     sede = forms.ModelChoiceField(
@@ -180,4 +194,4 @@ class CargaReferenciaForm(forms.Form):
 
 
 class CargaConsumosForm(forms.Form):
-    archivo = forms.FileField(label="Archivo (.xlsx o .csv)", widget=forms.ClearableFileInput(attrs={"accept": ".xlsx,.csv"}))
+    archivo = forms.FileField(label="Archivo (.xlsx o .csv)", widget=forms.ClearableFileInput())

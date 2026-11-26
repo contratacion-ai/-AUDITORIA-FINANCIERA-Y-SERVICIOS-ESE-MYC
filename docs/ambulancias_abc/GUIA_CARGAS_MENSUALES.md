@@ -2,6 +2,8 @@
 
 Menú **Cargas del mes**. Todas las cargas se pueden repetir: volver a cargar el mismo archivo actualiza los registros, no los duplica. La tabla *Estado de las cargas por hospital* muestra, por mes, cuántas líneas de facturación, cargas de RIPS, APH y consumos hay.
 
+> **Cargar cualquier archivo**: el primer botón de *Cargas del mes* acepta cualquier archivo o varios a la vez (Excel .xlsx o .xls, CSV, JSON, TXT o ZIP con carpetas y archivos mezclados) y reconoce por el contenido qué carga es cada uno: RIPS, JSON de intercambio de la aplicación de RIPS, facturación, referencia, mantenimiento y combustible, consumos, tarifas o centro de costos. Muestra qué se reconoció y el resultado de cada archivo. Detalle del JSON de intercambio en [INTEGRACION.md](INTEGRACION.md).
+
 ## 1. Facturación del mes por ámbito
 
 Botón **Cargar facturación del mes**.
