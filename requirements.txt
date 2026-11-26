@@ -1,0 +1,9 @@
+pandas>=2.0
+openpyxl>=3.1
+XlsxWriter>=3.1
+PyYAML>=6.0
+# Ventana de cargue (página local)
+fastapi>=0.110
+uvicorn>=0.29
+python-multipart>=0.0.9
+pyxlsb>=1.0.10     # tarifario UVB en Excel binario (.xlsb)

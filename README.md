@@ -1,2 +1,455 @@
-# -AUDITORIA-FINANCIERA-Y-SERVICIOS-ESE-MYC
-APLICACION PARA REALZIAR AUDITORIA FINANCIERA Y DE SERVICIOS DE UNA ESE DE PRIMER NIVEL
+# AUDITORÍA FINANCIERA Y DE SERVICIOS – ESE MORENO Y CLAVIJO
+
+Aplicación para realizar auditoría financiera y de servicios de una ESE de primer nivel.
+
+## Módulo `rips_auditoria`: RIPS (Res. 3374 de 2000) → auditoría financiera
+
+Aplicación en **Python + pandas** que carga archivos RIPS en TXT (sueltos, por carpeta o en ZIP,
+incluidos ZIP dentro de ZIP), los **valida** contra el **Anexo Técnico No. 1 de la Resolución 3374
+de 2000**, los **organiza por hospital y luego por mes**, y los **exporta a Excel y JSON** con la
+estructura del Anexo, además de una versión **homologada** para la herramienta de auditoría
+financiera.
+
+### Instalador de Windows (recomendado)
+
+`Instalador_Cargue_RIPS_ESE_MyC_v<versión>.exe`: asistente en español con el logo y los colores de
+la ESE (verde y vino tinto). **No requiere internet, Python ni permisos de administrador**: trae su
+propio Python 3.12 y todas las librerías (las mismas versiones de pandas/numpy que el aplicativo de
+Auditoría v5).
+
+- Programa: `%LOCALAPPDATA%\Programs\CargueRIPS_ESE_MyC` · Resultados y acumulado:
+  `Documentos\Cargue RIPS ESE MyC` (se conservan al actualizar; al desinstalar se pregunta).
+- Accesos: **Escritorio** «Cargue RIPS ESE MyC» y **menú Inicio › ESE Moreno y Clavijo** (cargue,
+  resultados, guía, desinstalar y, si está instalado, «Auditoria de Facturacion ESE MyC»).
+- Al abrir aparece una ventana minimizada (el servidor local) y el navegador con la **ventana de
+  cargue** (`http://localhost:8100`): arrastrar ZIP/carpeta/TXT o escribir la ruta, avance por fases,
+  resumen por hospital y mes, incidencias, descarga de archivos y envío al aplicativo de auditoría.
+- Construirlo (desde Linux/macOS, sin Windows):
+  `bash instalador/construir_instalador.sh <Instalador_Auditoria_ESE_MyC_v5.0.zip | carpeta con python.exe>`
+  → `dist/`. Toma el Python 3.12 de Windows del instalador v5 y descarga de PyPI las librerías para
+  Windows x64. Requiere `makensis` (NSIS 3), `7z`, `zip` y Pillow.
+- Windows SmartScreen puede advertir que no está firmado: «Más información» › «Ejecutar de todas formas».
+
+### Enlace con el aplicativo de Auditoría de Facturación ESE MyC (v5)
+
+Las dos aplicaciones trabajan juntas por la API local del aplicativo (`http://localhost:8000`):
+
+| Sentido | Qué hace |
+|---|---|
+| Cargue → Auditoría | Genera `APLICATIVO_AUDITORIA/RIPS_AUDITORIA_<AAAA-MM>.xlsx` en la **plantilla RIPS homologada del aplicativo** (MES, EPS, CONTRATO, MODALIDAD, SEDE, FACTURA_FEV, CODIGO_CUPS_CUMS, VALOR…, hoja `CONSOLIDADO RIPS`) y, si se marca, lo **envía** a `POST /api/cargas/rips` y espera el estado «ok». Si el aplicativo está cerrado y está instalado, lo abre. |
+| Auditoría → Cargue | Lee **PARAM CONTRATO** (`/api/parametros`) para usar el nombre exacto del contrato de Software 360 y su modalidad, y trae la **validación del cruce** (`/api/conciliacion/validacion-cruce`) para mostrarla al terminar. |
+
+- **Acumulado por mes:** el aplicativo reemplaza el mes completo en cada carga de RIPS; por eso el
+  archivo de cada mes lleva **todas las sedes procesadas** (se guardan en `acumulado_aplicativo`).
+  Reprocesar una sede reemplaza sólo esa sede.
+- Línea de comandos: `python -m rips_auditoria procesar lote.zip -s salida/ --enviar-aplicativo`
+  (`--sin-aplicativo` para no generar el archivo mensual). Configuración en
+  `config/configuracion.yaml › aplicativo_auditoria` (contratos, EPS/NIT por código, modalidad).
+- Verificado contra el código real del aplicativo v5: los 8 meses del ZIP de Hospital San Antonio
+  quedaron cargados en estado «ok», con sedes y EPS homologadas a los nombres de Software 360.
+
+### Google Drive: RIPS JSON por hospital y mes (v1.8)
+
+La ventana de cargue tiene la sección **«Google Drive · RIPS JSON por hospital y mes»**
+(`rips_auditoria/drive.py`). Lee la carpeta de facturación con la estructura
+`Hospital / 01. Enero / JSON ENERO / <factura>/ {factura.json, factura.xml, ResultadosMSPS_…_CUV.txt}`
+(también TXT de la Res. 3374 y ZIP), **sólo lo nuevo o modificado**, y por cada hospital-mes con novedades:
+
+1. carga los JSON con la EPS, contrato, modalidad y valor de su XML (FEV), sin duplicar lo ya cargado;
+2. lee el **resultado de validación del Ministerio (CUV)** de cada factura (`cuv.py`): estado
+   (validada/rechazada), CUV, fecha de radicación, rechazos y notificaciones. Va a la columna `VALIDACION`
+   de la plantilla del aplicativo y al informe `VALIDACION_MSPS.xlsx`;
+3. regenera esos meses desde el acumulado (todas las sedes, TXT + JSON) y los **envía al aplicativo de
+   Auditoría de Facturación** (`POST /api/cargas/rips`).
+
+| Conexión | Cómo |
+|---|---|
+| Carpeta sincronizada (recomendada, sin credenciales) | Instale **Google Drive para escritorio** con la cuenta que tiene acceso, agregue la carpeta compartida a «Mi unidad» (clic derecho > Organizar > Agregar acceso directo) y escriba su ruta, p. ej. `G:\Mi unidad\Rips TXT y JSON 2026` (la ventana la busca sola en G:…Z:). |
+| ZIP descargados de Drive (sin instalar nada, si el administrador bloquea Drive para escritorio) | En drive.google.com, clic derecho sobre la carpeta > **Descargar**; guarde los ZIP (`…-20261123T140000Z-1-001.zip`, `-002`…) en una carpeta y escriba esa ruta. Se extraen en `<datos>/drive/desde_zip` (sólo se reescribe lo que cambió, por CRC) y en cada descarga nueva sólo se procesa lo nuevo. |
+| API de Google Drive | En Google Cloud de la ESE: habilitar la API de Drive, pantalla de consentimiento **Interna** y un **ID de cliente OAuth «Aplicación de escritorio»**. En la ventana: «Cargar credenciales OAuth (JSON)», «Conectar con Google» (permiso de sólo lectura) y el enlace de la carpeta. Descarga una copia en `<datos>/drive/espejo` (sólo lo nuevo, por md5). |
+
+Revisión automática cada 30 min a 12 h mientras la aplicación esté abierta, o «Sincronizar ahora». «Volver a
+leer todo» olvida lo procesado (no duplica). Consola: `python -m rips_auditoria drive --carpeta "G:\Mi unidad\Rips
+TXT y JSON 2026"` (`--solo-revisar`, `--sin-enviar`, `--releer-todo`). Cualquier cargue con JSON (no sólo desde Drive)
+ahora también envía al aplicativo los meses con JSON, completos desde el acumulado.
+
+**Sólo JSON (v1.9, predeterminado):** la sincronización lee únicamente los RIPS JSON (Res. 2275) con su XML y su
+CUV (los `ResultadosMSPS_…`); no lee los RIPS TXT de Drive y al aplicativo envía sólo las filas que vienen de JSON.
+«Quitar del tablero lo cargado desde TXT» deja el acumulado sólo con JSON (vista previa, confirmación y copia en la
+papelera). **«Generar notas técnicas con los JSON de Drive»** arma las notas de las EPS guardadas (una por municipio
+cuando la nota los trae) con todos los JSON de la carpeta, sin volver a cargar nada.
+
+### Plan de acción (v1.9, pestaña del tablero)
+
+Cada alerta del tablero es una tarea (`plan_accion.py`) con prioridad (1 esta semana · 2 antes del cierre · 3
+seguimiento), responsable sugerido, fecha límite (días según la categoría), dinero en riesgo y estado
+(PENDIENTE, EN PROCESO, RESUELTA, NO APLICA). Estado, responsable y observaciones se editan en la tabla y se guardan
+en `<datos>/plan_accion.json`. **Cierre verificado:** si una alerta deja de aparecer con los datos corregidos, la
+tarea pasa sola a «RESUELTA (verificada)»; si vuelve, se reabre. Indicadores: abiertas, vencidas, resueltas, avance y
+dinero en riesgo abierto, y tareas por responsable. El informe Excel del tablero trae la hoja «Plan de acción».
+
+### Tablero de análisis (`/tablero`)
+
+Botón **«Tablero de análisis»** de la ventana de cargue (`http://localhost:8100/tablero`). Lee el
+**mismo acumulado homologado que se envía al aplicativo de auditoría** (`acumulado_aplicativo/<AAAA-MM>.csv`)
+más `indicadores.csv` (usuarios únicos, registros por archivo, errores y diferencias por sede-mes, que
+cada cargue guarda). Filtros por período, sede, empresa (EPS), servicio, modalidad, contrato y CUPS.
+
+| Pestaña | Contenido |
+|---|---|
+| Resumen | Valor de servicios y FEV, facturas, cantidad, usuarios, atenciones por usuario, alertas; tendencias mensuales; valor por sede, EPS y servicio; análisis automático y acciones recomendadas |
+| Comparativos | Tabla cruzada de **cualquier par de parámetros** (sede, mes, EPS, servicio, CUPS, contrato, modalidad, validación) × medida (valor, cantidad, facturas, registros, valor FEV), de mayor a menor, con mapa de calor, total, participación y variación del último mes |
+| Frecuencias de uso | Atenciones por usuario y cantidad de servicios mes a mes y por sede; cantidad por servicio y mes |
+| RIPS por empresa / sede / servicio / CUPS | Gráfico de mayor a menor y tablas completas (EPS × sede, contrato, modalidad, sede × mes, indicadores de cargue, CUPS × sede, CUPS × mes) |
+| Consolidado RIPS | Todas las filas homologadas, con búsqueda, orden y **CSV completo** |
+| Alertas y análisis | Alertas priorizadas (CRÍTICA, ALTA, MEDIA, INFORMATIVA) con acción recomendada: meses sin RIPS, variaciones mensuales, facturas con diferencia AF, servicios sin factura, facturas sin servicios, valores en cero, concentración por EPS, valor unitario atípico de un CUPS entre sedes, errores de estructura y cambios en la frecuencia de uso. Umbrales en `configuracion.yaml › tablero` |
+| Aplicativo de auditoría | Reenvía meses del acumulado al aplicativo (todas las sedes) y muestra su validación del cruce |
+
+**Informe Excel** para la gerencia (resumen, análisis, recomendaciones, gráficos, alertas, comparativos y
+consolidado completo; el consolidado se divide en hojas de 1.000.000 de filas si hace falta).
+
+**Sin límite de archivos ni de líneas:** el formulario de carga admite carpetas con miles de TXT (Starlette
+limita por defecto un formulario a 1000 archivos; aquí se amplió) y cada TXT se procesa completo.
+
+### Informe RIPS por CUPS enriquecido, depuración de datos y JSON (v1.3)
+
+**Informe enriquecido** (Tablero › «CUPS enriquecido»; también se aplica a «RIPS por CUPS» y a su hoja del
+informe Excel): el informe conserva sus columnas y agrega al final:
+
+- Las columnas del **archivo complementario** (Excel .xlsx/.xlsb o CSV con `CODIGO_CUPS_CUMS`), unidas por
+  código. «promedio mes» (o «pormedio mes»), las columnas de EPS (`nueva eps`, `sanitas`, `coosalud`,
+  `fomag`…), `otras`, `evento`, `capita` y `pgp` **se calculan** con los datos cargados y los filtros
+  (valor de servicios; `catalogo_cups.medida`). EPS + otras = valor; evento + capita = valor.
+- La **tarifa del tarifario UVB** (p. ej. `SOAT-2026-UVB (tarifario)`) y `fuente_descripcion`.
+- **Descripciones faltantes** completadas en este orden: RIPS (AM/AT) → archivo complementario → tarifario
+  UVB. Se guardan en `catalogos/descripciones_cups.csv` y se reutilizan; se actualizan al cargar un
+  catálogo y en cada cargue. Los catálogos también se guardan (no hay que volver a cargarlos).
+
+**Depuración de datos** (Tablero › «Depuración de datos» o `python -m rips_auditoria datos …`):
+
+| Acción | Cómo |
+|---|---|
+| Limpiar por mes, sede o ambos | «Ver qué se eliminaría» → lista y resumen → casilla de confirmación + diálogo → «Confirmar eliminación». Consola: `datos limpiar --mes 2026-05 --sede "Hospital San Antonio"` (pide escribir SI) |
+| Duplicados reales | Filas idénticas y facturas repetidas en otro mes (misma sede, factura, código, cantidad y valor); se conserva la del mes más antiguo. Consola: `datos duplicados` |
+| JSON | RIPS JSON de la Res. 2275 (una factura, una lista o el JSON envuelto en `{"rips": …}` del validador) o filas homologadas: botón «Elegir JSON + XML (Res. 2275)» de la ventana de cargue (si van sueltos se pide el hospital). La EPS, el NIT, el contrato, la modalidad y el valor se toman del **XML de la factura electrónica** que acompaña a cada JSON (`fev_xml.py`); el paciente es siempre el usuario del JSON (el documento dentro de cada servicio es el del profesional), en la pestaña o con `datos json <rutas> [--hospital] [--mes]` |
+| Catálogos | Pestaña «CUPS enriquecido» o `datos catalogo --complemento RIPS_cups.csv --tarifario Tarifa_UVB.xlsb` |
+
+Nada se borra sin vista previa y confirmación explícita; la confirmación lleva una huella de los datos vistos
+(si cambiaron, hay que volver a revisar) y lo eliminado se copia en `acumulado_aplicativo/papelera/`.
+Los JSON se depuran con la misma lógica de los TXT (sede y códigos normalizados, registros repetidos dentro
+del JSON contados una vez, agregación por la llave de la plantilla) y sólo se agregan las filas que no estén
+ya cargadas en ningún mes. Nota: reprocesar los TXT de una sede-mes la reemplaza completa (incluidas filas
+que vinieron de JSON); vuelva a cargar el JSON si lo necesita.
+
+### Medicamentos facturados vs. portafolio de farmacia (v1.4)
+
+Tablero › «Medicamentos vs farmacia» (o `python -m rips_auditoria datos catalogo --farmacia CRUCE_PORTAFOLIO_FARMACIA_vs_MAESTRO.xlsx`).
+Se carga el libro del **cruce portafolio de farmacia vs. maestro** (hoja `PORTAFOLIO_CRUZADO`: CUM, código Salud 360,
+principio activo, precio de compra, precio a usar, resultado del cruce con el maestro; `PARAMETROS`: margen mínimo) y
+se guarda en `catalogos/farmacia/`. Los medicamentos facturados en los RIPS se cruzan por **CUM normalizado** (sin
+espacios, tabulaciones ni ceros a la izquierda) y cada CUM queda con su estado:
+
+| Estado | Regla |
+|---|---|
+| NO ESTÁ EN PORTAFOLIO | el CUM facturado no existe en el portafolio |
+| FACTURADO BAJO COSTO | valor unitario facturado < precio de compra (pérdida directa) |
+| MARGEN BAJO | sobre el costo pero con margen < margen mínimo de PARAMETROS |
+| FACTURADO BAJO / SOBRE PRECIO | diferencia con el «precio a usar» mayor que `cruce_medicamentos.tolerancia_pct` (5 %) |
+
+Indicadores: CUM facturados, % en portafolio, valor fuera de portafolio, facturados bajo costo, impacto de facturar
+bajo precio ((precio a usar − valor unitario) × cantidad) y productos del portafolio sin facturar. Las alertas
+«Medicamento bajo costo» y «Medicamento fuera de portafolio» se suman a las del tablero y a sus acciones
+recomendadas; el informe Excel lleva la hoja «Medicamentos vs farmacia». El portafolio también completa la
+descripción de los CUM que llegan sin ella (fuente «portafolio farmacia»). Las hojas del libro (resumen ejecutivo,
+CUM no encontrados en el maestro, maestro sin portafolio, insumos) se consultan en la misma pestaña.
+Supuesto: el RIPS factura en la misma unidad del portafolio (unidad mínima de dispensación).
+
+### Nota técnica de capitación: pacientes únicos por CUPS y mes (v1.5–v1.7)
+
+Para contratos de capitación, **una nota por EPS** (Nueva EPS, Sanitas, Coosalud u otras). En la ventana de cargue
+marque **«Generar nota técnica de capitación»**, agregue la nota de cada EPS (archivo con `CodigoCUP`, `Homologo`,
+`ESTADO CUPS`, `DescripcionCUP`; queda guardada en `catalogos/nota_tecnica/<eps>/`), marque las EPS a generar y,
+si quiere, el período. Cada nota lleva su perfil de reconocimiento (textos del nombre y códigos de entidad/NIT,
+prellenados y editables): Nueva EPS `EPS037, EPSS37, EPS041, EPSS41, 900156264`; Sanitas `EPS005, EPSS05,
+800251440`; Coosalud `ESS024, EPS042, EPSS42, 900226715` (verifíquelos con el contrato). Con varias EPS a la vez,
+los JSON sin XML de la factura ni AF no se asignan a ninguna (se reportan).
+
+**Formatos de nota (v1.7)** — se reconocen en cualquier hoja (`rips_auditoria/nota_lectura.py`):
+
+| Formato | Ejemplo | Cómo se lee |
+|---|---|---|
+| Lista de CUPS | Nueva EPS (357 códigos) | `CodigoCUP`, `Homologo`, `ESTADO CUPS`, `DescripcionCUP` |
+| Una hoja por municipio | Sanitas «FORMATO CAPITA TAME»… | contrato, municipio, población y régimen de la cabecera; tabla `Agrupador`, `CUPS`, `DESCRIPCIÓN`, `Actividades mes` (meta) |
+| Lista con municipio por fila + matriz de PyM | Coosalud «NT_SERVICIOS SUB» y «NT 2025 PYM» | `MUNICIPIO`, `CodigoCUPS`…; en la matriz, varios códigos por celda (saltos de línea, comas, rangos «990201 al 990206») con la actividad y el curso de vida como descripción |
+
+Si la nota trae **varios municipios** se genera una nota por municipio (`NOTA_TECNICA_SANITAS_TAME_…`) y cada
+atención va al municipio de su sede: por el nombre del municipio en la sede o por la tabla
+`nota_tecnica.sedes_municipio` (por defecto San Antonio → Tame, San Francisco → Fortul, San Lorenzo → Arauquita,
+San José → Cravo Norte, San Juan de Dios → Puerto Rondón, Centro de Salud Jesús Coronel → Tame). Las sedes sin
+municipio se avisan en la ventana y en la nota. Un código repetido en el mismo municipio se cuenta una vez y su meta mensual se suma. La meta de la nota está en
+actividades, así que el **cumplimiento se mide con atenciones** (registros incluidos sin duplicados): la «Tabla
+resumen» agrega atenciones del período, meta del mes, meta del período y % de cumplimiento, y la hoja «Cumplimiento
+de metas» trae las atenciones por mes, la brecha y un semáforo (verde ≥ 100 %, amarillo 80–99 %, rojo < 80 %). Los datos de
+contrato, población, régimen y municipio llenan la sección 1 de la nota. Por consola:
+
+```bash
+python -m rips_auditoria nota-tecnica "D:/RIPS 2023/Hospital San Antonio" --nota NUEVA_EPS.xlsx \
+    --desde 2023-01 --hasta 2023-12 -s salida_nota            # RIPS TXT, JSON, carpetas o ZIP
+python -m rips_auditoria nota-tecnica --plantilla --nota NUEVA_EPS.xlsx --desde 2023-01 -s plantilla  # plantilla con la tabla de servicios
+```
+
+| Regla | Cómo |
+|---|---|
+| Paciente | tipo + número de identificación (AC/AP/AT/AM; JSON `usuarios[]`) |
+| Conteo | pacientes **únicos** por código y mes; varias atenciones del mismo paciente y código en un mes = 1 |
+| Mes | fecha de prestación (`fecha_consulta`, `fecha_procedimiento`, `fechaInicioAtencion`…); AT/AM sin fecha: fecha inicial de la factura (se reporta) |
+| Códigos | CUPS tal cual; medicamentos `MD…` por su **CUM homólogo** (sin ceros a la izquierda) |
+| EPS | AF de la factura (`nota_tecnica.eps_textos` / `eps_codigos`); JSON sin EPS: se asume la del contrato y se reporta |
+| Sin registros | el código aparece con 0 y «SIN REGISTROS» |
+| Calidad | se reportan por código: duplicados (contados una vez), anulados (nota crédito JSON, excluidos), errores de diligenciamiento Res. 3374 (incluidos), sin identificación, sin fecha y fuera de período (excluidos); también los códigos encontrados fuera de la nota |
+
+Salidas en `NOTA_TECNICA/`:
+
+- `NOTA_TECNICA_<EPS>_<periodo>.xlsx`: identificación del contrato, objetivo, fuente de datos, criterios de
+  inclusión y exclusión, metodología, tabla resumen (CUPS × mes con totales), observaciones de calidad y
+  conclusiones; los datos del contrato quedan entre `[corchetes]`. Hojas «Tabla resumen», «Calidad», «Curso de
+  vida» (Res. 3280) y «Códigos fuera de la nota».
+- `HOJA_PACIENTES_CUPS_<EPS>_<periodo>.xlsx`: «Matriz» con fórmulas (`COUNTIFS` sobre «Datos», `SUM` por código y
+  por mes, meses sin información y validación), **tabla dinámica nativa** (CUPS × mes, cuenta de pacientes) que
+  Excel actualiza al abrir, «Validación» de meses sin información, «Datos» (una fila por paciente, código y mes) e
+  «Instrucciones» con las fórmulas sugeridas.
+
+### Uso desde otros computadores de la red
+
+Acceso **«Cargue RIPS ESE MyC (en red)»** (o `python -m rips_auditoria.web --red`, o
+`red.habilitada: true`). En el equipo servidor:
+
+- La ventana de cargue y el tablero quedan en `http://<IP del servidor>:8100`.
+- El aplicativo de auditoría v5 (que sólo escucha en 127.0.0.1) se publica con un **puente** en
+  `http://<IP del servidor>:8000`, sin modificarlo.
+- Los equipos remotos deben escribir la **clave de acceso** que muestra la ventana del servidor
+  (`red.clave` para fijarla; si no, se genera una y se guarda en `acceso_red.json`). 5 intentos
+  fallidos bloquean esa IP 2 minutos. El propio servidor no pide clave.
+- Una vez, «Permitir acceso en red» crea la regla del Firewall de Windows (puertos 8000-8010 y
+  8100-8110, sólo redes privadas o de dominio).
+
+### Instalación desde el código (Windows con Python)
+
+1. Instale Python 3.10 o superior desde <https://www.python.org/downloads/> y marque
+   **"Add python.exe to PATH"**.
+2. Descargue esta aplicación (botón *Code → Download ZIP* en GitHub) y descomprímala, por
+   ejemplo en `C:\AuditoriaRIPS`.
+3. Doble clic en **`instalar.bat`**. Crea un entorno propio (`.venv`), instala las librerías
+   (requiere internet) y deja el acceso directo **"Cargue RIPS"** en el escritorio.
+4. Doble clic en **"Cargue RIPS"** (o `iniciar_cargue.bat`) abre la ventana de cargue en el
+   navegador; si **arrastra** un ZIP o carpeta sobre `iniciar_cargue.bat`, el cargue se hace en
+   consola y al terminar se abre la carpeta de resultados.
+
+**Linux / macOS**: `./instalar.sh` y luego `./iniciar_cargue.sh lote.zip` (sin argumentos
+pregunta qué cargar).
+
+Volver a ejecutar el instalador actualiza las librerías sin perder la configuración.
+
+**Ejecutable para equipos sin Python (`CargueRIPS.exe`)**
+
+En **un** equipo Windows con la aplicación instalada, doble clic en **`construir_exe.bat`**.
+Genera `dist\CargueRIPS\` y `dist\CargueRIPS_v<versión>.zip`. Ese ZIP se copia a los demás
+equipos, se descomprime en una carpeta del usuario (p. ej. *Documentos*, no en *Archivos de
+programa*) y se usa con doble clic en `CargueRIPS.exe` o arrastrando el ZIP de RIPS sobre él.
+Junto al `.exe` quedan `config\` (editable), `plantillas\` y `salida\`. El ejecutable se
+construye con PyInstaller a partir de `empaquetado/CargueRIPS.spec`; en Linux/macOS el
+equivalente es `./construir_exe.sh`.
+
+### Instalación manual (desarrolladores)
+
+```bash
+pip install -r requirements.txt          # pandas, openpyxl, XlsxWriter, PyYAML, FastAPI, uvicorn
+pip install -r requirements-dev.txt      # + pytest y httpx, para ejecutar las pruebas
+```
+
+Requiere Python 3.10 o superior.
+
+### Uso rápido (línea de comandos)
+
+```bash
+# Lote completo: ZIP con carpetas Hospital/NN. Mes/<remisión>/Rips/*.txt
+python -m rips_auditoria procesar Hospital_San_Antonio.zip -s salida/
+
+# Varios ZIP, carpetas y TXT a la vez
+python -m rips_auditoria procesar lote1.zip "D:/RIPS/Hospital X" AF000123.txt -s salida/
+
+# TXT sueltos de una remisión (el hospital no está en la ruta: se indica)
+python -m rips_auditoria procesar CT000123.txt AF000123.txt US000123.txt AC000123.txt \
+    --hospital "Hospital San Antonio" -s salida/
+
+# Sólo una combinación hospital-mes
+python -m rips_auditoria procesar lote.zip -s salida/ --filtro-hospital "Hospital San Antonio" --filtro-mes 2026-05
+
+# Ver qué hospitales/meses trae una carga, sin exportar
+python -m rips_auditoria listar lote.zip
+
+# Plantilla Excel vacía del Anexo Técnico No. 1
+python -m rips_auditoria plantilla -s plantillas/Plantilla_RIPS_Res3374_AnexoTecnico1.xlsx
+```
+
+Opciones de `procesar`: `-c/--config`, `-m/--mapeo`, `--sin-excel`, `--sin-json`,
+`--sin-consolidado`, `--sin-homologacion`, `-v` (detalle). Códigos de salida: `0` procesado
+(aunque haya incidencias), `1` error de uso/configuración, `2` no se encontraron archivos RIPS.
+
+### Uso desde Python
+
+```python
+from rips_auditoria import procesar
+from rips_auditoria.exportacion import exportar_unidad, exportar_todo
+
+res = procesar(["Hospital_San_Antonio.zip"])
+res.unidades()                      # [("Hospital San Antonio", "2026-01"), ...]
+u = res.unidad("Hospital San Antonio", "2026-05")
+u.datos["AC"]                       # DataFrame de consultas de ese hospital-mes
+u.incidencias                       # incidencias de validación de ese hospital-mes
+u.conciliacion                      # AF vs. servicios, factura por factura
+u.resumen()                         # cifras clave
+exportar_unidad(res, "Hospital San Antonio", "2026-05", "salida/")
+```
+
+### Salida
+
+```
+salida/
+├── RIPS_consolidado.xlsx | .json        todos los hospitales y meses
+└── <Hospital>/<AAAA-MM>/
+    ├── RIPS_<Hospital>_<AAAA-MM>.xlsx     plantilla del Anexo con los datos
+    ├── RIPS_<Hospital>_<AAAA-MM>.json
+    ├── AUDITORIA_<Hospital>_<AAAA-MM>.xlsx homologado para auditoría financiera
+    └── AUDITORIA_<Hospital>_<AAAA-MM>.json
+```
+
+**Excel RIPS** (misma estructura que `plantillas/Plantilla_RIPS_Res3374_AnexoTecnico1.xlsx`):
+`Resumen`, `Remisiones`, una hoja por archivo del Anexo (`CT AF US AD AC AP AU AH AN AM AT`) con
+los campos en el orden y con el nombre del Anexo (el comentario de cada encabezado muestra nombre
+técnico, longitud, tipo, obligatoriedad y valores permitidos; los campos con tabla tienen lista
+desplegable), `Conciliacion_Facturas`, `Resumen_Incidencias`, `Incidencias`, `Diccionario`,
+`Catalogos` y `Reglas_Validacion`. Las columnas grises (hospital, período, remisión, archivo,
+línea) permiten rastrear cada registro hasta el TXT original.
+
+**JSON**: `{metadatos, hospital, periodo, resumen, remisiones, registros: {CT, AF, ..., AT},
+conciliacion_facturas, incidencias}`; el consolidado anida
+`hospitales → <hospital> → meses → <AAAA-MM> → {...}`. Los nombres de campo son los técnicos
+del `Diccionario`; los valores numéricos válidos salen como número y las fechas en el formato
+del Anexo (`dd/mm/aaaa`).
+
+### Validaciones (Res. 3374, Anexo Técnico No. 1 y Art. 9)
+
+Ninguna validación detiene el proceso: todo queda como incidencia con hospital, período,
+remisión, archivo, línea, campo, valor, regla, severidad y mensaje.
+
+| Nivel | Reglas |
+|---|---|
+| Carga | ZIP corrupto, archivo ilegible, nombre no reconocido o no normativo (tipo + remisión de 1 a 6 dígitos), duplicados, versión `_CORREGIDO` usada, codificación distinta de UTF-8, texto con doble codificación reparado |
+| Estructura | cantidad de campos (el registro se excluye), coma final, comillas, línea vacía, archivo vacío, registro duplicado |
+| Campo | obligatoriedad (incluida la condicionada, p. ej. datos del vinculado), longitud máxima, fecha `dd/mm/aaaa`, hora `hh:mm`, número con punto decimal, formato CIE-10, tabla de valores permitidos |
+| Remisión | archivos obligatorios (CT, AF, US), CT vs. archivos y totales, factura del servicio existe en AF, usuario existe en US, facturas sin servicios, valor total = cantidad × unitario, neto = valor − cuota, coherencia de fechas, factura fuera del período |
+| Financiera | conciliación del neto AF contra la suma de servicios RIPS (`DIFERENCIA_VALOR_FACTURA`) |
+
+La severidad de cada regla (`ERROR`, `ADVERTENCIA`, `INFO`, `OMITIR`) se cambia en
+`config/configuracion.yaml` → `validacion.severidades`.
+
+### Organización por hospital y mes
+
+* **Remisión**: archivos con el mismo número de remisión en la misma carpeta.
+* **Hospital** (en orden): `--hospital` → carpeta anterior a la del mes → primera carpeta de la
+  ruta → `hospitales_por_prestador` de la configuración → nombre del ZIP → `PRESTADOR_<código>`.
+* **Mes** (`organizacion.prioridad_periodo`): carpeta del mes (`05. Mayo`, `MAYO 2026`,
+  `2026-05`; el año se infiere de las facturas) → mes más frecuente de expedición en AF →
+  fecha de remisión del CT. Cada remisión pertenece a un único mes; las facturas expedidas en
+  otro mes se advierten (`FACTURA_FUERA_DE_PERIODO`).
+
+### Homologación con la herramienta de auditoría financiera
+
+El esquema destino se define en `config/homologacion_auditoria.yaml`, **sin tocar código**.
+El perfil por defecto replica las hojas y columnas de la plantilla de carga masiva
+`Plantilla_RIPS_Servicios` (estructura de la Res. 2275 de 2023): `Usuarios`, `Consultas`,
+`Procedimientos`, `Medicamentos`, `Hospitalizaciones`, `Urgencias`, `RecienNacidos`,
+`OtrosServicios`, más `Transacciones` (cabecera de factura con valores) y `numFactura` en cada
+servicio. Cada columna se define con `origen`, `plantilla`, `constante` o `condicional`, y
+opcionalmente `transformacion`, `tabla` de equivalencias y `por_defecto`. El archivo valida su
+propia definición antes de procesar y explica qué corregir. Los supuestos de cada equivalencia
+están en la lista `supuestos` del YAML y se copian a la hoja `Supuestos` del Excel de auditoría.
+
+### Decisiones ante vacíos de la norma (documentadas en el código)
+
+* **Catálogos posteriores**: los RIPS reales ya usan códigos de normas posteriores (documento
+  CN/PT, finalidad 11–44, causa 21–49). Se reportan como `ADVERTENCIA`
+  (`VALOR_CATALOGO_EXTENDIDO`), no como error.
+* **Código del prestador**: el Anexo fija 10 posiciones pero el REPS usa 12 (10 + sede); se
+  aceptan 12.
+* **Registros mal formados**: no se intenta "acomodar" un registro con campos de más o de menos
+  (p. ej. una coma dentro de un nombre); se rechaza y se reporta con la línea original.
+* **Fin de línea `\r\r\n`** (algunos software de facturación) se trata como un solo salto.
+* **Conciliación**: neto AF = servicios (AC neto + AP + AM + AT, o AD si sólo hay agrupado) −
+  copago − descuentos. En facturas de **cápita / PyM global** la diferencia es esperada (el AF
+  trae el valor del contrato y los RIPS valoran por evento) y debe leerse como tal.
+* **Archivos JSON/XML** de la Res. 2275 que vienen en las mismas carpetas se inventarían como
+  ignorados (este módulo procesa TXT de la Res. 3374).
+
+### Pruebas
+
+```bash
+python -m pytest -q
+```
+
+Cubren: estructura del Anexo, remisión válida, remisión con errores de estructura y contenido,
+ZIP con varios hospitales (con ZIP anidado y ZIP corrupto), TXT sueltos, carpeta de mes,
+versión corregida, homologación (por defecto y personalizada, validación del mapeo), plantilla,
+exportación Excel/JSON, CLI, ventana web (incluido un cargue de más de 1000 archivos), tablero
+(agregados, filtros, comparativos, tablas, CSV, Excel, alertas) y acceso en red (clave, bloqueo, puente).
+Los datos de prueba son sintéticos (`tests/fabrica.py`).
+
+### Estructura
+
+```
+rips_auditoria/
+  especificacion.py   Anexo Técnico No. 1: campos, longitudes, tipos, tablas (única fuente de verdad)
+  lectura.py          TXT, carpetas, ZIP/ZIP anidados; remisiones; hospital y mes desde la ruta
+  parser.py           parseo del TXT con manejo de errores por registro y codificación
+  validacion.py       validaciones de campo, cruzadas y conciliación de facturas
+  procesamiento.py    orquestación y resultado consultable por hospital-mes
+  excel.py            plantilla y exportación Excel parametrizadas
+  json_export.py      exportación JSON (por partes, apta para lotes grandes)
+  homologacion.py     capa de mapeo configurable a la herramienta de auditoría
+  exportacion.py      escritura de archivos por hospital/mes y consolidado
+  cli.py              línea de comandos
+  cargue.py           inicio guiado del cargue en consola (selección de archivos, abre la salida)
+  aplicativo.py       enlace con el aplicativo de Auditoría ESE MyC (plantilla RIPS, acumulado, API)
+  tablero.py          tablero de análisis: agregados, comparativos, frecuencias, alertas, informe Excel
+  catalogo_cups.py    archivo complementario y tarifario UVB: informe por CUPS enriquecido y descripciones
+  depuracion.py       limpieza por mes/sede y duplicados, con vista previa y confirmación
+  json_rips.py        lectura de RIPS JSON (Res. 2275 u homologados) e integración sin duplicar
+  drive.py            carpeta de Google Drive (sincronizada o por API): novedades por hospital-mes y envío al aplicativo
+  cuv.py              resultado de validación del Ministerio (CUV) por factura
+  plan_accion.py      plan de acción de las alertas: responsable, fecha límite, estado y cierre verificado
+  cruce_medicamentos.py  medicamentos facturados en RIPS vs. portafolio de farmacia (por CUM)
+  nota_tecnica.py     nota técnica de capitación: pacientes únicos por CUPS y mes, calidad de datos
+  nota_lectura.py     lectura de notas técnicas (lista, una hoja por municipio, matriz de PyM)
+  nota_tecnica_excel.py  plantilla de la nota y hoja de cálculo con fórmulas y tabla dinámica nativa
+  web/                ventana de cargue y tablero (FastAPI + páginas con la imagen de la ESE)
+  web/red.py          acceso en red con clave y puente hacia el aplicativo de auditoría
+config/
+  configuracion.yaml           parámetros (severidades, período, hospitales, exportación)
+  homologacion_auditoria.yaml  mapeo a la herramienta de auditoría y supuestos
+plantillas/
+  Plantilla_RIPS_Res3374_AnexoTecnico1.xlsx
+instalar.bat / instalar.sh               instalador
+construir_exe.bat / construir_exe.sh     genera el ejecutable CargueRIPS (PyInstaller, opcional)
+instalador/                              instalador de Windows (NSIS): script, imágenes y construcción
+empaquetado/                             especificación PyInstaller y punto de entrada
+iniciar_cargue.bat / iniciar_cargue.sh   inicio del cargue
+tests/
+```
+
+Rendimiento de referencia (lote de un hospital, 8 meses, 2.947 TXT, 562.220 registros): lectura y
+validación ≈ 25 s; exportación completa con consolidado ≈ 6 min (el consolidado anual es la parte más
+pesada; `--sin-consolidado` lo omite).
+
+> Los datos reales de pacientes y las salidas (`salida/`, `*.zip`) están excluidos del
+> repositorio en `.gitignore`.
