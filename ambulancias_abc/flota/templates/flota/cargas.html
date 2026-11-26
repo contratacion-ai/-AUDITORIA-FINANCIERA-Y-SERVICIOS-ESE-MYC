@@ -9,6 +9,12 @@
   <a class="boton-grande" href="{% url 'flota:facturacion_ambito' %}"><b>Ver facturación por ámbito</b><span>Mes, hospital, ámbito y unidad funcional.</span></a>
   <a class="boton-grande" href="{% url 'flota:recorridos_sede' %}"><b>Recorridos por sede</b><span>Tarifa, costo y rentabilidad de cada recorrido.</span></a>
 </div>
+<h2>Referencia y contrarreferencia</h2>
+<div class="botonera">
+  <a class="boton-grande az" href="{% url 'flota:cargar_referencia' %}"><b>Cargar referencia y contrarreferencia del mes</b><span>Formato RYC-FO-015 (versión 002 o 001). Asigna placa y recorrido a lo facturado.</span></a>
+  <a class="boton-grande alt" href="{% url 'flota:formato_referencia' %}"><b>Descargar formato RYC-FO-015 v002</b><span>Para enviar al proceso de referencia: listas, validaciones e indicadores.</span></a>
+  <a class="boton-grande" href="{% url 'flota:referencia' %}"><b>Tablero de referencia</b><span>Oportunidad, EPS, destinos, ambulancias y traslados sin facturar.</span></a>
+</div>
 <h2>Mantenimiento y combustible reales</h2>
 <div class="botonera">
   <a class="boton-grande az" href="{% url 'flota:cargar_costos_mensuales' %}"><b>Cargar informe mensual de mantenimiento y combustible</b><span>Libro «Costos por ambulancia y mes» del parque automotor (una hoja por sede).</span></a>

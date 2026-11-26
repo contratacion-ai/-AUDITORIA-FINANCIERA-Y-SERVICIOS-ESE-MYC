@@ -440,6 +440,85 @@ class CombustibleFlotaMes(models.Model):
         return f"Combustible flota {self.mes:%Y-%m}"
 
 
+class Remision(models.Model):
+    """Registro del formato RYC-FO-015 de referencia y contrarreferencia.
+
+    No se guarda el nombre del paciente; el documento se guarda como hash con
+    sal (el mismo de la facturación y los RIPS) para cruzar con lo facturado."""
+
+    llave = models.CharField(max_length=64, unique=True, help_text="Hash de hospital, tipo, fecha de reporte, documento y destino")
+    lote = models.ForeignKey("LoteImportacion", null=True, blank=True, on_delete=models.SET_NULL, related_name="remisiones")
+    tipo_registro = models.CharField(max_length=20, default="REFERENCIA")
+    sede = models.ForeignKey(Sede, on_delete=models.PROTECT, related_name="remisiones")
+    mes = models.DateField(db_index=True)
+    fecha_reporte = models.DateTimeField(db_index=True)
+    eps = models.CharField(max_length=80, blank=True, db_index=True)
+    regimen = models.CharField(max_length=40, blank=True)
+    tipo_documento = models.CharField(max_length=5, blank=True)
+    documento_hash = models.CharField(max_length=64, blank=True, db_index=True)
+    edad = models.PositiveSmallIntegerField(null=True, blank=True)
+    unidad_edad = models.CharField(max_length=10, blank=True)
+    sexo = models.CharField(max_length=1, blank=True)
+    especialidad = models.CharField(max_length=80, blank=True)
+    cie10 = models.CharField(max_length=6, blank=True)
+    diagnostico = models.CharField(max_length=200, blank=True)
+    tipo_traslado = models.CharField(max_length=15, blank=True, db_index=True)
+    acompanamiento_medico = models.BooleanField(default=False)
+    placa_reportada = models.CharField(max_length=10, blank=True)
+    ambulancia = models.ForeignKey(Ambulancia, null=True, blank=True, on_delete=models.SET_NULL, related_name="remisiones")
+    ips_destino = models.CharField(max_length=150, blank=True)
+    municipio_destino = models.CharField(max_length=80, blank=True)
+    ruta = models.ForeignKey(TarifaRuta, null=True, blank=True, on_delete=models.SET_NULL, related_name="remisiones")
+    fecha_llamada = models.DateTimeField(null=True, blank=True)
+    fecha_llegada_equipo = models.DateTimeField(null=True, blank=True)
+    fecha_aceptacion = models.DateTimeField(null=True, blank=True)
+    fecha_salida = models.DateTimeField(null=True, blank=True)
+    fecha_llegada = models.DateTimeField(null=True, blank=True)
+    km = models.DecimalField(max_digits=8, decimal_places=1, null=True, blank=True)
+    autorizacion = models.CharField(max_length=60, blank=True)
+    factura = models.CharField(max_length=30, blank=True)
+    estado = models.CharField(max_length=40, blank=True)
+    observaciones = models.CharField(max_length=500, blank=True)
+    responsable = models.CharField(max_length=120, blank=True)
+    alertas = models.CharField(max_length=500, blank=True, help_text="Inconsistencias de horas u otros datos del registro")
+    traslado = models.ForeignKey("Traslado", null=True, blank=True, on_delete=models.SET_NULL, related_name="remisiones",
+                                 help_text="Línea de facturación con que se concilió")
+    lineas_facturadas = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["-fecha_reporte"]
+
+    def __str__(self):
+        return f"{self.fecha_reporte:%Y-%m-%d %H:%M} {self.sede} → {self.municipio_destino or self.ips_destino}"
+
+    @property
+    def espera_h(self):
+        if self.fecha_aceptacion and self.fecha_reporte:
+            return (self.fecha_aceptacion - self.fecha_reporte).total_seconds() / 3600
+        return None
+
+    @property
+    def respuesta_min(self):
+        if self.fecha_llamada and self.fecha_llegada_equipo:
+            return (self.fecha_llegada_equipo - self.fecha_llamada).total_seconds() / 60
+        return None
+
+    @property
+    def duracion_h(self):
+        if self.fecha_salida and self.fecha_llegada:
+            return (self.fecha_llegada - self.fecha_salida).total_seconds() / 3600
+        return None
+
+    def save(self, *args, **kwargs):
+        from django.utils import timezone
+
+        f = self.fecha_reporte
+        if isinstance(f, dt.datetime) and timezone.is_aware(f):
+            f = timezone.localtime(f)  # el mes es el de la hora de Colombia, no el de UTC
+        self.mes = primer_dia(f.date() if isinstance(f, dt.datetime) else f)
+        super().save(*args, **kwargs)
+
+
 # ---------------------------------------------------------------------------
 # Trazabilidad y calidad de datos
 # ---------------------------------------------------------------------------

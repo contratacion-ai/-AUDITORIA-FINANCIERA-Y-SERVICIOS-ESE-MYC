@@ -140,6 +140,7 @@ Parametro · PartidaCostoIndirecto · RegistroAuditoria · ClaveAPI
 | `HallazgoCalidad` | (`fuente`, `ubicacion`, `tipo`, `descripcion`) | celda o fila exacta del archivo fuente |
 | `RegistroAuditoria` | — | quién, cuándo y qué cambió |
 | `ActividadMensual` | (`ambulancia`, `mes`) | viajes, km estimados, galones y rendimiento esperados del informe mensual; combustible pendiente |
+| `Remision` | `llave` (hash de hospital, tipo, fecha de reporte, documento y destino) | formato RYC-FO-015: tiempos de cada etapa, EPS, tipo de traslado, placa, destino y recorrido; documento como hash; `traslado` = línea facturada con que se cruzó |
 | `CombustibleFlotaMes` | `mes` | combustible real de toda la flota, esperado, factor y reparto ambulancias / otros vehículos |
 
 Los modelos editables (`Ambulancia`, `Parametro`, `Traslado`, `Consumo`) llevan `version`, `creado_por`, `actualizado_por` y fechas (bloqueo optimista y trazabilidad).

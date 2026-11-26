@@ -482,3 +482,167 @@ class CostosMensualesTests(BaseDatos):
         self.assertEqual(load_workbook(io.BytesIO(x.content)).sheetnames, ["Por ambulancia", "Por ambulancia y mes", "Combustible flota"])
         self.assertContains(self.client.get(reverse("flota:cargas")), "Cargar informe mensual de mantenimiento y combustible")
         self.assertContains(self.client.get(reverse("flota:consumos_tabla", args=["combustible"])), "Cargar informe mensual")
+
+
+# ---------------------------------------------------------------------------
+# Referencia y contrarreferencia (RYC-FO-015)
+# ---------------------------------------------------------------------------
+
+
+def libro_referencia_v2(filas):
+    """Formato v002 generado por la aplicación con filas diligenciadas (dict clave -> valor)."""
+    from flota.importacion.referencia import COL, FILA_ENC
+    from flota.servicios.referencia import formato_vacio
+
+    wb = load_workbook(io.BytesIO(formato_vacio()))
+    ws = wb["REGISTRO"]
+    for i, f in enumerate(filas, start=FILA_ENC + 1):
+        for clave, valor in f.items():
+            ws.cell(i, COL[clave], valor)
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf
+
+
+def fila_ref(**kw):
+    base = {
+        "tipo_registro": "REFERENCIA", "sede": "Hospital San Antonio de Tame", "fecha_reporte": dt.datetime(2026, 9, 10, 8, 0),
+        "eps": "NUEVA EPS", "nombre": "PACIENTE DE PRUEBA", "tipo_documento": "CC", "documento": "1000001", "edad": 45,
+        "unidad_edad": "AÑOS", "sexo": "F", "especialidad": "MEDICINA INTERNA", "cie10": "J189", "tipo_traslado": "TAB",
+        "acompanamiento": "NO", "fecha_llamada": dt.datetime(2026, 9, 10, 9, 0), "fecha_llegada_equipo": dt.datetime(2026, 9, 10, 9, 20),
+        "placa": "OEU846", "ips_destino": "HOSPITAL REGIONAL", "municipio_destino": "SARAVENA",
+        "fecha_aceptacion": dt.datetime(2026, 9, 10, 14, 0), "fecha_salida": dt.datetime(2026, 9, 10, 15, 0),
+        "fecha_llegada": dt.datetime(2026, 9, 10, 19, 0), "estado": "TRASLADADO", "responsable": "JEFE DE TURNO",
+    }
+    base.update(kw)
+    return base
+
+
+class ReferenciaTests(BaseDatos):
+    def _his(self, documento, fecha, codigo="601T02", cantidad=101, valor=1717000, factura="FHSA1"):
+        from django.conf import settings
+
+        from flota.importacion.facturacion_his import hash_documento
+
+        return Traslado.objects.create(
+            llave_externa=f"HIS|{factura}|{fecha}|{codigo}|{documento}", origen_registro=Traslado.HIS, sede=self.tame,
+            fecha_servicio=fecha, codigo_cups=codigo, cantidad=cantidad, valor_facturado=valor, numero_factura=factura,
+            documento_hash=hash_documento("CC", documento, settings.SAL_DOCUMENTO),
+        )
+
+    def test_formato_v002(self):
+        from flota.importacion.referencia import COL, COLUMNAS, FILA_ENC, leer_referencia
+        from flota.servicios.referencia import formato_vacio
+
+        wb = load_workbook(io.BytesIO(formato_vacio()))
+        self.assertEqual(wb.sheetnames, ["REGISTRO", "INSTRUCCIONES", "INDICADOR", "MEDICION POR EPS", "CONTROL DE CAMBIOS", "LISTAS"])
+        self.assertEqual(wb["LISTAS"].sheet_state, "hidden")
+        ws = wb["REGISTRO"]
+        self.assertTrue(ws.cell(FILA_ENC, COL["placa"]).value.startswith("PLACA DE LA AMBULANCIA"))
+        self.assertTrue(str(ws.cell(FILA_ENC + 1, COL["espera_h"]).value).startswith("=IF("))
+        self.assertGreaterEqual(len(ws.data_validations.dataValidation), 20)
+        placas = [c.value for c in wb["LISTAS"]["K"][1:] if c.value]
+        self.assertIn("OEU846", placas)
+        self.assertIn("NO APLICA", placas)
+        self.assertEqual(len(COLUMNAS), ws.max_column)
+        vacio = leer_referencia(io.BytesIO(formato_vacio()), "f.xlsx", "sal")
+        self.assertEqual((vacio["version"], vacio["registros"]), ("002", []))
+
+    def test_carga_cruza_con_facturacion_y_asigna_placa_y_ruta(self):
+        from flota.models import Remision
+        from flota.servicios.referencia import importar_referencia, tablero_referencia
+
+        his = self._his("1000001", dt.date(2026, 9, 10))
+        km = self._his("1000001", dt.date(2026, 9, 10), codigo="601T01", cantidad=1, valor=459300)
+        filas = [
+            fila_ref(),
+            fila_ref(documento="2000002", fecha_reporte=dt.datetime(2026, 9, 12, 22, 0), municipio_destino="SARAVENA",
+                     fecha_aceptacion=dt.datetime(2026, 9, 14, 2, 0), fecha_salida=dt.datetime(2026, 9, 14, 3, 0),
+                     fecha_llegada=dt.datetime(2026, 9, 14, 2, 30)),  # sin facturar; llegada antes de la salida
+            fila_ref(documento="3000003", tipo_traslado="AÉREO", placa="NO APLICA", municipio_destino="", ips_destino="BOGOTÁ",
+                     eps="SANITAS"),
+            fila_ref(documento="4000004", estado="RECHAZADO POR IPS DESTINO"),
+        ]
+        lote = importar_referencia(libro_referencia_v2(filas), nombre="RYC-FO-015_TAME_2026-09.xlsx")
+        self.assertEqual((lote.nuevos, lote.detalle["version_formato"], lote.detalle["meses"]), (4, "002", ["2026-09"]))
+        self.assertEqual(lote.sede, self.tame)
+        his.refresh_from_db()
+        km.refresh_from_db()
+        self.assertEqual(his.ambulancia.placa, "OEU846")
+        self.assertEqual(km.ambulancia.placa, "OEU846")
+        self.assertEqual((his.ruta.origen, his.ruta.destino), ("TAME", "SARAVENA"))
+        self.assertIn("RYC-FO-015", his.observaciones_calidad)
+        r1 = Remision.objects.get(traslado=his)
+        self.assertEqual((r1.lineas_facturadas, r1.espera_h, r1.respuesta_min, r1.duracion_h), (2, 6.0, 20.0, 4.0))
+        self.assertNotIn("1000001", r1.documento_hash)
+        alertada = Remision.objects.get(alertas__contains="antes de")
+        self.assertIn("llegada al destino", alertada.alertas)
+
+        t = tablero_referencia(SEP, SEP)
+        tot = t["total"]
+        self.assertEqual((tot["total"], tot["trasladadas"], tot["TAB"], tot["AÉREO"], tot["conciliadas"], tot["sin_facturar"]),
+                         (4, 3, 3, 1, 1, 1))
+        self.assertEqual(tot["valor_sin_facturar"], float(his.ruta.tarifa))
+        self.assertEqual(len(t["facturado_sin_remision"]), 0)
+        self.assertEqual({d["eps"] for d in t["por_eps"]}, {"NUEVA EPS", "SANITAS"})
+
+        # recargar no duplica
+        lote2 = importar_referencia(libro_referencia_v2(filas), nombre="RYC-FO-015_TAME_2026-09.xlsx")
+        self.assertEqual((lote2.nuevos, lote2.actualizados, Remision.objects.count()), (0, 4, 4))
+
+    def test_facturado_sin_remision_y_mes_en_hora_colombia(self):
+        from flota.models import Remision
+        from flota.servicios.referencia import importar_referencia, tablero_referencia
+
+        self._his("9999999", dt.date(2026, 9, 20), factura="FHSA9")
+        # 30/09 a las 23:30 en Colombia es 01/10 en UTC: debe quedar en septiembre
+        importar_referencia(libro_referencia_v2([fila_ref(fecha_reporte=dt.datetime(2026, 9, 30, 23, 30))]), nombre="r.xlsx")
+        self.assertEqual(Remision.objects.get().mes, SEP)
+        t = tablero_referencia(SEP, SEP)
+        self.assertEqual([x["factura"] for x in t["facturado_sin_remision"]], ["FHSA9"])
+
+    def test_formato_v001_actual(self):
+        from flota.models import Remision
+        from flota.servicios.referencia import importar_referencia
+
+        wb = Workbook()
+        ws = wb.active
+        ws["A5"] = "PACIENTES REMITIDOS"
+        ws.append(["FECHA DE REPORTE DE REMISION ", "HORA DE REPORTE DE REMISION  (D/M/A)", "EPS", "IPS QUE REPORTA ",
+                   "NOMBRE DEL PACIENTE ", "TIPO DE DOCUMENTO ", "NUMERO ", "UNIDAD MEDIA EDAD", "EDAD", "SEXO",
+                   "ESPECIALIDAD REQUERIDA", "DIAGNOSTICO", "TIPO TRASLADO ", "ACOMPAÑAMIENTO MEDICO",
+                   "HORA DE LLAMADA AL EQUIPO DE REFERENCIA ", "HORA DE LLEGADA DEL EQUIPO DE REFERENCIA ",
+                   "No DE PLACA DE LA AMBULANCIA", "DESTINO ", "HORA DE ACEPTACION ", "HORA DE SALIDA DE REMISION",
+                   "HORA DE LLEGADA HOSPITAL DESTINO", "OBSERVACIONES ", "RESPONSABLE DEL TURNO"])
+        ws.append([dt.datetime(2026, 9, 5), dt.time(22, 0), "COOSALUD", "HOSPITAL SAN ANTONIO", "X", "CC", 5000005, "AÑOS", 30, "M",
+                   "ORTOPEDIA", "FRACTURA", "TAB", "NO", dt.time(22, 10), dt.time(22, 30), "OEU846", "HOSPITAL DE SARAVENA",
+                   dt.time(23, 0), dt.time(1, 0), dt.time(5, 0), "", "ENFERMERA"])
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        lote = importar_referencia(buf, nombre="v1.xlsx")
+        self.assertEqual(lote.detalle["version_formato"], "001")
+        r = Remision.objects.get()
+        self.assertEqual((r.sede, r.ambulancia.placa, r.ruta.destino), (self.tame, "OEU846", "SARAVENA"))
+        from django.utils import timezone
+
+        self.assertEqual(timezone.localtime(r.fecha_salida).day, 6)  # salida a la 01:00 del día siguiente
+        self.assertIn("día siguiente", r.alertas)
+
+    def test_pantallas(self):
+        self.client.force_login(User.objects.create_superuser("ref", "", "Clave-Prueba-1"))
+        f = self.client.get(reverse("flota:formato_referencia"))
+        self.assertEqual(load_workbook(io.BytesIO(f.content)).sheetnames[0], "REGISTRO")
+        self.assertIn("RYC-FO-015", f["Content-Disposition"])
+        r = self.client.post(reverse("flota:cargar_referencia"), {
+            "archivo": SimpleUploadedFile("ref.xlsx", libro_referencia_v2([fila_ref()]).getvalue()), "sede": "",
+        })
+        self.assertRedirects(r, reverse("flota:referencia") + "?desde=2026-09&hasta=2026-09")
+        p = self.client.get(reverse("flota:referencia"), {"desde": "2026-09", "hasta": "2026-09"})
+        self.assertContains(p, "Por mes y hospital")
+        self.assertContains(p, "NUEVA EPS")
+        x = self.client.get(reverse("flota:referencia"), {"desde": "2026-09", "hasta": "2026-09", "formato": "xlsx"})
+        self.assertEqual(load_workbook(io.BytesIO(x.content)).sheetnames,
+                         ["Por mes y hospital", "Por EPS", "Por destino", "Remisiones", "Facturado sin remisión"])
+        self.assertContains(self.client.get(reverse("flota:cargas")), "Cargar referencia y contrarreferencia del mes")

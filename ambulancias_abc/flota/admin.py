@@ -12,6 +12,7 @@ from .models import (
     PartidaCostoIndirecto,
     PerfilCostoEstudio,
     RegistroAuditoria,
+    Remision,
     Sede,
     TarifaRuta,
 )
@@ -88,6 +89,15 @@ class ActividadMensualAdmin(AuditadoAdmin):
 @admin.register(CombustibleFlotaMes)
 class CombustibleFlotaMesAdmin(AuditadoAdmin):
     list_display = ("mes", "real_flota", "esperado_flota", "factor", "asignado_ambulancias", "asignado_otros", "periodo_reporte")
+
+
+@admin.register(Remision)
+class RemisionAdmin(AuditadoAdmin):
+    list_display = ("fecha_reporte", "sede", "tipo_registro", "eps", "tipo_traslado", "ambulancia", "municipio_destino", "estado", "traslado")
+    list_filter = ("mes", "sede", "tipo_traslado", "estado")
+    search_fields = ("eps", "ips_destino", "municipio_destino", "factura", "autorizacion")
+    exclude = ("documento_hash",)
+    raw_id_fields = ("traslado",)
 
 
 @admin.register(LoteImportacion)

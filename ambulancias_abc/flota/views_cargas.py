@@ -15,7 +15,7 @@ from django.urls import reverse
 from abc_engine.calculo import METODO_REAL
 
 from .exportar import FORMATO_NUM, FORMATO_PESOS, respuesta_xlsx
-from .forms import CargaConsumosForm, CargaCostosMensualesForm, CargaFacturacionForm, CargaRipsForm
+from .forms import CargaConsumosForm, CargaCostosMensualesForm, CargaFacturacionForm, CargaReferenciaForm, CargaRipsForm
 from .models import APH, CATEGORIAS_SERVICIO, Ambulancia, Consumo, LoteImportacion, Sede, Traslado, sumar_meses
 from .servicios import importar
 from .servicios.comunes import registrar
@@ -196,6 +196,94 @@ def costos_reales_vista(request):
     return render(request, "flota/costos_reales.html", {
         **datos, "desde": desde, "hasta": hasta, "sede": sede or "", "sedes": Sede.objects.filter(activa=True),
     })
+
+
+@login_required
+def formato_referencia(request):
+    from django.http import HttpResponse
+
+    from .servicios.referencia import formato_vacio
+
+    r = HttpResponse(formato_vacio(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    r["Content-Disposition"] = 'attachment; filename="RYC-FO-015_v002_Referencia_y_contrarreferencia.xlsx"'
+    return r
+
+
+@login_required
+@permission_required("flota.add_traslado", raise_exception=True)
+def cargar_referencia(request):
+    from .servicios.referencia import importar_referencia
+
+    form = CargaReferenciaForm(request.POST or None, request.FILES or None)
+    if request.method == "POST" and form.is_valid():
+        f = form.cleaned_data["archivo"]
+        lote = importar_referencia(f, request.user, f.name, form.cleaned_data["sede"])
+        registrar(request.user, lote, "importar", {"tipo": "referencia", "archivo": f.name})
+        messages.success(request, f"Referencia cargada. {lote.resumen}")
+        if lote.hallazgos:
+            messages.warning(request, f"{lote.hallazgos} observaciones (horas fuera de orden, placas o destinos): revise Calidad.")
+        meses = lote.detalle.get("meses") or []
+        destino = reverse("flota:referencia")
+        return redirect(f"{destino}?desde={meses[0]}&hasta={meses[-1]}" if meses else destino)
+    return render(request, "flota/cargar.html", {
+        "form": form, "titulo": "Cargar referencia y contrarreferencia (RYC-FO-015)",
+        "ayuda": "Cargue el formato del mes. Cada remisión se cruza con la facturación del mismo hospital y paciente: el traslado "
+                 "facturado recibe la placa de la ambulancia y el recorrido de la remisión (sin cambiar los ya asignados), y se "
+                 "detectan traslados realizados que no se facturaron. El nombre del paciente no se guarda y el documento se guarda "
+                 "cifrado. Volver a cargar el archivo actualiza los registros.",
+        "multipart": True,
+    })
+
+
+@login_required
+def referencia_vista(request):
+    from .servicios.referencia import tablero_referencia
+
+    desde, hasta = _rango(request, meses_atras=2)
+    sede = request.GET.get("sede") or None
+    tipo = request.GET.get("tipo") or None
+    datos = tablero_referencia(desde, hasta, sede, tipo)
+    if request.GET.get("formato") == "xlsx":
+        P = FORMATO_PESOS
+        cab = ["Total", "Trasladadas", "TAB", "TAM", "Aéreo", "Fluvial", "Otro", "Con placa ESE", "Cruzadas con facturación",
+               "Sin facturar", "Valor tarifa sin facturar", "Espera prom. aceptación (h)", "% aceptadas ≤ 24 h",
+               "Respuesta equipo (min)", "Duración traslado (h)"]
+
+        def fila(d):
+            return [d["total"], d["trasladadas"], d["TAB"], d["TAM"], d["AÉREO"], d["FLUVIAL"], d["OTRO"], d["con_placa"],
+                    d["conciliadas"], d["sin_facturar"], d["valor_sin_facturar"], d["espera_h"], d["pct_24h"],
+                    d["respuesta_min"], d["duracion_h"]]
+        detalle = [[timezone_local(r.fecha_reporte), r.sede.nombre, r.tipo_registro, r.eps, r.tipo_documento, r.edad, r.unidad_edad,
+                    r.sexo, r.especialidad, r.cie10, r.diagnostico, r.tipo_traslado, "SI" if r.acompanamiento_medico else "NO",
+                    r.ambulancia.placa if r.ambulancia_id else r.placa_reportada, r.ips_destino, r.municipio_destino,
+                    str(r.ruta) if r.ruta_id else "", timezone_local(r.fecha_aceptacion), timezone_local(r.fecha_salida),
+                    timezone_local(r.fecha_llegada), r.espera_h, r.respuesta_min, r.duracion_h, r.estado,
+                    (r.traslado.numero_factura or f"línea {r.traslado_id}") if r.traslado_id else "",
+                    "Sin facturar" if r in datos["sin_facturar"] else "", r.alertas] for r in datos["remisiones"]]
+        return respuesta_xlsx(f"referencia_{desde:%Y-%m}_{hasta:%Y-%m}", [
+            ("Por mes y hospital", ["Hospital", "Mes"] + cab,
+             [[d["sede"].nombre, d["mes"]] + fila(d) for d in datos["por_mes"]], {12: P}),
+            ("Por EPS", ["EPS"] + cab, [[d["eps"]] + fila(d) for d in datos["por_eps"]], {11: P}),
+            ("Por destino", ["Destino", "Recorrido"] + cab,
+             [[d["destino"], str(d["ruta"]) if d["ruta"] else ""] + fila(d) for d in datos["por_destino"]], {12: P}),
+            ("Remisiones", ["Fecha reporte", "Hospital", "Tipo", "EPS", "Tipo doc.", "Edad", "Unidad", "Sexo", "Especialidad",
+                            "CIE-10", "Diagnóstico", "Tipo traslado", "Acompañamiento", "Placa", "IPS destino", "Municipio destino",
+                            "Recorrido", "Aceptación", "Salida", "Llegada", "Espera (h)", "Respuesta (min)", "Duración (h)",
+                            "Estado", "Factura", "Auditoría", "Alertas"], detalle, {}),
+            ("Facturado sin remisión", ["Hospital", "Fecha", "Factura", "Líneas", "Valor", "Placa"],
+             [[x["sede"].nombre, x["fecha"], x["factura"], x["lineas"], x["valor"], x["placa"].placa if x["placa"] else ""]
+              for x in datos["facturado_sin_remision"]], {4: P}),
+        ])
+    return render(request, "flota/referencia.html", {
+        **datos, "desde": desde, "hasta": hasta, "sede": sede or "", "tipo": tipo or "",
+        "sedes": Sede.objects.filter(activa=True),
+    })
+
+
+def timezone_local(d):
+    from django.utils import timezone
+
+    return timezone.localtime(d).replace(tzinfo=None) if d else None
 
 
 @login_required

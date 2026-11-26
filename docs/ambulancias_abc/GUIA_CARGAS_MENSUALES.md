@@ -97,6 +97,26 @@ Controles: el combustible asignado de las hojas debe sumar lo que dice el Resume
 
 Pantalla **Costos reales por ambulancia** (*Consumos › Costos reales por ambulancia*): por mes (mantenimiento, combustible, viajes, km, combustible real de la flota y factor), por ambulancia (totales, mantenimiento promedio mensual frente al del estudio y **costo real por km** frente al del estudio) y matrices por ambulancia y mes. Botón *Descargar (Excel)*.
 
+## 2d. Referencia y contrarreferencia (formato RYC-FO-015)
+
+**Formato versión 002** (botón *Descargar formato RYC-FO-015 v002* en *Cargas del mes* o en *Referencia*; se genera con los hospitales, las placas y los destinos vigentes en la aplicación). Cambios frente a la versión 001:
+
+| Versión 001 | Versión 002 |
+|---|---|
+| Fecha del reporte y luego solo horas (llamada, aceptación, salida, llegada) | Fecha **y** hora en cada etapa: una remisión que espera días o cruza la medianoche se mide bien |
+| Texto libre en IPS, EPS, tipo de traslado, placa, destino | Listas desplegables (hospital, EPS, régimen, tipo de documento, sexo, especialidad, TAB/TAM/aéreo/fluvial, placa, municipio destino, estado) |
+| Sin estado de la remisión | Estado: trasladado, pendiente, rechazado, cancelado, fallecido, otro medio |
+| Destino en un solo campo | IPS destino + municipio destino (del manual tarifario): identifica el recorrido y su tarifa |
+| — | Tipo de registro (referencia / contrarreferencia), régimen, CIE-10, km, autorización y factura o ingreso |
+| Indicador y medición por EPS diligenciados a mano | Calculados con fórmulas desde el registro: espera hasta aceptación, % en ≤ 24 h, respuesta del equipo, duración, por EPS y por hospital |
+| — | Hoja de instrucciones, alertas de color (horas fuera de orden, espera > 24 h) y control de cambios versión 002 |
+
+**Carga mensual** (*Cargar referencia y contrarreferencia del mes*): se acepta la versión 002 y también la 001 (con solo horas, la aplicación arma la fecha y, si una hora es menor que la anterior, toma el día siguiente y lo anota). El nombre del paciente no se lee; el documento se guarda cifrado.
+
+Cada remisión trasladada se cruza con la facturación del mismo hospital: por número de factura o autorización si se registraron, o por el mismo paciente con fecha de servicio entre el día anterior al reporte y tres días después de la salida. A las líneas facturadas encontradas (tarifa básica + km) se les asigna **la placa de la ambulancia y el recorrido** de la remisión, si no los tenían; así el costeo ABC deja de repartir esos traslados entre las ambulancias de la sede.
+
+Tablero **Referencia**: remisiones por mes y hospital, por EPS, por destino y por ambulancia; oportunidad (espera hasta aceptación, % en ≤ 24 h, respuesta del equipo, duración del traslado); **trasladadas en ambulancia de la ESE sin facturar** (con la tarifa del recorrido) y **facturado sin registro de referencia**; registros con alertas. Botón *Descargar tablero (Excel)*.
+
 ## 3. Tablas de consumos
 
 Menú **Consumos** (o los botones naranjas de *Cargas del mes*). Una pestaña por tabla:

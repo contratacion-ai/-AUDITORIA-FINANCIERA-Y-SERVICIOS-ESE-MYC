@@ -1,0 +1,78 @@
+{% extends "flota/base.html" %}{% load formato %}
+{% block titulo %}Referencia y contrarreferencia{% endblock %}
+{% block contenido %}
+<h1>Referencia y contrarreferencia (RYC-FO-015)
+  <a class="boton" style="float:right" href="?{{ request.GET.urlencode }}&formato=xlsx">Descargar tablero (Excel)</a></h1>
+<div class="botonera no-imprimir">
+  {% if perms.flota.add_traslado %}<a class="boton-grande az" href="{% url 'flota:cargar_referencia' %}"><b>Cargar formato del mes</b><span>Versión 002 o 001, de un hospital o consolidado.</span></a>{% endif %}
+  <a class="boton-grande alt" href="{% url 'flota:formato_referencia' %}"><b>Descargar formato RYC-FO-015 v002</b><span>Con listas, validaciones, indicador y medición por EPS.</span></a>
+</div>
+<form method="get" class="filtros panel no-imprimir">
+  <label>Desde <input type="month" name="desde" value="{{ desde|date:'Y-m' }}"></label>
+  <label>Hasta <input type="month" name="hasta" value="{{ hasta|date:'Y-m' }}"></label>
+  <label>Hospital <select name="sede"><option value="">Todos</option>{% for s in sedes %}<option value="{{ s.codigo }}" {% if sede == s.codigo %}selected{% endif %}>{{ s.nombre }}</option>{% endfor %}</select></label>
+  <label>Tipo de traslado <select name="tipo"><option value="">Todos</option>{% for t in tipos %}<option {% if tipo == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></label>
+  <button>Aplicar</button>
+</form>
+{% if meses_sin_facturacion %}<div class="aviso">Meses sin facturación cargada ({% for m in meses_sin_facturacion %}{{ m|date:"M Y" }}{% if not forloop.last %}, {% endif %}{% endfor %}): sus remisiones no se pueden cruzar y no se cuentan como «sin facturar».</div>{% endif %}
+
+{% with t=total %}
+<div class="kpis">
+  <div class="kpi"><div class="t">Remisiones</div><div class="v">{{ t.total|num }}</div><div class="s">{{ t.trasladadas|num }} trasladadas · {{ t.contrarreferencias|num }} contrarreferencias</div></div>
+  <div class="kpi"><div class="t">Tipo de traslado</div><div class="v">{{ t.TAB|num }} TAB · {{ t.TAM|num }} TAM</div><div class="s">{{ t.AÉREO|num }} aéreo · {{ t.FLUVIAL|num }} fluvial · {{ t.OTRO|num }} otro</div></div>
+  <div class="kpi"><div class="t">Espera hasta aceptación</div><div class="v">{{ t.espera_h|num:1|default:"—" }} h</div><div class="s">{{ t.pct_24h|num:0|default:"—" }} % en ≤ 24 h · máx. {{ t.max_espera_h|num:0|default:"—" }} h</div></div>
+  <div class="kpi"><div class="t">Respuesta del equipo · duración</div><div class="v">{{ t.respuesta_min|num:0|default:"—" }} min</div><div class="s">traslado promedio {{ t.duracion_h|num:1|default:"—" }} h</div></div>
+  <div class="kpi" style="border-left-color:var(--pos)"><div class="t">Cruzadas con la facturación</div><div class="v">{{ t.conciliadas|num }}</div><div class="s">{{ t.con_placa|num }} con placa de la ESE</div></div>
+  <div class="kpi" style="border-left-color:var(--neg)"><div class="t">Trasladadas sin facturar</div><div class="v">{{ t.sin_facturar|num }}</div><div class="s">{{ t.valor_sin_facturar|pesos }} según el manual tarifario</div></div>
+  <div class="kpi" style="border-left-color:var(--neg)"><div class="t">Facturado sin remisión</div><div class="v">{{ facturado_sin_remision|length|num }}</div><div class="s">viajes facturados sin registro de referencia</div></div>
+</div>
+{% endwith %}
+
+<div class="panel"><h2>Por mes y hospital</h2><table>
+  <tr><th>Mes</th><th>Hospital</th><th class="n">Remisiones</th><th class="n">TAB</th><th class="n">TAM</th><th class="n">Aéreo</th><th class="n">Acomp. médico</th>
+    <th class="n">Espera (h)</th><th class="n">% ≤ 24 h</th><th class="n">Respuesta (min)</th><th class="n">Duración (h)</th><th class="n">Cruzadas</th><th class="n">Sin facturar</th></tr>
+  {% for d in por_mes %}<tr><td>{{ d.mes|date:"M Y" }}</td><td>{{ d.sede }}</td><td class="n">{{ d.total|num }}</td><td class="n">{{ d.TAB|num }}</td><td class="n">{{ d.TAM|num }}</td><td class="n">{{ d.AÉREO|num }}</td>
+    <td class="n">{{ d.acompanamiento|num }}</td><td class="n">{{ d.espera_h|num:1|default:"—" }}</td><td class="n">{{ d.pct_24h|num:0|default:"—" }}</td>
+    <td class="n">{{ d.respuesta_min|num:0|default:"—" }}</td><td class="n">{{ d.duracion_h|num:1|default:"—" }}</td><td class="n">{{ d.conciliadas|num }}</td>
+    <td class="n {% if d.sin_facturar %}neg{% endif %}">{{ d.sin_facturar|num }}</td></tr>
+  {% empty %}<tr><td colspan="13" class="suave">No hay remisiones cargadas en el periodo. Descargue el formato v002, envíelo a referencia y cargue el archivo de cada mes.</td></tr>{% endfor %}
+</table></div>
+
+<div class="panel"><h2>Por EPS</h2><table>
+  <tr><th>EPS</th><th class="n">Remisiones</th><th class="n">TAB</th><th class="n">TAM</th><th class="n">Aéreo</th><th class="n">Fluvial / otro</th><th class="n">Acomp. médico</th><th class="n">Espera (h)</th><th class="n">Sin facturar</th></tr>
+  {% for d in por_eps %}<tr><td>{{ d.eps }}</td><td class="n">{{ d.total|num }}</td><td class="n">{{ d.TAB|num }}</td><td class="n">{{ d.TAM|num }}</td><td class="n">{{ d.AÉREO|num }}</td>
+    <td class="n">{{ d.FLUVIAL|add:d.OTRO|num }}</td><td class="n">{{ d.acompanamiento|num }}</td><td class="n">{{ d.espera_h|num:1|default:"—" }}</td><td class="n {% if d.sin_facturar %}neg{% endif %}">{{ d.sin_facturar|num }}</td></tr>{% endfor %}
+</table></div>
+
+<div class="panel"><h2>Por destino y recorrido</h2><table>
+  <tr><th>Destino</th><th>Recorrido del manual</th><th class="n">Tarifa 2026</th><th class="n">Remisiones</th><th class="n">TAB</th><th class="n">TAM</th><th class="n">Duración (h)</th><th class="n">Cruzadas</th><th class="n">Sin facturar</th><th class="n">Valor sin facturar</th></tr>
+  {% for d in por_destino %}<tr><td>{{ d.destino }}</td><td>{% if d.ruta %}{{ d.ruta.origen }} → {{ d.ruta.destino }} <span class="suave">({{ d.ruta.km|num }} km)</span>{% else %}<span class="suave">—</span>{% endif %}</td>
+    <td class="n">{{ d.ruta.tarifa|pesos|default:"—" }}</td><td class="n">{{ d.total|num }}</td><td class="n">{{ d.TAB|num }}</td><td class="n">{{ d.TAM|num }}</td>
+    <td class="n">{{ d.duracion_h|num:1|default:"—" }}</td><td class="n">{{ d.conciliadas|num }}</td><td class="n {% if d.sin_facturar %}neg{% endif %}">{{ d.sin_facturar|num }}</td><td class="n">{{ d.valor_sin_facturar|pesos }}</td></tr>{% endfor %}
+</table></div>
+
+<div class="panel"><h2>Por ambulancia</h2><table>
+  <tr><th>Placa</th><th>Sede</th><th class="n">Remisiones</th><th class="n">TAB</th><th class="n">TAM</th><th class="n">Km reportados</th><th class="n">Horas en traslado</th><th class="n">Cruzadas</th><th class="n">Sin facturar</th></tr>
+  {% for d in por_ambulancia %}<tr><td><a href="{% url 'flota:ambulancia' d.ambulancia.placa %}">{{ d.ambulancia.placa }}</a></td><td>{{ d.ambulancia.sede }}</td><td class="n">{{ d.total|num }}</td>
+    <td class="n">{{ d.TAB|num }}</td><td class="n">{{ d.TAM|num }}</td><td class="n">{{ d.km|num }}</td><td class="n">{{ d.horas|num:1 }}</td><td class="n">{{ d.conciliadas|num }}</td><td class="n {% if d.sin_facturar %}neg{% endif %}">{{ d.sin_facturar|num }}</td></tr>
+  {% empty %}<tr><td colspan="9" class="suave">Sin remisiones con placa de la ESE.</td></tr>{% endfor %}
+</table></div>
+
+<div class="panel"><h2>Trasladadas en ambulancia de la ESE sin facturar ({{ sin_facturar|length }})</h2><table>
+  <tr><th>Fecha reporte</th><th>Hospital</th><th>EPS</th><th>Tipo</th><th>Placa</th><th>Destino</th><th class="n">Tarifa</th><th>Autorización</th><th>Estado</th></tr>
+  {% for r in sin_facturar %}<tr><td>{{ r.fecha_reporte|date:"Y-m-d H:i" }}</td><td>{{ r.sede }}</td><td>{{ r.eps }}</td><td>{{ r.tipo_traslado }}</td><td>{{ r.ambulancia.placa }}</td>
+    <td>{{ r.municipio_destino|default:r.ips_destino }}</td><td class="n">{{ r.ruta.tarifa|pesos|default:"—" }}</td><td>{{ r.autorizacion|default:"—" }}</td><td>{{ r.estado }}</td></tr>
+  {% empty %}<tr><td colspan="9" class="suave">Ninguna en los meses con facturación cargada.</td></tr>{% endfor %}
+</table></div>
+
+<div class="panel"><h2>Facturado sin registro de referencia ({{ facturado_sin_remision|length }})</h2><table>
+  <tr><th>Hospital</th><th>Fecha</th><th>Factura</th><th class="n">Líneas</th><th class="n">Valor</th><th>Placa</th></tr>
+  {% for x in facturado_sin_remision|slice:":300" %}<tr><td>{{ x.sede }}</td><td>{{ x.fecha|date:"Y-m-d" }}</td><td>{{ x.factura|default:"(sin número)" }}</td><td class="n">{{ x.lineas }}</td><td class="n">{{ x.valor|pesos }}</td><td>{{ x.placa|default:"—" }}</td></tr>
+  {% empty %}<tr><td colspan="6" class="suave">Ninguno en hospitales y meses con referencia cargada.</td></tr>{% endfor %}
+</table></div>
+
+{% if alertas %}<div class="panel"><h2>Registros con alertas ({{ alertas|length }})</h2><table>
+  <tr><th>Fecha reporte</th><th>Hospital</th><th>Tipo</th><th>Placa</th><th>Destino</th><th>Alerta</th></tr>
+  {% for r in alertas|slice:":300" %}<tr><td>{{ r.fecha_reporte|date:"Y-m-d H:i" }}</td><td>{{ r.sede }}</td><td>{{ r.tipo_traslado }}</td><td>{{ r.placa_reportada|default:"—" }}</td><td>{{ r.municipio_destino|default:r.ips_destino }}</td><td class="suave">{{ r.alertas }}</td></tr>{% endfor %}
+</table></div>{% endif %}
+{% endblock %}

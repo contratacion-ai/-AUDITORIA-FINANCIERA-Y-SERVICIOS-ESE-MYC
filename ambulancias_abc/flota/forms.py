@@ -166,5 +166,18 @@ class CargaCostosMensualesForm(forms.Form):
     )
 
 
+class CargaReferenciaForm(forms.Form):
+    archivo = forms.FileField(
+        label="Formato RYC-FO-015 de referencia y contrarreferencia (.xlsx)",
+        widget=forms.ClearableFileInput(attrs={"accept": ".xlsx,.xlsm"}),
+        help_text="Versión 002 (descargada de esta pantalla) o la versión 001 que usa hoy el proceso. Un mes de un hospital o el consolidado.",
+    )
+    sede = forms.ModelChoiceField(
+        Sede.objects.filter(activa=True), label="Hospital", required=False,
+        empty_label="Tomarlo de cada fila (columna «Hospital que remite»)",
+        help_text="Elíjalo si el archivo es de un solo hospital y la columna viene vacía o con otro nombre.",
+    )
+
+
 class CargaConsumosForm(forms.Form):
     archivo = forms.FileField(label="Archivo (.xlsx o .csv)", widget=forms.ClearableFileInput(attrs={"accept": ".xlsx,.csv"}))
